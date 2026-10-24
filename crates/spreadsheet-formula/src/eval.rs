@@ -116,7 +116,7 @@ impl<'a, S: Sheet> Evaluator<'a, S> {
                 let values = self.range_values(start, end, sheet.as_deref())?;
                 // A range used as a scalar takes its first cell, matching what a
                 // spreadsheet does outside an aggregating function.
-                Ok(values.0.into_iter().next().unwrap_or(Value::Empty))
+                Ok(values.into_iter().next().unwrap_or(Value::Empty))
             }
             Expr::Unary { op, operand } => {
                 let v = self.eval_expr(operand)?;
@@ -232,9 +232,20 @@ impl<'a, S: Sheet> Evaluator<'a, S> {
     /// Turns an argument into a flat list of values, expanding ranges.
     fn flatten(&mut self, expr: &Expr) -> Result<Arg, Error> {
         if let Expr::Range { start, end, sheet } = expr {
-            return self.range_values(start, end, sheet.as_deref());
+            let values = self.range_values(start, end, sheet.as_deref())?;
+            return Ok(Arg::reference(values));
         }
-        Ok(Arg(vec![self.eval_expr(expr)?]))
+        // A single cell is a reference too, so `SUM(A1)` ignores a text or
+        // logical cell the way `SUM(A1:A1)` does.
+        if let Expr::Cell { column, row, sheet } = expr {
+            let cell = CellRef::new(*column, *row);
+            let value = match sheet {
+                Some(name) => self.sheet.value_in_sheet(name, cell),
+                None => self.sheet.value(cell),
+            };
+            return Ok(Arg::reference(vec![value]));
+        }
+        Ok(Arg::scalar(self.eval_expr(expr)?))
     }
 
     fn range_values(
@@ -242,7 +253,7 @@ impl<'a, S: Sheet> Evaluator<'a, S> {
         start: &Expr,
         end: &Expr,
         sheet: Option<&str>,
-    ) -> Result<Arg, Error> {
+    ) -> Result<Vec<Value>, Error> {
         let (c0, r0) = cell_of(start)?;
         let (c1, r1) = cell_of(end)?;
         let (col_lo, col_hi) = (c0.min(c1), c0.max(c1));
@@ -268,7 +279,7 @@ impl<'a, S: Sheet> Evaluator<'a, S> {
                 });
             }
         }
-        Ok(Arg(values))
+        Ok(values)
     }
 
     /// Records that a cell is being evaluated, so a recursive lookup can be

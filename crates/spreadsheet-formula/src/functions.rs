@@ -2,8 +2,10 @@
 //!
 //! Every function receives flattened arguments: a scalar argument becomes a
 //! single value and a range becomes one value per cell, in row-major order.
-//! Aggregating functions therefore do not need to know whether they were given
-//! `A1:A3` or `A1,A2,A3`.
+//! An [`Arg`] also records whether it came from a reference, because a
+//! spreadsheet treats the two differently: text, logicals and blanks in a cell
+//! are ignored by `SUM(A1:A3)`, while the same values written directly are
+//! coerced, so `SUM(TRUE)` is 1 but `SUM(A1)` is 0 when `A1` holds `TRUE`.
 //!
 //! `IF` and `IFERROR` are not here, because they must not evaluate every
 //! argument; the evaluator handles them directly.
@@ -11,23 +13,80 @@
 use crate::Error;
 use crate::value::{Error as ValueError, Value};
 
-/// A flattened argument: one value for a scalar, many for a range.
+/// A flattened argument, and whether it came from a cell or range reference.
 #[derive(Debug, Clone)]
-pub(crate) struct Arg(pub Vec<Value>);
+pub(crate) struct Arg {
+    values: Vec<Value>,
+    from_ref: bool,
+}
 
 impl Arg {
-    fn numbers(&self) -> impl Iterator<Item = f64> + '_ {
-        self.0.iter().filter_map(|v| v.as_number().ok())
+    /// An argument written directly in the formula.
+    pub(crate) fn scalar(value: Value) -> Self {
+        Self {
+            values: vec![value],
+            from_ref: false,
+        }
     }
 
-    /// Values that count as numeric: a number, a boolean, or text that reads as
-    /// a number. An empty cell is not numeric, which is what `COUNT` requires.
+    /// An argument read from cells.
+    pub(crate) fn reference(values: Vec<Value>) -> Self {
+        Self {
+            values,
+            from_ref: true,
+        }
+    }
+
+    /// The numbers this argument contributes to an aggregating function.
+    ///
+    /// A reference contributes only its numeric cells. A literal is coerced -
+    /// `TRUE` is 1, `"3"` is 3 - and a literal that is not a number is an
+    /// error, so `SUM("x")` reports a type error rather than ignoring it.
+    fn aggregate_numbers(&self, name: &str) -> Result<Vec<f64>, Error> {
+        let mut out = Vec::with_capacity(self.values.len());
+        for value in &self.values {
+            match value {
+                Value::Number(n) => out.push(*n),
+                _ if self.from_ref => {}
+                Value::Empty => out.push(0.0),
+                Value::Bool(b) => out.push(if *b { 1.0 } else { 0.0 }),
+                Value::Text(t) => match t.trim().parse::<f64>() {
+                    Ok(n) => out.push(n),
+                    Err(_) => {
+                        return Err(Error::TypeError {
+                            operation: name.to_string(),
+                            found: value.clone(),
+                        });
+                    }
+                },
+            }
+        }
+        Ok(out)
+    }
+
+    /// The values `COUNT` counts: numbers, plus logicals and numeric text when
+    /// they are written directly. A reference contributes only its numbers.
     fn countable(&self) -> usize {
-        self.0
+        self.values
             .iter()
-            .filter(|v| !v.is_empty() && v.as_number().is_ok())
+            .filter(|v| {
+                if self.from_ref {
+                    matches!(v, Value::Number(_))
+                } else {
+                    !v.is_empty() && v.as_number().is_ok()
+                }
+            })
             .count()
     }
+}
+
+/// Collects the numbers from every argument of an aggregating function.
+fn numbers_of(name: &str, args: &[Arg]) -> Result<Vec<f64>, Error> {
+    let mut out = Vec::new();
+    for arg in args {
+        out.extend(arg.aggregate_numbers(name)?);
+    }
+    Ok(out)
 }
 
 /// Calls a function by name.
@@ -35,27 +94,30 @@ pub(crate) fn call(name: &str, args: &[Arg]) -> Result<Value, Error> {
     match name {
         "SUM" => {
             require_at_least(name, args, 1)?;
-            Ok(Value::Number(args.iter().flat_map(Arg::numbers).sum()))
+            Ok(Value::Number(numbers_of(name, args)?.iter().sum()))
         }
         "PRODUCT" => {
             require_at_least(name, args, 1)?;
-            let product = args.iter().flat_map(Arg::numbers).product::<f64>();
-            Ok(Value::Number(product))
+            // The product of no numbers is 1, which is what Excel returns for
+            // `PRODUCT` over a range with no numeric cells.
+            Ok(Value::Number(
+                numbers_of(name, args)?.iter().product::<f64>(),
+            ))
         }
         "AVERAGE" => {
             require_at_least(name, args, 1)?;
-            let values: Vec<f64> = args.iter().flat_map(Arg::numbers).collect();
+            let values = numbers_of(name, args)?;
             if values.is_empty() {
-                return Ok(Value::Empty);
+                return Err(Error::Arithmetic(ValueError::DivisionByZero));
             }
             let count = values.len() as f64;
             Ok(Value::Number(values.iter().sum::<f64>() / count))
         }
         "MEDIAN" => {
             require_at_least(name, args, 1)?;
-            let mut values: Vec<f64> = args.iter().flat_map(Arg::numbers).collect();
+            let mut values = numbers_of(name, args)?;
             if values.is_empty() {
-                return Ok(Value::Empty);
+                return Err(Error::Arithmetic(ValueError::NotANumber));
             }
             values.sort_by(f64::total_cmp);
             let mid = values.len() / 2;
@@ -68,11 +130,11 @@ pub(crate) fn call(name: &str, args: &[Arg]) -> Result<Value, Error> {
         }
         "MIN" => {
             require_at_least(name, args, 1)?;
-            Ok(min_max(args, true))
+            Ok(min_max(name, args, true)?)
         }
         "MAX" => {
             require_at_least(name, args, 1)?;
-            Ok(min_max(args, false))
+            Ok(min_max(name, args, false)?)
         }
         "COUNT" => {
             require_at_least(name, args, 1)?;
@@ -83,7 +145,7 @@ pub(crate) fn call(name: &str, args: &[Arg]) -> Result<Value, Error> {
             require_at_least(name, args, 1)?;
             let n = args
                 .iter()
-                .flat_map(|a| a.0.iter())
+                .flat_map(|a| a.values.iter())
                 .filter(|v| !v.is_empty())
                 .count();
             Ok(Value::Number(n as f64))
@@ -134,7 +196,11 @@ pub(crate) fn call(name: &str, args: &[Arg]) -> Result<Value, Error> {
         }
         "COUNTIF" => {
             require_arity(name, args, 2)?;
-            let matched = args[0].0.iter().filter(|v| criterion(v, &args[1])).count();
+            let matched = args[0]
+                .values
+                .iter()
+                .filter(|v| criterion(v, &args[1]))
+                .count();
             Ok(Value::Number(matched as f64))
         }
         "SUMIF" => {
@@ -154,7 +220,7 @@ pub(crate) fn call(name: &str, args: &[Arg]) -> Result<Value, Error> {
         "COUNTBLANK" => {
             require_arity(name, args, 1)?;
             let blanks = args[0]
-                .0
+                .values
                 .iter()
                 .filter(|v| v.is_empty() || v.to_string().trim().is_empty())
                 .count();
@@ -187,7 +253,7 @@ pub(crate) fn call(name: &str, args: &[Arg]) -> Result<Value, Error> {
             require_arity(name, args, 2)?;
             let text = first_text(&args[0]);
             let times = args[1]
-                .0
+                .values
                 .first()
                 .map_or(0.0, |v| v.as_number().unwrap_or(0.0));
             if times < 0.0 {
@@ -225,7 +291,7 @@ pub(crate) fn call(name: &str, args: &[Arg]) -> Result<Value, Error> {
             require_at_least(name, args, 1)?;
             let mut out = String::new();
             for arg in args {
-                for v in &arg.0 {
+                for v in &arg.values {
                     out.push_str(&v.to_string());
                 }
             }
@@ -259,19 +325,23 @@ pub(crate) fn call(name: &str, args: &[Arg]) -> Result<Value, Error> {
         "AND" => {
             require_at_least(name, args, 1)?;
             Ok(Value::Bool(
-                args.iter().flat_map(|a| a.0.iter()).all(Value::as_bool),
+                args.iter()
+                    .flat_map(|a| a.values.iter())
+                    .all(Value::as_bool),
             ))
         }
         "OR" => {
             require_at_least(name, args, 1)?;
             Ok(Value::Bool(
-                args.iter().flat_map(|a| a.0.iter()).any(Value::as_bool),
+                args.iter()
+                    .flat_map(|a| a.values.iter())
+                    .any(Value::as_bool),
             ))
         }
         "NOT" => {
             require_arity(name, args, 1)?;
             Ok(Value::Bool(
-                !args[0].0.first().unwrap_or(&Value::Empty).as_bool(),
+                !args[0].values.first().unwrap_or(&Value::Empty).as_bool(),
             ))
         }
         other => Err(Error::UnknownFunction(other.to_string())),
@@ -307,10 +377,11 @@ fn round_to(value: f64, digits: i32, mode: RoundMode) -> f64 {
     rounded / factor
 }
 
-fn min_max(args: &[Arg], want_min: bool) -> Value {
-    let values: Vec<f64> = args.iter().flat_map(Arg::numbers).collect();
+fn min_max(name: &str, args: &[Arg], want_min: bool) -> Result<Value, Error> {
+    let values = numbers_of(name, args)?;
+    // With no numbers Excel returns 0 rather than an error or a blank.
     if values.is_empty() {
-        return Value::Empty;
+        return Ok(Value::Number(0.0));
     }
     let mut best = values[0];
     for v in &values[1..] {
@@ -318,7 +389,7 @@ fn min_max(args: &[Arg], want_min: bool) -> Value {
             best = *v;
         }
     }
-    Value::Number(best)
+    Ok(Value::Number(best))
 }
 
 fn unary_number(name: &str, args: &[Arg], f: impl Fn(f64) -> f64) -> Result<Value, Error> {
@@ -339,7 +410,7 @@ fn number_and_digits(name: &str, args: &[Arg]) -> Result<(f64, i32), Error> {
 }
 
 fn first_number(name: &str, arg: &Arg) -> Result<f64, Error> {
-    let value = arg.0.first().cloned().unwrap_or(Value::Empty);
+    let value = arg.values.first().cloned().unwrap_or(Value::Empty);
     value.as_number().map_err(|_| Error::TypeError {
         operation: name.to_string(),
         found: value,
@@ -357,11 +428,11 @@ fn matching_values(args: &[Arg]) -> Vec<f64> {
     let tested = &args[0];
     let sum_range = args.get(2).unwrap_or(&args[0]);
     tested
-        .0
+        .values
         .iter()
         .enumerate()
         .filter(|(_, value)| criterion(value, &args[1]))
-        .filter_map(|(index, _)| sum_range.0.get(index).and_then(|v| v.as_number().ok()))
+        .filter_map(|(index, _)| sum_range.values.get(index).and_then(|v| v.as_number().ok()))
         .collect()
 }
 
@@ -379,58 +450,127 @@ fn require_between(name: &str, args: &[Arg], minimum: usize, maximum: usize) -> 
 
 /// The first value of an argument, or `Empty`.
 fn first_value(arg: &Arg) -> Value {
-    arg.0.first().cloned().unwrap_or(Value::Empty)
+    arg.values.first().cloned().unwrap_or(Value::Empty)
 }
 
 /// Whether a value satisfies a criterion that may be text, a number, or a
 /// comparison such as `">3"`.
 ///
 /// The operators are the spreadsheet ones: `=`, `<>`, `<`, `<=`, `>`, `>=`. A
-/// bare value means equality. Comparison of two numbers is numeric, and anything
-/// else compares as text case-insensitively, which is what a spreadsheet does.
+/// bare value means equality. A numeric criterion is matched against numbers
+/// only, so `">2"` does not match a text cell. A text criterion is matched
+/// case-insensitively and understands the `*` and `?` wildcards, with `~`
+/// escaping the next character.
 fn criterion(value: &Value, criterion_arg: &Arg) -> bool {
+    // A logical criterion, written as `TRUE`, matches logical cells.
+    if let Some(Value::Bool(want)) = criterion_arg.values.first() {
+        return matches!(value, Value::Bool(have) if have == want);
+    }
+
     let raw = first_text(criterion_arg);
-    let (operator, rest) = match raw.as_bytes().first() {
+    let (operator, rest) = split_operator(&raw);
+    let rest = rest.trim();
+
+    // A numeric target compares numerically. Only numeric cells can satisfy it:
+    // text and blanks are never "greater than 2".
+    if let Ok(target) = rest.parse::<f64>() {
+        let number = match value {
+            Value::Number(n) => Some(*n),
+            _ => None,
+        };
+        return match operator {
+            "=" => number == Some(target),
+            "<>" => number != Some(target),
+            "<" => number.is_some_and(|n| n < target),
+            "<=" => number.is_some_and(|n| n <= target),
+            ">" => number.is_some_and(|n| n > target),
+            ">=" => number.is_some_and(|n| n >= target),
+            _ => false,
+        };
+    }
+
+    // A text target matches text cells only, so `COUNTIF(range,"*2*")` does not
+    // count the number 2. Matching is case-insensitive and wildcards apply.
+    let text = match value {
+        Value::Text(t) => Some(t.as_str()),
+        _ => None,
+    };
+    match operator {
+        "=" => text.is_some_and(|t| wildcard_match(t, rest)),
+        "<>" => !text.is_some_and(|t| wildcard_match(t, rest)),
+        "<" => text.is_some_and(|t| t.to_lowercase() < rest.to_lowercase()),
+        "<=" => text.is_some_and(|t| t.to_lowercase() <= rest.to_lowercase()),
+        ">" => text.is_some_and(|t| t.to_lowercase() > rest.to_lowercase()),
+        ">=" => text.is_some_and(|t| t.to_lowercase() >= rest.to_lowercase()),
+        _ => false,
+    }
+}
+
+/// Splits a criterion into its comparison operator and the value to compare
+/// against. A criterion with no operator is an equality test.
+fn split_operator(raw: &str) -> (&str, &str) {
+    match raw.as_bytes().first() {
         Some(b'<') if raw.starts_with("<=") => ("<=", &raw[2..]),
         Some(b'>') if raw.starts_with(">=") => (">=", &raw[2..]),
         Some(b'<') if raw.starts_with("<>") => ("<>", &raw[2..]),
         Some(b'<') => ("<", &raw[1..]),
         Some(b'>') => (">", &raw[1..]),
         Some(b'=') => ("=", &raw[1..]),
-        _ => ("=", raw.as_str()),
-    };
-    let rest = rest.trim();
-
-    // Two numbers compare numerically; anything else as text.
-    let (left_number, right_number) = (value.as_number(), rest.parse::<f64>());
-    let ordering = match (left_number, right_number) {
-        (Ok(left), Ok(right)) => left.partial_cmp(&right),
-        _ => {
-            let left = value.to_string().to_lowercase();
-            let right = rest.to_lowercase();
-            Some(left.cmp(&right))
-        }
-    };
-
-    match operator {
-        "=" => match (value.as_number(), rest.parse::<f64>()) {
-            (Ok(left), Ok(right)) => left == right,
-            _ => value.to_string().eq_ignore_ascii_case(rest),
-        },
-        "<>" => match (value.as_number(), rest.parse::<f64>()) {
-            (Ok(left), Ok(right)) => left != right,
-            _ => !value.to_string().eq_ignore_ascii_case(rest),
-        },
-        "<" => ordering == Some(std::cmp::Ordering::Less),
-        "<=" => ordering != Some(std::cmp::Ordering::Greater),
-        ">" => ordering == Some(std::cmp::Ordering::Greater),
-        ">=" => ordering != Some(std::cmp::Ordering::Less),
-        _ => false,
+        _ => ("=", raw),
     }
 }
 
+/// Case-insensitive `*`/`?` matching, where `*` is any run of characters, `?`
+/// is one character, and `~` escapes the following wildcard.
+fn wildcard_match(text: &str, pattern: &str) -> bool {
+    let text: Vec<char> = text.to_lowercase().chars().collect();
+    let pattern: Vec<char> = pattern.to_lowercase().chars().collect();
+    // Iterative backtracking: remember the last `*` so a failed match can
+    // resume there instead of recursing.
+    let (mut t, mut p) = (0usize, 0usize);
+    let (mut star, mut resume) = (None, 0usize);
+    while t < text.len() {
+        let literal = |i: usize| -> Option<char> {
+            match pattern.get(i) {
+                Some('~') => pattern.get(i + 1).copied(),
+                other => other.copied(),
+            }
+        };
+        let is_escaped = matches!(pattern.get(p), Some('~'));
+        let matches_here = match pattern.get(p) {
+            Some('*') => {
+                star = Some(p);
+                resume = t;
+                p += 1;
+                continue;
+            }
+            Some('?') => true,
+            Some(_) => literal(p) == Some(text[t]),
+            None => false,
+        };
+        if matches_here {
+            p += if is_escaped { 2 } else { 1 };
+            t += 1;
+        } else if let Some(s) = star {
+            p = s + 1;
+            resume += 1;
+            t = resume;
+        } else {
+            return false;
+        }
+    }
+    while matches!(pattern.get(p), Some('*')) {
+        p += 1;
+    }
+    p == pattern.len()
+}
+
 fn first_text(arg: &Arg) -> String {
-    arg.0.first().cloned().unwrap_or(Value::Empty).to_string()
+    arg.values
+        .first()
+        .cloned()
+        .unwrap_or(Value::Empty)
+        .to_string()
 }
 
 fn require_arity(name: &str, args: &[Arg], expected: usize) -> Result<(), Error> {
@@ -511,15 +651,16 @@ mod tests {
     use super::*;
 
     fn n(v: f64) -> Arg {
-        Arg(vec![Value::Number(v)])
+        Arg::scalar(Value::Number(v))
     }
 
+    /// A range of numbers, as a reference.
     fn nums(vs: &[f64]) -> Arg {
-        Arg(vs.iter().map(|v| Value::Number(*v)).collect())
+        Arg::reference(vs.iter().map(|v| Value::Number(*v)).collect())
     }
 
     fn t(s: &str) -> Arg {
-        Arg(vec![Value::Text(s.into())])
+        Arg::scalar(Value::Text(s.into()))
     }
 
     #[test]
@@ -538,7 +679,7 @@ mod tests {
 
     #[test]
     fn countif_accepts_a_bare_value_and_a_comparison() {
-        let range = Arg(vec![
+        let range = Arg::reference(vec![
             Value::Number(1.0),
             Value::Number(2.0),
             Value::Number(3.0),
@@ -559,8 +700,62 @@ mod tests {
     }
 
     #[test]
+    fn criteria_match_only_the_matching_type() {
+        // A numeric criterion never matches text, and a text criterion never
+        // matches a number: `COUNTIF(range,">2")` over text is 0, and
+        // `COUNTIF(range,"*2*")` does not count the number 2.
+        let mixed = Arg::reference(vec![
+            Value::Number(2.0),
+            Value::Text("abc".into()),
+            Value::Number(5.0),
+        ]);
+        assert_eq!(
+            call("COUNTIF", &[mixed.clone(), t(">2")]).unwrap(),
+            Value::Number(1.0)
+        );
+        assert_eq!(
+            call("COUNTIF", &[mixed.clone(), t("*2*")]).unwrap(),
+            Value::Number(0.0)
+        );
+        assert_eq!(
+            call("COUNTIF", &[mixed, t("<z")]).unwrap(),
+            Value::Number(1.0)
+        );
+    }
+
+    #[test]
+    fn criteria_support_wildcards() {
+        let fruits = Arg::reference(vec![
+            Value::Text("apple".into()),
+            Value::Text("banana".into()),
+            Value::Text("APPLE".into()),
+            Value::Text("cherry".into()),
+        ]);
+        let count = |c: &str| call("COUNTIF", &[fruits.clone(), t(c)]).unwrap();
+        assert_eq!(count("apple"), Value::Number(2.0));
+        assert_eq!(count("a*"), Value::Number(2.0));
+        assert_eq!(count("*e"), Value::Number(2.0));
+        assert_eq!(count("*a*"), Value::Number(3.0));
+        assert_eq!(count("?anana"), Value::Number(1.0));
+        assert_eq!(count("a?ple"), Value::Number(2.0));
+    }
+
+    #[test]
+    fn a_logical_criterion_matches_only_logicals() {
+        let range = Arg::reference(vec![
+            Value::Bool(true),
+            Value::Number(1.0),
+            Value::Bool(false),
+        ]);
+        assert_eq!(
+            call("COUNTIF", &[range, Arg::scalar(Value::Bool(true))]).unwrap(),
+            Value::Number(1.0)
+        );
+    }
+
+    #[test]
     fn countif_is_case_insensitive_over_text() {
-        let range = Arg(vec![
+        let range = Arg::reference(vec![
             Value::Text("Yes".into()),
             Value::Text("yes".into()),
             Value::Text("no".into()),
@@ -573,7 +768,7 @@ mod tests {
 
     #[test]
     fn countblank_counts_empty_cells_and_empty_text() {
-        let range = Arg(vec![
+        let range = Arg::reference(vec![
             Value::Empty,
             Value::Text(String::new()),
             Value::Number(0.0),
@@ -605,7 +800,7 @@ mod tests {
 
     #[test]
     fn ifs_returns_the_first_holding_condition() {
-        let arg = |v: Value| Arg(vec![v]);
+        let arg = |v: Value| Arg::reference(vec![v]);
         assert_eq!(
             call(
                 "IFS",
@@ -694,7 +889,7 @@ mod tests {
 
     #[test]
     fn sum_ignores_text_and_empty() {
-        let arg = Arg(vec![
+        let arg = Arg::reference(vec![
             Value::Number(1.0),
             Value::Text("x".into()),
             Value::Empty,
@@ -726,14 +921,80 @@ mod tests {
     }
 
     #[test]
-    fn average_of_no_numbers_is_empty() {
-        assert_eq!(call("AVERAGE", &[t("x")]).unwrap(), Value::Empty);
-        assert_eq!(call("MIN", &[t("x")]).unwrap(), Value::Empty);
+    fn empty_aggregates_follow_the_spreadsheet_rules() {
+        // An empty range has no numbers. AVERAGE and MEDIAN cannot produce a
+        // value and report an error, MIN and MAX return 0, and PRODUCT returns
+        // the empty product 1. Verified against Excel.
+        let empty = Arg::reference(vec![Value::Empty; 3]);
+        assert!(matches!(
+            call("AVERAGE", std::slice::from_ref(&empty)),
+            Err(Error::Arithmetic(ValueError::DivisionByZero))
+        ));
+        assert!(matches!(
+            call("MEDIAN", std::slice::from_ref(&empty)),
+            Err(Error::Arithmetic(ValueError::NotANumber))
+        ));
+        assert_eq!(
+            call("MIN", std::slice::from_ref(&empty)).unwrap(),
+            Value::Number(0.0)
+        );
+        assert_eq!(
+            call("MAX", std::slice::from_ref(&empty)).unwrap(),
+            Value::Number(0.0)
+        );
+        assert_eq!(
+            call("PRODUCT", std::slice::from_ref(&empty)).unwrap(),
+            Value::Number(1.0)
+        );
+        assert_eq!(
+            call("SUM", std::slice::from_ref(&empty)).unwrap(),
+            Value::Number(0.0)
+        );
+        // A literal that is not a number is a type error, not an ignored value.
+        assert!(matches!(
+            call("AVERAGE", &[t("x")]),
+            Err(Error::TypeError { .. })
+        ));
+    }
+
+    #[test]
+    fn references_ignore_text_logicals_and_blanks() {
+        // In a cell, `TRUE` and text are ignored by the aggregators; written
+        // directly they are coerced. This is the difference between SUM(A1) and
+        // SUM(TRUE).
+        let mixed = Arg::reference(vec![
+            Value::Number(1.0),
+            Value::Bool(true),
+            Value::Text("2".into()),
+            Value::Empty,
+        ]);
+        assert_eq!(
+            call("SUM", std::slice::from_ref(&mixed)).unwrap(),
+            Value::Number(1.0)
+        );
+        assert_eq!(
+            call("COUNT", std::slice::from_ref(&mixed)).unwrap(),
+            Value::Number(1.0)
+        );
+        assert_eq!(
+            call("MIN", std::slice::from_ref(&mixed)).unwrap(),
+            Value::Number(1.0)
+        );
+        // A literal `TRUE` counts as 1, and literal numeric text as its number.
+        assert_eq!(
+            call("SUM", &[Arg::scalar(Value::Bool(true))]).unwrap(),
+            Value::Number(1.0)
+        );
+        assert_eq!(call("SUM", &[t("2")]).unwrap(), Value::Number(2.0));
+        assert_eq!(
+            call("COUNT", &[Arg::scalar(Value::Bool(true))]).unwrap(),
+            Value::Number(1.0)
+        );
     }
 
     #[test]
     fn counting_functions_differ() {
-        let arg = Arg(vec![
+        let arg = Arg::reference(vec![
             Value::Number(1.0),
             Value::Text("x".into()),
             Value::Empty,
@@ -815,23 +1076,23 @@ mod tests {
 
     #[test]
     fn concat_converts_numbers() {
-        let arg = Arg(vec![Value::Text("n=".into()), Value::Number(18.0)]);
+        let arg = Arg::reference(vec![Value::Text("n=".into()), Value::Number(18.0)]);
         assert_eq!(call("CONCAT", &[arg]).unwrap(), Value::Text("n=18".into()));
     }
 
     #[test]
     fn logical_functions() {
-        let arg = Arg(vec![Value::Bool(true), Value::Bool(true)]);
+        let arg = Arg::reference(vec![Value::Bool(true), Value::Bool(true)]);
         assert_eq!(
             call("AND", std::slice::from_ref(&arg)).unwrap(),
             Value::Bool(true)
         );
-        let mixed = Arg(vec![Value::Bool(true), Value::Bool(false)]);
+        let mixed = Arg::reference(vec![Value::Bool(true), Value::Bool(false)]);
         assert_eq!(call("AND", &[mixed]).unwrap(), Value::Bool(false));
-        let mixed = Arg(vec![Value::Bool(true), Value::Bool(false)]);
+        let mixed = Arg::reference(vec![Value::Bool(true), Value::Bool(false)]);
         assert_eq!(call("OR", &[mixed]).unwrap(), Value::Bool(true));
         assert_eq!(
-            call("NOT", &[Arg(vec![Value::Bool(false)])]).unwrap(),
+            call("NOT", &[Arg::reference(vec![Value::Bool(false)])]).unwrap(),
             Value::Bool(true)
         );
     }

@@ -46,6 +46,35 @@ such as `">3"`, and match text case-insensitively. `SUMIF` and `AVERAGEIF` take
 the optional third argument as the range to add up, aligned by position with the
 range being tested.
 
+### Aggregation rules
+
+Aggregating functions follow the spreadsheet rule that a value read from a cell
+is treated differently from the same value written directly. In a reference,
+text, logicals and blanks are ignored; written directly, they are coerced:
+
+```rust
+# use spreadsheet_formula::{CellRef, Evaluator, Sheet, Value};
+# struct Grid;
+# impl Sheet for Grid {
+#     fn value(&self, cell: CellRef) -> Value {
+#         if (cell.column, cell.row) == (0, 0) { Value::Bool(true) } else { Value::Empty }
+#     }
+# }
+// A1 holds TRUE, but a logical in a cell is not a number.
+assert_eq!(Evaluator::new(&Grid).eval("=SUM(A1)").unwrap(), Value::Number(0.0));
+// Written directly, TRUE is coerced to 1.
+assert_eq!(Evaluator::new(&Grid).eval("=SUM(TRUE)").unwrap(), Value::Number(1.0));
+```
+
+When a range holds no numbers, `MIN` and `MAX` return `0`, `PRODUCT` returns the
+empty product `1`, and `AVERAGE` and `MEDIAN` report an error, matching Excel's
+`#DIV/0!` and `#NUM!`.
+
+Criteria follow the same type rules: a numeric criterion such as `">2"` matches
+numbers only, a text criterion never matches a number, and `COUNTIF`, `SUMIF` and
+`AVERAGEIF` understand the `*` and `?` wildcards, case-insensitively.
+
+
 Part of the [crateworks](https://github.com/cipansor/crateworks)
 workspace. Licensed under the Apache License, Version 2.0, copyright Yayasan
 Pesantren Cipansor and contributors.
