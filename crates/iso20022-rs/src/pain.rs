@@ -38,8 +38,13 @@ pub struct CreditTransferInitiation {
     pub debtor_name: String,
     /// IBAN of the account being debited.
     pub debtor_iban: String,
-    /// Optional BIC of the debtor's bank.
+    /// BIC of the debtor's bank. The schema requires `DbtrAgt`, so a message
+    /// without one cannot be written.
     pub debtor_bic: Option<String>,
+    /// Requested execution date, an ISO 8601 date such as `2026-10-21`. The
+    /// schema requires `ReqdExctnDt`, so a message without one cannot be
+    /// written.
+    pub requested_execution_date: Option<String>,
     /// The payment instructions.
     pub transfers: Vec<CreditTransfer>,
 }
@@ -73,6 +78,8 @@ impl CreditTransferInitiation {
             .and_then(|a| optional_text(a, "IBAN"))
             .ok_or(Error::MissingElement("DbtrAcct/IBAN"))?;
         let debtor_bic = find(&body, "DbtrAgt").and_then(agent_bic);
+        let requested_execution_date = find(&body, "ReqdExctnDt")
+            .and_then(|d| optional_text(d, "Dt").or_else(|| optional_text(d, "DtTm")));
 
         let mut elements = Vec::new();
         find_all(&body, "CdtTrfTxInf", &mut elements);
@@ -85,6 +92,7 @@ impl CreditTransferInitiation {
             debtor_name,
             debtor_iban,
             debtor_bic,
+            requested_execution_date,
             transfers,
         })
     }
@@ -136,15 +144,19 @@ impl CreditTransferInitiation {
     /// # Errors
     ///
     /// Returns [`Error::MissingElement`] when there are no transfers, because a
-    /// bank rejects an empty batch.
+    /// bank rejects an empty batch, or when the debtor bank BIC or the requested
+    /// execution date is absent. The schema marks `DbtrAgt` and `ReqdExctnDt` as
+    /// required, so a message without them would fail validation.
     pub fn to_xml(&self) -> Result<String> {
         if self.transfers.is_empty() {
             return Err(Error::MissingElement("CdtTrfTxInf"));
         }
-        let Some(first) = self.transfers.first() else {
-            return Err(Error::MissingElement("CdtTrfTxInf"));
+        let Some(debtor_bic) = &self.debtor_bic else {
+            return Err(Error::MissingElement("DbtrAgt"));
         };
-        let _ = first;
+        let Some(execution_date) = &self.requested_execution_date else {
+            return Err(Error::MissingElement("ReqdExctnDt"));
+        };
         let now = "2026-01-01T00:00:00Z";
         let mut out = String::with_capacity(1024 + self.transfers.len() * 512);
         out.push_str("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
@@ -177,17 +189,20 @@ impl CreditTransferInitiation {
             "      <CtrlSum>{}</CtrlSum>",
             format_decimal(self.total())
         );
+        let _ = writeln!(
+            out,
+            "      <ReqdExctnDt>\n        <Dt>{}</Dt>\n      </ReqdExctnDt>",
+            escape(execution_date)
+        );
         out.push_str("      <Dbtr>\n");
         let _ = writeln!(out, "        <Nm>{}</Nm>", escape(&self.debtor_name));
         out.push_str("      </Dbtr>\n");
         out.push_str("      <DbtrAcct>\n        <Id>\n");
         let _ = writeln!(out, "          <IBAN>{}</IBAN>", escape(&self.debtor_iban));
         out.push_str("        </Id>\n      </DbtrAcct>\n");
-        if let Some(bic) = &self.debtor_bic {
-            out.push_str("      <DbtrAgt>\n        <FinInstnId>\n");
-            let _ = writeln!(out, "          <BICFI>{}</BICFI>", escape(bic));
-            out.push_str("        </FinInstnId>\n      </DbtrAgt>\n");
-        }
+        out.push_str("      <DbtrAgt>\n        <FinInstnId>\n");
+        let _ = writeln!(out, "          <BICFI>{}</BICFI>", escape(debtor_bic));
+        out.push_str("        </FinInstnId>\n      </DbtrAgt>\n");
 
         for (i, t) in self.transfers.iter().enumerate() {
             out.push_str("      <CdtTrfTxInf>\n");
@@ -275,6 +290,7 @@ mod tests {
     </GrpHdr>
     <PmtInf>
       <PmtInfId>PMT-1</PmtInfId>
+      <ReqdExctnDt><Dt>2026-10-25</Dt></ReqdExctnDt>
       <Dbtr><Nm>Acme GmbH</Nm></Dbtr>
       <DbtrAcct><Id><IBAN>DE89370400440532013000</IBAN></Id></DbtrAcct>
       <DbtrAgt><FinInstnId><BICFI>DEUTDEFF</BICFI></FinInstnId></DbtrAgt>
@@ -302,8 +318,25 @@ mod tests {
         assert_eq!(p.debtor_name, "Acme GmbH");
         assert_eq!(p.debtor_iban, "DE89370400440532013000");
         assert_eq!(p.debtor_bic.as_deref(), Some("DEUTDEFF"));
+        assert_eq!(p.requested_execution_date.as_deref(), Some("2026-10-25"));
         assert_eq!(p.number_of_transfers(), 2);
         assert_eq!(p.total(), 750.0);
+    }
+
+    #[test]
+    fn a_message_without_a_debtor_bank_cannot_be_written() {
+        // The schema marks DbtrAgt as required.
+        let mut p = CreditTransferInitiation::parse(PAIN).unwrap();
+        p.debtor_bic = None;
+        assert_eq!(p.to_xml(), Err(Error::MissingElement("DbtrAgt")));
+    }
+
+    #[test]
+    fn a_message_without_an_execution_date_cannot_be_written() {
+        // The schema marks ReqdExctnDt as required.
+        let mut p = CreditTransferInitiation::parse(PAIN).unwrap();
+        p.requested_execution_date = None;
+        assert_eq!(p.to_xml(), Err(Error::MissingElement("ReqdExctnDt")));
     }
 
     #[test]

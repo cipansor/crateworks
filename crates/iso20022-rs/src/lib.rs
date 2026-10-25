@@ -3,6 +3,7 @@
 
 pub mod amount;
 pub mod camt;
+pub mod pacs;
 pub mod pain;
 
 pub use amount::{Amount, Currency};

@@ -1,5 +1,8 @@
 # iso6346
 
+[![crates.io](https://img.shields.io/crates/v/iso6346.svg)](https://crates.io/crates/iso6346)
+[![docs.rs](https://docs.rs/iso6346/badge.svg)](https://docs.rs/iso6346)
+
 Shipping container codes, the eleven-character identifiers painted on the side
 of every freight container: `CSQU3054383`. The crate parses one, validates its
 check digit, and generates the check digit for a new code.

@@ -1,5 +1,8 @@
 # fuzzy-score
 
+[![crates.io](https://img.shields.io/crates/v/fuzzy-score.svg)](https://crates.io/crates/fuzzy-score)
+[![docs.rs](https://docs.rs/fuzzy-score/badge.svg)](https://docs.rs/fuzzy-score)
+
 Fuzzy string matching that gives the same scores as Python's `fuzzywuzzy`.
 `"mariners vs angels"` and `"los angeles angels at seattle mariners"` score 86,
 `"new york mets"` and `"the wonderful new york mets"` score 90, and both numbers
