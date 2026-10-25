@@ -248,11 +248,36 @@ pub(crate) mod checksum {
         era * 146_097 + day_of_era - 719_468
     }
 
+    /// The proleptic Gregorian date for days since 1970-01-01, the inverse of
+    /// `days_from_civil`.
+    fn civil_from_days(days: i64) -> (u32, u32, u32) {
+        let z = days + 719_468;
+        let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+        let day_of_era = z - era * 146_097;
+        let year_of_era =
+            (day_of_era - day_of_era / 1460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
+        let year = year_of_era + era * 400;
+        let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
+        let mp = (5 * day_of_year + 2) / 153;
+        let day = day_of_year - (153 * mp + 2) / 5 + 1;
+        let month = if mp < 10 { mp + 3 } else { mp - 9 };
+        let year = if month <= 2 { year + 1 } else { year };
+        (year as u32, month as u32, day as u32)
+    }
+
     /// Days since 1970-01-01 for today, in UTC.
     fn today_days() -> i64 {
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map_or(0, |elapsed| (elapsed.as_secs() / 86_400) as i64)
+    }
+
+    /// The current year in UTC.
+    ///
+    /// A few schemes write a two-digit year and infer the century from the
+    /// present, so they need the present to reproduce the reference.
+    pub(crate) fn current_year() -> u32 {
+        civil_from_days(today_days()).0
     }
 
     /// Whether the date is today or earlier.

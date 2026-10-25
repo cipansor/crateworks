@@ -44,7 +44,7 @@ fn every_labelled_number_agrees_with_python_stdnum() {
             disagreements.push(format!("{name} {value:?}"));
         }
     }
-    assert!(agree > 8000, "only {agree} vectors were compared");
+    assert!(agree > 15_500, "only {agree} vectors were compared");
     assert!(
         disagreements.is_empty(),
         "{} numbers disagree with python-stdnum: {:?}",
@@ -82,6 +82,34 @@ fn country_named(name: &str) -> Option<Country> {
         "ChinaRic" => Country::ChinaRic,
         "KoreaRrn" => Country::KoreaRrn,
         "MexicoRfc" => Country::MexicoRfc,
+        "ChileRut" => Country::ChileRut,
+        "ColombiaNit" => Country::ColombiaNit,
+        "PeruRuc" => Country::PeruRuc,
+        "UruguayRut" => Country::UruguayRut,
+        "ArgentinaCuit" => Country::ArgentinaCuit,
+        "VenezuelaRif" => Country::VenezuelaRif,
+        "IrelandVat" => Country::IrelandVat,
+        "IrelandPps" => Country::IrelandPps,
+        "HungaryAnum" => Country::HungaryAnum,
+        "CroatiaOib" => Country::CroatiaOib,
+        "BulgariaEgn" => Country::BulgariaEgn,
+        "BulgariaPnf" => Country::BulgariaPnf,
+        "CzechRc" => Country::CzechRc,
+        "SlovakiaRc" => Country::SlovakiaRc,
+        "EstoniaIk" => Country::EstoniaIk,
+        "LithuaniaAsmens" => Country::LithuaniaAsmens,
+        "LuxembourgTva" => Country::LuxembourgTva,
+        "SwitzerlandSsn" => Country::SwitzerlandSsn,
+        "SwitzerlandUid" => Country::SwitzerlandUid,
+        "RussiaInn" => Country::RussiaInn,
+        "RussiaOgrn" => Country::RussiaOgrn,
+        "UkraineEdrpou" => Country::UkraineEdrpou,
+        "IsraelIdnr" => Country::IsraelIdnr,
+        "ThailandPin" => Country::ThailandPin,
+        "SingaporeUen" => Country::SingaporeUen,
+        "MalaysiaNric" => Country::MalaysiaNric,
+        "SouthAfricaIdnr" => Country::SouthAfricaIdnr,
+        "GreeceAmka" => Country::GreeceAmka,
         _ => return None,
     })
 }

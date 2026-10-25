@@ -13,10 +13,17 @@ assert!(Iban::parse("GB82 WEST 1234 5698 7654 32").is_ok());
 assert!(Luhn::parse("4539148803436467").is_ok());
 ```
 
-Checksum and structure only; nothing here contacts a registry. Twenty-nine
-national identifiers are covered, from the Indonesian NPWP and NIK and the
-Brazilian CPF and CNPJ to the Spanish DNI, the German tax ID, the Polish PESEL
-and the Indian Aadhaar; [`Country::ALL`](https://docs.rs/stdnum-rs) lists them.
+Checksum and structure only; nothing here contacts a registry. Fifty-seven
+national identifiers are covered, across Latin America (the Chilean RUT, the
+Colombian NIT, the Peruvian RUC, the Argentine CUIT and others), Europe (the
+Irish VAT and PPS numbers, the Croatian OIB, the Czech and Slovak birth
+numbers, the Swiss AHV/AVS and UID, the Russian ИНН and ОГРН, the Ukrainian
+ЄДРПОУ) and Asia, the Middle East and Africa (the Israeli identity number, the
+Thai PIN, the Singapore UEN, the Malaysian NRIC, the South African identity
+number and the Greek ΑΜΚΑ), alongside the first set that runs from the
+Indonesian NPWP and NIK and the Brazilian CPF and CNPJ to the Spanish DNI, the
+German tax ID, the Polish PESEL and the Indian Aadhaar;
+[`Country::ALL`](https://docs.rs/stdnum-rs) lists them all.
 
 ## Data provenance
 
@@ -26,12 +33,14 @@ contributors, which in turn follows each authority's published specification.
 This is an independent reimplementation and shares no code with it; see
 [`NOTICE`](https://github.com/cipansor/crateworks/blob/main/crates/stdnum-rs/NOTICE).
 
-`tests/fixtures/stdnum_vectors.tsv` holds 8,719 numbers labelled by that
+`tests/fixtures/stdnum_vectors.tsv` holds 16,309 numbers labelled by that
 reference: every number in its own documentation plus each single-digit
 substitution of a valid number, the last character dropped and a character
 appended. `tests/readme.rs` replays the file, so a change that makes this crate
 disagree with the reference fails the build. The check digit, the accepted
-shapes and the separator characters all came out of that comparison.
+shapes and the separator characters all came out of that comparison, and
+`research/tools/gen_stdnum_vectors.py` regenerates the file when a country is
+added.
 
 Each number type lives in its own module so that a program only pays for
 what it uses, and `validate` offers a uniform entry point when the type

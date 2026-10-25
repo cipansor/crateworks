@@ -15,15 +15,24 @@
 use crate::{Error, Result};
 
 mod asia;
+mod asia_ext;
 mod brazil;
 mod europe;
+mod europe_ext;
+mod latin_america;
 mod nordics;
 mod oceania;
 mod southeast_asia;
 
 use asia::{china, india, korea, mexico, turkey};
+use asia_ext::{greece, israel, malaysia, singapore, south_africa, thailand};
 use brazil::{cnpj, cpf};
 use europe::{belgium, france, germany, italy, netherlands, poland, portugal, romania, spain};
+use europe_ext::{
+    bulgaria, croatia, czechoslovakia, estonia, hungary, ireland, lithuania, luxembourg, russia,
+    switzerland, ukraine,
+};
+use latin_america::{argentina, chile, colombia, peru, uruguay, venezuela};
 use nordics::{denmark, finland, norway, sweden};
 use oceania::{australia, canada, new_zealand};
 use southeast_asia::{indonesia, philippines};
@@ -92,6 +101,62 @@ pub enum Country {
     KoreaRrn,
     /// Mexico: RFC tax number, 12 or 13 characters.
     MexicoRfc,
+    /// Chile: RUT, 8 or 9 digits with a check character.
+    ChileRut,
+    /// Colombia: NIT, 8 to 16 digits.
+    ColombiaNit,
+    /// Peru: RUC, 11 digits.
+    PeruRuc,
+    /// Uruguay: RUT, 12 digits.
+    UruguayRut,
+    /// Argentina: CUIT, 11 digits.
+    ArgentinaCuit,
+    /// Venezuela: RIF, a taxpayer letter and 9 digits.
+    VenezuelaRif,
+    /// Ireland: VAT number.
+    IrelandVat,
+    /// Ireland: PPS number.
+    IrelandPps,
+    /// Hungary: adószám tax number, 8 digits.
+    HungaryAnum,
+    /// Croatia: OIB, 11 digits.
+    CroatiaOib,
+    /// Bulgaria: EGN personal number, 10 digits.
+    BulgariaEgn,
+    /// Bulgaria: PNF number for a foreigner, 10 digits.
+    BulgariaPnf,
+    /// Czech Republic: RČ birth number, 9 or 10 digits.
+    CzechRc,
+    /// Slovakia: RČ birth number, 9 or 10 digits.
+    SlovakiaRc,
+    /// Estonia: isikukood, 11 digits.
+    EstoniaIk,
+    /// Lithuania: asmens kodas, 11 digits.
+    LithuaniaAsmens,
+    /// Luxembourg: TVA VAT number, 8 digits.
+    LuxembourgTva,
+    /// Switzerland: AHV/AVS social security number, 13 digits.
+    SwitzerlandSsn,
+    /// Switzerland: UID business number, 12 characters.
+    SwitzerlandUid,
+    /// Russia: ИНН, 10 or 12 digits.
+    RussiaInn,
+    /// Russia: ОГРН, 13 or 15 digits.
+    RussiaOgrn,
+    /// Ukraine: ЄДРПОУ entity code, 8 digits.
+    UkraineEdrpou,
+    /// Israel: identity number, up to 9 digits.
+    IsraelIdnr,
+    /// Thailand: personal identification number, 13 digits.
+    ThailandPin,
+    /// Singapore: UEN, 9 or 10 characters.
+    SingaporeUen,
+    /// Malaysia: NRIC identity card number, 12 digits.
+    MalaysiaNric,
+    /// South Africa: identity number, 13 digits.
+    SouthAfricaIdnr,
+    /// Greece: ΑΜΚΑ social security number, 11 digits.
+    GreeceAmka,
 }
 
 impl Country {
@@ -126,6 +191,34 @@ impl Country {
         Self::ChinaRic,
         Self::KoreaRrn,
         Self::MexicoRfc,
+        Self::ChileRut,
+        Self::ColombiaNit,
+        Self::PeruRuc,
+        Self::UruguayRut,
+        Self::ArgentinaCuit,
+        Self::VenezuelaRif,
+        Self::IrelandVat,
+        Self::IrelandPps,
+        Self::HungaryAnum,
+        Self::CroatiaOib,
+        Self::BulgariaEgn,
+        Self::BulgariaPnf,
+        Self::CzechRc,
+        Self::SlovakiaRc,
+        Self::EstoniaIk,
+        Self::LithuaniaAsmens,
+        Self::LuxembourgTva,
+        Self::SwitzerlandSsn,
+        Self::SwitzerlandUid,
+        Self::RussiaInn,
+        Self::RussiaOgrn,
+        Self::UkraineEdrpou,
+        Self::IsraelIdnr,
+        Self::ThailandPin,
+        Self::SingaporeUen,
+        Self::MalaysiaNric,
+        Self::SouthAfricaIdnr,
+        Self::GreeceAmka,
     ];
 
     /// A short English description of the identifier.
@@ -161,6 +254,34 @@ impl Country {
             Self::ChinaRic => "China resident identity card",
             Self::KoreaRrn => "South Korea resident registration number",
             Self::MexicoRfc => "Mexico RFC",
+            Self::ChileRut => "Chile RUT",
+            Self::ColombiaNit => "Colombia NIT",
+            Self::PeruRuc => "Peru RUC",
+            Self::UruguayRut => "Uruguay RUT",
+            Self::ArgentinaCuit => "Argentina CUIT",
+            Self::VenezuelaRif => "Venezuela RIF",
+            Self::IrelandVat => "Ireland VAT number",
+            Self::IrelandPps => "Ireland PPS number",
+            Self::HungaryAnum => "Hungary adószám",
+            Self::CroatiaOib => "Croatia OIB",
+            Self::BulgariaEgn => "Bulgaria EGN",
+            Self::BulgariaPnf => "Bulgaria PNF",
+            Self::CzechRc => "Czech Republic RČ birth number",
+            Self::SlovakiaRc => "Slovakia RČ birth number",
+            Self::EstoniaIk => "Estonia isikukood",
+            Self::LithuaniaAsmens => "Lithuania asmens kodas",
+            Self::LuxembourgTva => "Luxembourg TVA",
+            Self::SwitzerlandSsn => "Switzerland AHV/AVS number",
+            Self::SwitzerlandUid => "Switzerland UID",
+            Self::RussiaInn => "Russia ИНН",
+            Self::RussiaOgrn => "Russia ОГРН",
+            Self::UkraineEdrpou => "Ukraine ЄДРПОУ",
+            Self::IsraelIdnr => "Israel identity number",
+            Self::ThailandPin => "Thailand personal identification number",
+            Self::SingaporeUen => "Singapore UEN",
+            Self::MalaysiaNric => "Malaysia NRIC",
+            Self::SouthAfricaIdnr => "South Africa identity number",
+            Self::GreeceAmka => "Greece ΑΜΚΑ",
         }
     }
 }
@@ -230,6 +351,34 @@ impl IdNumber {
             Country::ChinaRic => china::validate_ric(subject)?,
             Country::KoreaRrn => korea::validate_rrn(subject)?,
             Country::MexicoRfc => mexico::validate_rfc(subject)?,
+            Country::ChileRut => chile::validate_rut(subject)?,
+            Country::ColombiaNit => colombia::validate_nit(subject)?,
+            Country::PeruRuc => peru::validate_ruc(subject)?,
+            Country::UruguayRut => uruguay::validate_rut(subject)?,
+            Country::ArgentinaCuit => argentina::validate_cuit(subject)?,
+            Country::VenezuelaRif => venezuela::validate_rif(subject)?,
+            Country::IrelandVat => ireland::validate_vat(subject)?,
+            Country::IrelandPps => ireland::validate_pps(subject)?,
+            Country::HungaryAnum => hungary::validate_anum(subject)?,
+            Country::CroatiaOib => croatia::validate_oib(subject)?,
+            Country::BulgariaEgn => bulgaria::validate_egn(subject)?,
+            Country::BulgariaPnf => bulgaria::validate_pnf(subject)?,
+            Country::CzechRc => czechoslovakia::validate_rc(subject)?,
+            Country::SlovakiaRc => czechoslovakia::validate_rc(subject)?,
+            Country::EstoniaIk => estonia::validate_ik(subject)?,
+            Country::LithuaniaAsmens => lithuania::validate_asmens(subject)?,
+            Country::LuxembourgTva => luxembourg::validate_tva(subject)?,
+            Country::SwitzerlandSsn => switzerland::validate_ssn(subject)?,
+            Country::SwitzerlandUid => switzerland::validate_uid(subject)?,
+            Country::RussiaInn => russia::validate_inn(subject)?,
+            Country::RussiaOgrn => russia::validate_ogrn(subject)?,
+            Country::UkraineEdrpou => ukraine::validate_edrpou(subject)?,
+            Country::IsraelIdnr => israel::validate_idnr(subject)?,
+            Country::ThailandPin => thailand::validate_pin(subject)?,
+            Country::SingaporeUen => singapore::validate_uen(subject)?,
+            Country::MalaysiaNric => malaysia::validate_nric(subject)?,
+            Country::SouthAfricaIdnr => south_africa::validate_idnr(subject)?,
+            Country::GreeceAmka => greece::validate_amka(subject)?,
         }
         Ok(Self {
             country,
