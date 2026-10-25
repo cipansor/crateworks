@@ -83,6 +83,22 @@ pub enum Country {
     Canada,
     /// New Zealand.
     NewZealand,
+    /// Czechia.
+    Czechia,
+    /// Slovakia.
+    Slovakia,
+    /// Croatia.
+    Croatia,
+    /// Slovenia.
+    Slovenia,
+    /// Estonia.
+    Estonia,
+    /// Lithuania.
+    Lithuania,
+    /// Luxembourg.
+    Luxembourg,
+    /// Iceland.
+    Iceland,
 }
 
 impl Country {
@@ -107,6 +123,14 @@ impl Country {
         Self::Ireland,
         Self::Canada,
         Self::NewZealand,
+        Self::Czechia,
+        Self::Slovakia,
+        Self::Croatia,
+        Self::Slovenia,
+        Self::Estonia,
+        Self::Lithuania,
+        Self::Luxembourg,
+        Self::Iceland,
     ];
 
     /// The holiday rules for this country, in no particular order.
@@ -132,6 +156,14 @@ impl Country {
             Self::Ireland => IRELAND,
             Self::Canada => CANADA,
             Self::NewZealand => NEW_ZEALAND,
+            Self::Czechia => CZECHIA,
+            Self::Slovakia => SLOVAKIA,
+            Self::Croatia => CROATIA,
+            Self::Slovenia => SLOVENIA,
+            Self::Estonia => ESTONIA,
+            Self::Lithuania => LITHUANIA,
+            Self::Luxembourg => LUXEMBOURG,
+            Self::Iceland => ICELAND,
         }
     }
 
@@ -156,7 +188,15 @@ impl Country {
             | Self::Sweden
             | Self::Norway
             | Self::Denmark
-            | Self::Finland => SubstituteStyle::None,
+            | Self::Finland
+            | Self::Czechia
+            | Self::Slovakia
+            | Self::Croatia
+            | Self::Slovenia
+            | Self::Estonia
+            | Self::Lithuania
+            | Self::Luxembourg
+            | Self::Iceland => SubstituteStyle::None,
         }
     }
 
@@ -183,6 +223,14 @@ impl Country {
             Self::Ireland => "Ireland",
             Self::Canada => "Canada",
             Self::NewZealand => "New Zealand",
+            Self::Czechia => "Czechia",
+            Self::Slovakia => "Slovakia",
+            Self::Croatia => "Croatia",
+            Self::Slovenia => "Slovenia",
+            Self::Estonia => "Estonia",
+            Self::Lithuania => "Lithuania",
+            Self::Luxembourg => "Luxembourg",
+            Self::Iceland => "Iceland",
         }
     }
 }
@@ -316,6 +364,54 @@ impl Calendar {
     #[must_use]
     pub const fn new_zealand() -> Self {
         Self::new(Country::NewZealand)
+    }
+
+    /// Builds the calendar for Czechia.
+    #[must_use]
+    pub const fn czechia() -> Self {
+        Self::new(Country::Czechia)
+    }
+
+    /// Builds the calendar for Slovakia.
+    #[must_use]
+    pub const fn slovakia() -> Self {
+        Self::new(Country::Slovakia)
+    }
+
+    /// Builds the calendar for Croatia.
+    #[must_use]
+    pub const fn croatia() -> Self {
+        Self::new(Country::Croatia)
+    }
+
+    /// Builds the calendar for Slovenia.
+    #[must_use]
+    pub const fn slovenia() -> Self {
+        Self::new(Country::Slovenia)
+    }
+
+    /// Builds the calendar for Estonia.
+    #[must_use]
+    pub const fn estonia() -> Self {
+        Self::new(Country::Estonia)
+    }
+
+    /// Builds the calendar for Lithuania.
+    #[must_use]
+    pub const fn lithuania() -> Self {
+        Self::new(Country::Lithuania)
+    }
+
+    /// Builds the calendar for Luxembourg.
+    #[must_use]
+    pub const fn luxembourg() -> Self {
+        Self::new(Country::Luxembourg)
+    }
+
+    /// Builds the calendar for Iceland.
+    #[must_use]
+    pub const fn iceland() -> Self {
+        Self::new(Country::Iceland)
     }
 
     /// The underlying country.
@@ -561,6 +657,385 @@ impl Calendar {
 const fn h(name: &'static str, rule: Rule) -> Holiday {
     Holiday { name, rule }
 }
+
+/// Czechia.
+///
+/// Good Friday became a public holiday in 2016 and Statehood Day in 2000, so
+/// both are year-restricted rather than always present.
+static CZECHIA: &[Holiday] = &[
+    h("Nový rok", Rule::Fixed { month: 1, day: 1 }),
+    h(
+        "Velký pátek",
+        Rule::Since {
+            year: 2016,
+            base: &Rule::EasterOffset(-2),
+        },
+    ),
+    h("Velikonoční pondělí", Rule::EasterOffset(1)),
+    h("Svátek práce", Rule::Fixed { month: 5, day: 1 }),
+    h("Den vítězství", Rule::Fixed { month: 5, day: 8 }),
+    h(
+        "Den slovanských věrozvěstů Cyrila a Metoděje",
+        Rule::Fixed { month: 7, day: 5 },
+    ),
+    h(
+        "Den upálení mistra Jana Husa",
+        Rule::Fixed { month: 7, day: 6 },
+    ),
+    h(
+        "Den české státnosti",
+        Rule::Since {
+            year: 2000,
+            base: &Rule::Fixed { month: 9, day: 28 },
+        },
+    ),
+    h(
+        "Den vzniku samostatného československého státu",
+        Rule::Fixed { month: 10, day: 28 },
+    ),
+    h(
+        "Den boje za svobodu a demokracii",
+        Rule::Fixed { month: 11, day: 17 },
+    ),
+    h("Štědrý den", Rule::Fixed { month: 12, day: 24 }),
+    h("1. svátek vánoční", Rule::Fixed { month: 12, day: 25 }),
+    h("2. svátek vánoční", Rule::Fixed { month: 12, day: 26 }),
+];
+
+/// Slovakia.
+///
+/// Victory over Fascism Day and Our Lady of the Seven Sorrows are both dropped
+/// for 2026, and the Constitution Day and Struggle for Freedom Day exist only
+/// up to 2023 and 2024 respectively.
+static SLOVAKIA: &[Holiday] = &[
+    h(
+        "Deň vzniku Slovenskej republiky",
+        Rule::Fixed { month: 1, day: 1 },
+    ),
+    h("Zjavenie Pána", Rule::Fixed { month: 1, day: 6 }),
+    h("Veľký piatok", Rule::EasterOffset(-2)),
+    h("Veľkonočný pondelok", Rule::EasterOffset(1)),
+    h("Sviatok práce", Rule::Fixed { month: 5, day: 1 }),
+    h(
+        "Deň víťazstva nad fašizmom",
+        Rule::Since {
+            year: 1997,
+            base: &Rule::ExceptYears {
+                base: &Rule::Fixed { month: 5, day: 8 },
+                years: &[2026],
+            },
+        },
+    ),
+    h(
+        "Sviatok svätého Cyrila a svätého Metoda",
+        Rule::Fixed { month: 7, day: 5 },
+    ),
+    h(
+        "Výročie Slovenského národného povstania",
+        Rule::Fixed { month: 8, day: 29 },
+    ),
+    h(
+        "Deň Ústavy Slovenskej republiky",
+        Rule::Until {
+            year: 2023,
+            base: &Rule::Fixed { month: 9, day: 1 },
+        },
+    ),
+    h(
+        "Sedembolestná Panna Mária",
+        Rule::ExceptYears {
+            base: &Rule::Fixed { month: 9, day: 15 },
+            years: &[2026],
+        },
+    ),
+    h(
+        "Sviatok Všetkých svätých",
+        Rule::Fixed { month: 11, day: 1 },
+    ),
+    h(
+        "Deň boja za slobodu a demokraciu",
+        Rule::Between {
+            from: 2001,
+            to: 2024,
+            base: &Rule::Fixed { month: 11, day: 17 },
+        },
+    ),
+    h("Štedrý deň", Rule::Fixed { month: 12, day: 24 }),
+    h("Prvý sviatok vianočný", Rule::Fixed { month: 12, day: 25 }),
+    h("Druhý sviatok vianočný", Rule::Fixed { month: 12, day: 26 }),
+    // A one-off declared for the centenary of the Declaration of the Slovak
+    // Nation; no rule can express it, so it is pinned to its only year.
+    h(
+        "100. výročie prijatia Deklarácie slovenského národa",
+        Rule::Once {
+            year: 2018,
+            month: 10,
+            day: 30,
+        },
+    ),
+];
+
+/// Croatia.
+///
+/// Statehood Day moved between 30 May and 25 June, and Independence Day only
+/// existed from 2002 to 2019, so the year windows are part of the calendar.
+static CROATIA: &[Holiday] = &[
+    h("Nova godina", Rule::Fixed { month: 1, day: 1 }),
+    h(
+        "Bogojavljenje ili Sveta tri kralja",
+        // Not observed in 2002.
+        Rule::ExceptYears {
+            base: &Rule::Fixed { month: 1, day: 6 },
+            years: &[2002],
+        },
+    ),
+    h(
+        "Uskrs",
+        Rule::Since {
+            year: 2009,
+            base: &Rule::EasterOffset(0),
+        },
+    ),
+    h("Uskrsni ponedjeljak", Rule::EasterOffset(1)),
+    h(
+        "Tijelovo",
+        Rule::Since {
+            year: 2002,
+            base: &Rule::EasterOffset(60),
+        },
+    ),
+    h("Praznik rada", Rule::Fixed { month: 5, day: 1 }),
+    h(
+        "Dan državnosti",
+        Rule::Until {
+            year: 2001,
+            base: &Rule::Fixed { month: 5, day: 30 },
+        },
+    ),
+    h(
+        "Dan državnosti",
+        Rule::Between {
+            from: 2002,
+            to: 2019,
+            base: &Rule::Fixed { month: 6, day: 25 },
+        },
+    ),
+    h(
+        "Dan državnosti",
+        Rule::Since {
+            year: 2020,
+            base: &Rule::Fixed { month: 5, day: 30 },
+        },
+    ),
+    h(
+        "Dan antifašističke borbe",
+        Rule::Fixed { month: 6, day: 22 },
+    ),
+    h(
+        "Dan pobjede i domovinske zahvalnosti",
+        Rule::Fixed { month: 8, day: 5 },
+    ),
+    h("Velika Gospa", Rule::Fixed { month: 8, day: 15 }),
+    h(
+        "Dan neovisnosti",
+        Rule::Between {
+            from: 2002,
+            to: 2019,
+            base: &Rule::Fixed { month: 10, day: 8 },
+        },
+    ),
+    h("Svi sveti", Rule::Fixed { month: 11, day: 1 }),
+    h(
+        "Dan sjećanja na žrtve Domovinskog rata",
+        Rule::Since {
+            year: 2020,
+            base: &Rule::Fixed { month: 11, day: 18 },
+        },
+    ),
+    h("Božić", Rule::Fixed { month: 12, day: 25 }),
+    h("Sveti Stjepan", Rule::Fixed { month: 12, day: 26 }),
+];
+
+/// Slovenia.
+///
+/// 2 January was abolished from 2013 to 2016 and restored in 2017.
+static SLOVENIA: &[Holiday] = &[
+    h("novo leto", Rule::Fixed { month: 1, day: 1 }),
+    h(
+        "novo leto",
+        Rule::ExceptYears {
+            base: &Rule::Fixed { month: 1, day: 2 },
+            years: &[2013, 2014, 2015, 2016],
+        },
+    ),
+    h(
+        "Prešernov dan, slovenski kulturni praznik",
+        Rule::Fixed { month: 2, day: 8 },
+    ),
+    h("velikonočna nedelja", Rule::EasterOffset(0)),
+    h("velikonočni ponedeljek", Rule::EasterOffset(1)),
+    h(
+        "dan upora proti okupatorju",
+        Rule::Fixed { month: 4, day: 27 },
+    ),
+    h("praznik dela", Rule::Fixed { month: 5, day: 1 }),
+    h("praznik dela", Rule::Fixed { month: 5, day: 2 }),
+    h("binkoštna nedelja", Rule::EasterOffset(49)),
+    h("dan državnosti", Rule::Fixed { month: 6, day: 25 }),
+    h("Marijino vnebovzetje", Rule::Fixed { month: 8, day: 15 }),
+    h("dan reformacije", Rule::Fixed { month: 10, day: 31 }),
+    h("dan spomina na mrtve", Rule::Fixed { month: 11, day: 1 }),
+    h("božič", Rule::Fixed { month: 12, day: 25 }),
+    h(
+        "dan samostojnosti in enotnosti",
+        Rule::Fixed { month: 12, day: 26 },
+    ),
+    // A one-off solidarity day after the 2023 floods; pinned to its only year.
+    h(
+        "dan solidarnosti",
+        Rule::Once {
+            year: 2023,
+            month: 8,
+            day: 14,
+        },
+    ),
+];
+
+/// Estonia.
+static ESTONIA: &[Holiday] = &[
+    h("uusaasta", Rule::Fixed { month: 1, day: 1 }),
+    h("iseseisvuspäev", Rule::Fixed { month: 2, day: 24 }),
+    h("suur reede", Rule::EasterOffset(-2)),
+    h("ülestõusmispühade 1. püha", Rule::EasterOffset(0)),
+    h("kevadpüha", Rule::Fixed { month: 5, day: 1 }),
+    h("nelipühade 1. püha", Rule::EasterOffset(49)),
+    h("võidupüha", Rule::Fixed { month: 6, day: 23 }),
+    h("jaanipäev", Rule::Fixed { month: 6, day: 24 }),
+    h(
+        "taasiseseisvumispäev",
+        Rule::Since {
+            year: 1998,
+            base: &Rule::Fixed { month: 8, day: 20 },
+        },
+    ),
+    h(
+        "jõululaupäev",
+        Rule::Since {
+            year: 2005,
+            base: &Rule::Fixed { month: 12, day: 24 },
+        },
+    ),
+    h("esimene jõulupüha", Rule::Fixed { month: 12, day: 25 }),
+    h("teine jõulupüha", Rule::Fixed { month: 12, day: 26 }),
+];
+
+/// Lithuania.
+static LITHUANIA: &[Holiday] = &[
+    h("Naujųjų metų diena", Rule::Fixed { month: 1, day: 1 }),
+    h(
+        "Lietuvos valstybės atkūrimo diena",
+        Rule::Fixed { month: 2, day: 16 },
+    ),
+    h(
+        "Lietuvos nepriklausomybės atkūrimo diena",
+        Rule::Fixed { month: 3, day: 11 },
+    ),
+    h("Šv. Velykos", Rule::EasterOffset(0)),
+    h("Antroji šv. Velykų diena", Rule::EasterOffset(1)),
+    h("Tarptautinė darbo diena", Rule::Fixed { month: 5, day: 1 }),
+    h(
+        "Motinos diena",
+        Rule::NthWeekday {
+            month: 5,
+            weekday: 0,
+            nth: 1,
+        },
+    ),
+    h(
+        "Tėvo diena",
+        Rule::NthWeekday {
+            month: 6,
+            weekday: 0,
+            nth: 1,
+        },
+    ),
+    h(
+        "Rasos ir Joninių diena",
+        Rule::Since {
+            year: 2003,
+            base: &Rule::Fixed { month: 6, day: 24 },
+        },
+    ),
+    h(
+        "Valstybės (Lietuvos karaliaus Mindaugo karūnavimo) ir Tautiškos giesmės diena",
+        Rule::Fixed { month: 7, day: 6 },
+    ),
+    h("Žolinė", Rule::Fixed { month: 8, day: 15 }),
+    h("Visų Šventųjų diena", Rule::Fixed { month: 11, day: 1 }),
+    h(
+        "Mirusiųjų atminimo (Vėlinių) diena",
+        Rule::Since {
+            year: 2020,
+            base: &Rule::Fixed { month: 11, day: 2 },
+        },
+    ),
+    h("Kūčių diena", Rule::Fixed { month: 12, day: 24 }),
+    h("Šv. Kalėdų pirma diena", Rule::Fixed { month: 12, day: 25 }),
+    h("Šv. Kalėdų antra diena", Rule::Fixed { month: 12, day: 26 }),
+];
+
+/// Luxembourg.
+static LUXEMBOURG: &[Holiday] = &[
+    h("Neijoerschdag", Rule::Fixed { month: 1, day: 1 }),
+    h("Ouschterméindeg", Rule::EasterOffset(1)),
+    h("Dag vun der Aarbecht", Rule::Fixed { month: 5, day: 1 }),
+    h(
+        "Europadag",
+        Rule::Since {
+            year: 2019,
+            base: &Rule::Fixed { month: 5, day: 9 },
+        },
+    ),
+    h("Christi Himmelfaart", Rule::EasterOffset(39)),
+    h("Péngschtméindeg", Rule::EasterOffset(50)),
+    h("Nationalfeierdag", Rule::Fixed { month: 6, day: 23 }),
+    h("Léiffrawëschdag", Rule::Fixed { month: 8, day: 15 }),
+    h("Allerhellgen", Rule::Fixed { month: 11, day: 1 }),
+    h("Chrëschtdag", Rule::Fixed { month: 12, day: 25 }),
+    h("Stiefesdag", Rule::Fixed { month: 12, day: 26 }),
+];
+
+/// Iceland.
+static ICELAND: &[Holiday] = &[
+    h("Nýársdagur", Rule::Fixed { month: 1, day: 1 }),
+    h("Skírdagur", Rule::EasterOffset(-3)),
+    h("Föstudagurinn langi", Rule::EasterOffset(-2)),
+    h("Páskadagur", Rule::EasterOffset(0)),
+    h("Annar í páskum", Rule::EasterOffset(1)),
+    h(
+        "Sumardagurinn fyrsti",
+        Rule::WeekdayOnOrAfter {
+            month: 4,
+            day: 19,
+            weekday: 4,
+        },
+    ),
+    h("Verkalýðsdagurinn", Rule::Fixed { month: 5, day: 1 }),
+    h("Uppstigningardagur", Rule::EasterOffset(39)),
+    h("Hvítasunnudagur", Rule::EasterOffset(49)),
+    h("Annar í hvítasunnu", Rule::EasterOffset(50)),
+    h("Þjóðhátíðardagurinn", Rule::Fixed { month: 6, day: 17 }),
+    h(
+        "Frídagur verslunarmanna",
+        Rule::NthWeekday {
+            month: 8,
+            weekday: 1,
+            nth: 1,
+        },
+    ),
+    h("Jóladagur", Rule::Fixed { month: 12, day: 25 }),
+    h("Annar í jólum", Rule::Fixed { month: 12, day: 26 }),
+];
 
 /// Indonesian national holidays.
 ///
@@ -1948,6 +2423,81 @@ mod tests {
             assert!(!country.name().is_empty());
             assert!(!country.holidays().is_empty());
         }
+    }
+
+    #[test]
+    fn czechia_year_restricted_holidays() {
+        let cal = Calendar::czechia();
+        // Good Friday only from 2016: Easter 2015 fell on 5 April.
+        assert_eq!(cal.holiday_name(d(2015, 4, 3)), None);
+        assert_eq!(cal.holiday_name(d(2016, 3, 25)), Some("Velký pátek"));
+        // Statehood Day only from 2000.
+        assert_eq!(cal.holiday_name(d(1999, 9, 28)), None);
+        assert_eq!(
+            cal.holiday_name(d(2000, 9, 28)),
+            Some("Den české státnosti")
+        );
+    }
+
+    #[test]
+    fn slovakia_drops_victory_day_for_2026() {
+        let cal = Calendar::slovakia();
+        assert_eq!(
+            cal.holiday_name(d(2025, 5, 8)),
+            Some("Deň víťazstva nad fašizmom")
+        );
+        assert_eq!(cal.holiday_name(d(2026, 5, 8)), None);
+        // Constitution Day ended after 2023.
+        assert_eq!(
+            cal.holiday_name(d(2023, 9, 1)),
+            Some("Deň Ústavy Slovenskej republiky")
+        );
+        assert_eq!(cal.holiday_name(d(2024, 9, 1)), None);
+    }
+
+    #[test]
+    fn croatia_statehood_day_moves_between_windows() {
+        let cal = Calendar::croatia();
+        assert_eq!(cal.holiday_name(d(2019, 6, 25)), Some("Dan državnosti"));
+        assert_eq!(cal.holiday_name(d(2024, 5, 30)), Some("Dan državnosti"));
+        // Independence Day existed only from 2002 to 2019.
+        assert_eq!(cal.holiday_name(d(2020, 10, 8)), None);
+    }
+
+    #[test]
+    fn slovenia_second_of_january_window() {
+        let cal = Calendar::slovenia();
+        assert_eq!(cal.holiday_name(d(2014, 1, 2)), None);
+        assert_eq!(cal.holiday_name(d(2024, 1, 2)), Some("novo leto"));
+    }
+
+    #[test]
+    fn lithuania_first_sunday_holidays() {
+        let cal = Calendar::lithuania();
+        assert_eq!(cal.holiday_name(d(2026, 5, 3)), Some("Motinos diena"));
+        assert_eq!(cal.holiday_name(d(2026, 6, 7)), Some("Tėvo diena"));
+    }
+
+    #[test]
+    fn iceland_first_day_of_summer_is_first_thursday_from_19_april() {
+        let cal = Calendar::iceland();
+        // 19 April 2026 is a Sunday, so the first Thursday is the 23rd.
+        assert_eq!(
+            cal.holiday_name(d(2026, 4, 23)),
+            Some("Sumardagurinn fyrsti")
+        );
+        // Commerce Day is the first Monday of August.
+        assert_eq!(
+            cal.holiday_name(d(2026, 8, 3)),
+            Some("Frídagur verslunarmanna")
+        );
+    }
+
+    #[test]
+    fn luxembourg_europe_day_since_2019() {
+        let cal = Calendar::luxembourg();
+        assert_eq!(cal.holiday_name(d(2018, 5, 9)), None);
+        assert_eq!(cal.holiday_name(d(2019, 5, 9)), Some("Europadag"));
     }
 
     #[test]

@@ -21,7 +21,8 @@ Friday and the United Kingdom moves a weekend holiday forward to Monday.
 
 Covered: Indonesia, United States, United Kingdom, Germany, France,
 Netherlands, Spain, Italy, Portugal, Belgium, Austria, Poland, Sweden, Norway,
-Denmark, Finland, Ireland, Canada and New Zealand. `Country::ALL` lists them.
+Denmark, Finland, Ireland, Canada, New Zealand, Czechia, Slovakia, Croatia,
+Slovenia, Estonia, Lithuania, Luxembourg and Iceland. `Country::ALL` lists them.
 
 The crate answers three questions:
 
