@@ -1,6 +1,6 @@
 [package]
 name = "stdnum-rs"
-description = "Validation of national identification numbers, VAT numbers, IBANs and other standard numbers."
+description = "Validation of national and international identifiers: IBAN, ISBN, EAN, Luhn, ISIN, LEI, BIC, ISSN, ISRC, IMEI and more."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,7 +8,7 @@ license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 authors.workspace = true
-keywords = ["validation", "iban", "vat", "tax-id", "checksum"]
+keywords = ["validation", "iban", "isin", "checksum", "tax-id"]
 categories = ["data-structures", "value-formatting"]
 readme = "README.md"
 

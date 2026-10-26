@@ -4,14 +4,21 @@
 pub mod ean;
 pub mod iban;
 pub mod id;
+pub mod identifiers;
 pub mod isbn;
+pub mod iso7064;
 pub mod luhn;
+pub mod securities;
+
+mod iso3166;
 
 pub use ean::Ean;
 pub use iban::Iban;
 pub use id::{Country, IdNumber};
+pub use identifiers::{CasNumber, CreditorReference, Imei, Ismn, Isni, Isrc, Issn};
 pub use isbn::Isbn;
 pub use luhn::Luhn;
+pub use securities::{Bic, Cusip, Figi, Grid, Isin, Lei};
 
 /// Why a number failed validation.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -91,6 +98,32 @@ pub enum NumberType {
     Ean,
     /// A number that only uses the Luhn check, such as a payment card.
     Luhn,
+    /// An ISIN, the identifier for a security.
+    Isin,
+    /// A CUSIP, the North American security identifier.
+    Cusip,
+    /// A FIGI, the global instrument identifier.
+    Figi,
+    /// An LEI, the legal entity identifier.
+    Lei,
+    /// A BIC, the ISO 9362 bank identifier.
+    Bic,
+    /// A GRid, the research organisation identifier.
+    Grid,
+    /// An ISSN, the identifier for a periodical.
+    Issn,
+    /// An ISRC, the identifier for a recording.
+    Isrc,
+    /// An IMEI or IMEISV, the identifier of a mobile device.
+    Imei,
+    /// An ISMN, the identifier for printed music.
+    Ismn,
+    /// An ISNI, the identifier for a contributor to media content.
+    Isni,
+    /// A CAS Registry Number, the identifier for a chemical substance.
+    CasNumber,
+    /// An ISO 11649 structured creditor reference.
+    CreditorReference,
     /// A national identifier for a specific country.
     National(Country),
 }
@@ -116,6 +149,19 @@ pub fn validate(kind: NumberType, input: &str) -> Result<()> {
         NumberType::Isbn => Isbn::parse(input).map(|_| ()),
         NumberType::Ean => Ean::parse(input).map(|_| ()),
         NumberType::Luhn => Luhn::parse(input).map(|_| ()),
+        NumberType::Isin => Isin::parse(input).map(|_| ()),
+        NumberType::Cusip => Cusip::parse(input).map(|_| ()),
+        NumberType::Figi => Figi::parse(input).map(|_| ()),
+        NumberType::Lei => Lei::parse(input).map(|_| ()),
+        NumberType::Bic => Bic::parse(input).map(|_| ()),
+        NumberType::Grid => Grid::parse(input).map(|_| ()),
+        NumberType::Issn => Issn::parse(input).map(|_| ()),
+        NumberType::Isrc => Isrc::parse(input).map(|_| ()),
+        NumberType::Imei => Imei::parse(input).map(|_| ()),
+        NumberType::Ismn => Ismn::parse(input).map(|_| ()),
+        NumberType::Isni => Isni::parse(input).map(|_| ()),
+        NumberType::CasNumber => CasNumber::parse(input).map(|_| ()),
+        NumberType::CreditorReference => CreditorReference::parse(input).map(|_| ()),
         NumberType::National(country) => IdNumber::parse(country, input).map(|_| ()),
     }
 }

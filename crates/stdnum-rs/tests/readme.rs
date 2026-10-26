@@ -1,6 +1,6 @@
 //! Runs the README example, so the documentation cannot drift from the API.
 
-use stdnum_rs::{Country, IdNumber};
+use stdnum_rs::{Country, IdNumber, NumberType};
 
 #[test]
 fn readme_examples() {
@@ -34,23 +34,48 @@ fn every_labelled_number_agrees_with_python_stdnum() {
         else {
             continue;
         };
-        let Some(country) = country_named(name) else {
+        // A name is either a country or an international identifier, and the
+        // fixture does not say which, so both are tried.
+        let Some(verdict) = known_type(name)
+            .map(|kind| stdnum_rs::validate(kind, value).is_ok())
+            .or_else(|| country_named(name).map(|c| IdNumber::parse(c, value).is_ok()))
+        else {
             continue;
         };
-        let ours = IdNumber::parse(country, value).is_ok();
-        if ours == (expected == "1") {
+        if verdict == (expected == "1") {
             agree += 1;
         } else {
             disagreements.push(format!("{name} {value:?}"));
         }
     }
-    assert!(agree > 15_500, "only {agree} vectors were compared");
+    assert!(agree > 18_500, "only {agree} vectors were compared");
     assert!(
         disagreements.is_empty(),
         "{} numbers disagree with python-stdnum: {:?}",
         disagreements.len(),
         &disagreements[..disagreements.len().min(20)]
     );
+}
+
+/// The runtime type for the international identifiers in the fixture, which are
+/// not tied to a country.
+fn known_type(name: &str) -> Option<NumberType> {
+    Some(match name {
+        "Isin" => NumberType::Isin,
+        "Cusip" => NumberType::Cusip,
+        "Figi" => NumberType::Figi,
+        "Lei" => NumberType::Lei,
+        "Bic" => NumberType::Bic,
+        "Grid" => NumberType::Grid,
+        "Issn" => NumberType::Issn,
+        "Isrc" => NumberType::Isrc,
+        "Imei" => NumberType::Imei,
+        "Ismn" => NumberType::Ismn,
+        "Isni" => NumberType::Isni,
+        "CasNumber" => NumberType::CasNumber,
+        "CreditorReference" => NumberType::CreditorReference,
+        _ => return None,
+    })
 }
 
 fn country_named(name: &str) -> Option<Country> {

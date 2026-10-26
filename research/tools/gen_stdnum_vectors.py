@@ -94,6 +94,26 @@ COUNTRIES: dict[str, str] = {
 EXAMPLE_RE = re.compile(r">>> validate\('([^']*)'\)")
 FAIL_RE = re.compile(r">>> validate\('([^']*)'\)\nTraceback")
 
+# Rust `NumberType` variant name -> dotted python-stdnum module path, for the
+# international identifiers that are not tied to a country. The fixture format
+# is the same, and the crate's test dispatches a name to either a `Country` or a
+# `NumberType`.
+INTERNATIONAL: dict[str, str] = {
+    "Isin": "isin",
+    "Cusip": "cusip",
+    "Figi": "figi",
+    "Lei": "lei",
+    "Bic": "bic",
+    "Grid": "grid",
+    "Issn": "issn",
+    "Isrc": "isrc",
+    "Imei": "imei",
+    "Ismn": "ismn",
+    "Isni": "isni",
+    "CasNumber": "casrn",
+    "CreditorReference": "iso11649",
+}
+
 
 def module(name: str):
     return __import__("stdnum." + name, fromlist=["x"])
@@ -159,7 +179,7 @@ def main() -> int:
 
     lines: list[str] = []
     summary: list[str] = []
-    for rust_name, py_name in COUNTRIES.items():
+    for rust_name, py_name in {**COUNTRIES, **INTERNATIONAL}.items():
         if rust_name in have:
             summary.append(f"{rust_name:22s} kept from the existing fixture")
             continue
