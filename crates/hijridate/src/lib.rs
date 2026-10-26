@@ -30,6 +30,8 @@ pub enum Error {
         /// Day as given.
         day: u8,
     },
+    /// The text was not a date in `YYYY-MM-DD` form.
+    MalformedDate(String),
 }
 
 impl fmt::Display for Error {
@@ -45,6 +47,9 @@ impl fmt::Display for Error {
                     f,
                     "Gregorian date {year}-{month:02}-{day:02} does not exist"
                 )
+            }
+            Self::MalformedDate(text) => {
+                write!(f, "{text:?} is not a date in YYYY-MM-DD form")
             }
         }
     }
@@ -97,6 +102,28 @@ const DAY_NAMES: [&str; 7] = [
     "Saturday",
     "Sunday",
 ];
+
+/// The names of the twelve Gregorian months.
+const GREGORIAN_MONTH_NAMES: [&str; 12] = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+];
+
+/// The era notation for a Hijri year.
+pub const HIJRI_NOTATION: &str = "AH";
+
+/// The era notation for a Gregorian year.
+pub const GREGORIAN_NOTATION: &str = "CE";
 
 impl Hijri {
     /// Builds a Hijri date, checking the day against the month's real length.
@@ -204,6 +231,119 @@ impl Hijri {
             tabular_julian(self.year, self.month, self.day)
         }
     }
+
+    /// The date as a `(year, month, day)` tuple.
+    ///
+    /// This is the reference's `datetuple`.
+    #[must_use]
+    pub fn datetuple(self) -> (i32, u8, u8) {
+        (self.year, self.month, self.day)
+    }
+
+    /// The date in ISO form, `YYYY-MM-DD`, which is the same as [`Display`].
+    ///
+    /// [`Display`]: fmt::Display
+    #[must_use]
+    pub fn isoformat(self) -> String {
+        format!("{self}")
+    }
+
+    /// The date as `DD/MM/YYYY`.
+    ///
+    /// `padding` adds a leading zero to a day or month below ten; `separator` is
+    /// written between the parts. This is the reference's `dmyformat`, whose
+    /// default separator is a slash.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use hijridate::Hijri;
+    ///
+    /// let date = Hijri::new(1447, 1, 5).unwrap();
+    /// assert_eq!(date.dmyformat("/", true), "05/01/1447");
+    /// assert_eq!(date.dmyformat("-", false), "5-1-1447");
+    /// ```
+    #[must_use]
+    pub fn dmyformat(self, separator: &str, padding: bool) -> String {
+        if padding {
+            format!(
+                "{:02}{separator}{:02}{separator}{:04}",
+                self.day, self.month, self.year
+            )
+        } else {
+            format!(
+                "{}{separator}{}{separator}{}",
+                self.day, self.month, self.year
+            )
+        }
+    }
+
+    /// The number of days in this Hijri year.
+    ///
+    /// Inside the table this is the gap between the first day of the year and
+    /// the first day of the next, so it is 354 or 355. Outside it, the
+    /// approximation's 30-year cycle is used.
+    #[must_use]
+    pub fn year_length(self) -> u16 {
+        if in_table(self.year) {
+            let first = ummalqura::MONTH_STARTS[month_index(self.year, 1)];
+            let last = ummalqura::MONTH_STARTS[month_index(self.year, 12) + 1];
+            last - first
+        } else {
+            tabular_year_length(self.year)
+        }
+    }
+
+    /// The weekday, Monday as 1 through Sunday as 7.
+    ///
+    /// This is the reference's `isoweekday`, and it is [`Hijri::weekday`] plus
+    /// one. It exists as a separate name because the two conventions are both
+    /// common and mixing them silently is a bug.
+    #[must_use]
+    pub fn isoweekday(self) -> u8 {
+        self.weekday() as u8 + 1
+    }
+
+    /// The era notation, `"AH"` for the Hijri calendar.
+    ///
+    /// The reference localizes this; this crate carries English only, so it is a
+    /// constant. It is a method rather than a constant so that it reads the same
+    /// way on both date types.
+    #[must_use]
+    pub fn notation(self) -> &'static str {
+        HIJRI_NOTATION
+    }
+
+    /// Parses `YYYY-MM-DD` into a Hijri date.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::MalformedDate`] when the text is not three
+    /// hyphen-separated numbers, and the same errors as [`Hijri::new`] when the
+    /// numbers are not a valid date.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use hijridate::Hijri;
+    ///
+    /// let date = Hijri::fromisoformat("1447-09-01").unwrap();
+    /// assert_eq!(date.month_name(), "Ramadan");
+    /// ```
+    pub fn fromisoformat(text: &str) -> Result<Self> {
+        let (year, month, day) = parse_isoformat(text)?;
+        Self::new(year, month, day)
+    }
+
+    /// Today's date in the Hijri calendar, read from the system clock.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::GregorianDate`] when the clock is outside the range this
+    /// crate can convert.
+    pub fn today() -> Result<Self> {
+        Ok(Gregorian::today()?.to_hijri())
+    }
 }
 
 impl fmt::Display for Hijri {
@@ -272,6 +412,111 @@ impl Gregorian {
     #[must_use]
     pub fn day_name(self) -> &'static str {
         DAY_NAMES[self.weekday()]
+    }
+
+    /// The date as a `(year, month, day)` tuple.
+    ///
+    /// This is the reference's `datetuple`.
+    #[must_use]
+    pub fn datetuple(self) -> (i32, u8, u8) {
+        (self.year, self.month, self.day)
+    }
+
+    /// The date in ISO form, `YYYY-MM-DD`, which is the same as [`Display`].
+    ///
+    /// [`Display`]: fmt::Display
+    #[must_use]
+    pub fn isoformat(self) -> String {
+        format!("{self}")
+    }
+
+    /// The date as `DD/MM/YYYY`.
+    ///
+    /// See [`Hijri::dmyformat`] for the arguments.
+    #[must_use]
+    pub fn dmyformat(self, separator: &str, padding: bool) -> String {
+        if padding {
+            format!(
+                "{:02}{separator}{:02}{separator}{:04}",
+                self.day, self.month, self.year
+            )
+        } else {
+            format!(
+                "{}{separator}{}{separator}{}",
+                self.day, self.month, self.year
+            )
+        }
+    }
+
+    /// The English name of the month, such as `"February"`.
+    #[must_use]
+    pub fn month_name(self) -> &'static str {
+        GREGORIAN_MONTH_NAMES[usize::from(self.month) - 1]
+    }
+
+    /// The weekday, Monday as 1 through Sunday as 7.
+    ///
+    /// See [`Hijri::isoweekday`].
+    #[must_use]
+    pub fn isoweekday(self) -> u8 {
+        self.weekday() as u8 + 1
+    }
+
+    /// The era notation, `"CE"` for the Gregorian calendar.
+    ///
+    /// See [`Hijri::notation`].
+    #[must_use]
+    pub fn notation(self) -> &'static str {
+        GREGORIAN_NOTATION
+    }
+
+    /// The Julian day number of this date.
+    #[must_use]
+    pub fn to_julian(self) -> i64 {
+        to_julian(self.year, self.month, self.day)
+    }
+
+    /// The number of days in this Gregorian year.
+    #[must_use]
+    pub fn year_length(self) -> u16 {
+        if is_leap(self.year) { 366 } else { 365 }
+    }
+
+    /// The number of days in this Gregorian month.
+    #[must_use]
+    pub fn month_length(self) -> u8 {
+        gregorian_month_length(self.year, self.month)
+    }
+
+    /// Parses `YYYY-MM-DD` into a Gregorian date.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::MalformedDate`] when the text is not three
+    /// hyphen-separated numbers, and [`Error::GregorianDate`] when the numbers
+    /// are not a valid date.
+    pub fn fromisoformat(text: &str) -> Result<Self> {
+        let (year, month, day) = parse_isoformat(text)?;
+        Self::new(year, month, day)
+    }
+
+    /// Today's date in the Gregorian calendar, read from the system clock.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::GregorianDate`] when the clock cannot be read.
+    pub fn today() -> Result<Self> {
+        let seconds = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_err(|_| Error::GregorianDate {
+                year: 1970,
+                month: 1,
+                day: 1,
+            })?
+            .as_secs();
+        let days = i64::try_from(seconds / 86_400).unwrap_or(0);
+        let jdn = days + 2_440_588;
+        Ok(from_julian(jdn))
     }
 }
 
@@ -427,6 +672,37 @@ fn is_tabular_leap(year_in_cycle: i64) -> bool {
         year_in_cycle,
         2 | 5 | 7 | 10 | 13 | 16 | 18 | 21 | 24 | 26 | 29
     )
+}
+
+/// The length of a tabular Hijri year, 354 or 355.
+fn tabular_year_length(year: i32) -> u16 {
+    let year_in_cycle = (i64::from(year) - 1).rem_euclid(30);
+    if is_tabular_leap(year_in_cycle) {
+        355
+    } else {
+        354
+    }
+}
+
+/// Splits `YYYY-MM-DD` into its three numbers.
+///
+/// The reference uses `int()` on the split parts, which accepts a leading sign
+/// and surrounding whitespace and rejects anything else; this matches that
+/// closely enough to matter and rejects the rest.
+fn parse_isoformat(text: &str) -> Result<(i32, u8, u8)> {
+    let malformed = || Error::MalformedDate(text.to_string());
+    let mut parts = text.split('-');
+    let (Some(year), Some(month), Some(day), None) =
+        (parts.next(), parts.next(), parts.next(), parts.next())
+    else {
+        return Err(malformed());
+    };
+    // A negative year would make the first `-` ambiguous with the separator, so
+    // it is rejected rather than parsed as one.
+    let year: i32 = year.parse().map_err(|_| malformed())?;
+    let month: u8 = month.parse().map_err(|_| malformed())?;
+    let day: u8 = day.parse().map_err(|_| malformed())?;
+    Ok((year, month, day))
 }
 
 /// The Julian day number of a tabular Hijri date.
