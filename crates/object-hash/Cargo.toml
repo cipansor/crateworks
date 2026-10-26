@@ -1,6 +1,6 @@
 [package]
 name = "object-hash"
-description = "A stable hash of a structured value: the same value always hashes the same, whatever order its fields are in."
+description = "A stable, cross-process hash of a structured value, byte-compatible with the object-hash npm package."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

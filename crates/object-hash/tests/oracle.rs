@@ -5,7 +5,7 @@
 //! both means a Rust service and a Node service can compute the same cache key,
 //! which is the point of matching the reference at all.
 
-use object_hash::{Algorithm, Value, canonical, hash, hash_with};
+use object_hash::{Algorithm, Encoding, Value, canonical, hash, hash_with, hash_with_encoding};
 
 /// A case from the fixture: a name, the canonical form, and the digest.
 struct Case {
@@ -14,6 +14,8 @@ struct Case {
     sha1: String,
     sha256: String,
     md5: String,
+    sha512: String,
+    base64: String,
 }
 
 /// Reads the fixture, which is tab separated to avoid a JSON dependency.
@@ -30,6 +32,8 @@ fn cases() -> Vec<Case> {
                 sha1: fields[2].to_string(),
                 sha256: fields[3].to_string(),
                 md5: fields[4].to_string(),
+                sha512: fields[5].to_string(),
+                base64: fields[6].to_string(),
             }
         })
         .collect()
@@ -248,6 +252,7 @@ fn every_fixture_case_has_the_same_canonical_form_and_digest() {
         }
         for (algorithm, expected) in [
             (Algorithm::Sha256, &case.sha256),
+            (Algorithm::Sha512, &case.sha512),
             (Algorithm::Md5, &case.md5),
         ] {
             let got = hash_with(&value, algorithm);
@@ -257,6 +262,14 @@ fn every_fixture_case_has_the_same_canonical_form_and_digest() {
                     case.name
                 ));
             }
+        }
+        // The base64 form of the SHA-1 digest, the reference's other encoding.
+        let got_base64 = hash_with_encoding(&value, Algorithm::Sha1, Encoding::Base64);
+        if got_base64 != case.base64 {
+            failures.push(format!(
+                "{}: base64 digest\n  expected {}\n  got      {got_base64}",
+                case.name, case.base64
+            ));
         }
     }
 

@@ -200,6 +200,28 @@ function extended(path) {
   console.log('extended', out.length - 1, 'rows in', path);
 }
 
+// Adds the SHA-512 digest and the base64 of the SHA-1 digest to each row, so
+// the Rust side is held to the fourth algorithm the reference offers and to its
+// non-hexadecimal encoding.
+function extended512(path) {
+  const crypto = require('crypto');
+  const lines = require('fs').readFileSync(path, 'utf8').split('\n').filter((l) => l.length);
+  const out = [lines[0] + '\tsha512\tbase64'];
+  for (const line of lines.slice(1)) {
+    const canonical = line.split('\t')[1];
+    const buf = Buffer.from(canonical, 'utf8');
+    out.push(
+      line +
+        '\t' +
+        crypto.createHash('sha512').update(buf).digest('hex') +
+        '\t' +
+        crypto.createHash('sha1').update(buf).digest('base64'),
+    );
+  }
+  require('fs').writeFileSync(path, out.join('\n') + '\n');
+  console.log('extended512', out.length - 1, 'rows in', path);
+}
+
 const target = process.argv[2];
 if (!target) {
   console.error('usage: node gen.js <fuzz.tsv> <objects.tsv> [oracle.tsv to extend] [oracle.tsv to append object cases to]');
@@ -214,3 +236,4 @@ if (objectTarget) {
 }
 if (process.argv[4]) extended(process.argv[4]);
 if (process.argv[5]) appendObjectOracle(process.argv[5]);
+if (process.argv[6]) extended512(process.argv[6]);

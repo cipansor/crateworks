@@ -3,6 +3,7 @@ mod encode;
 mod md5;
 mod sha1;
 mod sha256;
+mod sha512;
 
 use std::fmt;
 
@@ -19,8 +20,27 @@ pub enum Algorithm {
     Sha1,
     /// SHA-256, 64 hexadecimal characters.
     Sha256,
+    /// SHA-512, 128 hexadecimal characters.
+    Sha512,
     /// MD5, 32 hexadecimal characters.
     Md5,
+}
+
+/// How the digest is written out.
+///
+/// The reference package calls this `encoding`. Hexadecimal is its default and
+/// the one a cache key is normally written in; base64 is shorter, and raw bytes
+/// are what a caller wants when the digest is fed to something else.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[non_exhaustive]
+pub enum Encoding {
+    /// Lowercase hexadecimal, two characters per byte. The reference's default.
+    #[default]
+    Hex,
+    /// Standard base64 with `+` and `/`, padded with `=`.
+    Base64,
+    /// The raw digest bytes.
+    Raw,
 }
 
 /// A value that can be hashed.
@@ -313,14 +333,114 @@ pub fn hash_with_options_and(value: &Value, options: Options, algorithm: Algorit
     digest(&canonical_with(value, &options), algorithm)
 }
 
-/// The digest of an already-canonical byte string.
+/// The digest of a value with chosen options, algorithm and encoding.
+///
+/// This is the full form; the shorter functions fix the encoding to
+/// hexadecimal, which is the reference's default. [`Encoding::Raw`] returns the
+/// digest bytes interpreted as one character each, so a caller that wants the
+/// bytes should use [`raw_hash_with`] instead.
+///
+/// # Example
+///
+/// ```
+/// use object_hash::{hash_with_encoding, Algorithm, Encoding, Value};
+///
+/// let value = Value::Number(1.0);
+/// let hex = hash_with_encoding(&value, Algorithm::Sha256, Encoding::Hex);
+/// assert_eq!(hex.len(), 64);
+/// // Base64 of the same digest is shorter.
+/// let b64 = hash_with_encoding(&value, Algorithm::Sha256, Encoding::Base64);
+/// assert!(b64.len() < hex.len());
+/// ```
+#[must_use]
+pub fn hash_with_encoding(value: &Value, algorithm: Algorithm, encoding: Encoding) -> String {
+    hash_with_options_encoding(value, Options::default(), algorithm, encoding)
+}
+
+/// The digest of a value with every choice named.
+#[must_use]
+pub fn hash_with_options_encoding(
+    value: &Value,
+    options: Options,
+    algorithm: Algorithm,
+    encoding: Encoding,
+) -> String {
+    encode_digest(
+        &raw_digest(canonical_with(value, &options).as_bytes(), algorithm),
+        encoding,
+    )
+}
+
+/// The raw digest bytes of a value.
+///
+/// The reference returns a `Buffer` for `encoding: 'buffer'`; this is the same
+/// digest without a text form in between.
+#[must_use]
+pub fn raw_hash_with(value: &Value, algorithm: Algorithm) -> Vec<u8> {
+    raw_digest(canonical(value).as_bytes(), algorithm)
+}
+
+/// The raw digest bytes of a value with chosen options.
+#[must_use]
+pub fn raw_hash_with_options(value: &Value, options: Options, algorithm: Algorithm) -> Vec<u8> {
+    raw_digest(canonical_with(value, &options).as_bytes(), algorithm)
+}
+
+/// The digest of an already-canonical byte string, as lowercase hexadecimal.
 fn digest(canonical: &str, algorithm: Algorithm) -> String {
-    let bytes = canonical.as_bytes();
+    encode_digest(&raw_digest(canonical.as_bytes(), algorithm), Encoding::Hex)
+}
+
+/// The raw digest bytes of `data` under `algorithm`.
+fn raw_digest(data: &[u8], algorithm: Algorithm) -> Vec<u8> {
     match algorithm {
-        Algorithm::Sha1 => sha1::hex(bytes),
-        Algorithm::Sha256 => sha256::hex(bytes),
-        Algorithm::Md5 => md5::hex(bytes),
+        Algorithm::Sha1 => sha1::digest(data).to_vec(),
+        Algorithm::Sha256 => sha256::digest(data).to_vec(),
+        Algorithm::Sha512 => sha512::digest(data).to_vec(),
+        Algorithm::Md5 => md5::digest(data).to_vec(),
     }
+}
+
+/// Writes out digest bytes in the chosen encoding.
+fn encode_digest(bytes: &[u8], encoding: Encoding) -> String {
+    match encoding {
+        Encoding::Hex => {
+            let mut out = String::with_capacity(bytes.len() * 2);
+            for byte in bytes {
+                out.push(char::from_digit(u32::from(byte >> 4), 16).expect("nibble"));
+                out.push(char::from_digit(u32::from(byte & 0x0f), 16).expect("nibble"));
+            }
+            out
+        }
+        Encoding::Base64 => base64(bytes),
+        Encoding::Raw => bytes.iter().map(|b| char::from(*b)).collect(),
+    }
+}
+
+/// Standard base64 with padding, written out for the same reason as the digests.
+fn base64(bytes: &[u8]) -> String {
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
+    for chunk in bytes.chunks(3) {
+        let b0 = u32::from(chunk[0]);
+        let b1 = chunk.get(1).copied().map_or(0, u32::from);
+        let b2 = chunk.get(2).copied().map_or(0, u32::from);
+        let triple = (b0 << 16) | (b1 << 8) | b2;
+        out.push(char::from(ALPHABET[(triple >> 18) as usize & 0x3f]));
+        out.push(char::from(ALPHABET[(triple >> 12) as usize & 0x3f]));
+        // The last group is padded rather than truncated.
+        out.push(if chunk.len() > 1 {
+            char::from(ALPHABET[(triple >> 6) as usize & 0x3f])
+        } else {
+            '='
+        });
+        out.push(if chunk.len() > 2 {
+            char::from(ALPHABET[triple as usize & 0x3f])
+        } else {
+            '='
+        });
+    }
+    out
 }
 
 #[cfg(test)]

@@ -76,19 +76,19 @@ pub(crate) fn digest(data: &[u8]) -> [u8; 20] {
     out
 }
 
-/// The digest as lowercase hexadecimal.
-pub(crate) fn hex(data: &[u8]) -> String {
-    let mut out = String::with_capacity(40);
-    for byte in digest(data) {
-        out.push(char::from_digit(u32::from(byte >> 4), 16).expect("nibble"));
-        out.push(char::from_digit(u32::from(byte & 0x0f), 16).expect("nibble"));
-    }
-    out
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The digest as lowercase hexadecimal, for the published vectors.
+    fn hex(data: &[u8]) -> String {
+        let mut out = String::new();
+        for byte in digest(data) {
+            out.push(char::from_digit(u32::from(byte >> 4), 16).expect("nibble"));
+            out.push(char::from_digit(u32::from(byte & 0x0f), 16).expect("nibble"));
+        }
+        out
+    }
 
     #[test]
     fn the_published_test_vectors_match() {
