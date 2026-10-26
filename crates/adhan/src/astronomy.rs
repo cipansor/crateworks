@@ -400,19 +400,36 @@ pub(crate) fn season_adjusted_morning_twilight(
 
 /// The evening twilight time the Moonsighting Committee uses at high latitude.
 ///
-/// Only the general shafaq is implemented, which is the default and what the
-/// fixtures were produced with.
+/// `shafaq` picks the twilight the time is measured from: the general one, the
+/// red afterglow, or the white one.
 pub(crate) fn season_adjusted_evening_twilight(
     latitude: f64,
     day_of_year: u32,
     year: i32,
     sunset_seconds: f64,
+    shafaq: crate::calculation::Shafaq,
 ) -> f64 {
     let lat = latitude.abs();
-    let a = 75.0 + 25.6 / 55.0 * lat;
-    let b = 75.0 + 2.05 / 55.0 * lat;
-    let c = 75.0 - 9.21 / 55.0 * lat;
-    let d = 75.0 + 6.14 / 55.0 * lat;
+    let (a, b, c, d) = match shafaq {
+        crate::calculation::Shafaq::Ahmer => (
+            62.0 + 17.4 / 55.0 * lat,
+            62.0 - 7.16 / 55.0 * lat,
+            62.0 + 5.12 / 55.0 * lat,
+            62.0 + 19.44 / 55.0 * lat,
+        ),
+        crate::calculation::Shafaq::Abyad => (
+            75.0 + 25.6 / 55.0 * lat,
+            75.0 + 7.16 / 55.0 * lat,
+            75.0 + 36.84 / 55.0 * lat,
+            75.0 + 81.84 / 55.0 * lat,
+        ),
+        crate::calculation::Shafaq::General => (
+            75.0 + 25.6 / 55.0 * lat,
+            75.0 + 2.05 / 55.0 * lat,
+            75.0 - 9.21 / 55.0 * lat,
+            75.0 + 6.14 / 55.0 * lat,
+        ),
+    };
     let adjustment = twilight_adjustment(day_of_year, year, latitude, a, b, c, d);
     sunset_seconds + (adjustment * 60.0).round()
 }

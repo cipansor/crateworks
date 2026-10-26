@@ -86,6 +86,27 @@ half the night, a seventh of the night, or a fraction given by the twilight
 angle. The Moonsighting Committee method also has its own seasonal twilight
 curve, which is implemented as it defines it.
 
+There is a second answer to the same problem. Rather than bounding the missing
+times, `PolarCircleResolution` borrows the solar times of a nearby day
+(`AqrabYaum`) or a nearby latitude (`AqrabBalad`) where the sun does rise and
+set, and computes the day there. `Unresolved`, the default, leaves the times
+that cannot be computed as `None`:
+
+```rust
+use adhan::{Method, Parameters, PolarCircleResolution, prayer_times};
+
+let mut parameters = Parameters::for_method(Method::MuslimWorldLeague);
+parameters.polar_circle_resolution = PolarCircleResolution::AqrabYaum;
+
+let times = prayer_times(2026, 6, 21, 69.6492, 18.9553, &parameters);
+assert!(times.sunrise.is_some(), "borrowed from a nearby day");
+```
+
+The reference's `Shafaq` is here too, for the Moonsighting Committee's evening
+twilight: `General`, `Ahmer` (the red afterglow) or `Abyad` (the white one that
+follows). It only changes the answer when that method is used, and then only
+above roughly 48 degrees, where the seasonal curve is what sets Isha.
+
 ## How it is checked
 
 The results are compared against the `adhan` JavaScript library, the
@@ -95,8 +116,9 @@ schools and high latitude rules: **37,440 times, all matching**.
 On top of that grid there is a corpus of **6,000 random cases**: latitudes
 weighted to the polar circles, longitudes near the date line, all thirteen
 methods, both schools, all three high latitude rules, all three rounding modes,
-and manual adjustments from five minutes before to five minutes after. It is
-generated deterministically, so it can be rebuilt exactly; the generator is in
+all three shafaqs, all three polar circle resolutions, and manual adjustments
+from five minutes before to five minutes after. It is generated
+deterministically, so it can be rebuilt exactly; the generator is in
 `scripts/fuzz/adhan/`.
 
 That corpus found two real gaps the grid had missed, because the grid used no
@@ -108,6 +130,11 @@ adjustments and only the default rounding:
 * The minutes a method applies on its own are separate from the minutes the
   caller adds, and the reference adds them together. Folding the two into one
   field made "two minutes on top of the method's five" impossible to express.
+
+Two more came from extending that corpus to the options it did not cover:
+`Shafaq` and `PolarCircleResolution` were simply absent, so a caller matching a
+Moonsighting Committee app above 48 degrees, or any app at Tromso in June, had no
+way to reproduce its answer. Both are now implemented and pinned by the corpus.
 
 One more: at high latitude with `Rounding::None`, a Fajr that falls before
 midnight UTC came out a second late, because truncating toward zero is not the

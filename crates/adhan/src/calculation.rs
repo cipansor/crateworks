@@ -226,6 +226,43 @@ pub enum Rounding {
     None,
 }
 
+/// Which twilight marks the end of Isha, for the Moonsighting Committee method.
+///
+/// Shafaq is the light in the western sky after sunset. The three definitions
+/// come from the classical schools: the red afterglow, the white one that
+/// follows it, and the general case. The choice only matters for the
+/// Moonsighting Committee, which is the only method that reads it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Shafaq {
+    /// The general twilight, the reference's default.
+    #[default]
+    General,
+    /// The red afterglow.
+    Ahmer,
+    /// The white twilight that follows the red.
+    Abyad,
+}
+
+/// How a day inside the polar circle is resolved.
+///
+/// Above about 66 degrees the sun may not rise or set for weeks around the
+/// solstices, so the ordinary solar times do not exist and there is no night to
+/// divide. The reference resolves the day to another latitude or another date
+/// whose sun does rise and set, and computes the times there. Which of the two
+/// is used, and whether either is, is this choice.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PolarCircleResolution {
+    /// Leave the times that cannot be computed as `None`. The reference's
+    /// default, and the honest answer: a caller in Tromso has to decide for
+    /// itself what to do in June.
+    #[default]
+    Unresolved,
+    /// Borrow the times from a nearby day that has a sunrise and a sunset.
+    AqrabYaum,
+    /// Borrow the times from a nearby latitude that has a sunrise and a sunset.
+    AqrabBalad,
+}
+
 /// Everything that decides a prayer time.
 ///
 /// The method fields set the angles; the `*_minutes` fields are adjustments the
@@ -249,6 +286,10 @@ pub struct Parameters {
     pub high_latitude_rule: HighLatitudeRule,
     /// How seconds are rounded.
     pub rounding: Rounding,
+    /// Which twilight ends Isha, for the Moonsighting Committee.
+    pub shafaq: Shafaq,
+    /// How a day inside the polar circle is resolved.
+    pub polar_circle_resolution: PolarCircleResolution,
     /// Minutes added to Fajr by the caller, on top of whatever the method
     /// applies. Zero unless the caller sets it.
     pub fajr_minutes: f64,
@@ -283,6 +324,8 @@ impl Default for Parameters {
             madhab: Madhab::Shafi,
             high_latitude_rule: HighLatitudeRule::MiddleOfTheNight,
             rounding: Rounding::Nearest,
+            shafaq: Shafaq::General,
+            polar_circle_resolution: PolarCircleResolution::Unresolved,
             fajr_minutes: 0.0,
             sunrise_minutes: 0.0,
             dhuhr_minutes: 0.0,
@@ -596,6 +639,21 @@ pub fn prayer_times(
     let (next_year, next_month, next_day) = next_day(year, month, day);
     let tomorrow = SolarTime::new(next_year, next_month, next_day, latitude, longitude);
 
+    // Inside the polar circle the sun may not rise or set at all, and the
+    // reference then borrows the solar times of a nearby day or latitude. The
+    // latitude used for the seasonal twilight below stays the caller's, because
+    // the reference keeps `coordinates` and only swaps the solar times.
+    let (solar, tomorrow) = resolve_polar_circle(
+        parameters.polar_circle_resolution,
+        year,
+        month,
+        day,
+        latitude,
+        longitude,
+        solar,
+        tomorrow,
+    );
+
     let transit = DayTime::from_hours(solar.transit);
     let sunrise = DayTime::from_hours(solar.sunrise);
     let sunset = DayTime::from_hours(solar.sunset);
@@ -789,6 +847,11 @@ fn seconds_of((hour, minute, second): (i64, u32, u32)) -> f64 {
     (hour * 3600 + i64::from(minute) * 60 + i64::from(second)) as f64
 }
 
+/// Whether a day has both a sunrise and a sunset at all.
+fn has_sunrise_and_sunset(solar: &SolarTime) -> bool {
+    solar.sunrise.is_finite() && solar.sunset.is_finite()
+}
+
 /// The date after the given one.
 fn next_day(year: i32, month: u32, day: u32) -> (i32, u32, u32) {
     let lengths = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
@@ -804,6 +867,137 @@ fn next_day(year: i32, month: u32, day: u32) -> (i32, u32, u32) {
     } else {
         (year + 1, 1, 1)
     }
+}
+
+/// The date before the given one.
+fn previous_day(year: i32, month: u32, day: u32) -> (i32, u32, u32) {
+    if day > 1 {
+        return (year, month, day - 1);
+    }
+    if month > 1 {
+        let lengths = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        let last = if month == 3 && astronomy::is_leap_year(year) {
+            29
+        } else {
+            lengths[month as usize - 2]
+        };
+        return (year, month - 1, last);
+    }
+    (year - 1, 12, 31)
+}
+
+/// A date a whole number of days away, forwards or backwards.
+fn add_days(year: i32, month: u32, day: u32, days: i64) -> (i32, u32, u32) {
+    let mut date = (year, month, day);
+    for _ in 0..days.unsigned_abs() {
+        date = if days > 0 {
+            next_day(date.0, date.1, date.2)
+        } else {
+            previous_day(date.0, date.1, date.2)
+        };
+    }
+    date
+}
+
+/// Swaps in solar times from a nearby day or latitude when the caller's own day
+/// has no sunrise or sunset.
+///
+/// The reference does this before computing anything, and the borrowed times
+/// then flow through the rest of the calculation unchanged; the latitude used
+/// for the seasonal twilight is still the caller's.
+#[allow(clippy::too_many_arguments)]
+fn resolve_polar_circle(
+    resolution: PolarCircleResolution,
+    year: i32,
+    month: u32,
+    day: u32,
+    latitude: f64,
+    longitude: f64,
+    solar: SolarTime,
+    tomorrow: SolarTime,
+) -> (SolarTime, SolarTime) {
+    if resolution == PolarCircleResolution::Unresolved {
+        return (solar, tomorrow);
+    }
+    let usable = has_sunrise_and_sunset(&solar) && tomorrow.sunrise.is_finite();
+    if usable {
+        return (solar, tomorrow);
+    }
+
+    match resolution {
+        PolarCircleResolution::Unresolved => (solar, tomorrow),
+        PolarCircleResolution::AqrabYaum => {
+            match aqrab_yaum(latitude, longitude, year, month, day, 1, 1) {
+                Some(test) => {
+                    let next = next_day(test.0, test.1, test.2);
+                    (
+                        SolarTime::new(test.0, test.1, test.2, latitude, longitude),
+                        SolarTime::new(next.0, next.1, next.2, latitude, longitude),
+                    )
+                }
+                None => (solar, tomorrow),
+            }
+        }
+        PolarCircleResolution::AqrabBalad => {
+            // The first attempt already steps the latitude inwards, as the
+            // reference does.
+            let start = latitude - latitude.signum() * 0.5;
+            match aqrab_balad(longitude, year, month, day, start) {
+                Some((test_solar, test_tomorrow)) => (test_solar, test_tomorrow),
+                None => (solar, tomorrow),
+            }
+        }
+    }
+}
+
+/// The nearest day, walking outwards, whose sun rises and sets.
+///
+/// The walk alternates direction and stops after half a year, which is as far as
+/// a day can be from a solstice.
+#[allow(clippy::too_many_arguments)]
+fn aqrab_yaum(
+    latitude: f64,
+    longitude: f64,
+    year: i32,
+    month: u32,
+    day: u32,
+    days_added: i64,
+    direction: i64,
+) -> Option<(i32, u32, u32)> {
+    if days_added > 183 {
+        return None;
+    }
+    let test = add_days(year, month, day, direction * days_added);
+    let next = next_day(test.0, test.1, test.2);
+    let solar = SolarTime::new(test.0, test.1, test.2, latitude, longitude);
+    let tomorrow = SolarTime::new(next.0, next.1, next.2, latitude, longitude);
+    if !has_sunrise_and_sunset(&solar) || !has_sunrise_and_sunset(&tomorrow) {
+        let step = days_added + if direction > 0 { 0 } else { 1 };
+        return aqrab_yaum(latitude, longitude, year, month, day, step, -direction);
+    }
+    Some(test)
+}
+
+/// The nearest latitude, walking inwards, whose sun rises and sets.
+#[allow(clippy::too_many_arguments)]
+fn aqrab_balad(
+    longitude: f64,
+    year: i32,
+    month: u32,
+    day: u32,
+    test_latitude: f64,
+) -> Option<(SolarTime, SolarTime)> {
+    let solar = SolarTime::new(year, month, day, test_latitude, longitude);
+    let next = next_day(year, month, day);
+    let tomorrow = SolarTime::new(next.0, next.1, next.2, test_latitude, longitude);
+    if !has_sunrise_and_sunset(&solar) || !has_sunrise_and_sunset(&tomorrow) {
+        if test_latitude.abs() >= 65.0 {
+            let step = test_latitude - test_latitude.signum() * 0.5;
+            return aqrab_balad(longitude, year, month, day, step);
+        }
+        return None;
+    }
+    Some((solar, tomorrow))
 }
 
 /// Fajr, bounded by the high latitude rule when the angle gives no answer or an
@@ -877,6 +1071,7 @@ fn isha_time(
             day_of_year,
             year,
             sunset.as_seconds(),
+            parameters.shafaq,
         ))
     } else {
         let (_, portion) = parameters
@@ -911,6 +1106,108 @@ mod tests {
     fn the_hanafi_shadow_is_twice_the_other() {
         assert_eq!(Madhab::Shafi.shadow_length(), 1.0);
         assert_eq!(Madhab::Hanafi.shadow_length(), 2.0);
+    }
+
+    #[test]
+    fn a_day_without_a_sunset_is_left_unresolved_by_default() {
+        // Tromso in June: the sun does not set. The default is the reference's
+        // own, and it reports nothing rather than a made-up time.
+        let times = prayer_times(
+            2026,
+            6,
+            21,
+            69.6492,
+            18.9553,
+            &Parameters::for_method(Method::MuslimWorldLeague),
+        );
+        assert!(times.sunrise.is_none());
+        assert!(times.maghrib.is_none());
+        assert!(times.fajr.is_none());
+        assert!(times.dhuhr.is_some());
+        assert!(times.asr.is_some());
+    }
+
+    #[test]
+    fn aqrab_yaum_borrows_from_a_day_that_has_a_sunset() {
+        // The nearest day to 21 June whose sun rises and sets at Tromso is 26
+        // July, thirty-five days later; the reference walks outwards and finds
+        // the same one.
+        let mut parameters = Parameters::for_method(Method::MuslimWorldLeague);
+        parameters.polar_circle_resolution = PolarCircleResolution::AqrabYaum;
+        let times = prayer_times(2026, 6, 21, 69.6492, 18.9553, &parameters);
+        // The values are the reference's, to the minute.
+        assert_eq!(times.sunrise, Some((23, 5, 0)));
+        assert_eq!(times.maghrib, Some((21, 58, 0)));
+        assert_eq!(times.fajr, Some((22, 19, 0)));
+    }
+
+    #[test]
+    fn aqrab_balad_borrows_from_a_latitude_that_has_a_sunset() {
+        // Four degrees south of Tromso, the sun does set on 21 June.
+        let mut parameters = Parameters::for_method(Method::MuslimWorldLeague);
+        parameters.polar_circle_resolution = PolarCircleResolution::AqrabBalad;
+        let times = prayer_times(2026, 6, 21, 69.6492, 18.9553, &parameters);
+        assert_eq!(times.sunrise, Some((23, 6, 0)));
+        assert_eq!(times.maghrib, Some((22, 26, 0)));
+    }
+
+    #[test]
+    fn the_polar_resolvers_do_not_touch_a_day_that_has_a_sunset() {
+        // Jakarta is nowhere near the polar circles, so every resolution gives
+        // the same answer as the default.
+        let base = prayer_times(
+            2026,
+            6,
+            21,
+            -6.2,
+            106.8,
+            &Parameters::for_method(Method::MuslimWorldLeague),
+        );
+        for resolution in [
+            PolarCircleResolution::AqrabYaum,
+            PolarCircleResolution::AqrabBalad,
+        ] {
+            let mut parameters = Parameters::for_method(Method::MuslimWorldLeague);
+            parameters.polar_circle_resolution = resolution;
+            let times = prayer_times(2026, 6, 21, -6.2, 106.8, &parameters);
+            assert_eq!(times, base);
+        }
+    }
+
+    #[test]
+    fn the_shafaq_changes_isha_only_for_the_moonsighting_committee() {
+        let at = |shafaq, method| {
+            let mut parameters = Parameters::for_method(method);
+            parameters.shafaq = shafaq;
+            parameters.rounding = Rounding::None;
+            prayer_times(2026, 1, 15, 55.0, 10.0, &parameters).isha
+        };
+        // Above 48 degrees the Moonsighting Committee's seasonal curve sets
+        // Isha, and the three shafaqs give three different times.
+        let general = at(Shafaq::General, Method::MoonsightingCommittee);
+        let ahmer = at(Shafaq::Ahmer, Method::MoonsightingCommittee);
+        let abyad = at(Shafaq::Abyad, Method::MoonsightingCommittee);
+        assert_ne!(general, ahmer);
+        assert_ne!(general, abyad);
+        assert!(ahmer < general, "the red twilight ends earliest");
+        assert!(general < abyad, "the white twilight ends latest");
+        // Under any other method the field is not read.
+        assert_eq!(
+            at(Shafaq::General, Method::MuslimWorldLeague),
+            at(Shafaq::Ahmer, Method::MuslimWorldLeague)
+        );
+    }
+
+    #[test]
+    fn the_date_arithmetic_crosses_months_and_years() {
+        assert_eq!(next_day(2026, 1, 31), (2026, 2, 1));
+        assert_eq!(next_day(2026, 12, 31), (2027, 1, 1));
+        assert_eq!(next_day(2024, 2, 28), (2024, 2, 29), "leap year");
+        assert_eq!(previous_day(2026, 1, 1), (2025, 12, 31));
+        assert_eq!(previous_day(2026, 3, 1), (2026, 2, 28));
+        assert_eq!(previous_day(2024, 3, 1), (2024, 2, 29), "leap year");
+        assert_eq!(add_days(2026, 6, 21, 35), (2026, 7, 26));
+        assert_eq!(add_days(2026, 1, 1, -1), (2025, 12, 31));
     }
 
     #[test]

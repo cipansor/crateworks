@@ -1,5 +1,5 @@
 const adhan = require('adhan');
-const { Coordinates, PrayerTimes, CalculationMethod, Madhab, HighLatitudeRule, Rounding } = adhan;
+const { Coordinates, PrayerTimes, CalculationMethod, Madhab, HighLatitudeRule, Rounding, Shafaq, PolarCircleResolution } = adhan;
 
 const METHODS = {
   MuslimWorldLeague: CalculationMethod.MuslimWorldLeague, Egyptian: CalculationMethod.Egyptian,
@@ -13,6 +13,8 @@ const METHODS = {
 const MADHABS = { Standard: Madhab.Shafi, Hanafi: Madhab.Hanafi };
 const RULES = { MiddleOfTheNight: HighLatitudeRule.MiddleOfTheNight, SeventhOfTheNight: HighLatitudeRule.SeventhOfTheNight, TwilightAngle: HighLatitudeRule.TwilightAngle };
 const ROUNDINGS = { nearest: Rounding.Nearest, up: Rounding.Up, none: Rounding.None };
+const SHAFAQS = { general: Shafaq.General, ahmer: Shafaq.Ahmer, abyad: Shafaq.Abyad };
+const POLARS = { Unresolved: PolarCircleResolution.Unresolved, AqrabYaum: PolarCircleResolution.AqrabYaum, AqrabBalad: PolarCircleResolution.AqrabBalad };
 const KEYS = ['fajr','sunrise','dhuhr','asr','maghrib','isha'];
 
 function pick(obj, rnd) { const ks = Object.keys(obj); return ks[Math.floor(rnd() * ks.length)]; }
@@ -21,7 +23,7 @@ function pick(obj, rnd) { const ks = Object.keys(obj); return ks[Math.floor(rnd(
 let seed = 20261021;
 function rnd() { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }
 
-const rows = ['lat\tlon\tdate\tmethod\tmadhab\trule\trounding\tfajr_adj\tsunrise_adj\tdhuhr_adj\tasr_adj\tmaghrib_adj\tisha_adj\tfajr\tsunrise\tdhuhr\tasr\tmaghrib\tisha'];
+const rows = ['lat\tlon\tdate\tmethod\tmadhab\trule\trounding\tshafaq\tpolar\tfajr_adj\tsunrise_adj\tdhuhr_adj\tasr_adj\tmaghrib_adj\tisha_adj\tfajr\tsunrise\tdhuhr\tasr\tmaghrib\tisha'];
 
 // Coordinates: a broad sweep, weighted to the interesting latitudes.
 function coordinate() {
@@ -49,6 +51,7 @@ while (made < 6000 && attempts < 60000) {
   const [y, m, d] = date();
   const mname = pick(METHODS, rnd), hname = pick(MADHABS, rnd);
   const rname = pick(RULES, rnd), oname = pick(ROUNDINGS, rnd);
+  const sname = pick(SHAFAQS, rnd), pname = pick(POLARS, rnd);
   const adj = {};
   for (const k of KEYS) adj[k] = [0,0,0,0,1,-1,2,-2,5,-5][Math.floor(rnd() * 10)];
 
@@ -56,6 +59,8 @@ while (made < 6000 && attempts < 60000) {
   params.madhab = MADHABS[hname];
   params.highLatitudeRule = RULES[rname];
   params.rounding = ROUNDINGS[oname];
+  params.shafaq = SHAFAQS[sname];
+  params.polarCircleResolution = POLARS[pname];
   params.adjustments = adj;
 
   let pt;
@@ -63,7 +68,7 @@ while (made < 6000 && attempts < 60000) {
   catch (e) { continue; }
 
   const iso = x => (x && !isNaN(x) ? x.toISOString() : 'null');
-  rows.push([lat, lon, `${y}-${m}-${d}`, mname, hname, rname, oname,
+  rows.push([lat, lon, `${y}-${m}-${d}`, mname, hname, rname, oname, sname, pname,
     adj.fajr, adj.sunrise, adj.dhuhr, adj.asr, adj.maghrib, adj.isha,
     iso(pt.fajr), iso(pt.sunrise), iso(pt.dhuhr), iso(pt.asr), iso(pt.maghrib), iso(pt.isha)].join('\t'));
   made++;

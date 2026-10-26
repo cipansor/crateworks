@@ -21,7 +21,10 @@
 //! land on the day before or after. Only the clock reading is compared, which is
 //! what this crate returns.
 
-use adhan::{HighLatitudeRule, Madhab, Method, Parameters, Rounding, prayer_times};
+use adhan::{
+    HighLatitudeRule, Madhab, Method, Parameters, PolarCircleResolution, Rounding, Shafaq,
+    prayer_times,
+};
 
 const CORPUS: &str = include_str!("fixtures/fuzz.tsv");
 
@@ -36,6 +39,8 @@ struct Case {
     madhab: Madhab,
     rule: HighLatitudeRule,
     rounding: Rounding,
+    shafaq: Shafaq,
+    polar: PolarCircleResolution,
     adjustments: [f64; 6],
     times: [Option<(i64, u32, u32)>; 6],
 }
@@ -87,6 +92,24 @@ fn rounding_from(name: &str) -> Rounding {
     }
 }
 
+fn shafaq_from(name: &str) -> Shafaq {
+    match name {
+        "general" => Shafaq::General,
+        "ahmer" => Shafaq::Ahmer,
+        "abyad" => Shafaq::Abyad,
+        other => panic!("unknown shafaq {other}"),
+    }
+}
+
+fn polar_from(name: &str) -> PolarCircleResolution {
+    match name {
+        "Unresolved" => PolarCircleResolution::Unresolved,
+        "AqrabYaum" => PolarCircleResolution::AqrabYaum,
+        "AqrabBalad" => PolarCircleResolution::AqrabBalad,
+        other => panic!("unknown polar resolution {other}"),
+    }
+}
+
 fn cases() -> Vec<Case> {
     let mut out = Vec::new();
     for line in CORPUS.lines().skip(1) {
@@ -113,15 +136,17 @@ fn cases() -> Vec<Case> {
             },
             rule: rule_from(f[5]),
             rounding: rounding_from(f[6]),
+            shafaq: shafaq_from(f[7]),
+            polar: polar_from(f[8]),
             adjustments: [
-                f[7].parse().unwrap(),
-                f[8].parse().unwrap(),
                 f[9].parse().unwrap(),
                 f[10].parse().unwrap(),
                 f[11].parse().unwrap(),
                 f[12].parse().unwrap(),
+                f[13].parse().unwrap(),
+                f[14].parse().unwrap(),
             ],
-            times: [time(13), time(14), time(15), time(16), time(17), time(18)],
+            times: [time(15), time(16), time(17), time(18), time(19), time(20)],
         })
     }
     out
@@ -138,6 +163,8 @@ fn every_random_case_agrees_with_the_reference() {
             .with_madhab(case.madhab)
             .with_high_latitude_rule(case.rule);
         parameters.rounding = case.rounding;
+        parameters.shafaq = case.shafaq;
+        parameters.polar_circle_resolution = case.polar;
         parameters.fajr_minutes = case.adjustments[0];
         parameters.sunrise_minutes = case.adjustments[1];
         parameters.dhuhr_minutes = case.adjustments[2];

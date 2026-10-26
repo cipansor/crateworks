@@ -67,9 +67,11 @@ to write down.
   divergences the curated cases missed, and the object/`Map` split is what the
   second corpus exists for. Plain objects are hashed with `respectType:false`,
   the only form reproducible outside JavaScript.
-- `adhan` — 6,000 cases: latitudes near the poles, the manual adjustments, and
-  `Rounding::None`. Found three gaps the 37,440-time grid missed, because the grid
-  never set an adjustment and only used the default rounding.
+- `adhan` — 6,000 cases: latitudes near the poles, the manual adjustments, the
+  shafaq and polar-circle options, and `Rounding::None`. Found three gaps the
+  37,440-time grid missed, because the grid never set an adjustment and only used
+  the default rounding. Widening the corpus to the shafaq and polar-circle
+  options then showed both were missing from the crate altogether.
 - `javaproperties` — 6,000 documents built from the format's own punctuation.
   Found nothing, which is the useful outcome too: it is what turns "the rules we
   thought of are right" into "the rules we checked agree".
