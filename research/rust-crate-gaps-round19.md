@@ -150,6 +150,11 @@ empty registries:
 1. **A pure-Rust free-text address parser.** `usaddress` is at 5.03M/month and
    every Rust equivalent is an FFI wrapper or an abandoned US regex. Free
    names, a real capability, and no C dependency.
+   **BUILT** as `crates/address-parser` (commit 79dd8d5). It is a port of npm
+   `parse-address` rather than of `usaddress`, because `usaddress` is a
+   conditional-random-field model and not portable; `parse-address` is
+   rule-based and ships its own test table, which became the oracle. All 3,954
+   labelled cases agree, field for field.
 2. **The EPC QR code.** `epcgen` has fourteen recent downloads; the standard is
    fixed and every EU payment integration needs it.
 
