@@ -1,0 +1,18 @@
+[package]
+name = "address-parser"
+description = "Parse free-text US postal addresses into house number, street, unit, city, state and ZIP, with no dependencies."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+keywords = ["address", "parser", "postal", "usps", "geocoding"]
+categories = ["parser-implementations", "text-processing"]
+readme = "README.md"
+
+[dependencies]
+
+[lints]
+workspace = true

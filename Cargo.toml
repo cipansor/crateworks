@@ -23,6 +23,7 @@ members = [
     "crates/pdfmake",
     "crates/fuzzy-score",
     "crates/pades",
+    "crates/address-parser",
 ]
 
 [workspace.package]

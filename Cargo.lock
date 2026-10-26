@@ -3,6 +3,10 @@
 version = 4
 
 [[package]]
+name = "address-parser"
+version = "0.1.5"
+
+[[package]]
 name = "adhan"
 version = "0.1.5"
 

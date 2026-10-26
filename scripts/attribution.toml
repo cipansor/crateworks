@@ -56,3 +56,7 @@ marker = "sameershemna"
 [[upstream]]
 project = "fuzzywuzzy by SeatGeek"
 marker = "seatgeek/fuzzywuzzy"
+
+[[upstream]]
+project = "parse-address (npm) by Hassansin"
+marker = "hassansin/parse-address"

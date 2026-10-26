@@ -30,6 +30,7 @@ never a dependency of any crate.
 | `javaproperties` | `javaproperties/gen.py` | `javaproperties` PyPI 0.8.2 | `python3 javaproperties/gen.py [out]` |
 | `javaproperties` (writer) | `javaproperties/gen_writer.py` | `javaproperties` PyPI 0.8.2 | `TZ=UTC python3 javaproperties/gen_writer.py [out]` |
 | `iso6346` | `iso6346/gen.js` | `container-validator` npm 1.1.0 | `NODE_PATH=<modules> node iso6346/gen.js [out]` |
+| `address-parser` | `address-parser/gen.js` | `parse-address` npm 1.1.2 | `NODE_PATH=<modules> node address-parser/gen.js [out]` |
 
 With no `out` argument each writes to the crate's own fixture, which is the path
 you want when rebuilding it in place. The recorded versions are the ones the
@@ -85,3 +86,30 @@ to write down.
   a serial across the whole range. Found nothing: the check digit is one page of
   arithmetic and the reference agrees with it on every case. The corpus is what
   makes that a measurement rather than a claim.
+- `address-parser` — 3,959 addresses: the reference's own test table, generated
+  street, PO-box, intersection and unit-word forms, and a dozen degenerate
+  inputs. Found three divergences the curated cases missed: an intersection must
+  always report `type1` and `type2` even when empty, a whitespace-only capture is
+  a present-but-empty field rather than an absent one, and the direction rewrite
+  in the city changes only the direction word, not the case of the rest.
+
+## Companion extractors
+
+Some corpora need more than the inputs: the crate has to carry the reference's
+own rules, and transcribing them by hand is how a port drifts.
+
+| Crate | Script | What it extracts | Run |
+| --- | --- | --- | --- |
+| `address-parser` | `address-parser/extract_patterns.js` | the reference's pattern text and lookup tables, as Rust source | `NODE_PATH=<modules> node address-parser/extract_patterns.js <out.rs> <fixture.tsv>` |
+
+`address-parser` is a parser, not a checksum, so its rules are a grammar rather
+than a formula. The reference is a single backtracking regular expression with
+named capture groups and lookahead, which Rust's `regex` crate cannot express.
+Rather than translate the grammar into hand-written code, where a difference
+from the reference would be invisible, `extract_patterns.js` rebuilds the
+reference's *own* pattern strings and writes them into `src/patterns.rs`, and
+the crate runs them on a small backtracking engine of its own. The script strips
+JavaScript's extended (`x`) mode as it goes, and refuses to write the file unless
+the stripped pattern accepts and rejects exactly what the reference does on every
+case in the fixture.
+

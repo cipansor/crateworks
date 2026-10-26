@@ -1,0 +1,17 @@
+crateworks
+Copyright 2026 Yayasan Pesantren Cipansor and contributors
+
+This product includes software developed by Yayasan Pesantren Cipansor and
+contributors (https://github.com/cipansor/crateworks).
+
+The address parsing rules are a reimplementation of the `parse-address` package
+by Hassansin (https://github.com/hassansin/parse-address), distributed under the
+ISC licence. That package descends from the Perl `Geo::StreetAddress::US` module
+and from the United States Postal Service publication 28 street-type table. The
+rules themselves encode the published standard; this crate is an independent
+reimplementation for Rust and shares no code with it. The pattern text and the
+lookup tables were extracted mechanically from the reference by
+`scripts/fuzz/address-parser/extract_patterns.js`, and every case in
+`tests/fixtures/oracle.tsv` was labelled by the reference itself.
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).

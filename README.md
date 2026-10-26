@@ -63,6 +63,12 @@ the rest depend only on `xmlkit` or `pdfa` from this same workspace.
 | [`object-hash`](crates/object-hash) | A stable hash of a structured value, order-independent | npm `object-hash` is downloaded over 40 million times a week; the name is free and the only Rust equivalent has 58 recent downloads |
 | [`mllp`](crates/mllp) | MLLP framing for HL7 v2 messages, with a streaming decoder | PyPI `hl7apy` is downloaded 758,000 times a month; the Rust HL7 crates are leaderless and none validates |
 
+### Text and addresses
+
+| Crate | What it does | Why it exists |
+| --- | --- | --- |
+| [`address-parser`](crates/address-parser) | Parse free-text US postal addresses into their components | npm `parse-address` is downloaded tens of thousands of times a week; the Rust crates in the area are either thin bindings to the C `libpostal`, which needs a gigabyte model and a C toolchain, or abandoned single-country regular expressions |
+
 ### Search and matching
 
 | Crate | What it does | Why it exists |
