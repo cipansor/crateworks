@@ -30,7 +30,7 @@ ninety-day figure.
 | `stix` / `rstix` | 889 / 298 | 2021 / 2026-10-19 | 1 / 2 | **still open**, unchanged |
 | `taxii` / `taxii-rs` | — | — | — | **FREE**, still unclaimed |
 | `ofx-rs` / `ofxy` / `qif_parser` | 2,959 / 1,324 / 380 | 2026 | 1 / 0 / 0 | **still open**, unchanged |
-| `subtp` / `subparse` / `subtitler` | 21,660 / 4,887 / 1,978 | 2024 / 2021 / 2026 | 3 / 9 / 0 | **still open**, unchanged |
+| `subtp` / `subparse` / `subtitler` | 21,660 / 4,887 / 1,978 | 2024 / 2021 / 2026 | 3 / 9 / 0 | `subtp` is now at the threshold; `subparse` still 9 dependents on a 2021 release |
 | `dom_smoothie` / `readability` | 532,798 / 394,156 | 2026-09 / 2023-12 | 43 / 34 | the readability incumbents, live |
 | `metar` / `metar-taf-parser` | 600 / 5,733 | 2026-01 / 2026-03 | 0 / 0 | still thin; round 17's small opening |
 | `uom` | 2,653,164 | 2026-02-14 | 215 | compile-time only; round 17's find stands |
