@@ -226,7 +226,17 @@ impl<'a, S: Sheet> Evaluator<'a, S> {
         for arg in args {
             flattened.push(self.flatten(arg)?);
         }
-        functions::call(name, &flattened)
+        let result = functions::call(name, &flattened)?;
+        // A function that produced a NaN has no real answer - LN(0), SQRT(-1) -
+        // and reports a number error, the same way the binary operators do
+        // rather than letting a NaN escape into the result.
+        if let Value::Number(n) = result {
+            if n.is_nan() {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            return Ok(Value::Number(n));
+        }
+        Ok(result)
     }
 
     /// Turns an argument into a flat list of values, expanding ranges.

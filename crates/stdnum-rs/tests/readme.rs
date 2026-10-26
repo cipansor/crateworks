@@ -40,7 +40,10 @@ fn every_labelled_number_agrees_with_python_stdnum() {
             .map(|kind| stdnum_rs::validate(kind, value).is_ok())
             .or_else(|| country_named(name).map(|c| IdNumber::parse(c, value).is_ok()))
         else {
-            continue;
+            // A name the fixture carries but this test cannot dispatch would
+            // otherwise be skipped in silence, which is how 334 Aadhaar vectors
+            // went unchecked. Every name in the fixture must be reachable.
+            unreachable!("the fixture names {name:?}, which this test cannot dispatch");
         };
         if verdict == (expected == "1") {
             agree += 1;
@@ -48,7 +51,7 @@ fn every_labelled_number_agrees_with_python_stdnum() {
             disagreements.push(format!("{name} {value:?}"));
         }
     }
-    assert!(agree > 18_500, "only {agree} vectors were compared");
+    assert!(agree > 21_900, "only {agree} vectors were compared");
     assert!(
         disagreements.is_empty(),
         "{} numbers disagree with python-stdnum: {:?}",
@@ -84,6 +87,7 @@ fn country_named(name: &str) -> Option<Country> {
         "IndonesiaNik" => Country::IndonesiaNik,
         "BrazilCpf" => Country::BrazilCpf,
         "BrazilCnpj" => Country::BrazilCnpj,
+        "IndiaAadhaar" => Country::IndiaAadhaar,
         "SpainDni" => Country::SpainDni,
         "GermanyTaxId" => Country::GermanyTaxId,
         "PolandPesel" => Country::PolandPesel,
@@ -135,6 +139,19 @@ fn country_named(name: &str) -> Option<Country> {
         "MalaysiaNric" => Country::MalaysiaNric,
         "SouthAfricaIdnr" => Country::SouthAfricaIdnr,
         "GreeceAmka" => Country::GreeceAmka,
+        "SerbiaPib" => Country::SerbiaPib,
+        "MontenegroPib" => Country::MontenegroPib,
+        "NorthMacedoniaEdb" => Country::NorthMacedoniaEdb,
+        "SloveniaDdv" => Country::SloveniaDdv,
+        "RomaniaCf" => Country::RomaniaCf,
+        "BelarusUnp" => Country::BelarusUnp,
+        "CyprusVat" => Country::CyprusVat,
+        "MaltaVat" => Country::MaltaVat,
+        "GreeceVat" => Country::GreeceVat,
+        "FinlandAlv" => Country::FinlandAlv,
+        "SwedenOrgnr" => Country::SwedenOrgnr,
+        "SwedenVat" => Country::SwedenVat,
+        "CzechDic" => Country::CzechDic,
         _ => return None,
     })
 }

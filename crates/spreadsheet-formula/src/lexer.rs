@@ -206,6 +206,16 @@ fn read_cell(chars: &[char], start: usize, sheet: Option<String>) -> Result<(Tok
         }
         return Ok((Token::Ident(letters), i));
     }
+
+    // A name that ends in digits is still a name when a call follows, because
+    // a cell reference is never called. `LOG10(100)` would otherwise be read as
+    // the cell `LOG10` followed by a stray `(`, and the function would look
+    // unimplemented.
+    if i < chars.len() && chars[i] == '(' && !abs_column && !abs_row {
+        let name: String = chars[letters_start..i].iter().collect();
+        return Ok((Token::Ident(name), i));
+    }
+
     if letters.is_empty() {
         return Err(Error::Lex {
             position: start,

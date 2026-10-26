@@ -59,9 +59,19 @@ conventions the reference uses and a silent bug when they are mixed, so both are
 named. `fromisoformat` parses `YYYY-MM-DD` back, and `today` reads the system
 clock.
 
-The reference localizes the month and day names into four languages. This crate
-carries English only; the localized names are a larger surface than the calendar
-and are left out rather than half-done.
+The month and day names are available in the four languages the reference
+publishes - English, Arabic, Bengali and Turkish - through `Language`.
+`month_name`, `day_name` and the era constants answer in English; the `_in`
+forms take a language, and `Language::from_tag` accepts a tag such as `"ar"` or
+`"ar-SA"` so a locale setting can select one.
+
+```rust
+use hijridate::{Language, Hijri};
+
+let h = Hijri::new(1445, 9, 1).unwrap();
+assert_eq!(h.month_name_in(Language::Arabic), "رمضان");
+assert_eq!(Language::from_tag("ar-SA"), Some(Language::Arabic));
+```
 
 ## Regional differences
 

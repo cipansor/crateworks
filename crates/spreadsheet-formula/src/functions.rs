@@ -184,6 +184,159 @@ pub(crate) fn call(name: &str, args: &[Arg]) -> Result<Value, Error> {
             // Spreadsheet MOD follows the sign of the divisor.
             Ok(Value::Number(a - b * (a / b).floor()))
         }
+        "QUOTIENT" => {
+            require_arity(name, args, 2)?;
+            let a = first_number(name, &args[0])?;
+            let b = first_number(name, &args[1])?;
+            if b == 0.0 {
+                return Err(Error::Arithmetic(crate::value::Error::DivisionByZero));
+            }
+            // The integer part of the division, truncated towards zero.
+            Ok(Value::Number((a / b).trunc()))
+        }
+        "CEILING" | "CEILING.MATH" => {
+            require_arity(name, args, 2)?;
+            let value = first_number(name, &args[0])?;
+            let significance = first_number(name, &args[1])?;
+            // A positive value with a negative significance has no solution, and
+            // a zero significance divides by zero. Both are errors rather than
+            // a silent guess.
+            if significance == 0.0 {
+                return Err(Error::Arithmetic(crate::value::Error::DivisionByZero));
+            }
+            if value > 0.0 && significance < 0.0 {
+                return Err(Error::Arithmetic(crate::value::Error::NotANumber));
+            }
+            Ok(Value::Number((value / significance).ceil() * significance))
+        }
+        "FLOOR" | "FLOOR.MATH" => {
+            require_arity(name, args, 2)?;
+            let value = first_number(name, &args[0])?;
+            let significance = first_number(name, &args[1])?;
+            if significance == 0.0 {
+                return Err(Error::Arithmetic(crate::value::Error::DivisionByZero));
+            }
+            if value > 0.0 && significance < 0.0 {
+                return Err(Error::Arithmetic(crate::value::Error::NotANumber));
+            }
+            Ok(Value::Number((value / significance).floor() * significance))
+        }
+        "TRUNC" => {
+            require_between(name, args, 1, 2)?;
+            let value = first_number(name, &args[0])?;
+            let digits = match args.get(1) {
+                Some(arg) => first_number(name, arg)? as i32,
+                None => 0,
+            };
+            Ok(Value::Number(round_to(value, digits, RoundMode::Down)))
+        }
+        "MROUND" => {
+            require_arity(name, args, 2)?;
+            let value = first_number(name, &args[0])?;
+            let multiple = first_number(name, &args[1])?;
+            if multiple == 0.0 {
+                return Ok(Value::Number(0.0));
+            }
+            // The value and the multiple must share a sign, otherwise there is
+            // no nearest multiple to return.
+            if (value > 0.0) != (multiple > 0.0) {
+                return Err(Error::Arithmetic(crate::value::Error::NotANumber));
+            }
+            Ok(Value::Number((value / multiple).round() * multiple))
+        }
+        "EVEN" => unary_number(name, args, |n| {
+            // Away from zero, to the next even integer.
+            let rounded = n.abs().ceil();
+            let even = if rounded % 2.0 == 0.0 {
+                rounded
+            } else {
+                rounded + 1.0
+            };
+            n.signum() * even
+        }),
+        "ODD" => unary_number(name, args, |n| {
+            // ODD(0) is 1, not 0: the next odd integer away from zero.
+            let rounded = n.abs().ceil().max(1.0);
+            let odd = if rounded % 2.0 == 1.0 {
+                rounded
+            } else {
+                rounded + 1.0
+            };
+            if n < 0.0 { -odd } else { odd }
+        }),
+        "SUMSQ" => {
+            require_at_least(name, args, 1)?;
+            Ok(Value::Number(
+                numbers_of(name, args)?.iter().map(|n| n * n).sum(),
+            ))
+        }
+        "SUMPRODUCT" => {
+            require_at_least(name, args, 1)?;
+            // Every argument must be the same length; the products are summed
+            // position by position. A shorter argument would leave trailing
+            // terms undefined, so it is rejected.
+            let len = args[0].values.len();
+            for arg in args {
+                if arg.values.len() != len {
+                    return Err(Error::TypeError {
+                        operation: name.to_string(),
+                        found: Value::Number(arg.values.len() as f64),
+                    });
+                }
+            }
+            let mut total = 0.0;
+            for index in 0..len {
+                let mut product = 1.0;
+                for arg in args {
+                    product *= arg.values[index].as_number().unwrap_or(0.0);
+                }
+                total += product;
+            }
+            Ok(Value::Number(total))
+        }
+        "GCD" => integer_list(name, args, |a, b| {
+            let (mut a, mut b) = (a.abs(), b.abs());
+            while b != 0 {
+                (a, b) = (b, a % b);
+            }
+            a
+        }),
+        "LCM" => integer_list(name, args, |a, b| {
+            if a == 0 || b == 0 {
+                return 0;
+            }
+            (a / gcd_i64(a, b) * b).abs()
+        }),
+        "FACT" => {
+            require_arity(name, args, 1)?;
+            let n = first_number(name, &args[0])?;
+            if n < 0.0 {
+                return Err(Error::Arithmetic(crate::value::Error::NotANumber));
+            }
+            // Truncate to an integer, then multiply out. 171 is the largest
+            // argument whose factorial is still finite in an f64.
+            let n = n.trunc() as u32;
+            let mut out = 1.0;
+            for i in 2..=n {
+                out *= f64::from(i);
+            }
+            Ok(Value::Number(out))
+        }
+        "EXP" => unary_number(name, args, f64::exp),
+        "LN" => unary_number(name, args, |n| if n <= 0.0 { f64::NAN } else { n.ln() }),
+        "LOG10" => unary_number(name, args, |n| if n <= 0.0 { f64::NAN } else { n.log10() }),
+        "LOG" => {
+            require_between(name, args, 1, 2)?;
+            let value = first_number(name, &args[0])?;
+            let base = match args.get(1) {
+                Some(arg) => first_number(name, arg)?,
+                None => 10.0,
+            };
+            if value <= 0.0 || base <= 0.0 {
+                return Ok(Value::Number(f64::NAN));
+            }
+            Ok(Value::Number(value.log(base)))
+        }
         "POWER" => {
             require_arity(name, args, 2)?;
             let a = first_number(name, &args[0])?;
@@ -226,6 +379,95 @@ pub(crate) fn call(name: &str, args: &[Arg]) -> Result<Value, Error> {
                 .count();
             Ok(Value::Number(blanks as f64))
         }
+        "COUNTIFS" => {
+            require_at_least(name, args, 2)?;
+            if !args.len().is_multiple_of(2) {
+                return Err(Error::WrongArity {
+                    name: name.to_string(),
+                    given: args.len(),
+                    expected: "an even number of arguments",
+                });
+            }
+            let len = args[0].values.len();
+            let count = (0..len)
+                .filter(|&index| every_criterion_matches(args, index))
+                .count();
+            Ok(Value::Number(count as f64))
+        }
+        "SUMIFS" => {
+            require_at_least(name, args, 3)?;
+            // The range to add is the first argument; the criteria ranges and
+            // their criteria follow in pairs, which is the opposite order from
+            // `SUMIF`.
+            if args.len() % 2 != 1 {
+                return Err(Error::WrongArity {
+                    name: name.to_string(),
+                    given: args.len(),
+                    expected: "a sum range followed by criteria pairs",
+                });
+            }
+            let len = args[0].values.len();
+            let mut total = 0.0;
+            for index in 0..len {
+                if every_criterion_matches(&args[1..], index) {
+                    total += args[0].values[index].as_number().unwrap_or(0.0);
+                }
+            }
+            Ok(Value::Number(total))
+        }
+        "AVERAGEIFS" => {
+            require_at_least(name, args, 3)?;
+            if args.len() % 2 != 1 {
+                return Err(Error::WrongArity {
+                    name: name.to_string(),
+                    given: args.len(),
+                    expected: "an average range followed by criteria pairs",
+                });
+            }
+            let len = args[0].values.len();
+            let matched: Vec<f64> = (0..len)
+                .filter(|&index| every_criterion_matches(&args[1..], index))
+                .filter_map(|index| args[0].values[index].as_number().ok())
+                .collect();
+            if matched.is_empty() {
+                return Err(Error::Arithmetic(ValueError::DivisionByZero));
+            }
+            let count = matched.len() as f64;
+            Ok(Value::Number(matched.iter().sum::<f64>() / count))
+        }
+        "MAXIFS" | "MINIFS" => {
+            require_at_least(name, args, 3)?;
+            if args.len() % 2 != 1 {
+                return Err(Error::WrongArity {
+                    name: name.to_string(),
+                    given: args.len(),
+                    expected: "a value range followed by criteria pairs",
+                });
+            }
+            let len = args[0].values.len();
+            let want_min = name == "MINIFS";
+            let mut best: Option<f64> = None;
+            for index in 0..len {
+                if !every_criterion_matches(&args[1..], index) {
+                    continue;
+                }
+                let Some(value) = args[0].values[index].as_number().ok() else {
+                    continue;
+                };
+                best = Some(match best {
+                    None => value,
+                    Some(current) => {
+                        if (want_min && value < current) || (!want_min && value > current) {
+                            value
+                        } else {
+                            current
+                        }
+                    }
+                });
+            }
+            // With no matching cell the answer is 0, as in a spreadsheet.
+            Ok(Value::Number(best.unwrap_or(0.0)))
+        }
         "IFS" => {
             // Pairs of condition and result, then an optional final fallback.
             // Every condition is already evaluated by the caller, so this cannot
@@ -248,6 +490,135 @@ pub(crate) fn call(name: &str, args: &[Arg]) -> Result<Value, Error> {
             let a = first_text(&args[0]);
             let b = first_text(&args[1]);
             Ok(Value::Bool(a == b))
+        }
+        "FIND" => {
+            require_between(name, args, 2, 3)?;
+            let needle = first_text(&args[0]);
+            let haystack = first_text(&args[1]);
+            let start = match args.get(2) {
+                Some(arg) => first_number(name, arg)?.max(1.0) as usize,
+                None => 1,
+            };
+            // FIND is case-sensitive and has no wildcards.
+            let chars: Vec<char> = haystack.chars().collect();
+            let from = start.saturating_sub(1).min(chars.len());
+            let window: String = chars[from..].iter().collect();
+            match window.find(&needle) {
+                Some(byte_index) => {
+                    let before = window[..byte_index].chars().count();
+                    Ok(Value::Number((from + before + 1) as f64))
+                }
+                None => Err(Error::Arithmetic(ValueError::NotANumber)),
+            }
+        }
+        "SEARCH" => {
+            require_between(name, args, 2, 3)?;
+            let needle = first_text(&args[0]).to_lowercase();
+            let haystack = first_text(&args[1]).to_lowercase();
+            let start = match args.get(2) {
+                Some(arg) => first_number(name, arg)?.max(1.0) as usize,
+                None => 1,
+            };
+            // SEARCH ignores case and understands `*` and `?`.
+            let chars: Vec<char> = haystack.chars().collect();
+            let from = start.saturating_sub(1).min(chars.len());
+            let window: String = chars[from..].iter().collect();
+            match search_index(&window, &needle) {
+                Some(offset) => Ok(Value::Number((from + offset + 1) as f64)),
+                None => Err(Error::Arithmetic(ValueError::NotANumber)),
+            }
+        }
+        "PROPER" => unary_text(name, args, proper_case),
+        "CHAR" => {
+            require_arity(name, args, 1)?;
+            let code = first_number(name, &args[0])? as u32;
+            let ch = char::from_u32(code).unwrap_or('\u{fffd}');
+            Ok(Value::Text(ch.to_string()))
+        }
+        "CODE" => {
+            require_arity(name, args, 1)?;
+            let text = first_text(&args[0]);
+            match text.chars().next() {
+                Some(ch) => Ok(Value::Number(f64::from(ch as u32))),
+                None => Err(Error::Arithmetic(ValueError::NotANumber)),
+            }
+        }
+        "UNICHAR" => {
+            require_arity(name, args, 1)?;
+            let code = first_number(name, &args[0])? as u32;
+            let ch = char::from_u32(code).unwrap_or('\u{fffd}');
+            Ok(Value::Text(ch.to_string()))
+        }
+        "UNICODE" => {
+            require_arity(name, args, 1)?;
+            let text = first_text(&args[0]);
+            match text.chars().next() {
+                Some(ch) => Ok(Value::Number(f64::from(ch as u32))),
+                None => Err(Error::Arithmetic(ValueError::NotANumber)),
+            }
+        }
+        "CLEAN" => unary_text(name, args, |text| {
+            // The C0 controls are the ones a spreadsheet strips; the C1 range
+            // is left alone, as in Excel.
+            text.chars()
+                .filter(|c| !c.is_control() || *c > '\u{1f}')
+                .collect()
+        }),
+        "T" => {
+            require_arity(name, args, 1)?;
+            // `T` returns text unchanged and everything else as an empty string.
+            Ok(match first_value(&args[0]) {
+                Value::Text(t) => Value::Text(t),
+                _ => Value::Text(String::new()),
+            })
+        }
+        "N" => {
+            require_arity(name, args, 1)?;
+            // `N` converts a number or a logical to a number, and anything else
+            // to zero.
+            Ok(Value::Number(match first_value(&args[0]) {
+                Value::Number(n) => n,
+                Value::Bool(b) if b => 1.0,
+                _ => 0.0,
+            }))
+        }
+        "TEXT" => {
+            require_arity(name, args, 2)?;
+            let value = first_number(name, &args[0])?;
+            let format = first_text(&args[1]);
+            match format_number(value, &format) {
+                Some(text) => Ok(Value::Text(text)),
+                None => Err(Error::Arithmetic(ValueError::NotANumber)),
+            }
+        }
+        "VALUE" => {
+            require_arity(name, args, 1)?;
+            let raw = first_text(&args[0]);
+            // Strip currency symbols, thousands separators and the accounting
+            // parentheses around a negative, then parse what is left.
+            let mut cleaned: String = raw
+                .chars()
+                .filter(|c| !matches!(c, '$' | '€' | '£' | '¥' | ',' | ' '))
+                .collect();
+            let negative = cleaned.starts_with('(') && cleaned.ends_with(')');
+            if negative {
+                cleaned = cleaned[1..cleaned.len() - 1].to_string();
+            }
+            let percent = cleaned.ends_with('%');
+            if percent {
+                cleaned.pop();
+            }
+            let mut number = match cleaned.parse::<f64>() {
+                Ok(n) => n,
+                Err(_) => return Err(Error::Arithmetic(ValueError::NotANumber)),
+            };
+            if negative {
+                number = -number;
+            }
+            if percent {
+                number /= 100.0;
+            }
+            Ok(Value::Number(number))
         }
         "REPT" => {
             require_arity(name, args, 2)?;
@@ -415,6 +786,222 @@ fn first_number(name: &str, arg: &Arg) -> Result<f64, Error> {
         operation: name.to_string(),
         found: value,
     })
+}
+
+/// Whether every criteria range matches at one index.
+///
+/// `args` is the flat list of criteria ranges and their criteria in pairs:
+/// range, criterion, range, criterion. All of the ranges are read at the same
+/// index, which is how a spreadsheet aligns them.
+fn every_criterion_matches(args: &[Arg], index: usize) -> bool {
+    let mut pair = 0;
+    while pair + 1 < args.len() {
+        let range = &args[pair];
+        let criterion_arg = &args[pair + 1];
+        let Some(value) = range.values.get(index) else {
+            return false;
+        };
+        if !criterion(value, criterion_arg) {
+            return false;
+        }
+        pair += 2;
+    }
+    true
+}
+
+/// The position of `needle` in `haystack`, treating `*` as any run of
+/// characters and `?` as any single character.
+///
+/// Returns a zero-based character offset. The needle is already lowercased by
+/// the caller, and so is the haystack.
+fn search_index(haystack: &str, needle: &str) -> Option<usize> {
+    let text: Vec<char> = haystack.chars().collect();
+    let pattern: Vec<char> = needle.chars().collect();
+    // An empty needle is found at the start.
+    if pattern.is_empty() {
+        return Some(0);
+    }
+    (0..=text.len().saturating_sub(1)).find(|&start| {
+        let mut ti = start;
+        let mut pi = 0;
+        while pi < pattern.len() {
+            match pattern[pi] {
+                '*' => {
+                    // Try every length for the star, shortest first, so the
+                    // earliest match wins.
+                    if pi + 1 == pattern.len() {
+                        return true;
+                    }
+                    let mut skip = ti;
+                    while skip <= text.len() {
+                        if wildcard_match_from(&text, skip, &pattern[pi + 1..]) {
+                            return true;
+                        }
+                        skip += 1;
+                    }
+                    return false;
+                }
+                '?' => {
+                    if ti >= text.len() {
+                        return false;
+                    }
+                    ti += 1;
+                    pi += 1;
+                }
+                c => {
+                    if ti >= text.len() || text[ti] != c {
+                        return false;
+                    }
+                    ti += 1;
+                    pi += 1;
+                }
+            }
+        }
+        true
+    })
+}
+
+/// Whether the pattern matches the text starting at `from`.
+fn wildcard_match_from(text: &[char], from: usize, pattern: &[char]) -> bool {
+    let mut ti = from;
+    let mut pi = 0;
+    while pi < pattern.len() {
+        match pattern[pi] {
+            '*' => {
+                if pi + 1 == pattern.len() {
+                    return true;
+                }
+                let mut skip = ti;
+                while skip <= text.len() {
+                    if wildcard_match_from(text, skip, &pattern[pi + 1..]) {
+                        return true;
+                    }
+                    skip += 1;
+                }
+                return false;
+            }
+            '?' => {
+                if ti >= text.len() {
+                    return false;
+                }
+                ti += 1;
+                pi += 1;
+            }
+            c => {
+                if ti >= text.len() || text[ti] != c {
+                    return false;
+                }
+                ti += 1;
+                pi += 1;
+            }
+        }
+    }
+    ti == text.len()
+}
+
+/// Upper-cases the first letter of every word and lower-cases the rest.
+///
+/// A word begins at the start of the string and after any character that is
+/// neither a letter nor a digit, so `"o'brien"` becomes `"O'Brien"`.
+fn proper_case(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut at_word_start = true;
+    for ch in text.chars() {
+        if at_word_start {
+            out.extend(ch.to_uppercase());
+        } else {
+            out.extend(ch.to_lowercase());
+        }
+        at_word_start = !ch.is_alphanumeric();
+    }
+    out
+}
+
+/// The greatest common divisor of two integers, always non-negative.
+fn gcd_i64(a: i64, b: i64) -> i64 {
+    let (mut a, mut b) = (a.abs(), b.abs());
+    while b != 0 {
+        (a, b) = (b, a % b);
+    }
+    a
+}
+
+/// Applies an integer operation pairwise across every number in the arguments.
+fn integer_list(
+    name: &str,
+    args: &[Arg],
+    combine: impl Fn(i64, i64) -> i64,
+) -> Result<Value, Error> {
+    require_at_least(name, args, 1)?;
+    let numbers = numbers_of(name, args)?;
+    if numbers.is_empty() {
+        return Ok(Value::Number(0.0));
+    }
+    let mut acc = numbers[0].trunc() as i64;
+    for value in &numbers[1..] {
+        acc = combine(acc, value.trunc() as i64);
+    }
+    Ok(Value::Number(acc as f64))
+}
+
+/// Formats a number with a spreadsheet number format.
+///
+/// Supports the subset that covers the common cases: a `%` suffix, a thousands
+/// separator, a fixed count of decimal places from the `0` placeholders after
+/// the decimal point, and literal text. Returns `None` for a format this does
+/// not understand, so the caller can report an error rather than guess.
+fn format_number(value: f64, format: &str) -> Option<String> {
+    let percent = format.contains('%');
+    let scaled = if percent { value * 100.0 } else { value };
+
+    let integer_part = format.split('.').next().unwrap_or(format);
+    let use_thousands = integer_part.contains(',');
+
+    let decimals = match format.split_once('.') {
+        Some((_, after)) => after.chars().take_while(|c| *c == '0' || *c == '#').count(),
+        None => 0,
+    };
+
+    let body = format!("{scaled:.decimals$}");
+    let (sign, digits) = match body.strip_prefix('-') {
+        Some(rest) => ("-", rest.to_string()),
+        None => ("", body),
+    };
+    let (whole, fraction) = match digits.split_once('.') {
+        Some((w, f)) => (w.to_string(), f.to_string()),
+        None => (digits, String::new()),
+    };
+
+    let whole = if use_thousands {
+        group_thousands(&whole)
+    } else {
+        whole
+    };
+
+    let mut out = String::new();
+    out.push_str(sign);
+    out.push_str(&whole);
+    if !fraction.is_empty() {
+        out.push('.');
+        out.push_str(&fraction);
+    }
+    if percent {
+        out.push('%');
+    }
+    Some(out)
+}
+
+/// Inserts thousands separators into a run of digits.
+fn group_thousands(digits: &str) -> String {
+    let mut out = String::with_capacity(digits.len() + digits.len() / 3);
+    let len = digits.len();
+    for (index, ch) in digits.chars().enumerate() {
+        if index > 0 && (len - index).is_multiple_of(3) {
+            out.push(',');
+        }
+        out.push(ch);
+    }
+    out
 }
 
 /// The numbers `SUMIF` and `AVERAGEIF` should act on.
@@ -610,40 +1197,73 @@ pub const FUNCTION_NAMES: &[&str] = &[
     "AND",
     "AVERAGE",
     "AVERAGEIF",
+    "AVERAGEIFS",
+    "CEILING",
+    "CHAR",
+    "CLEAN",
+    "CODE",
     "CONCAT",
     "CONCATENATE",
     "COUNT",
     "COUNTA",
     "COUNTBLANK",
     "COUNTIF",
+    "COUNTIFS",
+    "EVEN",
     "EXACT",
+    "EXP",
+    "FACT",
+    "FIND",
+    "FLOOR",
+    "GCD",
     "IFS",
     "INT",
+    "LCM",
     "LEFT",
     "LEN",
+    "LN",
+    "LOG",
+    "LOG10",
     "LOWER",
     "MAX",
+    "MAXIFS",
     "MEDIAN",
     "MID",
     "MIN",
+    "MINIFS",
     "MOD",
+    "MROUND",
+    "N",
     "NOT",
+    "ODD",
     "OR",
     "PI",
     "POWER",
     "PRODUCT",
+    "PROPER",
+    "QUOTIENT",
     "REPT",
     "RIGHT",
     "ROUND",
     "ROUNDDOWN",
     "ROUNDUP",
+    "SEARCH",
     "SIGN",
     "SQRT",
     "SUBSTITUTE",
     "SUM",
     "SUMIF",
+    "SUMIFS",
+    "SUMPRODUCT",
+    "SUMSQ",
+    "T",
+    "TEXT",
     "TRIM",
+    "TRUNC",
+    "UNICHAR",
+    "UNICODE",
     "UPPER",
+    "VALUE",
 ];
 
 #[cfg(test)]

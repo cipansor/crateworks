@@ -161,6 +161,35 @@ impl Date {
         let day = (h + l - 7 * m + 114) % 31 + 1;
         Self::new(year, u8::try_from(month).ok()?, u8::try_from(day).ok()?)
     }
+
+    /// Orthodox Easter Sunday in the Gregorian calendar.
+    ///
+    /// The Orthodox churches keep the Julian calendar, so the date is computed
+    /// with the Meeus Julian algorithm and then shifted into the Gregorian
+    /// calendar. The shift is thirteen days for the whole of the range this
+    /// crate deals with: the Julian and Gregorian calendars diverged by ten
+    /// days in 1582, gained one more in 1700 and 1800, and will not gain
+    /// another until 2100. Clamping the offset at ten keeps years before 1582
+    /// from being shifted by a reform that had not happened yet.
+    ///
+    /// The result is between one and five weeks after [`Date::easter`], and
+    /// coincides with it in about one year in four.
+    #[must_use]
+    pub fn orthodox_easter(year: i32) -> Option<Self> {
+        // Meeus, "Astronomical Algorithms", chapter 8: the Julian Easter.
+        let a = year % 4;
+        let b = year % 7;
+        let c = year % 19;
+        let d = (19 * c + 15) % 30;
+        let e = (2 * a + 4 * b - d + 34) % 7;
+        // The month is 3 for March and 4 for April, so the day number runs from
+        // the start of March.
+        let month = (d + e + 114) / 31;
+        let day = (d + e + 114) % 31 + 1;
+        let gregorian_shift = ((year / 100) - (year / 400) - 2).max(10);
+        let julian = Self::new(year, u8::try_from(month).ok()?, u8::try_from(day).ok()?)?;
+        julian.add_days(gregorian_shift)
+    }
 }
 
 impl Display for Date {
@@ -249,6 +278,51 @@ mod tests {
         assert!(Date::nth_weekday(2026, 5, 1, 6).is_none());
         assert!(Date::nth_weekday(2026, 5, 1, 0).is_none());
         assert!(Date::nth_weekday(2026, 5, 7, 1).is_none());
+    }
+
+    #[test]
+    fn orthodox_easter_dates_match_published_values() {
+        // Reference values from the Julian computus converted to the Gregorian
+        // calendar. 2024 is the extreme case: Western Easter was 31 March and
+        // Orthodox Easter 5 May, five weeks apart.
+        let cases = [
+            (1980, 4, 6),
+            (1990, 4, 15),
+            (2000, 4, 30),
+            (2020, 4, 19),
+            (2021, 5, 2),
+            (2022, 4, 24),
+            (2023, 4, 16),
+            (2024, 5, 5),
+            (2025, 4, 20),
+            (2026, 4, 12),
+            (2027, 5, 2),
+            (2030, 4, 28),
+            (2038, 4, 25),
+        ];
+        for (year, month, day) in cases {
+            assert_eq!(
+                Date::orthodox_easter(year),
+                Date::new(year, month, day),
+                "Orthodox Easter {year}"
+            );
+        }
+    }
+
+    #[test]
+    fn orthodox_easter_never_precedes_the_western_one() {
+        // The Orthodox date is the Western date plus one to five weeks, and the
+        // two coincide in roughly one year in four. A year where it came first
+        // would mean the Julian shift had been applied backwards.
+        for year in 1900..2100 {
+            let western = Date::easter(year).unwrap();
+            let orthodox = Date::orthodox_easter(year).unwrap();
+            assert!(
+                (orthodox.year, orthodox.month, orthodox.day)
+                    >= (western.year, western.month, western.day),
+                "{year}: orthodox {orthodox} precedes western {western}"
+            );
+        }
     }
 
     #[test]

@@ -26,9 +26,11 @@ memory. Those belong to a dedicated parser.
 settlement dates, and ticket systems computing SLAs. The existing `holidays`
 crate has one release from 2023 and an abandoned repository.
 
-**Covers today.** Five countries (Indonesia, United States, United Kingdom,
-Germany, France). Fixed-date rules, Easter-relative rules via the Gregorian
-computus, and *n*-th-weekday rules including "last Monday of the month".
+**Covers today.** 31 countries, from Indonesia and the United States through
+Europe (including the Orthodox-Easter calendars Cyprus, Greece and Romania, and
+Malta). Fixed-date rules, Easter-relative rules via both the Gregorian and the
+Orthodox computus, and *n*-th-weekday rules including "last Monday of the
+month".
 Weekend substitution per country, including the United States rule (Saturday
 back to Friday) and the United Kingdom rule (both days forward to Monday), and
 collision resolution so Christmas and Boxing Day never land on the same day.
@@ -38,8 +40,10 @@ Queries: `is_holiday`, `holiday_name`, `is_working_day`, `next_working_day`,
 **Not covered.** Islamic and Chinese-derived Indonesian observances (Idul Fitri,
 Imlek, Nyepi) depend on a yearly government decree rather than a formula, so
 they are added per year with `Calendar::with_extra`. Regional holidays (German
-state holidays, United Kingdom local holidays) are out of scope. More countries
-are the obvious next step.
+state holidays, United Kingdom local holidays) are out of scope. The reference
+`holidays` package carries around 200 calendars; the remaining countries are the
+obvious next step, and every one is checked against it by
+`research/tools/verify_holidays.py`.
 
 ## 3. `stdnum-rs`
 
@@ -66,9 +70,12 @@ works with `xlsx`, `ods`, or a database of cells.
 
 **Covers today.** Tokeniser with absolute references, sheet qualifiers and
 ranges; recursive-descent parser with spreadsheet operator precedence;
-evaluator with 38 functions plus `IF` and `IFERROR`, which are handled
+evaluator with 71 functions plus `IF` and `IFERROR`, which are handled
 specially so they do not evaluate both branches. A range size limit bounds the
-work a hostile formula can request.
+work a hostile formula can request. The functions cover arithmetic and rounding,
+logarithms and number theory, text case, search and formatting, position-by-
+position products, and the conditional aggregates (`SUMIFS`, `COUNTIFS`,
+`AVERAGEIFS`, `MAXIFS`, `MINIFS`).
 
 **Not covered.** Array formulas, volatile functions (`NOW`, `RAND`), date and
 lookup functions, iterative recalculation. Cyclic references are detected and
@@ -95,8 +102,9 @@ as `YYYY-MM-DD`. No dependencies.
 
 **Not covered.** Outside the table the crate falls back to the classical
 arithmetic calendar and flags the result with `is_tabular`; those dates can be a
-day or two out. Arabic, Bengali and Turkish month names are not included (only
-English), and there is no time-of-day or prayer-time handling. Most importantly
+day or two out. The month, day and era names are available in English, Arabic,
+Bengali and Turkish through `Language`; there is no time-of-day or prayer-time
+handling. Most importantly
 the crate is one authority, not every authority: Indonesia (Kemenag), Malaysia
 and others announce their own month starts, so a date here can differ by a day
 from what a country observes. That is a property of the calendar, not a bug.

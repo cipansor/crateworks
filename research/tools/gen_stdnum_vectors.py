@@ -89,6 +89,20 @@ COUNTRIES: dict[str, str] = {
     "SouthAfricaIdnr": "za.idnr",
     "VenezuelaRif": "ve.rif",
     "GreeceAmka": "gr.amka",
+    # Added in 0.1.6: the Balkan, further-European and VAT set.
+    "SerbiaPib": "rs.pib",
+    "MontenegroPib": "me.pib",
+    "NorthMacedoniaEdb": "mk.edb",
+    "SloveniaDdv": "si.ddv",
+    "RomaniaCf": "ro.cf",
+    "BelarusUnp": "by.unp",
+    "CyprusVat": "cy.vat",
+    "MaltaVat": "mt.vat",
+    "GreeceVat": "gr.vat",
+    "FinlandAlv": "fi.alv",
+    "SwedenOrgnr": "se.orgnr",
+    "SwedenVat": "se.vat",
+    "CzechDic": "cz.dic",
 }
 
 EXAMPLE_RE = re.compile(r">>> validate\('([^']*)'\)")

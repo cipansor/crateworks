@@ -1,0 +1,295 @@
+#!/usr/bin/env python3
+"""Regression gate for `crates/spreadsheet-formula` against `@formulajs/formulajs`.
+
+formulajs is the JavaScript port of the spreadsheet function library and the
+mature reference for this domain. Every function the crate implements that also
+exists in formulajs is called with the same arguments on both sides and the two
+answers are compared. A difference is a bug in one of the two.
+
+The Rust side is exercised through the public `Evaluator`, not the internal
+`call`, so the gate covers the parser and the evaluator as well as the function
+library: each case is a formula string, and the JS side calls the same function
+with the same values.
+
+Run:  python3 research/tools/verify_spreadsheet.py [--verbose]
+Needs: npm install @formulajs/formulajs
+"""
+
+import json
+import os
+import pathlib
+import subprocess
+import sys
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+CRATE = ROOT / "crates" / "spreadsheet-formula"
+CARGO_ENV = {
+    **os.environ,
+    "PATH": "/workspace/.toolchain/cargo/bin:" + os.environ.get("PATH", ""),
+    "CARGO_HOME": "/workspace/.toolchain/cargo",
+}
+
+# A literal is (rust_formula_text, js_value_literal, python_value).
+# The same value must be written the two ways each side understands.
+def num(v):
+    return (repr(v), repr(v), v)
+
+
+def text(v):
+    escaped = v.replace("\\", "\\\\").replace('"', '\\"')
+    js = json.dumps(v)
+    return (f'"{escaped}"', js, v)
+
+
+TRUE = ("TRUE", "true", True)
+FALSE = ("FALSE", "false", False)
+
+# function name -> list of argument tuples.
+CASES = {
+    "ABS": [(-3.5,), (0.0,), (7.0,)],
+    "CEILING": [(2.5, 1), (-2.5, 1), (-2.5, -1), (1.5, 0.1), (10, 3)],
+    "FLOOR": [(2.5, 1), (-2.5, -1), (-2.5, 1), (10, 3)],
+    "TRUNC": [(2.567, 2), (-2.567, 1), (2.567,), (2.567, 0)],
+    "MROUND": [(10, 3), (-10, -3), (1.3, 0.2), (7, 2)],
+    "EVEN": [(1.5,), (-1.5,), (3.0,), (0.0,), (2.0,)],
+    "ODD": [(1.5,), (-1.5,), (3.0,), (0.0,), (2.0,)],
+    "QUOTIENT": [(5, 2), (-5, 2), (5, -2), (10, 3)],
+    "MOD": [(3, 2), (-3, 2), (3, -2), (5.5, 2)],
+    "INT": [(2.5,), (-2.5,), (7.0,)],
+    "SIGN": [(-5.0,), (0.0,), (3.0,)],
+    "SQRT": [(16.0,), (2.0,), (-1.0,)],
+    "POWER": [(2, 10), (9, 0.5), (2, -1)],
+    "EXP": [(1.0,), (2.0,), (0.0,)],
+    "LN": [(10.0,), (1.0,), (2.718281828459045,), (0.0,)],
+    "LOG10": [(1000.0,), (100.0,), (1.0,), (0.0,)],
+    "LOG": [(8, 2), (100,), (16, 4), (0,)],
+    "FACT": [(5.0,), (0.0,), (1.0,), (10.0,)],
+    "GCD": [(24, 36), (0, 5), (7, 13)],
+    "LCM": [(4, 6), (0, 5), (21, 6)],
+    "SUMSQ": [(1, 2, 3), (4, 5)],
+    "SUM": [(1, 2, 3), (1.5, 2.5)],
+    "PRODUCT": [(2, 3, 4), (1.5, 2)],
+    "AVERAGE": [(1, 2, 3, 4), (10, 20)],
+    "MEDIAN": [(1, 2, 3, 4), (1, 2, 3), (5, 1, 9)],
+    "MIN": [(3, 1, 2), (5, 5)],
+    "MAX": [(3, 1, 2), (5, 5)],
+    "ROUND": [(2.567, 2), (2.5, 0), (-2.5, 0), (1234.5678, 2), (2.567, -1)],
+    "ROUNDUP": [(2.1, 0), (-2.1, 0), (2.567, 2)],
+    "ROUNDDOWN": [(2.9, 0), (-2.9, 0), (2.567, 2)],
+    "PI": [()],
+    "AND": [(TRUE, FALSE), (TRUE, TRUE)],
+    "OR": [(TRUE, FALSE), (FALSE, FALSE)],
+    "NOT": [(TRUE,), (FALSE,)],
+    "EXACT": [(text("abc"), text("abc")), (text("abc"), text("ABC"))],
+    "LEN": [(text("hello"),), (text(""),)],
+    "UPPER": [(text("abc"),), (text("aBc"),)],
+    "LOWER": [(text("ABC"),), (text("aBc"),)],
+    "TRIM": [(text("  a   b  "),), (text("abc"),)],
+    "LEFT": [(text("abcdef"), 3), (text("ab"), 5)],
+    "RIGHT": [(text("abcdef"), 3), (text("ab"), 5)],
+    "MID": [(text("abcdef"), 2, 3), (text("abcdef"), 1, 2), (text("ab"), 1, 5)],
+    "REPT": [(text("ab"), 3), (text("x"), 0)],
+    "SUBSTITUTE": [
+        (text("a-b-c"), text("-"), text("+")),
+        (text("abc"), text("z"), text("y")),
+    ],
+    "CONCAT": [(text("a"), text("b"), text("c")), (text("x"),)],
+    "CONCATENATE": [(text("a"), text("b")), (text("x"), text("y"), text("z"))],
+    "PROPER": [(text("hello world"),), (text("HELLO WORLD"),), (text("o brien"),)],
+    "CHAR": [(65.0,), (97.0,), (955.0,)],
+    "CODE": [(text("A"),), (text("abc"),)],
+    "UNICHAR": [(65.0,), (955.0,)],
+    "UNICODE": [(text("A"),), (text("\u03bb"),)],
+    "CLEAN": [(text("ab"),)],
+    "T": [(text("x"),), (5.0,)],
+    "N": [(5.0,), (text("x"),), (TRUE,)],
+    "FIND": [
+        (text("b"), text("abcb")),
+        (text("b"), text("abcb"), 3),
+        (text("a"), text("banana")),
+    ],
+    "SEARCH": [
+        (text("B"), text("abcb")),
+        (text("b"), text("abcb"), 3),
+        (text("a"), text("banana")),
+    ],
+    "TEXT": [
+        (1234.567, text("#,##0.00")),
+        (1234.567, text("0")),
+        (1234.567, text("#,##0")),
+        (0.5, text("0%")),
+        (0.125, text("0.0%")),
+        (-1234.5, text("#,##0.00")),
+        (1234567, text("#,##0")),
+    ],
+    "VALUE": [
+        (text("1234.5"),),
+        (text("1,234.5"),),
+        (text("12%"),),
+    ],
+    "COUNT": [(1, 2, 3), (text("a"), 1)],
+    "COUNTA": [(1, 2, 3), (text("a"), 1)],
+}
+
+EXAMPLE = """//! Generated by research/tools/verify_spreadsheet.py. Do not edit.
+use spreadsheet_formula::{CellRef, Evaluator, Sheet, Value};
+
+struct Empty;
+impl Sheet for Empty {
+    fn value(&self, _cell: CellRef) -> Value {
+        Value::Empty
+    }
+}
+
+fn main() {
+    let mut evaluator = Evaluator::new(&Empty);
+    for formula in __FORMULAS__ {
+        match evaluator.eval(formula) {
+            Ok(Value::Number(n)) => println!("num\\t{n}"),
+            Ok(Value::Text(t)) => println!("text\\t{t}"),
+            Ok(Value::Bool(b)) => println!("bool\\t{b}"),
+            Ok(Value::Empty) => println!("empty"),
+            Err(_) => println!("error"),
+        }
+    }
+}
+"""
+
+
+def rust_formulas():
+    """The formula strings the Rust example evaluates, in case order."""
+    out = []
+    for name, arg_sets in CASES.items():
+        for args in arg_sets:
+            rendered = ", ".join(render_rust(a) for a in args)
+            out.append(f"={name}({rendered})")
+    return out
+
+
+def render_rust(arg):
+    if isinstance(arg, tuple) and len(arg) == 3 and isinstance(arg[1], str):
+        return arg[0]
+    return repr(arg)
+
+
+def js_cases():
+    """The JS call expressions and the name they belong to, in case order."""
+    out = []
+    for name, arg_sets in CASES.items():
+        for args in arg_sets:
+            rendered = ", ".join(render_js(a) for a in args)
+            out.append((name, f"f.{name}({rendered})"))
+    return out
+
+
+def render_js(arg):
+    if isinstance(arg, tuple) and len(arg) == 3 and isinstance(arg[1], str):
+        return arg[1]
+    if isinstance(arg, str):
+        return json.dumps(arg)
+    return repr(arg)
+
+
+JS_DRIVER = """const f = require('@formulajs/formulajs');
+const cases = __CASES__;
+for (const expr of cases) {
+  let out;
+  try {
+    const value = eval(expr);
+    if (value === undefined || value === null) out = 'empty';
+    else if (typeof value === 'number') out = Number.isNaN(value) ? 'nan' : 'num\\t' + value;
+    else if (typeof value === 'string') out = 'text\\t' + value;
+    else if (typeof value === 'boolean') out = 'bool\\t' + value;
+    else if (typeof value === 'object') out = 'error';
+    else out = 'other';
+  } catch (e) {
+    out = 'error';
+  }
+  console.log(out);
+}
+"""
+
+
+def run_rust(formulas):
+    example = CRATE / "examples" / "_oracle_formulas.rs"
+    example.parent.mkdir(exist_ok=True)
+    listing = ",\n    ".join(json.dumps(f, ensure_ascii=False) for f in formulas)
+    example.write_text(EXAMPLE.replace("__FORMULAS__", f"[\n    {listing},\n]"))
+    try:
+        r = subprocess.run(
+            ["cargo", "run", "--quiet", "--example", "_oracle_formulas"],
+            cwd=CRATE, capture_output=True, text=True, env=CARGO_ENV,
+        )
+        if r.returncode != 0:
+            raise SystemExit(r.stderr[-4000:])
+        return r.stdout.splitlines()
+    finally:
+        example.unlink()
+
+
+def run_js(cases):
+    driver = CRATE / "_oracle_cases.js"
+    exprs = [expr for _, expr in cases]
+    driver.write_text(JS_DRIVER.replace("__CASES__", json.dumps(exprs, ensure_ascii=False)))
+    try:
+        r = subprocess.run(
+            ["node", str(driver)], cwd=ROOT, capture_output=True, text=True,
+        )
+        if r.returncode != 0:
+            raise SystemExit(r.stderr[-4000:])
+        return r.stdout.splitlines()
+    finally:
+        driver.unlink()
+
+
+def close_enough(a, b):
+    if a == b:
+        return True
+    try:
+        fa, fb = float(a), float(b)
+    except ValueError:
+        return False
+    return abs(fa - fb) <= 1e-9 * max(1.0, abs(fa), abs(fb))
+
+
+def main() -> int:
+    verbose = "--verbose" in sys.argv
+    formulas = rust_formulas()
+    cases = js_cases()
+    ours = run_rust(formulas)
+    theirs = run_js(cases)
+    if len(ours) != len(theirs):
+        raise SystemExit(f"case count differs: {len(ours)} rust, {len(theirs)} js")
+
+    mismatches = 0
+    for (name, expr), mine, reference in zip(cases, ours, theirs):
+        mine_kind, _, mine_value = mine.partition("\t")
+        ref_kind, _, ref_value = reference.partition("\t")
+        if mine_kind == "error" or ref_kind == "error":
+            # Both refusing is agreement; one refusing is a defect.
+            if mine_kind == ref_kind:
+                continue
+            mismatches += 1
+            print(f"MISMATCH {name} {expr}\n  rust={mine}\n  js  ={reference}")
+            continue
+        if mine_kind != ref_kind:
+            mismatches += 1
+            print(f"MISMATCH {name} {expr}\n  rust={mine}\n  js  ={reference}")
+            continue
+        if mine_kind == "num":
+            if not close_enough(mine_value, ref_value):
+                mismatches += 1
+                print(f"MISMATCH {name} {expr}\n  rust={mine}\n  js  ={reference}")
+        elif mine_value != ref_value:
+            mismatches += 1
+            print(f"MISMATCH {name} {expr}\n  rust={mine}\n  js  ={reference}")
+        elif verbose:
+            print(f"ok  {name} {expr} -> {mine}")
+
+    total = len(cases)
+    print(f"\n{total - mismatches}/{total} cases agree with formulajs")
+    return 1 if mismatches else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

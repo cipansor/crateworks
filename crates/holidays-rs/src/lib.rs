@@ -19,6 +19,15 @@ pub enum Rule {
     },
     /// A date relative to Easter Sunday, in days. Negative is before Easter.
     EasterOffset(i32),
+    /// A date relative to Orthodox Easter Sunday, in days.
+    ///
+    /// Orthodox Easter is computed with the Julian computus and then converted
+    /// to the Gregorian calendar, which puts it between one and five weeks
+    /// after the Western Easter. Greece, Cyprus, Romania and Bulgaria all
+    /// observe the movable feasts on this date, and it is a different date from
+    /// [`Rule::EasterOffset`] often enough that sharing one rule would be
+    /// wrong.
+    OrthodoxEasterOffset(i32),
     /// The *n*-th weekday of a month. `nth` of 5 means "last".
     NthWeekday {
         /// Month, 1-12.
@@ -100,6 +109,20 @@ pub enum Rule {
         base: &'static Rule,
         /// Years in which it does not.
         years: &'static [i32],
+    },
+    /// A fixed date moved forward off a weekend, and one day further when the
+    /// day it lands on is Orthodox Easter Monday.
+    ///
+    /// Greece moves Labour Day this way. 1 May 2021 fell on a Saturday, so it
+    /// was observed on the next working day, but that Monday was Orthodox
+    /// Easter Monday and already a holiday, so it moved on to the Tuesday. In
+    /// 2000 the first of May *was* Orthodox Easter Monday and moved to the
+    /// second. Both shapes are the same rule.
+    ObservedOffWeekendAndOrthodoxEasterMonday {
+        /// Month, 1-12.
+        month: u8,
+        /// Day that normally holds the holiday.
+        day: u8,
     },
     /// A holiday that begins in a given year and applies from then on.
     ///
@@ -193,12 +216,14 @@ impl Rule {
             | Self::Between { .. } => true,
             Self::Fixed { .. }
             | Self::EasterOffset(_)
+            | Self::OrthodoxEasterOffset(_)
             | Self::NthWeekday { .. }
             | Self::FixedUnlessWeekday { .. }
             | Self::FixedOnWeekdayElseWeekdayOnOrAfter { .. }
             | Self::WeekdayOnOrAfter { .. }
             | Self::WeekdayOnOrBefore { .. }
-            | Self::ObservedFrom { .. } => false,
+            | Self::ObservedFrom { .. }
+            | Self::ObservedOffWeekendAndOrthodoxEasterMonday { .. } => false,
         }
     }
 
@@ -212,6 +237,26 @@ impl Rule {
         match *self {
             Self::Fixed { month, day } => Date::new(year, month, day),
             Self::EasterOffset(offset) => Date::easter(year)?.add_days(offset),
+            Self::OrthodoxEasterOffset(offset) => Date::orthodox_easter(year)?.add_days(offset),
+            Self::ObservedOffWeekendAndOrthodoxEasterMonday { month, day } => {
+                let date = Date::new(year, month, day)?;
+                // A weekend occurrence moves to the next working day, as the
+                // country does for any holiday.
+                let moved = match date.weekday() {
+                    6 => date.add_days(2)?,
+                    0 => date.add_days(1)?,
+                    _ => date,
+                };
+                // If that working day is already Orthodox Easter Monday the
+                // holiday moves one day further, because a day cannot be
+                // observed twice.
+                let easter_monday = Date::orthodox_easter(year)?.add_days(1)?;
+                if moved == easter_monday {
+                    moved.add_days(1)
+                } else {
+                    Some(moved)
+                }
+            }
             Self::NthWeekday {
                 month,
                 weekday,

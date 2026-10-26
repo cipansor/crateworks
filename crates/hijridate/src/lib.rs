@@ -1,10 +1,12 @@
 #![doc = include_str!("../README.md")]
 #![forbid(unsafe_code)]
 
+mod locales;
 mod ummalqura;
 
 use std::fmt;
 
+pub use locales::Language;
 pub use ummalqura::{FIRST_HIJRI_YEAR, LAST_HIJRI_YEAR};
 
 /// Errors returned when a date is outside the calendar's rules.
@@ -180,6 +182,24 @@ impl Hijri {
     #[must_use]
     pub fn month_name(self) -> &'static str {
         MONTH_NAMES[usize::from(self.month) - 1]
+    }
+
+    /// The name of the month in a given language.
+    #[must_use]
+    pub fn month_name_in(self, language: Language) -> &'static str {
+        language.hijri_month_names()[usize::from(self.month) - 1]
+    }
+
+    /// The name of the weekday in a given language.
+    #[must_use]
+    pub fn day_name_in(self, language: Language) -> &'static str {
+        language.day_names()[self.weekday()]
+    }
+
+    /// The era notation for this date's year in a given language.
+    #[must_use]
+    pub fn notation_in(self, language: Language) -> &'static str {
+        language.hijri_notation()
     }
 
     /// The number of days in this month.
@@ -452,6 +472,24 @@ impl Gregorian {
     #[must_use]
     pub fn month_name(self) -> &'static str {
         GREGORIAN_MONTH_NAMES[usize::from(self.month) - 1]
+    }
+
+    /// The name of the month in a given language.
+    #[must_use]
+    pub fn month_name_in(self, language: Language) -> &'static str {
+        language.gregorian_month_names()[usize::from(self.month) - 1]
+    }
+
+    /// The name of the weekday in a given language.
+    #[must_use]
+    pub fn day_name_in(self, language: Language) -> &'static str {
+        language.day_names()[self.weekday()]
+    }
+
+    /// The era notation for this date's year in a given language.
+    #[must_use]
+    pub fn notation_in(self, language: Language) -> &'static str {
+        language.gregorian_notation()
     }
 
     /// The weekday, Monday as 1 through Sunday as 7.

@@ -13,3 +13,7 @@ __pycache__/
 # Sparse-index responses cached by research/tools/stale.py. Local scratch, large,
 # and rebuildable from index.crates.io in seconds.
 research/tools/.cache/
+
+# Node modules for the JavaScript oracles (formulajs). The manifests are
+# committed so the reference version is pinned; the installed tree is not.
+node_modules/

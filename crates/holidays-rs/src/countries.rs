@@ -99,6 +99,14 @@ pub enum Country {
     Luxembourg,
     /// Iceland.
     Iceland,
+    /// Cyprus.
+    Cyprus,
+    /// Malta.
+    Malta,
+    /// Greece.
+    Greece,
+    /// Romania.
+    Romania,
 }
 
 impl Country {
@@ -131,6 +139,10 @@ impl Country {
         Self::Lithuania,
         Self::Luxembourg,
         Self::Iceland,
+        Self::Cyprus,
+        Self::Malta,
+        Self::Greece,
+        Self::Romania,
     ];
 
     /// The holiday rules for this country, in no particular order.
@@ -164,6 +176,10 @@ impl Country {
             Self::Lithuania => LITHUANIA,
             Self::Luxembourg => LUXEMBOURG,
             Self::Iceland => ICELAND,
+            Self::Cyprus => CYPRUS,
+            Self::Malta => MALTA,
+            Self::Greece => GREECE,
+            Self::Romania => ROMANIA_HOLIDAYS,
         }
     }
 
@@ -196,7 +212,11 @@ impl Country {
             | Self::Estonia
             | Self::Lithuania
             | Self::Luxembourg
-            | Self::Iceland => SubstituteStyle::None,
+            | Self::Iceland
+            | Self::Cyprus
+            | Self::Malta
+            | Self::Greece
+            | Self::Romania => SubstituteStyle::None,
         }
     }
 
@@ -231,6 +251,10 @@ impl Country {
             Self::Lithuania => "Lithuania",
             Self::Luxembourg => "Luxembourg",
             Self::Iceland => "Iceland",
+            Self::Cyprus => "Cyprus",
+            Self::Malta => "Malta",
+            Self::Greece => "Greece",
+            Self::Romania => "Romania",
         }
     }
 }
@@ -406,6 +430,30 @@ impl Calendar {
     #[must_use]
     pub const fn luxembourg() -> Self {
         Self::new(Country::Luxembourg)
+    }
+
+    /// Builds the calendar for Iceland.
+    #[must_use]
+    pub const fn cyprus() -> Self {
+        Self::new(Country::Cyprus)
+    }
+
+    /// Builds the calendar for Malta.
+    #[must_use]
+    pub const fn malta() -> Self {
+        Self::new(Country::Malta)
+    }
+
+    /// Builds the calendar for Greece.
+    #[must_use]
+    pub const fn greece() -> Self {
+        Self::new(Country::Greece)
+    }
+
+    /// Builds the calendar for Romania.
+    #[must_use]
+    pub const fn romania() -> Self {
+        Self::new(Country::Romania)
     }
 
     /// Builds the calendar for Iceland.
@@ -653,6 +701,256 @@ impl Calendar {
         count
     }
 }
+
+/// Cyprus.
+///
+/// The movable feasts follow Orthodox Easter, which is a different date from
+/// the Western Easter in most years, and the reference moves Labour Day when it
+/// collides with one of them.
+static CYPRUS: &[Holiday] = &[
+    h("Πρωτοχρονιά", Rule::Fixed { month: 1, day: 1 }),
+    h("Ημέρα των Θεοφανίων", Rule::Fixed { month: 1, day: 6 }),
+    h("Καθαρά Δευτέρα", Rule::OrthodoxEasterOffset(-48)),
+    h(
+        "Ημέρα της Ελληνικής Ανεξαρτησίας",
+        Rule::Fixed { month: 3, day: 25 },
+    ),
+    h("Εθνική Ημέρα Κύπρου", Rule::Fixed { month: 4, day: 1 }),
+    h("Μεγάλη Παρασκευή", Rule::OrthodoxEasterOffset(-2)),
+    h("Κυριακή του Πάσχα", Rule::OrthodoxEasterOffset(0)),
+    h("Δευτέρα της Διακαινησίμου", Rule::OrthodoxEasterOffset(1)),
+    h("Πρωτομαγιά", Rule::Fixed { month: 5, day: 1 }),
+    h(
+        "Δευτέρα του Αγίου Πνεύματος",
+        Rule::OrthodoxEasterOffset(50),
+    ),
+    h("Κοίμηση της Θεοτόκου", Rule::Fixed { month: 8, day: 15 }),
+    h(
+        "Ημέρα της Κυπριακής Ανεξαρτησίας",
+        Rule::Fixed { month: 10, day: 1 },
+    ),
+    h("Ημέρα του Όχι", Rule::Fixed { month: 10, day: 28 }),
+    h("Χριστούγεννα", Rule::Fixed { month: 12, day: 25 }),
+    h("Επομένη Χριστουγέννων", Rule::Fixed { month: 12, day: 26 }),
+];
+
+/// Malta.
+///
+/// Fourteen fixed national and religious holidays, several of them tied to
+/// particular saints and all of them on a fixed date.
+static MALTA: &[Holiday] = &[
+    h("L-Ewwel tas-Sena", Rule::Fixed { month: 1, day: 1 }),
+    h(
+        "Il-Festa tan-Nawfraġju ta' San Pawl",
+        Rule::Fixed { month: 2, day: 10 },
+    ),
+    h("Il-Festa ta' San Ġużepp", Rule::Fixed { month: 3, day: 19 }),
+    h("Il-Ġimgħa l-Kbira", Rule::EasterOffset(-2)),
+    h("Jum il-Ħelsien", Rule::Fixed { month: 3, day: 31 }),
+    h("Jum il-Ħaddiem", Rule::Fixed { month: 5, day: 1 }),
+    h("Sette Giugno", Rule::Fixed { month: 6, day: 7 }),
+    h(
+        "Il-Festa ta' San Pietru u San Pawl",
+        Rule::Fixed { month: 6, day: 29 },
+    ),
+    h(
+        "Il-Festa ta' Santa Marija",
+        Rule::Fixed { month: 8, day: 15 },
+    ),
+    h("Jum il-Vitorja", Rule::Fixed { month: 9, day: 8 }),
+    h("Jum l-Indipendenza", Rule::Fixed { month: 9, day: 21 }),
+    h(
+        "Il-Festa tal-Immakulata Kunċizzjoni",
+        Rule::Fixed { month: 12, day: 8 },
+    ),
+    h("Jum ir-Repubblika", Rule::Fixed { month: 12, day: 13 }),
+    h("Il-Milied", Rule::Fixed { month: 12, day: 25 }),
+];
+
+/// Greece.
+///
+/// The movable feasts follow Orthodox Easter. Labour Day is the awkward one:
+/// it is moved to the next working day when it falls at a weekend, and one day
+/// further when that working day is Orthodox Easter Monday. 2024 is a separate
+/// one-off, when the holiday was moved to the Tuesday after Easter Monday
+/// because 1 May fell inside Orthodox Holy Week.
+static GREECE: &[Holiday] = &[
+    h("Πρωτοχρονιά", Rule::Fixed { month: 1, day: 1 }),
+    h("Θεοφάνεια", Rule::Fixed { month: 1, day: 6 }),
+    h("Καθαρά Δευτέρα", Rule::OrthodoxEasterOffset(-48)),
+    h("Εικοστή Πέμπτη Μαρτίου", Rule::Fixed { month: 3, day: 25 }),
+    h("Μεγάλη Παρασκευή", Rule::OrthodoxEasterOffset(-2)),
+    h("Δευτέρα του Πάσχα", Rule::OrthodoxEasterOffset(1)),
+    h(
+        "Εργατική Πρωτομαγιά",
+        Rule::Until {
+            year: 2020,
+            base: &Rule::Fixed { month: 5, day: 1 },
+        },
+    ),
+    h(
+        "Εργατική Πρωτομαγιά",
+        Rule::ExceptYears {
+            base: &Rule::Since {
+                year: 2021,
+                base: &Rule::ObservedOffWeekendAndOrthodoxEasterMonday { month: 5, day: 1 },
+            },
+            years: &[2024],
+        },
+    ),
+    // 2024 is the exception the reference hard-codes: 1 May fell in Orthodox
+    // Holy Week, so the holiday was moved to the Tuesday after Easter Monday.
+    h(
+        "Εργατική Πρωτομαγιά",
+        Rule::Once {
+            year: 2024,
+            month: 5,
+            day: 7,
+        },
+    ),
+    h(
+        "Δευτέρα του Αγίου Πνεύματος",
+        Rule::OrthodoxEasterOffset(50),
+    ),
+    h("Κοίμηση της Θεοτόκου", Rule::Fixed { month: 8, day: 15 }),
+    h("Ημέρα του Όχι", Rule::Fixed { month: 10, day: 28 }),
+    h("Χριστούγεννα", Rule::Fixed { month: 12, day: 25 }),
+    h(
+        "Σύναξη της Υπεραγίας Θεοτόκου",
+        Rule::Fixed { month: 12, day: 26 },
+    ),
+];
+
+/// Romania.
+///
+/// The movable feasts follow Orthodox Easter. Romanian public holidays have
+/// been added piecemeal by law, so most of the rules carry the year they came
+/// into force: the calendar itself begins in 1997, Saint Andrew arrived in
+/// 2012, the Union Day, Children's Day and Good Friday in 2017 and 2018, and
+/// Epiphany and Saint John the Baptist in 2024. Before those years they were
+/// ordinary working days, so the rules are year-restricted rather than always
+/// present.
+static ROMANIA_HOLIDAYS: &[Holiday] = &[
+    h(
+        "Anul Nou",
+        Rule::Since {
+            year: 1997,
+            base: &Rule::Fixed { month: 1, day: 1 },
+        },
+    ),
+    h(
+        "Anul Nou",
+        Rule::Since {
+            year: 1997,
+            base: &Rule::Fixed { month: 1, day: 2 },
+        },
+    ),
+    h(
+        "Botezul Domnului - Boboteaza",
+        Rule::Since {
+            year: 2024,
+            base: &Rule::Fixed { month: 1, day: 6 },
+        },
+    ),
+    h(
+        "Soborul Sfântului Proroc Ioan Botezătorul",
+        Rule::Since {
+            year: 2024,
+            base: &Rule::Fixed { month: 1, day: 7 },
+        },
+    ),
+    h(
+        "Ziua Unirii Principatelor Române",
+        Rule::Since {
+            year: 2017,
+            base: &Rule::Fixed { month: 1, day: 24 },
+        },
+    ),
+    h(
+        "Vinerea Mare",
+        Rule::Since {
+            year: 2018,
+            base: &Rule::OrthodoxEasterOffset(-2),
+        },
+    ),
+    h(
+        "Paștele",
+        Rule::Since {
+            year: 1997,
+            base: &Rule::OrthodoxEasterOffset(0),
+        },
+    ),
+    h(
+        "Paștele",
+        Rule::Since {
+            year: 1997,
+            base: &Rule::OrthodoxEasterOffset(1),
+        },
+    ),
+    h(
+        "Ziua Muncii",
+        Rule::Since {
+            year: 1997,
+            base: &Rule::Fixed { month: 5, day: 1 },
+        },
+    ),
+    h(
+        "Ziua Copilului",
+        Rule::Since {
+            year: 2017,
+            base: &Rule::Fixed { month: 6, day: 1 },
+        },
+    ),
+    h(
+        "Rusaliile",
+        Rule::Since {
+            year: 2009,
+            base: &Rule::OrthodoxEasterOffset(49),
+        },
+    ),
+    h(
+        "Rusaliile",
+        Rule::Since {
+            year: 2009,
+            base: &Rule::OrthodoxEasterOffset(50),
+        },
+    ),
+    h(
+        "Adormirea Maicii Domnului",
+        Rule::Since {
+            year: 2009,
+            base: &Rule::Fixed { month: 8, day: 15 },
+        },
+    ),
+    h(
+        "Sfântul Apostol Andrei, cel Întâi chemat, Ocrotitorul României",
+        Rule::Since {
+            year: 2012,
+            base: &Rule::Fixed { month: 11, day: 30 },
+        },
+    ),
+    h(
+        "Ziua Națională a României",
+        Rule::Since {
+            year: 1997,
+            base: &Rule::Fixed { month: 12, day: 1 },
+        },
+    ),
+    h(
+        "Crăciunul",
+        Rule::Since {
+            year: 1997,
+            base: &Rule::Fixed { month: 12, day: 25 },
+        },
+    ),
+    h(
+        "Crăciunul",
+        Rule::Since {
+            year: 1997,
+            base: &Rule::Fixed { month: 12, day: 26 },
+        },
+    ),
+];
 
 const fn h(name: &'static str, rule: Rule) -> Holiday {
     Holiday { name, rule }
@@ -2498,6 +2796,73 @@ mod tests {
         let cal = Calendar::luxembourg();
         assert_eq!(cal.holiday_name(d(2018, 5, 9)), None);
         assert_eq!(cal.holiday_name(d(2019, 5, 9)), Some("Europadag"));
+    }
+
+    #[test]
+    fn cyprus_uses_orthodox_easter() {
+        let cal = Calendar::cyprus();
+        // 2024 Orthodox Easter was 5 May, not the Western 31 March.
+        assert_eq!(cal.holiday_name(d(2024, 5, 5)), Some("Κυριακή του Πάσχα"));
+        assert_eq!(
+            cal.holiday_name(d(2024, 5, 6)),
+            Some("Δευτέρα της Διακαινησίμου")
+        );
+        // Clean Monday is 48 days before it.
+        assert_eq!(cal.holiday_name(d(2024, 3, 18)), Some("Καθαρά Δευτέρα"));
+    }
+
+    #[test]
+    fn malta_has_fourteen_fixed_holidays() {
+        let cal = Calendar::malta();
+        for (month, day) in [
+            (1, 1),
+            (2, 10),
+            (3, 19),
+            (3, 31),
+            (5, 1),
+            (6, 7),
+            (6, 29),
+            (8, 15),
+            (9, 8),
+            (9, 21),
+            (12, 8),
+            (12, 13),
+            (12, 25),
+        ] {
+            assert!(
+                cal.holiday_name(d(2026, month, day)).is_some(),
+                "Malta {month}-{day}"
+            );
+        }
+        // Good Friday follows the Western Easter for Malta.
+        assert_eq!(cal.holiday_name(d(2026, 4, 3)), Some("Il-Ġimgħa l-Kbira"));
+    }
+
+    #[test]
+    fn greek_labour_day_moves_off_orthodox_easter_monday() {
+        let cal = Calendar::greece();
+        // 2021: 1 May was a Saturday, so it moved to Monday 3 May, which was
+        // Orthodox Easter Monday, so it moved again to Tuesday 4 May.
+        assert_eq!(cal.holiday_name(d(2021, 5, 4)), Some("Εργατική Πρωτομαγιά"));
+        assert!(cal.holiday_name(d(2021, 5, 3)).is_some(), "Easter Monday");
+        // 2022: 1 May was a Sunday and 2 May was not Easter Monday, so the
+        // ordinary next-working-day rule applies.
+        assert_eq!(cal.holiday_name(d(2022, 5, 2)), Some("Εργατική Πρωτομαγιά"));
+        // 2024 is the hard-coded move to the Tuesday after Easter Monday.
+        assert_eq!(cal.holiday_name(d(2024, 5, 7)), Some("Εργατική Πρωτομαγιά"));
+    }
+
+    #[test]
+    fn romanian_holidays_are_year_restricted() {
+        let cal = Calendar::romania();
+        // Children's Day became a public holiday in 2017.
+        assert!(cal.holiday_name(d(2016, 6, 1)).is_none());
+        assert_eq!(cal.holiday_name(d(2017, 6, 1)), Some("Ziua Copilului"));
+        // Epiphany and Saint John the Baptist only in 2024 onward.
+        assert!(cal.holiday_name(d(2023, 1, 6)).is_none());
+        assert!(cal.holiday_name(d(2024, 1, 6)).is_some());
+        // The movable feasts follow Orthodox Easter.
+        assert_eq!(cal.holiday_name(d(2024, 5, 5)), Some("Paștele"));
     }
 
     #[test]

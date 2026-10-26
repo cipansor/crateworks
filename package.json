@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@formulajs/formulajs": "^4.6.1",
+    "object-hash": "^3.0.0"
+  }
+}

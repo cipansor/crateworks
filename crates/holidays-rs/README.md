@@ -22,7 +22,13 @@ Friday and the United Kingdom moves a weekend holiday forward to Monday.
 Covered: Indonesia, United States, United Kingdom, Germany, France,
 Netherlands, Spain, Italy, Portugal, Belgium, Austria, Poland, Sweden, Norway,
 Denmark, Finland, Ireland, Canada, New Zealand, Czechia, Slovakia, Croatia,
-Slovenia, Estonia, Lithuania, Luxembourg and Iceland. `Country::ALL` lists them.
+Slovenia, Estonia, Lithuania, Luxembourg, Iceland, Cyprus, Malta, Greece and
+Romania. `Country::ALL` lists them.
+
+Greece, Cyprus and Romania keep the Orthodox calendar, so their movable feasts
+are computed from Orthodox Easter with `Rule::OrthodoxEasterOffset` rather than
+from the Western one; in 2024 the two Easters were five weeks apart, so sharing
+a single rule would have been wrong for most years.
 
 The crate answers three questions:
 
@@ -41,7 +47,10 @@ movable from 1977 to 2000), `Rule::ExceptYears` for years that are skipped
 (New Zealand's 2022 Queen Elizabeth II Memorial Day), `Rule::EveryNYears` for a
 recurring interval (the Netherlands' Liberation Day every five years),
 `Rule::ObservedFrom` for a holiday that gained a substitute day late (New
-Zealand's Mondayised Waitangi Day and Anzac Day from 2014) and `Rule::Table` for
+Zealand's Mondayised Waitangi Day and Anzac Day from 2014),
+`Rule::ObservedOffWeekendAndOrthodoxEasterMonday` for a date moved off a weekend
+and one day further when the landing day is already Orthodox Easter Monday
+(Greece's Labour Day, which moved twice in 2021) and `Rule::Table` for
 dates that are published rather than computed (Matariki). Regional observances
 are out of scope; add them with `Calendar::with_extra` when needed.
 

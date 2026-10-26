@@ -22,9 +22,11 @@ impl Sheet for Grid {
 assert_eq!(Evaluator::new(&Grid).eval("=SUM(A1:A2)*2").unwrap(), Value::Number(10.0));
 ```
 
-38 functions plus `IF` and `IFERROR`, which are evaluated lazily. Cell and range
+71 functions plus `IF` and `IFERROR`, which are evaluated lazily. Cell and range
 references, absolute references, sheet qualifiers, text concatenation, and
-comparison operators.
+comparison operators. The library covers arithmetic and rounding, logarithms and
+integer number theory, text case, search and formatting, and the conditional
+aggregates.
 
 The crate is deliberately independent of any file format. It takes a formula
 string and a way to resolve cell references, so it can be used with `xlsx`,
@@ -40,11 +42,16 @@ reference is reported as an error rather than resolved.
 `FUNCTION_NAMES` is the list of every function the crate implements, and a caller
 can validate a formula against it. The conditional ones are `IF` and `IFERROR`,
 which the evaluator handles itself so that they do not evaluate every argument,
-plus `IFS`, `COUNTIF`, `SUMIF`, `AVERAGEIF` and `COUNTBLANK`. `COUNTIF`, `SUMIF`
-and `AVERAGEIF` take the spreadsheet criteria of a bare value or a comparison
-such as `">3"`, and match text case-insensitively. `SUMIF` and `AVERAGEIF` take
-the optional third argument as the range to add up, aligned by position with the
-range being tested.
+plus `IFS`, `COUNTIF`, `COUNTIFS`, `SUMIF`, `SUMIFS`, `AVERAGEIF`, `AVERAGEIFS`,
+`MAXIFS`, `MINIFS` and `COUNTBLANK`. They take the spreadsheet criteria of a bare
+value or a comparison such as `">3"`, and match text case-insensitively. `SUMIF`
+and `AVERAGEIF` take the optional third argument as the range to add up, aligned
+by position with the range being tested; the `*IFS` forms take the range first and
+then criteria range and criterion pairs.
+
+`TEXT` supports the common number formats - a `%` suffix, a thousands separator
+and a fixed number of decimal places - and `VALUE` parses a number back out of
+text, including a thousands separator, currency symbol or trailing percent.
 
 ### Aggregation rules
 

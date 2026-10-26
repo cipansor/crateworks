@@ -16,6 +16,7 @@ use crate::{Error, Result};
 
 mod asia;
 mod asia_ext;
+mod balkans;
 mod brazil;
 mod europe;
 mod europe_ext;
@@ -23,9 +24,11 @@ mod latin_america;
 mod nordics;
 mod oceania;
 mod southeast_asia;
+mod vat;
 
 use asia::{china, india, korea, mexico, turkey};
 use asia_ext::{greece, israel, malaysia, singapore, south_africa, thailand};
+use balkans::{belarus, montenegro, north_macedonia, romania as romania_cf, serbia, slovenia};
 use brazil::{cnpj, cpf};
 use europe::{belgium, france, germany, italy, netherlands, poland, portugal, romania, spain};
 use europe_ext::{
@@ -36,6 +39,9 @@ use latin_america::{argentina, chile, colombia, peru, uruguay, venezuela};
 use nordics::{denmark, finland, norway, sweden};
 use oceania::{australia, canada, new_zealand};
 use southeast_asia::{indonesia, philippines};
+use vat::{
+    cyprus, czechia, finland as finland_vat, greece as greece_vat, malta, sweden as sweden_vat,
+};
 
 pub use asia::verhoeff_check_digit;
 
@@ -157,6 +163,32 @@ pub enum Country {
     SouthAfricaIdnr,
     /// Greece: ΑΜΚΑ social security number, 11 digits.
     GreeceAmka,
+    /// Serbia: PIB tax identification number, 9 digits.
+    SerbiaPib,
+    /// Montenegro: PIB tax number, 8 digits.
+    MontenegroPib,
+    /// North Macedonia: ЕДБ tax number, 13 digits.
+    NorthMacedoniaEdb,
+    /// Slovenia: DDV VAT number, 8 digits.
+    SloveniaDdv,
+    /// Romania: CF VAT number, 2 to 10 digits, or a 13-digit CNP.
+    RomaniaCf,
+    /// Belarus: УНП payer account number, 9 characters.
+    BelarusUnp,
+    /// Cyprus: VAT registration number, 9 characters.
+    CyprusVat,
+    /// Malta: VAT registration number, 8 digits.
+    MaltaVat,
+    /// Greece: ΦΠΑ/ΑΦΜ VAT number, 9 digits.
+    GreeceVat,
+    /// Finland: ALV number, 8 digits.
+    FinlandAlv,
+    /// Sweden: organisationsnummer, 10 digits.
+    SwedenOrgnr,
+    /// Sweden: VAT number, 12 digits ending `01`.
+    SwedenVat,
+    /// Czechia: DIČ VAT number, 8 to 10 digits.
+    CzechDic,
 }
 
 impl Country {
@@ -219,6 +251,19 @@ impl Country {
         Self::MalaysiaNric,
         Self::SouthAfricaIdnr,
         Self::GreeceAmka,
+        Self::SerbiaPib,
+        Self::MontenegroPib,
+        Self::NorthMacedoniaEdb,
+        Self::SloveniaDdv,
+        Self::RomaniaCf,
+        Self::BelarusUnp,
+        Self::CyprusVat,
+        Self::MaltaVat,
+        Self::GreeceVat,
+        Self::FinlandAlv,
+        Self::SwedenOrgnr,
+        Self::SwedenVat,
+        Self::CzechDic,
     ];
 
     /// A short English description of the identifier.
@@ -282,6 +327,19 @@ impl Country {
             Self::MalaysiaNric => "Malaysia NRIC",
             Self::SouthAfricaIdnr => "South Africa identity number",
             Self::GreeceAmka => "Greece ΑΜΚΑ",
+            Self::SerbiaPib => "Serbia PIB tax number",
+            Self::MontenegroPib => "Montenegro PIB tax number",
+            Self::NorthMacedoniaEdb => "North Macedonia ЕДБ tax number",
+            Self::SloveniaDdv => "Slovenia DDV VAT number",
+            Self::RomaniaCf => "Romania CF VAT number",
+            Self::BelarusUnp => "Belarus УНП payer account number",
+            Self::CyprusVat => "Cyprus VAT number",
+            Self::MaltaVat => "Malta VAT number",
+            Self::GreeceVat => "Greece ΦΠΑ VAT number",
+            Self::FinlandAlv => "Finland ALV number",
+            Self::SwedenOrgnr => "Sweden organisationsnummer",
+            Self::SwedenVat => "Sweden VAT number",
+            Self::CzechDic => "Czechia DIČ VAT number",
         }
     }
 }
@@ -379,6 +437,19 @@ impl IdNumber {
             Country::MalaysiaNric => malaysia::validate_nric(subject)?,
             Country::SouthAfricaIdnr => south_africa::validate_idnr(subject)?,
             Country::GreeceAmka => greece::validate_amka(subject)?,
+            Country::SerbiaPib => serbia::validate_pib(subject)?,
+            Country::MontenegroPib => montenegro::validate_pib(subject)?,
+            Country::NorthMacedoniaEdb => north_macedonia::validate_edb(subject)?,
+            Country::SloveniaDdv => slovenia::validate_ddv(subject)?,
+            Country::RomaniaCf => romania_cf::validate_cf(subject)?,
+            Country::BelarusUnp => belarus::validate_unp(subject)?,
+            Country::CyprusVat => cyprus::validate_vat(subject)?,
+            Country::MaltaVat => malta::validate_vat(subject)?,
+            Country::GreeceVat => greece_vat::validate_vat(subject)?,
+            Country::FinlandAlv => finland_vat::validate_alv(subject)?,
+            Country::SwedenOrgnr => sweden_vat::validate_org_number(subject)?,
+            Country::SwedenVat => sweden_vat::validate_vat(subject)?,
+            Country::CzechDic => czechia::validate_dic(subject)?,
         }
         Ok(Self {
             country,
