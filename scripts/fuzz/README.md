@@ -25,7 +25,7 @@ never a dependency of any crate.
 
 | Crate | Generator | Reference library | Run |
 | --- | --- | --- | --- |
-| `object-hash` | `object-hash/gen.js` | `object-hash` npm 3.0.0 | `NODE_PATH=<modules> node object-hash/gen.js [out]` |
+| `object-hash` | `object-hash/gen.js` | `object-hash` npm 3.0.0 | `NODE_PATH=<modules> node object-hash/gen.js <fuzz out> <objects out> [oracle to extend] [oracle to append objects to]` |
 | `adhan` | `adhan/gen.js` | `adhan` npm 4.4.6 | `NODE_PATH=<modules> node adhan/gen.js [out]` |
 | `javaproperties` | `javaproperties/gen.py` | `javaproperties` PyPI 0.8.2 | `python3 javaproperties/gen.py [out]` |
 | `javaproperties` (writer) | `javaproperties/gen_writer.py` | `javaproperties` PyPI 0.8.2 | `TZ=UTC python3 javaproperties/gen_writer.py [out]` |
@@ -61,9 +61,12 @@ These are here because the curated fixtures, chosen by hand, all passed while th
 crate was still wrong. The value of a corpus is exactly the cases nobody thought
 to write down.
 
-- `object-hash` — 4,000 values: numbers past 1e21 and below 1e-6, strings above
-  U+FFFF, and the `Set`/`Map` deduplication rules. Found three divergences the 74
-  curated cases missed.
+- `object-hash` — 4,000 values, plus 2,000 plain objects: numbers past 1e21 and
+  below 1e-6, strings above U+FFFF, the `Set`/`Map` deduplication rules, and the
+  `object:` encoding a plain object gets that a `Map` does not. Found three
+  divergences the curated cases missed, and the object/`Map` split is what the
+  second corpus exists for. Plain objects are hashed with `respectType:false`,
+  the only form reproducible outside JavaScript.
 - `adhan` — 6,000 cases: latitudes near the poles, the manual adjustments, and
   `Rounding::None`. Found three gaps the 37,440-time grid missed, because the grid
   never set an adjustment and only used the default rounding.

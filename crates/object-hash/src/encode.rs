@@ -25,25 +25,50 @@ use std::fmt::Write as _;
 
 use crate::Value;
 
+/// The choices that change the canonical bytes.
+///
+/// These mirror the reference's options, minus the ones that only mean something
+/// in JavaScript. In particular there is no `respectType`: the reference's
+/// default adds a Node-runtime prototype preamble to every plain object, which
+/// is a property of the JavaScript object model rather than of the value, and
+/// can even depend on where the object sits in the traversal. Reproducing it is
+/// impossible in a language without that object model, so this crate always
+/// encodes the `respectType: false` form. See [`crate::Options`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct WriteOptions {
+    /// Write only the keys of a map or object, ignoring the values.
+    pub exclude_values: bool,
+    /// Sort an array's entries, so its order stops mattering.
+    pub unordered_arrays: bool,
+    /// Sort a set's entries. The reference does this by default.
+    pub unordered_sets: bool,
+    /// Sort a plain object's keys. The reference does this by default.
+    pub unordered_objects: bool,
+}
+
 /// Writes the canonical form of a value into a string.
 ///
 /// The result is text because the encoding is text: it is what the reference
 /// writes into its hash stream. The bytes are its UTF-8 encoding.
-pub(crate) fn write(value: &Value, out: &mut String) {
+pub(crate) fn write(value: &Value, options: &WriteOptions, out: &mut String) {
     match value {
         Value::Null => out.push_str("Null"),
         Value::Bool(true) => out.push_str("bool:true"),
         Value::Bool(false) => out.push_str("bool:false"),
         Value::Number(number) => write_number(*number, out),
         Value::String(text) => write_string(text, out),
-        Value::Array(items) => write_array(items, out),
+        Value::Array(items) => write_array(items, options, out),
         Value::Set(items) => {
             out.push_str("set:");
-            write_set(items, out);
+            write_set(items, options, out);
         }
         Value::Map(entries) => {
             out.push_str("map:");
-            write_map(entries, out);
+            write_map(entries, options, out);
+        }
+        Value::Object(entries) => {
+            out.push_str("object:");
+            write_object(entries, options, out);
         }
     }
 }
@@ -152,10 +177,24 @@ fn write_string(text: &str, out: &mut String) {
 }
 
 /// Arrays keep their order and carry their length.
-fn write_array(items: &[Value], out: &mut String) {
+///
+/// With `unordered_arrays` the entries are written out first, sorted as text,
+/// and then written again as strings. Sorting the *written* forms rather than
+/// the values is what the reference does, and it is why the result is
+/// `array:N:array:N:string:…` rather than just the sorted entries.
+fn write_array(items: &[Value], options: &WriteOptions, out: &mut String) {
     let _ = write!(out, "array:{}:", items.len());
-    for item in items {
-        write(item, out);
+    if !options.unordered_arrays || items.len() <= 1 {
+        for item in items {
+            write(item, options, out);
+        }
+        return;
+    }
+    let mut sorted: Vec<String> = items.iter().map(|item| canonical(item, options)).collect();
+    sorted.sort_by(|a, b| utf16_cmp(a, b));
+    let _ = write!(out, "array:{}:", sorted.len());
+    for entry in sorted {
+        write_string(&entry, out);
     }
 }
 
@@ -180,19 +219,19 @@ fn utf16_cmp(a: &str, b: &str) -> std::cmp::Ordering {
 /// string. With one entry or none there is nothing to sort and the entries are
 /// written straight out, which is why a one-entry map looks different from a
 /// two-entry one.
-fn write_unordered(entries: Vec<String>, out: &mut String) {
+fn write_unordered(entries: Vec<String>, sorted: bool, out: &mut String) {
     let count = entries.len();
     let _ = write!(out, "array:{count}:");
-    if count <= 1 {
+    if !sorted || count <= 1 {
         for entry in entries {
             out.push_str(&entry);
         }
         return;
     }
-    let mut sorted = entries;
-    sorted.sort_by(|a, b| utf16_cmp(a, b));
+    let mut entries = entries;
+    entries.sort_by(|a, b| utf16_cmp(a, b));
     let _ = write!(out, "array:{count}:");
-    for entry in sorted {
+    for entry in entries {
         write_string(&entry, out);
     }
 }
@@ -204,23 +243,23 @@ fn write_unordered(entries: Vec<String>, out: &mut String) {
 /// JavaScript they are compared by identity, and two equal-looking arrays are
 /// still two different objects. That asymmetry is the reference's, not a choice
 /// made here.
-fn write_set(items: &[Value], out: &mut String) {
+fn write_set(items: &[Value], options: &WriteOptions, out: &mut String) {
     let mut seen = HashSet::new();
     let entries = items
         .iter()
         .filter_map(|item| {
             if item.is_scalar() {
-                let written = canonical(item);
+                let written = canonical(item, options);
                 if !seen.insert(written.clone()) {
                     return None;
                 }
                 Some(written)
             } else {
-                Some(canonical(item))
+                Some(canonical(item, options))
             }
         })
         .collect();
-    write_unordered(entries, out);
+    write_unordered(entries, options.unordered_sets, out);
 }
 
 /// A map is written in key order, whatever order it was built in.
@@ -229,7 +268,56 @@ fn write_set(items: &[Value], out: &mut String) {
 /// does, and the entries are sorted by their written form rather than by the key.
 /// Sorting by the written form is what makes the order stable for keys whose own
 /// order would not settle it, and it is the reference's behaviour.
-fn write_map(entries: &[(String, Value)], out: &mut String) {
+fn write_map(entries: &[(String, Value)], options: &WriteOptions, out: &mut String) {
+    let serialized = serialized_entries(entries, options);
+    write_unordered(serialized, options.unordered_sets, out);
+}
+
+/// A plain object, which the reference writes as `object:N:` with unquoted keys.
+///
+/// This is not the same encoding as a `Map`, and the difference is not cosmetic:
+/// the reference gives an object its own `object:` prefix, sorts its keys by
+/// default, and does not quote the keys. Two values that a JavaScript caller
+/// would consider different - `{a: 1}` and `new Map([["a", 1]])` - hash
+/// differently, and this crate matches that.
+///
+/// A repeated key keeps the last value, as it does for a map.
+fn write_object(entries: &[(String, Value)], options: &WriteOptions, out: &mut String) {
+    let mut keys: Vec<&str> = entries.iter().map(|(key, _)| key.as_str()).collect();
+    if options.unordered_objects {
+        keys.sort_by(|a, b| utf16_cmp(a, b));
+    }
+    // A repeated key keeps the last value: `Object.keys` lists a key once, and
+    // the lookup that follows finds the last assignment.
+    let mut kept: Vec<&str> = Vec::with_capacity(keys.len());
+    for key in keys {
+        if !kept.contains(&key) {
+            kept.push(key);
+        }
+    }
+    let _ = write!(out, "{}:", kept.len());
+    for key in kept {
+        write_string(key, out);
+        out.push(':');
+        if !options.exclude_values {
+            let value = entries
+                .iter()
+                .rev()
+                .find(|(candidate, _)| candidate == key)
+                .map(|(_, value)| value)
+                .expect("key came from the entries");
+            write(value, options, out);
+        }
+        out.push(',');
+    }
+}
+
+/// The written form of each map entry, in the order the map resolves to.
+///
+/// A repeated key keeps the last value, because that is what a JavaScript `Map`
+/// does. Unlike a plain object, a map keeps its values when `exclude_values` is
+/// set: the reference's `excludeValues` is only consulted in its object writer.
+fn serialized_entries(entries: &[(String, Value)], options: &WriteOptions) -> Vec<String> {
     let mut kept: Vec<(&String, &Value)> = Vec::with_capacity(entries.len());
     for (key, value) in entries {
         match kept.iter_mut().find(|(existing, _)| *existing == key) {
@@ -238,22 +326,20 @@ fn write_map(entries: &[(String, Value)], out: &mut String) {
         }
     }
 
-    let serialized = kept
-        .iter()
+    kept.iter()
         .map(|(key, value)| {
             let mut entry = String::from("array:2:");
             write_string(key, &mut entry);
-            write(value, &mut entry);
+            write(value, options, &mut entry);
             entry
         })
-        .collect();
-    write_unordered(serialized, out);
+        .collect()
 }
 
 /// The canonical form of one value, on its own.
-pub(crate) fn canonical(value: &Value) -> String {
+pub(crate) fn canonical(value: &Value, options: &WriteOptions) -> String {
     let mut out = String::new();
-    write(value, &mut out);
+    write(value, options, &mut out);
     out
 }
 
@@ -261,58 +347,90 @@ pub(crate) fn canonical(value: &Value) -> String {
 mod tests {
     use super::*;
 
+    /// The options the crate's public functions use, and the reference's defaults.
+    const DEFAULT: WriteOptions = WriteOptions {
+        exclude_values: false,
+        unordered_arrays: false,
+        unordered_sets: true,
+        unordered_objects: true,
+    };
+
     #[test]
     fn a_null_is_the_word() {
-        assert_eq!(canonical(&Value::Null), "Null");
+        assert_eq!(canonical(&Value::Null, &DEFAULT), "Null");
     }
 
     #[test]
     fn booleans_are_labelled() {
-        assert_eq!(canonical(&Value::Bool(true)), "bool:true");
-        assert_eq!(canonical(&Value::Bool(false)), "bool:false");
+        assert_eq!(canonical(&Value::Bool(true), &DEFAULT), "bool:true");
+        assert_eq!(canonical(&Value::Bool(false), &DEFAULT), "bool:false");
     }
 
     #[test]
     fn integers_and_equal_floats_are_the_same() {
-        assert_eq!(canonical(&Value::Number(1.0)), "number:1");
-        assert_eq!(canonical(&Value::Number(100.0)), "number:100");
-        assert_eq!(canonical(&Value::Number(-1.0)), "number:-1");
+        assert_eq!(canonical(&Value::Number(1.0), &DEFAULT), "number:1");
+        assert_eq!(canonical(&Value::Number(100.0), &DEFAULT), "number:100");
+        assert_eq!(canonical(&Value::Number(-1.0), &DEFAULT), "number:-1");
     }
 
     #[test]
     fn negative_zero_is_written_as_zero() {
-        assert_eq!(canonical(&Value::Number(-0.0)), "number:0");
+        assert_eq!(canonical(&Value::Number(-0.0), &DEFAULT), "number:0");
     }
 
     #[test]
     fn the_special_numbers_have_names() {
-        assert_eq!(canonical(&Value::Number(f64::NAN)), "number:NaN");
-        assert_eq!(canonical(&Value::Number(f64::INFINITY)), "number:Infinity");
+        assert_eq!(canonical(&Value::Number(f64::NAN), &DEFAULT), "number:NaN");
         assert_eq!(
-            canonical(&Value::Number(f64::NEG_INFINITY)),
+            canonical(&Value::Number(f64::INFINITY), &DEFAULT),
+            "number:Infinity"
+        );
+        assert_eq!(
+            canonical(&Value::Number(f64::NEG_INFINITY), &DEFAULT),
             "number:-Infinity"
         );
     }
 
     #[test]
     fn a_string_carries_its_utf16_length() {
-        assert_eq!(canonical(&Value::String(String::new())), "string:0:");
-        assert_eq!(canonical(&Value::String("hello".into())), "string:5:hello");
-        assert_eq!(canonical(&Value::String("café".into())), "string:4:café");
-        assert_eq!(canonical(&Value::String("中文".into())), "string:2:中文");
+        assert_eq!(
+            canonical(&Value::String(String::new()), &DEFAULT),
+            "string:0:"
+        );
+        assert_eq!(
+            canonical(&Value::String("hello".into()), &DEFAULT),
+            "string:5:hello"
+        );
+        assert_eq!(
+            canonical(&Value::String("café".into()), &DEFAULT),
+            "string:4:café"
+        );
+        assert_eq!(
+            canonical(&Value::String("中文".into()), &DEFAULT),
+            "string:2:中文"
+        );
         // An emoji is one character but two UTF-16 code units.
-        assert_eq!(canonical(&Value::String("😀".into())), "string:2:😀");
+        assert_eq!(
+            canonical(&Value::String("😀".into()), &DEFAULT),
+            "string:2:😀"
+        );
     }
 
     #[test]
     fn an_array_keeps_its_order() {
-        assert_eq!(canonical(&Value::Array(vec![])), "array:0:");
+        assert_eq!(canonical(&Value::Array(vec![]), &DEFAULT), "array:0:");
         assert_eq!(
-            canonical(&Value::Array(vec![Value::Number(1.0), Value::Number(2.0)])),
+            canonical(
+                &Value::Array(vec![Value::Number(1.0), Value::Number(2.0)]),
+                &DEFAULT
+            ),
             "array:2:number:1number:2"
         );
         assert_eq!(
-            canonical(&Value::Array(vec![Value::Number(2.0), Value::Number(1.0)])),
+            canonical(
+                &Value::Array(vec![Value::Number(2.0), Value::Number(1.0)]),
+                &DEFAULT
+            ),
             "array:2:number:2number:1"
         );
     }
@@ -327,7 +445,10 @@ mod tests {
             ("b".into(), Value::Number(2.0)),
             ("a".into(), Value::Number(1.0)),
         ]);
-        assert_eq!(canonical(&forward), canonical(&backward));
+        assert_eq!(
+            canonical(&forward, &DEFAULT),
+            canonical(&backward, &DEFAULT)
+        );
     }
 
     #[test]
@@ -336,31 +457,40 @@ mod tests {
         let two = Value::Number(2.0);
         let set_forward = Value::Set(vec![one.clone(), two.clone()]);
         let set_backward = Value::Set(vec![two.clone(), one.clone()]);
-        assert_eq!(canonical(&set_forward), canonical(&set_backward));
+        assert_eq!(
+            canonical(&set_forward, &DEFAULT),
+            canonical(&set_backward, &DEFAULT)
+        );
 
         let array_forward = Value::Array(vec![one.clone(), two.clone()]);
         let array_backward = Value::Array(vec![two, one]);
-        assert_ne!(canonical(&array_forward), canonical(&array_backward));
+        assert_ne!(
+            canonical(&array_forward, &DEFAULT),
+            canonical(&array_backward, &DEFAULT)
+        );
     }
 
     #[test]
     fn a_set_drops_repeated_scalars_but_not_repeated_arrays() {
         // A JavaScript Set keeps one of each distinct scalar.
         assert_eq!(
-            canonical(&Value::Set(vec![Value::Number(1.0), Value::Number(1.0)])),
+            canonical(
+                &Value::Set(vec![Value::Number(1.0), Value::Number(1.0)]),
+                &DEFAULT
+            ),
             "set:array:1:number:1"
         );
         assert_eq!(
-            canonical(&Value::Set(vec![
-                Value::Number(f64::NAN),
-                Value::Number(f64::NAN)
-            ])),
+            canonical(
+                &Value::Set(vec![Value::Number(f64::NAN), Value::Number(f64::NAN)]),
+                &DEFAULT
+            ),
             "set:array:1:number:NaN"
         );
         // Two equal arrays are still two objects, so both are kept.
         let array = Value::Array(vec![Value::Number(1.0), Value::Number(2.0)]);
         let two_arrays = Value::Set(vec![array.clone(), array]);
-        assert!(canonical(&two_arrays).starts_with("set:array:2:"));
+        assert!(canonical(&two_arrays, &DEFAULT).starts_with("set:array:2:"));
     }
 
     #[test]
@@ -376,8 +506,11 @@ mod tests {
             Value::String("\u{1f600}".into()),
             Value::String("\u{ffff}z".into()),
         ]);
-        assert_eq!(canonical(&emoji_first), canonical(&emoji_last));
-        let written = canonical(&emoji_first);
+        assert_eq!(
+            canonical(&emoji_first, &DEFAULT),
+            canonical(&emoji_last, &DEFAULT)
+        );
+        let written = canonical(&emoji_first, &DEFAULT);
         let emoji_at = written.find('\u{1f600}').expect("emoji present");
         let max_at = written.find('\u{ffff}').expect("U+FFFF present");
         assert!(
@@ -397,7 +530,10 @@ mod tests {
             ("a".into(), Value::Number(2.0)),
             ("b".into(), Value::Number(9.0)),
         ]);
-        assert_eq!(canonical(&repeated), canonical(&resolved));
+        assert_eq!(
+            canonical(&repeated, &DEFAULT),
+            canonical(&resolved, &DEFAULT)
+        );
     }
 
     #[test]
@@ -406,6 +542,127 @@ mod tests {
         // writing the same bytes.
         let first = Value::Map(vec![("ab".into(), Value::Number(1.0))]);
         let second = Value::Map(vec![("a".into(), Value::String("b1".into()))]);
-        assert_ne!(canonical(&first), canonical(&second));
+        assert_ne!(canonical(&first, &DEFAULT), canonical(&second, &DEFAULT));
+    }
+
+    #[test]
+    fn an_object_is_not_a_map() {
+        // The reference writes a plain object as `object:N:` with unquoted keys
+        // and a Map as `map:array:…`, so the same entry gives two digests. This
+        // crate keeps both cases rather than collapsing them.
+        let object = Value::Object(vec![("a".into(), Value::Number(1.0))]);
+        let map = Value::Map(vec![("a".into(), Value::Number(1.0))]);
+        assert_eq!(
+            canonical(&object, &DEFAULT),
+            "object:1:string:1:a:number:1,"
+        );
+        assert_eq!(
+            canonical(&map, &DEFAULT),
+            "map:array:1:array:2:string:1:anumber:1"
+        );
+        assert_ne!(canonical(&object, &DEFAULT), canonical(&map, &DEFAULT));
+    }
+
+    #[test]
+    fn an_object_is_written_in_key_order() {
+        let forward = Value::Object(vec![
+            ("a".into(), Value::Number(1.0)),
+            ("b".into(), Value::Number(2.0)),
+        ]);
+        let backward = Value::Object(vec![
+            ("b".into(), Value::Number(2.0)),
+            ("a".into(), Value::Number(1.0)),
+        ]);
+        assert_eq!(
+            canonical(&forward, &DEFAULT),
+            canonical(&backward, &DEFAULT)
+        );
+    }
+
+    #[test]
+    fn an_object_keeps_the_last_value_for_a_repeated_key() {
+        // A JavaScript object literal cannot hold a duplicate key, so the fuzz
+        // corpus never reaches this; a Rust caller can build it, and the
+        // reference's lookup would find the last assignment.
+        let repeated = Value::Object(vec![
+            ("a".into(), Value::Number(1.0)),
+            ("b".into(), Value::Number(9.0)),
+            ("a".into(), Value::Number(2.0)),
+        ]);
+        let resolved = Value::Object(vec![
+            ("a".into(), Value::Number(2.0)),
+            ("b".into(), Value::Number(9.0)),
+        ]);
+        assert_eq!(
+            canonical(&repeated, &DEFAULT),
+            canonical(&resolved, &DEFAULT)
+        );
+    }
+
+    #[test]
+    fn exclude_values_writes_only_the_keys_of_an_object() {
+        let options = WriteOptions {
+            exclude_values: true,
+            ..DEFAULT
+        };
+        let object = Value::Object(vec![
+            ("a".into(), Value::Number(1.0)),
+            ("b".into(), Value::String("x".into())),
+        ]);
+        assert_eq!(
+            canonical(&object, &options),
+            "object:2:string:1:a:,string:1:b:,"
+        );
+        // A map keeps its values: the reference consults `excludeValues` only
+        // in its object writer.
+        let map = Value::Map(vec![("a".into(), Value::Number(1.0))]);
+        assert_eq!(
+            canonical(&map, &options),
+            "map:array:1:array:2:string:1:anumber:1"
+        );
+    }
+
+    #[test]
+    fn unordered_arrays_sorts_the_entries() {
+        let options = WriteOptions {
+            unordered_arrays: true,
+            ..DEFAULT
+        };
+        let forward = Value::Array(vec![Value::Number(2.0), Value::Number(1.0)]);
+        let backward = Value::Array(vec![Value::Number(1.0), Value::Number(2.0)]);
+        assert_ne!(
+            canonical(&forward, &DEFAULT),
+            canonical(&backward, &DEFAULT)
+        );
+        assert_eq!(
+            canonical(&forward, &options),
+            canonical(&backward, &options)
+        );
+        assert_eq!(
+            canonical(&forward, &options),
+            "array:2:array:2:string:8:number:1string:8:number:2"
+        );
+    }
+
+    #[test]
+    fn unordered_sets_off_keeps_the_insertion_order() {
+        let options = WriteOptions {
+            unordered_sets: false,
+            ..DEFAULT
+        };
+        let forward = Value::Set(vec![Value::Number(1.0), Value::Number(2.0)]);
+        let backward = Value::Set(vec![Value::Number(2.0), Value::Number(1.0)]);
+        assert_eq!(
+            canonical(&forward, &DEFAULT),
+            canonical(&backward, &DEFAULT)
+        );
+        assert_ne!(
+            canonical(&forward, &options),
+            canonical(&backward, &options)
+        );
+        assert_eq!(
+            canonical(&forward, &options),
+            "set:array:2:number:1number:2"
+        );
     }
 }

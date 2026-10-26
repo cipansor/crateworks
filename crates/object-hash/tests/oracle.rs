@@ -189,6 +189,37 @@ fn value_for(name: &str) -> Value {
                 Value::String("three".into()),
             ]),
         )]),
+        // Plain objects. These are hashed with `respectType:false`, the only
+        // form reproducible outside JavaScript.
+        "empty-object" => Value::Object(vec![]),
+        "object-one" => Value::Object(vec![("a".into(), Value::Number(1.0))]),
+        "object-two" => Value::Object(vec![
+            ("a".into(), Value::Number(1.0)),
+            ("b".into(), Value::Number(2.0)),
+        ]),
+        "object-reversed" => Value::Object(vec![
+            ("b".into(), Value::Number(2.0)),
+            ("a".into(), Value::Number(1.0)),
+        ]),
+        "object-nested" => Value::Object(vec![(
+            "a".into(),
+            Value::Object(vec![("b".into(), Value::Number(1.0))]),
+        )]),
+        "object-unicode-key" => Value::Object(vec![("café".into(), Value::String("x".into()))]),
+        "object-empty-string-key" => Value::Object(vec![(String::new(), Value::Number(1.0))]),
+        "object-in-array" => Value::Array(vec![
+            Value::Object(vec![("a".into(), Value::Number(1.0))]),
+            Value::Object(vec![("b".into(), Value::Number(2.0))]),
+        ]),
+        "object-array-value" => Value::Object(vec![(
+            "list".into(),
+            Value::Array(vec![
+                Value::Number(1.0),
+                Value::Number(2.0),
+                Value::Number(3.0),
+            ]),
+        )]),
+        "object-null-value" => Value::Object(vec![("a".into(), Value::Null)]),
         other => panic!("no value built for fixture case {other}"),
     }
 }

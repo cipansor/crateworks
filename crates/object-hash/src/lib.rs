@@ -27,8 +27,12 @@ pub enum Algorithm {
 ///
 /// This is the set of things the reference can hash, minus the ones that only
 /// exist in JavaScript: there is no case for a function, a symbol, or a `Date`,
-/// because a Rust caller would not pass one. A `Map` here stands for the
-/// reference's plain object and its `Map`, which it treats the same way.
+/// because a Rust caller would not pass one.
+///
+/// [`Value::Map`] and [`Value::Object`] are not interchangeable. They are the
+/// reference's `Map` and its plain object, which it encodes differently, so the
+/// same entries produce a different digest under each. Pick the one that matches
+/// what the other side of the conversation is hashing.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
     /// The absence of a value. Written `Null`, not the empty string.
@@ -42,10 +46,94 @@ pub enum Value {
     String(String),
     /// A sequence whose order matters.
     Array(Vec<Value>),
-    /// A collection whose order does not matter.
+    /// A collection whose order does not matter. This is the reference's `Map`.
     Set(Vec<Value>),
-    /// A mapping from strings to values, written in key order.
+    /// A mapping from strings to values, written in key order. This is the
+    /// reference's `Map`.
     Map(Vec<(String, Value)>),
+    /// A mapping from strings to values, written in key order with unquoted
+    /// keys. This is the reference's plain object, and it is encoded differently
+    /// from [`Value::Map`].
+    Object(Vec<(String, Value)>),
+}
+
+/// The choices that change the canonical bytes, mirroring the reference's
+/// options.
+///
+/// [`Options::default`] is what the reference does when nothing is passed, so a
+/// digest computed with the default options matches one the reference computes
+/// with no options.
+///
+/// The reference's `respectType` is deliberately absent. It is on by default
+/// there and makes every plain object carry a preamble describing Node's
+/// prototype chain, which is a fact about the JavaScript runtime rather than
+/// about the value. This crate always encodes the `respectType: false` form; if
+/// the other side hashes plain objects with the default, hash them as
+/// [`Value::Map`] there or turn `respectType` off.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Options {
+    /// Write only the keys of an object, ignoring the values.
+    ///
+    /// This is the reference's `excludeValues`, and its `keys` and `keysMD5`
+    /// helpers. It applies to [`Value::Object`] only; a [`Value::Map`] keeps its
+    /// values, as the reference's does.
+    pub exclude_values: bool,
+    /// Sort an array's entries, so its order stops mattering.
+    ///
+    /// This is the reference's `unorderedArrays`, off by default.
+    pub unordered_arrays: bool,
+    /// Sort a set's entries.
+    ///
+    /// This is the reference's `unorderedSets`, on by default, and the reason a
+    /// set is unordered at all.
+    pub unordered_sets: bool,
+    /// Sort an object's keys.
+    ///
+    /// This is the reference's `unorderedObjects`, on by default.
+    pub unordered_objects: bool,
+}
+
+impl Default for Options {
+    fn default() -> Self {
+        Self {
+            exclude_values: false,
+            unordered_arrays: false,
+            unordered_sets: true,
+            unordered_objects: true,
+        }
+    }
+}
+
+impl Options {
+    /// The reference's `keys` and `keysMD5`: hash an object's keys, not its
+    /// values.
+    #[must_use]
+    pub fn keys() -> Self {
+        Self {
+            exclude_values: true,
+            ..Self::default()
+        }
+    }
+
+    /// The reference's `unorderedArrays: true`: ignore an array's order.
+    #[must_use]
+    pub fn unordered_arrays(self) -> Self {
+        Self {
+            unordered_arrays: true,
+            ..self
+        }
+    }
+}
+
+impl From<Options> for encode::WriteOptions {
+    fn from(options: Options) -> Self {
+        Self {
+            exclude_values: options.exclude_values,
+            unordered_arrays: options.unordered_arrays,
+            unordered_sets: options.unordered_sets,
+            unordered_objects: options.unordered_objects,
+        }
+    }
 }
 
 impl Value {
@@ -134,13 +222,19 @@ impl<T: Into<Value>> From<Vec<T>> for Value {
     }
 }
 
-/// The canonical form of a value, as text.
+/// The canonical form of a value, as text, with the default options.
 ///
 /// Two values that are equal have the same canonical form. It is returned rather
 /// than hashed so a caller can use a different digest, or none.
 #[must_use]
 pub fn canonical(value: &Value) -> String {
-    encode::canonical(value)
+    canonical_with(value, &Options::default())
+}
+
+/// The canonical form of a value, as text, with chosen options.
+#[must_use]
+pub fn canonical_with(value: &Value, options: &Options) -> String {
+    encode::canonical(value, &(*options).into())
 }
 
 /// The digest of a value, as lowercase hexadecimal SHA-1.
@@ -192,11 +286,40 @@ pub fn hash(value: &Value) -> String {
 /// ```
 #[must_use]
 pub fn hash_with(value: &Value, algorithm: Algorithm) -> String {
-    let bytes = canonical(value);
+    digest(&canonical(value), algorithm)
+}
+
+/// The digest of a value with chosen options, as lowercase hexadecimal SHA-1.
+///
+/// # Example
+///
+/// ```
+/// use object_hash::{Options, Value, hash_with_options};
+///
+/// let object = Value::Object(vec![("a".into(), Value::number(1))]);
+/// // A plain object and a map with the same entry hash differently, which is
+/// // the reference's behaviour and the reason both cases exist.
+/// let map = Value::Map(vec![("a".into(), Value::number(1))]);
+/// assert_ne!(hash_with_options(&object, Options::default()), hash_with_options(&map, Options::default()));
+/// ```
+#[must_use]
+pub fn hash_with_options(value: &Value, options: Options) -> String {
+    hash_with_options_and(value, options, Algorithm::Sha1)
+}
+
+/// The digest of a value with chosen options and algorithm.
+#[must_use]
+pub fn hash_with_options_and(value: &Value, options: Options, algorithm: Algorithm) -> String {
+    digest(&canonical_with(value, &options), algorithm)
+}
+
+/// The digest of an already-canonical byte string.
+fn digest(canonical: &str, algorithm: Algorithm) -> String {
+    let bytes = canonical.as_bytes();
     match algorithm {
-        Algorithm::Sha1 => sha1::hex(bytes.as_bytes()),
-        Algorithm::Sha256 => sha256::hex(bytes.as_bytes()),
-        Algorithm::Md5 => md5::hex(bytes.as_bytes()),
+        Algorithm::Sha1 => sha1::hex(bytes),
+        Algorithm::Sha256 => sha256::hex(bytes),
+        Algorithm::Md5 => md5::hex(bytes),
     }
 }
 
