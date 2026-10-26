@@ -1,0 +1,29 @@
+input	escaped
+	
+a	a
+a b	a\\ b
+ lead	\\ lead
+trail 	trail\\ 
+a=b	a\\=b
+a:b	a\\:b
+a#b	a\\#b
+a!b	a\\!b
+a\\b	a\\\\b
+a\tb	a\\tb
+a\nb	a\\nb
+a\rb	a\\rb
+a\fb	a\\fb
+a\x00b	a\\u0000b
+a\x7fb	a\\u007Fb
+a\x85b	a\\u0085b
+a\xa0b	a\\u00A0b
+caf\xe9	caf\\u00E9
+\u4e2d\u6587	\\u4E2D\\u6587
+\U0001f600	\\uD83D\\uDE00
+a=b:c#d!e f	a\\=b\\:c\\#d\\!e\\ f
+\\	\\\\
+#	\\#
+!	\\!
+=	\\=
+:	\\:
+ 	\\ 

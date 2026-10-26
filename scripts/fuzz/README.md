@@ -28,6 +28,7 @@ never a dependency of any crate.
 | `object-hash` | `object-hash/gen.js` | `object-hash` npm 3.0.0 | `NODE_PATH=<modules> node object-hash/gen.js [out]` |
 | `adhan` | `adhan/gen.js` | `adhan` npm 4.4.6 | `NODE_PATH=<modules> node adhan/gen.js [out]` |
 | `javaproperties` | `javaproperties/gen.py` | `javaproperties` PyPI 0.8.2 | `python3 javaproperties/gen.py [out]` |
+| `javaproperties` (writer) | `javaproperties/gen_writer.py` | `javaproperties` PyPI 0.8.2 | `TZ=UTC python3 javaproperties/gen_writer.py [out]` |
 | `iso6346` | `iso6346/gen.js` | `container-validator` npm 1.1.0 | `NODE_PATH=<modules> node iso6346/gen.js [out]` |
 
 With no `out` argument each writes to the crate's own fixture, which is the path
@@ -69,6 +70,12 @@ to write down.
 - `javaproperties` — 6,000 documents built from the format's own punctuation.
   Found nothing, which is the useful outcome too: it is what turns "the rules we
   thought of are right" into "the rules we checked agree".
+- `javaproperties` (writer) — 8,000 cases across `escape`, `join_key_value`,
+  `to_comment` and `dumps(separator=, comments=, sort_keys=, ensure_ascii=)`. Found
+  two rules the first version of the writer had wrong: the reference sorts by key
+  *and then value*, and an empty comment string writes a bare `#` line rather than
+  nothing. Neither is reachable from a corpus of inputs, which is why the writer
+  needs its own generator.
 - `iso6346` — 4,000 codes from every owner-prefix letter, all three categories and
   a serial across the whole range. Found nothing: the check digit is one page of
   arithmetic and the reference agrees with it on every case. The corpus is what

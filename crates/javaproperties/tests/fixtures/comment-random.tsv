@@ -1,0 +1,2001 @@
+comment	formatted
+\r 	#\n# 
+\\n\\	#\\n\\
+ \x85 \rb\xe9\u20ac#:	# \x85 \n#b\xe9\\u20AC#:
+b\\trail \x7f\\\xa0	#b\\trail \x7f\\\xa0
+\U0001f600\u4e2d!\\u0041\u2028\x00	#\\uD83D\\uDE00\\u4E2D!\\u0041\\u2028\x00
+\u4e2d\r\xe9\fb	#\\u4E2D\n#\xe9\fb
+\xa0\n\\n\\n"\xfc:\x00\\	#\xa0\n#\\n\\n"\xfc:\x00\\
+	#
+\u20ac!\x00!\xa0'\f	#\\u20AC!\x00!\xa0'\f
+\u2028"!\u4e2d\xfc\x00!\x00\x85\u20ac	#\\u2028"!\\u4E2D\xfc\x00!\x00\x85\\u20AC
+\xe9\t\xa0\u20ac!\\u0041\r\\n lead	#\xe9\t\xa0\\u20AC!\\u0041\n#\\n lead
+\x7f"\x85	#\x7f"\x85
+:\u4e2d\f"! leadb	#:\\u4E2D\f"! leadb
+:b\\n#:\\u0041"!\U0001f600#	#:b\\n#:\\u0041"!\\uD83D\\uDE00#
+\\ lead\u20actrail \u2028\x7f	#\\ lead\\u20ACtrail \\u2028\x7f
+# \t\u4e2d\xfca	## \t\\u4E2D\xfca
+	#
+\f"\U0001f600a\xa0\n"\u4e2d	#\f"\\uD83D\\uDE00a\xa0\n#"\\u4E2D
+	#
+b	#b
+b	#b
+\t\xfc"	#\t\xfc"
+=\xa0\u2028\t\f\\n	#=\xa0\\u2028\t\f\\n
+a	#a
+\u20ac=#!\t\xa0	#\\u20AC=#!\t\xa0
+ab\x85\xa0\u4e2d\f\u2028xxxxxxxxxxxxxxxxxxxx\f	#ab\x85\xa0\\u4E2D\f\\u2028xxxxxxxxxxxxxxxxxxxx\f
+\r\u20ac\u20ac\\\\u0041\u20ac\x85 lead\u4e2d	#\n#\\u20AC\\u20AC\\\\u0041\\u20AC\x85 lead\\u4E2D
+	#
+	#
+	#
+\\	#\\
+	#
+''\U0001f600 =!b\x85	#''\\uD83D\\uDE00 =!b\x85
+!\U0001f600b\u20ac\xe9\\n	#!\\uD83D\\uDE00b\\u20AC\xe9\\n
+xxxxxxxxxxxxxxxxxxxx	#xxxxxxxxxxxxxxxxxxxx
+	#
+\\ lead\xe9\u20ac\u4e2d lead\x85\x00\u4e2d\f	#\\ lead\xe9\\u20AC\\u4E2D lead\x85\x00\\u4E2D\f
+xxxxxxxxxxxxxxxxxxxx=\U0001f600\U0001f600\x7f	#xxxxxxxxxxxxxxxxxxxx=\\uD83D\\uDE00\\uD83D\\uDE00\x7f
+"	#"
+\ftrail \f\\u0041#\\n\t	#\ftrail \f\\u0041#\\n\t
+\u2028b\xfc\f	#\\u2028b\xfc\f
+\t\u2028\\n"\xe9\x00\xe9	#\t\\u2028\\n"\xe9\x00\xe9
+\t\t\u2028\r\xe9\u2028	#\t\t\\u2028\n#\xe9\\u2028
+\x85a\xfctrail \u20ac\xfc\xfc	#\x85a\xfctrail \\u20AC\xfc\xfc
+\x85:	#\x85:
+:	#:
+\U0001f600\\xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\\n!'b\t\x85	#\\uD83D\\uDE00\\xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\\n!'b\t\x85
+=\xa0\u2028\xe9"	#=\xa0\\u2028\xe9"
+\\u0041b\\n\\n\f	#\\u0041b\\n\\n\f
+ lead	# lead
+	#
+\xa0=\u4e2d\t=	#\xa0=\\u4E2D\t=
+	#
+\xa0	#\xa0
+\xa0\n	#\xa0\n#
+\xa0=:\\n#\x7f\u4e2d\xe9	#\xa0=:\\n#\x7f\\u4E2D\xe9
+\t\u4e2d\t"\xa0!\u20ac	#\t\\u4E2D\t"\xa0!\\u20AC
+\ra\x85\xa0\x85\xa0=	#\n#a\x85\xa0\x85\xa0=
+\r\r= \xe9\r b	#\n#\n#= \xe9\n# b
+\n\\u0041a\xa0	#\n#\\u0041a\xa0
+"\r\tba\\n	#"\n#\tba\\n
+= lead	#= lead
+\t\t:a\\\\\\\xa0#	#\t\t:a\\\\\\\xa0#
+b#\u2028trail \x7f\f\\nbb:	#b#\\u2028trail \x7f\f\\nbb:
+trail  lead\\n lead\xe9\xa0	#trail  lead\\n lead\xe9\xa0
+a"\U0001f600\\n!b\x85 =	#a"\\uD83D\\uDE00\\n!b\x85 =
+ lead	# lead
+trail 	#trail 
+\\!	#\\!
+"\n\f	#"\n#\f
+'\\u0041	#'\\u0041
+\xe9\x00\x7f	#\xe9\x00\x7f
+\\u0041xxxxxxxxxxxxxxxxxxxx\U0001f600 lead\t\U0001f600	#\\u0041xxxxxxxxxxxxxxxxxxxx\\uD83D\\uDE00 lead\t\\uD83D\\uDE00
+ lead=\x00\\n:\x7f	# lead=\x00\\n:\x7f
+\xa0	#\xa0
+:\x7f:	#:\x7f:
+=\r\t	#=\n#\t
+\\n\u2028	#\\n\\u2028
+\x00\u20ac	#\x00\\u20AC
+#:\r\u4e2d	##:\n#\\u4E2D
+!\U0001f600\xe9\x00\r!'\x00'	#!\\uD83D\\uDE00\xe9\x00\n!'\x00'
+a\x00\\n\\n'	#a\x00\\n\\n'
+xxxxxxxxxxxxxxxxxxxx lead\x85	#xxxxxxxxxxxxxxxxxxxx lead\x85
+a\xfc"\u20ac =\xa0	#a\xfc"\\u20AC =\xa0
+\\\xfc\u4e2d\\u0041\x85\xa0\xfc\\'b	#\\\xfc\\u4E2D\\u0041\x85\xa0\xfc\\'b
+::\x85	#::\x85
+'\U0001f600=xxxxxxxxxxxxxxxxxxxx":\xe9\xe9\\u0041:	#'\\uD83D\\uDE00=xxxxxxxxxxxxxxxxxxxx":\xe9\xe9\\u0041:
+ 	# 
+!\\n\\u0041\xfc\n\U0001f600\t\n	#!\\n\\u0041\xfc\n#\\uD83D\\uDE00\t\n#
+ leada\U0001f600xxxxxxxxxxxxxxxxxxxx\t\x00\U0001f600 lead	# leada\\uD83D\\uDE00xxxxxxxxxxxxxxxxxxxx\t\x00\\uD83D\\uDE00 lead
+"\xfc'\u4e2d\u4e2d\\n\r#\t	#"\xfc'\\u4E2D\\u4E2D\\n\n#\t
+	#
+==##\n#	#==##\n#
+\xa0\u4e2d\u20actrail a'	#\xa0\\u4E2D\\u20ACtrail a'
+	#
+=\n"! trail :\xfc\u20aca	#=\n#"! trail :\xfc\\u20ACa
+	#
+'xxxxxxxxxxxxxxxxxxxx\x7f	#'xxxxxxxxxxxxxxxxxxxx\x7f
+\xa0#\\ 	#\xa0#\\ 
+	#
+!\r\u4e2d:#=\xe9	#!\n#\\u4E2D:#=\xe9
+:\\\n\x7f\x85\f	#:\\\n#\x7f\x85\f
+:\u2028\xe9	#:\\u2028\xe9
+\u2028 lead\u4e2d\f\\n"\f'	#\\u2028 lead\\u4E2D\f\\n"\f'
+\xfc\u4e2dxxxxxxxxxxxxxxxxxxxxtrail \u2028\x00b\U0001f600"\f	#\xfc\\u4E2Dxxxxxxxxxxxxxxxxxxxxtrail \\u2028\x00b\\uD83D\\uDE00"\f
+\n!#\U0001f600\u4e2d\n\u2028	#\n!#\\uD83D\\uDE00\\u4E2D\n#\\u2028
+:"\x7f\xa0	#:"\x7f\xa0
+b'\n\x85\u2028\r	#b'\n#\x85\\u2028\n#
+\\u0041trail btrail 	#\\u0041trail btrail 
+\\"\\\x85\x00\x7f	#\\"\\\x85\x00\x7f
+b\U0001f600	#b\\uD83D\\uDE00
+'\xfc\U0001f600	#'\xfc\\uD83D\\uDE00
+\xfc\\u0041xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\u2028\f\xa0#xxxxxxxxxxxxxxxxxxxx'	#\xfc\\u0041xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\\u2028\f\xa0#xxxxxxxxxxxxxxxxxxxx'
+b\t\u20ac\\n \u20ac	#b\t\\u20AC\\n \\u20AC
+!\xa0\\n lead \u20ac	#!\xa0\\n lead \\u20AC
+!xxxxxxxxxxxxxxxxxxxx'b\\n\u20ac=trail 	#!xxxxxxxxxxxxxxxxxxxx'b\\n\\u20AC=trail 
+ !"	# !"
+\\\U0001f600	#\\\\uD83D\\uDE00
+\\n'trail \xa0\t\t\x00\xa0	#\\n'trail \xa0\t\t\x00\xa0
+\u2028'xxxxxxxxxxxxxxxxxxxx:'	#\\u2028'xxxxxxxxxxxxxxxxxxxx:'
+\xe9:xxxxxxxxxxxxxxxxxxxx"\xe9	#\xe9:xxxxxxxxxxxxxxxxxxxx"\xe9
+\f=\t\u20ac	#\f=\t\\u20AC
+\\u0041\f	#\\u0041\f
+ lead\x00\x85\u2028\t	# lead\x00\x85\\u2028\t
+\x00'!\u20ac \f:	#\x00'!\\u20AC \f:
+\U0001f600b\xe9	#\\uD83D\\uDE00b\xe9
+\u20ac\r=\xa0\xe9\\\f\f\\n\x85	#\\u20AC\n#=\xa0\xe9\\\f\f\\n\x85
+!'\\u0041\x7f!\\nb\xe9xxxxxxxxxxxxxxxxxxxx	#!'\\u0041\x7f!\\nb\xe9xxxxxxxxxxxxxxxxxxxx
+::\x85\xa0a\U0001f600=	#::\x85\xa0a\\uD83D\\uDE00=
+\r\f\\u0041\fa\\n	#\n#\f\\u0041\fa\\n
+:\\xxxxxxxxxxxxxxxxxxxx\xe9\\\U0001f600	#:\\xxxxxxxxxxxxxxxxxxxx\xe9\\\\uD83D\\uDE00
+\xa0\xfc#:\n\\u0041\xe9trail trail !	#\xa0\xfc#:\n#\\u0041\xe9trail trail !
+\x7fb	#\x7fb
+!\\n\\axxxxxxxxxxxxxxxxxxxx\\n\xa0\r\x00"	#!\\n\\axxxxxxxxxxxxxxxxxxxx\\n\xa0\n#\x00"
+xxxxxxxxxxxxxxxxxxxx \r=\x85 lead	#xxxxxxxxxxxxxxxxxxxx \n#=\x85 lead
+ \u2028\\n\t\t\\xxxxxxxxxxxxxxxxxxxx\f\x7f	# \\u2028\\n\t\t\\xxxxxxxxxxxxxxxxxxxx\f\x7f
+\u20ac#!\u4e2d"	#\\u20AC#!\\u4E2D"
+\u4e2d\U0001f600\xfc\n#\u2028:\t\t:	#\\u4E2D\\uD83D\\uDE00\xfc\n#\\u2028:\t\t:
+\u20ac\\\fbtrail \rtrail #	#\\u20AC\\\fbtrail \n#trail #
+\\\n="\x00#xxxxxxxxxxxxxxxxxxxx\\u0041\u2028\xe9	#\\\n#="\x00#xxxxxxxxxxxxxxxxxxxx\\u0041\\u2028\xe9
+\r\u4e2d!\\u0041#'\x7f lead lead	#\n#\\u4E2D!\\u0041#'\x7f lead lead
+\x00\u20ac\x85a	#\x00\\u20AC\x85a
+\x7f\x85\r"\x00	#\x7f\x85\n#"\x00
+\xe9\t a= \f	#\xe9\t a= \f
+'a"=trail 	#'a"=trail 
+ \x85b\xe9\\u0041	# \x85b\xe9\\u0041
+!\u4e2da\\u0041\ftrail xxxxxxxxxxxxxxxxxxxxtrail 	#!\\u4E2Da\\u0041\ftrail xxxxxxxxxxxxxxxxxxxxtrail 
+\u4e2d#\ta\u20ac\u2028	#\\u4E2D#\ta\\u20AC\\u2028
+\u4e2d\xfc"\xe9\u2028=a\\u0041	#\\u4E2D\xfc"\xe9\\u2028=a\\u0041
+	#
+	#
+ #b\xa0b\n	# #b\xa0b\n#
+\U0001f600\xfca lead\u20ac	#\\uD83D\\uDE00\xfca lead\\u20AC
+\t	#\t
+\u2028	#\\u2028
+\u20ac=	#\\u20AC=
+\x85 "xxxxxxxxxxxxxxxxxxxxbtrail \n\r\u20ac	#\x85 "xxxxxxxxxxxxxxxxxxxxbtrail \n#\n#\\u20AC
+"\\ 	#"\\ 
+=	#=
+\xe9\x00\xe9\\u0041\t\u4e2d :	#\xe9\x00\xe9\\u0041\t\\u4E2D :
+xxxxxxxxxxxxxxxxxxxx\r"\n	#xxxxxxxxxxxxxxxxxxxx\n#"\n#
+\n\xfcb"=\U0001f600:\u4e2d\u4e2dxxxxxxxxxxxxxxxxxxxx	#\n#\xfcb"=\\uD83D\\uDE00:\\u4E2D\\u4E2Dxxxxxxxxxxxxxxxxxxxx
+a\f\\u0041\xe9\xfc"\x7f	#a\f\\u0041\xe9\xfc"\x7f
+\\\n	#\\\n#
+\u20ac\\u0041\u2028#\x00a\u2028\\	#\\u20AC\\u0041\\u2028#\x00a\\u2028\\
+\\n\x85#trail '!\t\xe9\xa0	#\\n\x85#trail '!\t\xe9\xa0
+xxxxxxxxxxxxxxxxxxxx""trail \x00\U0001f600\t\u2028!	#xxxxxxxxxxxxxxxxxxxx""trail \x00\\uD83D\\uDE00\t\\u2028!
+\x00\\u0041trail \U0001f600	#\x00\\u0041trail \\uD83D\\uDE00
+\\#\x00\U0001f600\r	#\\#\x00\\uD83D\\uDE00\n#
+\xfc\u4e2d'\U0001f600\\u0041\na	#\xfc\\u4E2D'\\uD83D\\uDE00\\u0041\n#a
+\\n\u2028\xfc:xxxxxxxxxxxxxxxxxxxx!\t	#\\n\\u2028\xfc:xxxxxxxxxxxxxxxxxxxx!\t
+\u4e2db\r\f\x85\xe9trail b\x7f\\u0041	#\\u4E2Db\n#\f\x85\xe9trail b\x7f\\u0041
+	#
+!=\f\\n\\n= \r\u20ac\xa0	#!=\f\\n\\n= \n#\\u20AC\xa0
+\u20ac\x7f#\xe9	#\\u20AC\x7f#\xe9
+\xfcxxxxxxxxxxxxxxxxxxxx\u4e2d\\\x7f	#\xfcxxxxxxxxxxxxxxxxxxxx\\u4E2D\\\x7f
+\xa0\u2028b\\u0041'	#\xa0\\u2028b\\u0041'
+xxxxxxxxxxxxxxxxxxxx	#xxxxxxxxxxxxxxxxxxxx
+\t lead\t\u20ac\\trail \u2028\x00	#\t lead\t\\u20AC\\trail \\u2028\x00
+\\\x7f= lead:\u2028#\xe9	#\\\x7f= lead:\\u2028#\xe9
+	#
+=" \u20ac 	#=" \\u20AC 
+\x7f\f\xe9	#\x7f\f\xe9
+ \r\\u0041\xfc\u20ac\\n	# \n#\\u0041\xfc\\u20AC\\n
+\\\\	#\\\\
+	#
+\x85\xa0\u2028\xe9	#\x85\xa0\\u2028\xe9
+a\xa0\x85	#a\xa0\x85
+\u4e2d	#\\u4E2D
+!\u2028:xxxxxxxxxxxxxxxxxxxx\\n\U0001f600 \xe9	#!\\u2028:xxxxxxxxxxxxxxxxxxxx\\n\\uD83D\\uDE00 \xe9
+\\n:\x00trail 	#\\n:\x00trail 
+ lead	# lead
+xxxxxxxxxxxxxxxxxxxx	#xxxxxxxxxxxxxxxxxxxx
+\\u0041a= \U0001f600\t	#\\u0041a= \\uD83D\\uDE00\t
+\x85	#\x85
+\x7f"xxxxxxxxxxxxxxxxxxxx!xxxxxxxxxxxxxxxxxxxx\u20ac\U0001f600	#\x7f"xxxxxxxxxxxxxxxxxxxx!xxxxxxxxxxxxxxxxxxxx\\u20AC\\uD83D\\uDE00
+\f\\'\x7ftrail #\xfc	#\f\\'\x7ftrail #\xfc
+'\x85\f\x7f\u4e2d\U0001f600trail b\u2028	#'\x85\f\x7f\\u4E2D\\uD83D\\uDE00trail b\\u2028
+xxxxxxxxxxxxxxxxxxxx#\n:#\x85	#xxxxxxxxxxxxxxxxxxxx#\n#:#\x85
+=\\nxxxxxxxxxxxxxxxxxxxx:\x7f\r'!a	#=\\nxxxxxxxxxxxxxxxxxxxx:\x7f\n#'!a
+ab\n=\x7f \u2028	#ab\n#=\x7f \\u2028
+!\xa0b!	#!\xa0b!
+\f\xfc:\r\\\x00=	#\f\xfc:\n#\\\x00=
+\\u0041 lead\t\n\x85a!\xfc\xa0a	#\\u0041 lead\t\n#\x85a!\xfc\xa0a
+\n	#\n#
+\x85=\t\\n"	#\x85=\t\\n"
+xxxxxxxxxxxxxxxxxxxx\\n\x7f\\#	#xxxxxxxxxxxxxxxxxxxx\\n\x7f\\#
+	#
+\f\f\\trail 	#\f\f\\trail 
+\\n:	#\\n:
+\\n\x85\u4e2d\U0001f600\xa0\x85\n\n	#\\n\x85\\u4E2D\\uD83D\\uDE00\xa0\x85\n#\n#
+\x7f\x85\u2028\\u0041	#\x7f\x85\\u2028\\u0041
+	#
+"b	#"b
+#\r \u4e2d	##\n# \\u4E2D
+\nxxxxxxxxxxxxxxxxxxxx\xa0	#\n#xxxxxxxxxxxxxxxxxxxx\xa0
+\x00\U0001f600\x85a\xe9\u20acxxxxxxxxxxxxxxxxxxxx\xfc\x7f"	#\x00\\uD83D\\uDE00\x85a\xe9\\u20ACxxxxxxxxxxxxxxxxxxxx\xfc\x7f"
+xxxxxxxxxxxxxxxxxxxx	#xxxxxxxxxxxxxxxxxxxx
+!: lead\\u0041\\n\u20ac\xfcb!	#!: lead\\u0041\\n\\u20AC\xfcb!
+\\n\x00	#\\n\x00
+=\xfc\t\xa0 lead\nb	#=\xfc\t\xa0 lead\n#b
+\xe9"\u4e2d"\t\nba	#\xe9"\\u4E2D"\t\n#ba
+bb =trail \U0001f600\\u0041::	#bb =trail \\uD83D\\uDE00\\u0041::
+\\\x00\u2028# \\u0041\xe9	#\\\x00\\u2028# \\u0041\xe9
+\U0001f600\u20aca=\xa0\\u0041\n\x00	#\\uD83D\\uDE00\\u20ACa=\xa0\\u0041\n#\x00
+atrail '\x7f\U0001f600'	#atrail '\x7f\\uD83D\\uDE00'
+\t	#\t
+"\n#\t"	#"\n#\t"
+a'	#a'
+xxxxxxxxxxxxxxxxxxxx=\u20ac\u20ac\f lead\u20ac lead	#xxxxxxxxxxxxxxxxxxxx=\\u20AC\\u20AC\f lead\\u20AC lead
+\x7f\\u0041\x00b\u2028\u4e2d\U0001f600	#\x7f\\u0041\x00b\\u2028\\u4E2D\\uD83D\\uDE00
+\\n!\\n\\n\\n	#\\n!\\n\\n\\n
+\\u0041\f	#\\u0041\f
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\fxxxxxxxxxxxxxxxxxxxx	#xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\fxxxxxxxxxxxxxxxxxxxx
+\u4e2d\r	#\\u4E2D\n#
+!:	#!:
+\t\\n\\u0041\xfctrail \xa0a lead\xfc#	#\t\\n\\u0041\xfctrail \xa0a lead\xfc#
+\u20ac\t\xe9	#\\u20AC\t\xe9
+\x00\U0001f600:trail \n\u4e2d \f lead\x00	#\x00\\uD83D\\uDE00:trail \n#\\u4E2D \f lead\x00
+\xa0\\n\x85a\x85=b\u20ac	#\xa0\\n\x85a\x85=b\\u20AC
+\xa0xxxxxxxxxxxxxxxxxxxx\U0001f600\f"	#\xa0xxxxxxxxxxxxxxxxxxxx\\uD83D\\uDE00\f"
+: \t	#: \t
+\xe9!\f\U0001f600\\\\u0041\xfc	#\xe9!\f\\uD83D\\uDE00\\\\u0041\xfc
+\x00"\xa0\u20ac"!	#\x00"\xa0\\u20AC"!
+\xe9  lead\\'a\u4e2d\f	#\xe9  lead\\'a\\u4E2D\f
+#\\n\rxxxxxxxxxxxxxxxxxxxx	##\\n\n#xxxxxxxxxxxxxxxxxxxx
+\ttrail b\u4e2d\\\xfc\u4e2d'\x85	#\ttrail b\\u4E2D\\\xfc\\u4E2D'\x85
+\x85	#\x85
+\u20ac\x00 lead\t	#\\u20AC\x00 lead\t
+\u20ac\x00\u2028	#\\u20AC\x00\\u2028
+\x85\xa0\n=\\\\u0041\U0001f600=b	#\x85\xa0\n#=\\\\u0041\\uD83D\\uDE00=b
+\r\x00\xa0\u4e2d\u4e2d\x85 lead\u4e2d!#	#\n#\x00\xa0\\u4E2D\\u4E2D\x85 lead\\u4E2D!#
+=a\u4e2d'b\u4e2d\x00\xe9	#=a\\u4E2D'b\\u4E2D\x00\xe9
+\u2028\u4e2d\xfcb\xfc=\U0001f600\xa0!trail 	#\\u2028\\u4E2D\xfcb\xfc=\\uD83D\\uDE00\xa0!trail 
+	#
+\t\rtrail \rb\u2028 lead	#\t\n#trail \n#b\\u2028 lead
+\xa0	#\xa0
+\xe9xxxxxxxxxxxxxxxxxxxx\xa0\t\u20ac\x7f\\'b	#\xe9xxxxxxxxxxxxxxxxxxxx\xa0\t\\u20AC\x7f\\'b
+\u20ac#"\xa0\fxxxxxxxxxxxxxxxxxxxx#b\n=	#\\u20AC#"\xa0\fxxxxxxxxxxxxxxxxxxxx#b\n#=
+ lead\t	# lead\t
+	#
+\x7f	#\x7f
+\u4e2d\u4e2d	#\\u4E2D\\u4E2D
+\x85\x00=	#\x85\x00=
+!\U0001f600a 	#!\\uD83D\\uDE00a 
+\x85trail \t\\= leadxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\U0001f600	#\x85trail \t\\= leadxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\\uD83D\\uDE00
+!xxxxxxxxxxxxxxxxxxxx\x85a:\n\f\u4e2d\xa0	#!xxxxxxxxxxxxxxxxxxxx\x85a:\n#\f\\u4E2D\xa0
+=trail 	#=trail 
+=\u2028\xa0\u20ac	#=\\u2028\xa0\\u20AC
+\x85 \f\xfc"	#\x85 \f\xfc"
+ lead\x00\x85xxxxxxxxxxxxxxxxxxxx\u2028	# lead\x00\x85xxxxxxxxxxxxxxxxxxxx\\u2028
+xxxxxxxxxxxxxxxxxxxx	#xxxxxxxxxxxxxxxxxxxx
+axxxxxxxxxxxxxxxxxxxx	#axxxxxxxxxxxxxxxxxxxx
+\r\r\n\ftrail b	#\n#\n#\ftrail b
+\u4e2d lead:"\n\u20ac\u2028\xfc	#\\u4E2D lead:"\n#\\u20AC\\u2028\xfc
+\x7f:	#\x7f:
+\\u0041 	#\\u0041 
+\x00\xe9\u2028\t\\u0041\\n\xa0\r\u20ac\u20ac	#\x00\xe9\\u2028\t\\u0041\\n\xa0\n#\\u20AC\\u20AC
+\U0001f600=	#\\uD83D\\uDE00=
+	#
+	#
+"\\"\xe9\u4e2d\t	#"\\"\xe9\\u4E2D\t
+\x00trail 	#\x00trail 
+!	#!
+\\n\x7f\\\x7f\u4e2d!\r lead	#\\n\x7f\\\x7f\\u4E2D!\n# lead
+\\\\n\xe9\r\x85\x7f 	#\\\\n\xe9\n#\x85\x7f 
+#\u4e2db\x00\x00\xa0"	##\\u4E2Db\x00\x00\xa0"
+'	#'
+a\x85 leada	#a\x85 leada
+\xe9\n\x85!'\\\\	#\xe9\n#\x85!'\\\\
+\\\t\x7f\r\xa0\n\\u0041	#\\\t\x7f\n#\xa0\n#\\u0041
+ lead\t\xe9\xa0\x7f:\U0001f600 	# lead\t\xe9\xa0\x7f:\\uD83D\\uDE00 
+!'	#!'
+\t\u4e2d\r'xxxxxxxxxxxxxxxxxxxx\\u0041"	#\t\\u4E2D\n#'xxxxxxxxxxxxxxxxxxxx\\u0041"
+\u2028\\n\xfcb\rb\x85\x85	#\\u2028\\n\xfcb\n#b\x85\x85
+\f\u20ac\U0001f600'\\nb \t\f	#\f\\u20AC\\uD83D\\uDE00'\\nb \t\f
+xxxxxxxxxxxxxxxxxxxx\u20ac\fb\\\r\u2028:	#xxxxxxxxxxxxxxxxxxxx\\u20AC\fb\\\n#\\u2028:
+xxxxxxxxxxxxxxxxxxxx\\u0041"\f\xe9\\n	#xxxxxxxxxxxxxxxxxxxx\\u0041"\f\xe9\\n
+trail \\\\n!\t\x00\u4e2da\xa0	#trail \\\\n!\t\x00\\u4E2Da\xa0
+	#
+\x00'\\\\n\f	#\x00'\\\\n\f
+	#
+\n'\u20ac!	#\n#'\\u20AC!
+'!:\u2028=	#'!:\\u2028=
+b\xe9!: 	#b\xe9!: 
+\f'b\n\n\n\x85	#\f'b\n#\n#\n#\x85
+=\x7f\r\\\n \f\u4e2d\x7f	#=\x7f\n#\\\n# \f\\u4E2D\x7f
+\U0001f600	#\\uD83D\\uDE00
+'\xe9	#'\xe9
+b=\x00\u20ac\f\\\x85\u2028:	#b=\x00\\u20AC\f\\\x85\\u2028:
+trail #b\\trail \x85atrail \\u0041\\u0041	#trail #b\\trail \x85atrail \\u0041\\u0041
+\n=\txxxxxxxxxxxxxxxxxxxx" lead\n\u2028\x85	#\n#=\txxxxxxxxxxxxxxxxxxxx" lead\n#\\u2028\x85
+\n"a	#\n#"a
+	#
+\xe9\x7fxxxxxxxxxxxxxxxxxxxxb#	#\xe9\x7fxxxxxxxxxxxxxxxxxxxxb#
+\\b\xa0\n\f\u20ac\u2028\\n	#\\b\xa0\n#\f\\u20AC\\u2028\\n
+"	#"
+	#
+\U0001f600\u20ac\xe9:'\\n\u20ac lead\U0001f600	#\\uD83D\\uDE00\\u20AC\xe9:'\\n\\u20AC lead\\uD83D\\uDE00
+\\u0041	#\\u0041
+\u20ac#\u20ac\x85\xa0:\\n	#\\u20AC#\\u20AC\x85\xa0:\\n
+'\U0001f600\\n\t	#'\\uD83D\\uDE00\\n\t
+\U0001f600	#\\uD83D\\uDE00
+!a	#!a
+\n\u2028=	#\n#\\u2028=
+\n\U0001f600\xa0xxxxxxxxxxxxxxxxxxxx	#\n#\\uD83D\\uDE00\xa0xxxxxxxxxxxxxxxxxxxx
+\xe9!\t\\u0041\u4e2d\xa0	#\xe9!\t\\u0041\\u4E2D\xa0
+xxxxxxxxxxxxxxxxxxxx\\=	#xxxxxxxxxxxxxxxxxxxx\\=
+\\n\xfc	#\\n\xfc
+	#
+\u4e2d xxxxxxxxxxxxxxxxxxxx	#\\u4E2D xxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxx\xfc#	#xxxxxxxxxxxxxxxxxxxx\xfc#
+\\n=#\x00#	#\\n=#\x00#
+\x00\\n\U0001f600	#\x00\\n\\uD83D\\uDE00
+=\\n\t\xfc\xa0\\n\x7f	#=\\n\t\xfc\xa0\\n\x7f
+\n\u2028\u4e2d=	#\n#\\u2028\\u4E2D=
+trail \xfctrail \\u0041\n"	#trail \xfctrail \\u0041\n#"
+ lead\x00\n\U0001f600\u20ac'\n	# lead\x00\n#\\uD83D\\uDE00\\u20AC'\n#
+\\n\u20ac	#\\n\\u20AC
+\r	#\n#
+"\\u0041	#"\\u0041
+\f	#\f
+\xa0 lead=	#\xa0 lead=
+\\	#\\
+ lead\xfc\x85b	# lead\xfc\x85b
+\\u0041	#\\u0041
+\u4e2d	#\\u4E2D
+ leadb\u20ac \r"\U0001f600trail \u2028	# leadb\\u20AC \n#"\\uD83D\\uDE00trail \\u2028
+	#
+	#
+\u20ac	#\\u20AC
+\r\\u0041:'b	#\n#\\u0041:'b
+\x7fa =\t	#\x7fa =\t
+\xe9\r\u20ac	#\xe9\n#\\u20AC
+	#
+#\f\f"trail =\n\r\x7f	##\f\f"trail =\n#\n#\x7f
+\xa0\x7fxxxxxxxxxxxxxxxxxxxx\r\\n=\\u0041\xfc\x7f	#\xa0\x7fxxxxxxxxxxxxxxxxxxxx\n#\\n=\\u0041\xfc\x7f
+\t""	#\t""
+ \x7ftrail \u20ac	# \x7ftrail \\u20AC
+\xe9\\	#\xe9\\
+\f	#\f
+\x00\u4e2d\n"	#\x00\\u4E2D\n#"
+! trail ':	#! trail ':
+\x7f\u2028\taa\u4e2d!'\n	#\x7f\\u2028\taa\\u4E2D!'\n#
+ lead#\\u0041a\n\U0001f600!	# lead#\\u0041a\n#\\uD83D\\uDE00!
+a\xfc	#a\xfc
+a\n\f\xa0	#a\n#\f\xa0
+#\fb\u4e2d\x7f	##\fb\\u4E2D\x7f
+a!	#a!
+'\\#	#'\\#
+'	#'
+\r\t\\u0041"	#\n#\t\\u0041"
+	#
+!\U0001f600\u2028\x85\U0001f600	#!\\uD83D\\uDE00\\u2028\x85\\uD83D\\uDE00
+\r\t\x00'\\	#\n#\t\x00'\\
+\x85	#\x85
+\f! lead	#\f! lead
+#\x00a\u4e2d\t\u4e2d lead=! lead	##\x00a\\u4E2D\t\\u4E2D lead=! lead
+\n lead leadtrail \r	#\n# lead leadtrail \n#
+	#
+\f:\u4e2d	#\f:\\u4E2D
+\f\U0001f600	#\f\\uD83D\\uDE00
+ lead\\u0041b\xfc	# lead\\u0041b\xfc
+	#
+'b\U0001f600	#'b\\uD83D\\uDE00
+\U0001f600xxxxxxxxxxxxxxxxxxxx= =\rb\n	#\\uD83D\\uDE00xxxxxxxxxxxxxxxxxxxx= =\n#b\n#
+trail \n'	#trail \n#'
+\\b\xfc\\"\\	#\\b\xfc\\"\\
+a\xfc	#a\xfc
+\x00bxxxxxxxxxxxxxxxxxxxx\xe9=	#\x00bxxxxxxxxxxxxxxxxxxxx\xe9=
+	#
+=#trail \\u0041trail 	#=#trail \\u0041trail 
+\x85"\u20ac"	#\x85"\\u20AC"
+!\U0001f600\r	#!\\uD83D\\uDE00\n#
+\f\u20ac\r\ttrail  \\\u2028	#\f\\u20AC\n#\ttrail  \\\\u2028
+\xfc!\u20acxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx \U0001f600	#\xfc!\\u20ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx \\uD83D\\uDE00
+\U0001f600b\\\xa0\xa0\u2028	#\\uD83D\\uDE00b\\\xa0\xa0\\u2028
+:\u4e2d\xa0\xe9\xfcb	#:\\u4E2D\xa0\xe9\xfcb
+trail \u4e2d lead\u2028	#trail \\u4E2D lead\\u2028
+\n\\u0041\xfc'\x7f	#\n#\\u0041\xfc'\x7f
+\f#\r	#\f#\n#
+ 	# 
+\x85a\u20acxxxxxxxxxxxxxxxxxxxx	#\x85a\\u20ACxxxxxxxxxxxxxxxxxxxx
+\\n\u2028a\r\u20ac	#\\n\\u2028a\n#\\u20AC
+btrail 	#btrail 
+\x7fb\u4e2d\u2028\xa0=\u20ac\xa0	#\x7fb\\u4E2D\\u2028\xa0=\\u20AC\xa0
+\x85	#\x85
+\r\u4e2d\r=\xfc:\xa0=trail =	#\n#\\u4E2D\n#=\xfc:\xa0=trail =
+ lead\\\\n	# lead\\\\n
+\x85\ntrail \x7f\t!\u2028	#\x85\n#trail \x7f\t!\\u2028
+ lead\x00 \t leadtrail 	# lead\x00 \t leadtrail 
+b=:!\x7f\u4e2d\u4e2d#	#b=:!\x7f\\u4E2D\\u4E2D#
+:xxxxxxxxxxxxxxxxxxxx\u2028:\r\f\t	#:xxxxxxxxxxxxxxxxxxxx\\u2028:\n#\f\t
+\f \xa0  lead\xe9b\u2028	#\f \xa0  lead\xe9b\\u2028
+ \u20ac!#\U0001f600\n	# \\u20AC!#\\uD83D\\uDE00\n#
+a\u2028: lead\xa0	#a\\u2028: lead\xa0
+\xa0' \\n\x00\u4e2d\x85'\f\U0001f600	#\xa0' \\n\x00\\u4E2D\x85'\f\\uD83D\\uDE00
+:\u20ac	#:\\u20AC
+\u2028\U0001f600trail ':trail \r#\xfc	#\\u2028\\uD83D\\uDE00trail ':trail \n#\xfc
+\fa	#\fa
+b\x7f lead	#b\x7f lead
+\t'\xe9a	#\t'\xe9a
+ xxxxxxxxxxxxxxxxxxxx\x00a\x85	# xxxxxxxxxxxxxxxxxxxx\x00a\x85
+	#
+\\u0041\fb \xfc\xa0\r	#\\u0041\fb \xfc\xa0\n#
+=xxxxxxxxxxxxxxxxxxxx:\\u0041trail \r lead	#=xxxxxxxxxxxxxxxxxxxx:\\u0041trail \n# lead
+\f\u20ac\\u0041\\\xe9\x85\u4e2d"\U0001f600 lead	#\f\\u20AC\\u0041\\\xe9\x85\\u4E2D"\\uD83D\\uDE00 lead
+"\ttrail \x00	#"\ttrail \x00
+\f\u4e2d\U0001f600\xfc\x00\\\xfc	#\f\\u4E2D\\uD83D\\uDE00\xfc\x00\\\xfc
+\\n\u4e2d\\u0041\u4e2d=	#\\n\\u4E2D\\u0041\\u4E2D=
+=\xa0\u2028\n\xfc\x85	#=\xa0\\u2028\n#\xfc\x85
+	#
+:b\xa0\U0001f600xxxxxxxxxxxxxxxxxxxx"!\u20ac	#:b\xa0\\uD83D\\uDE00xxxxxxxxxxxxxxxxxxxx"!\\u20AC
+#!= lead!\n	##!= lead!\n#
+\xfc\x00\xfcatrail \U0001f600	#\xfc\x00\xfcatrail \\uD83D\\uDE00
+\U0001f600\f\u20actrail \u2028	#\\uD83D\\uDE00\f\\u20ACtrail \\u2028
+xxxxxxxxxxxxxxxxxxxx\f"\u20ac\\u0041'\\u0041	#xxxxxxxxxxxxxxxxxxxx\f"\\u20AC\\u0041'\\u0041
+\r \x7f	#\n# \x7f
+=	#=
+\x00	#\x00
+' \U0001f600:\f#	#' \\uD83D\\uDE00:\f#
+\\n\u4e2d\n\\nxxxxxxxxxxxxxxxxxxxx	#\\n\\u4E2D\n#\\nxxxxxxxxxxxxxxxxxxxx
+\\"b==	#\\"b==
+\\\n \x85\u20ac#\\\xe9=	#\\\n# \x85\\u20AC#\\\xe9=
+b: 	#b: 
+\n\\u0041"\\n  lead\U0001f600\x7f"\f	#\n#\\u0041"\\n  lead\\uD83D\\uDE00\x7f"\f
+	#
+a\x85\\n\\a\n\x85\fxxxxxxxxxxxxxxxxxxxxtrail 	#a\x85\\n\\a\n#\x85\fxxxxxxxxxxxxxxxxxxxxtrail 
+	#
+\xa0xxxxxxxxxxxxxxxxxxxx\f\\u0041\x00trail \xa0\u4e2d	#\xa0xxxxxxxxxxxxxxxxxxxx\f\\u0041\x00trail \xa0\\u4E2D
+=\r== \xe9: lead\n	#=\n#== \xe9: lead\n#
+bxxxxxxxxxxxxxxxxxxxx!\u4e2d\x7f\x85'	#bxxxxxxxxxxxxxxxxxxxx!\\u4E2D\x7f\x85'
+\xfc	#\xfc
+	#
+\u20ac\\n'\u4e2d#\\u0041:\x7f	#\\u20AC\\n'\\u4E2D#\\u0041:\x7f
+\u4e2d:xxxxxxxxxxxxxxxxxxxx""\x00\xfc\xa0	#\\u4E2D:xxxxxxxxxxxxxxxxxxxx""\x00\xfc\xa0
+\t\U0001f600\xe9\u4e2d	#\t\\uD83D\\uDE00\xe9\\u4E2D
+\xfca\U0001f600\U0001f600=\\u0041'\t	#\xfca\\uD83D\\uDE00\\uD83D\\uDE00=\\u0041'\t
+\x85 \\:	#\x85 \\:
+\xfca\\u0041=\\\f\x85\f	#\xfca\\u0041=\\\f\x85\f
+\t lead	#\t lead
+!	#!
+\\u0041#	#\\u0041#
+#\x7f\U0001f600b\xfc'=!	##\x7f\\uD83D\\uDE00b\xfc'=!
+\u20ac\u20ac#"\U0001f600	#\\u20AC\\u20AC#"\\uD83D\\uDE00
+\x7f=\r	#\x7f=\n#
+"\u2028\n\xa0xxxxxxxxxxxxxxxxxxxx	#"\\u2028\n#\xa0xxxxxxxxxxxxxxxxxxxx
+==	#==
+\xe9"\\\\\U0001f600\x00xxxxxxxxxxxxxxxxxxxx\xfc	#\xe9"\\\\\\uD83D\\uDE00\x00xxxxxxxxxxxxxxxxxxxx\xfc
+"\\\x7fxxxxxxxxxxxxxxxxxxxx\\u0041	#"\\\x7fxxxxxxxxxxxxxxxxxxxx\\u0041
+:\x7f\f\xa0\t\xfc\f:'\u2028	#:\x7f\f\xa0\t\xfc\f:'\\u2028
+ leadxxxxxxxxxxxxxxxxxxxx\xa0" 	# leadxxxxxxxxxxxxxxxxxxxx\xa0" 
+\x85	#\x85
+\x85b\xa0=#\u20ac=	#\x85b\xa0=#\\u20AC=
+\U0001f600\\u0041xxxxxxxxxxxxxxxxxxxx\U0001f600\\\t\U0001f600\U0001f600\n	#\\uD83D\\uDE00\\u0041xxxxxxxxxxxxxxxxxxxx\\uD83D\\uDE00\\\t\\uD83D\\uDE00\\uD83D\\uDE00\n#
+	#
+\\n	#\\n
+trail \\'a	#trail \\'a
+\xe9\xfc\x00 leadtrail \\na#	#\xe9\xfc\x00 leadtrail \\na#
+ lead:\x7f\U0001f600b\t\u2028	# lead:\x7f\\uD83D\\uDE00b\t\\u2028
+'	#'
+	#
+	#
+\n'xxxxxxxxxxxxxxxxxxxx\u20actrail \\	#\n#'xxxxxxxxxxxxxxxxxxxx\\u20ACtrail \\
+#\n	##\n#
+\u2028'\xe9\\u0041\f:\t	#\\u2028'\xe9\\u0041\f:\t
+\u4e2d\\u0041\xe9\xa0\\u0041\r#b	#\\u4E2D\\u0041\xe9\xa0\\u0041\n#b
+\x7f\u2028b	#\x7f\\u2028b
+\x85\U0001f600=\r#\\	#\x85\\uD83D\\uDE00=\n#\\
+#\f\xfc\n\u2028\u20ac\x7f\u4e2d\x7f	##\f\xfc\n#\\u2028\\u20AC\x7f\\u4E2D\x7f
+\\n\n\\n\u20ac\x00\u4e2dtrail !\t\\u0041	#\\n\n#\\n\\u20AC\x00\\u4E2Dtrail !\t\\u0041
+\x85\n\r	#\x85\n#\n#
+trail :	#trail :
+\U0001f600trail  lead\\trail \\u0041	#\\uD83D\\uDE00trail  lead\\trail \\u0041
+trail \xe9'\u2028\t\u2028\x7f\f\x85	#trail \xe9'\\u2028\t\\u2028\x7f\f\x85
+!\r'\u20ac\x85\u4e2d#a\x7f\\u0041	#!\n#'\\u20AC\x85\\u4E2D#a\x7f\\u0041
+b\\\x00!!b	#b\\\x00!!b
+\\u0041\u2028:	#\\u0041\\u2028:
+ \\n	# \\n
+\u2028\ftrail  	#\\u2028\ftrail  
+:\\\r\xe9\\\x7f\x85	#:\\\n#\xe9\\\x7f\x85
+xxxxxxxxxxxxxxxxxxxx lead	#xxxxxxxxxxxxxxxxxxxx lead
+trail \x00\x00!!\x7ftrail !	#trail \x00\x00!!\x7ftrail !
+ \r\x85\U0001f600\x7f\xa0\x00\na	# \n#\x85\\uD83D\\uDE00\x7f\xa0\x00\n#a
+xxxxxxxxxxxxxxxxxxxx leadb\t	#xxxxxxxxxxxxxxxxxxxx leadb\t
+!\r\xe9 \\n\r	#!\n#\xe9 \\n\n#
+='xxxxxxxxxxxxxxxxxxxx	#='xxxxxxxxxxxxxxxxxxxx
+\\u0041\\n=\fxxxxxxxxxxxxxxxxxxxxa\u2028=	#\\u0041\\n=\fxxxxxxxxxxxxxxxxxxxxa\\u2028=
+	#
+:\u4e2d\x7f	#:\\u4E2D\x7f
+\u4e2d\u2028"'"\xe9#\x7f	#\\u4E2D\\u2028"'"\xe9#\x7f
+'\\u0041\x85 " \U0001f600	#'\\u0041\x85 " \\uD83D\\uDE00
+:\\n\\\x85\\u0041:\x7f\x85\n\x7f	#:\\n\\\x85\\u0041:\x7f\x85\n#\x7f
+\\ntrail "\U0001f600\u2028 \x00\xe9\xfc	#\\ntrail "\\uD83D\\uDE00\\u2028 \x00\xe9\xfc
+\U0001f600\\'\U0001f600#xxxxxxxxxxxxxxxxxxxx\U0001f600 lead	#\\uD83D\\uDE00\\'\\uD83D\\uDE00#xxxxxxxxxxxxxxxxxxxx\\uD83D\\uDE00 lead
+\U0001f600\xa0\\n\u2028trail 	#\\uD83D\\uDE00\xa0\\n\\u2028trail 
+xxxxxxxxxxxxxxxxxxxx \x85\u4e2d"\xfc	#xxxxxxxxxxxxxxxxxxxx \x85\\u4E2D"\xfc
+'\xa0\u20acb\xa0!\u2028\n	#'\xa0\\u20ACb\xa0!\\u2028\n#
+#\n\\u0041!b"	##\n#\\u0041!b"
+\x7f\U0001f600\\n\xe9	#\x7f\\uD83D\\uDE00\\n\xe9
+#\xe9"\u4e2dtrail \\n#\xfcxxxxxxxxxxxxxxxxxxxx	##\xe9"\\u4E2Dtrail \\n#\xfcxxxxxxxxxxxxxxxxxxxx
+\\\\n  lead\u4e2d\x00\xe9\xe9	#\\\\n  lead\\u4E2D\x00\xe9\xe9
+\r'\\bxxxxxxxxxxxxxxxxxxxx:	#\n#'\\bxxxxxxxxxxxxxxxxxxxx:
+\\\xfc'\xe9=btrail 	#\\\xfc'\xe9=btrail 
+\r\f!	#\n#\f!
+\r axxxxxxxxxxxxxxxxxxxx'\\\U0001f600\u20ac\xa0trail 	#\n# axxxxxxxxxxxxxxxxxxxx'\\\\uD83D\\uDE00\\u20AC\xa0trail 
+:\u4e2d\\\\u0041\\\nxxxxxxxxxxxxxxxxxxxx\n\U0001f600	#:\\u4E2D\\\\u0041\\\n#xxxxxxxxxxxxxxxxxxxx\n#\\uD83D\\uDE00
+a	#a
+\\u0041\xe9	#\\u0041\xe9
+\\u0041:a	#\\u0041:a
+\\nbtrail xxxxxxxxxxxxxxxxxxxx	#\\nbtrail xxxxxxxxxxxxxxxxxxxx
+\\	#\\
+xxxxxxxxxxxxxxxxxxxx:\\nb\n\n\xe9b	#xxxxxxxxxxxxxxxxxxxx:\\nb\n#\n#\xe9b
+\\u0041	#\\u0041
+\\n\U0001f600# lead\x7f lead\xa0\x7f	#\\n\\uD83D\\uDE00# lead\x7f lead\xa0\x7f
+\U0001f600\xe9"\\n\x7f=trail \U0001f600	#\\uD83D\\uDE00\xe9"\\n\x7f=trail \\uD83D\\uDE00
+\\u0041=\\	#\\u0041=\\
+\tb\\n=\n\r\\u0041!\t	#\tb\\n=\n#\n#\\u0041!\t
+	#
+\\\u2028 \\n'xxxxxxxxxxxxxxxxxxxx!	#\\\\u2028 \\n'xxxxxxxxxxxxxxxxxxxx!
+"\t\u2028	#"\t\\u2028
+\\u0041	#\\u0041
+\\bxxxxxxxxxxxxxxxxxxxx\u4e2d\U0001f600\u2028\x7f\u2028=\t	#\\bxxxxxxxxxxxxxxxxxxxx\\u4E2D\\uD83D\\uDE00\\u2028\x7f\\u2028=\t
+\u4e2db\x00\u2028a\u20ac\x85#\x7f	#\\u4E2Db\x00\\u2028a\\u20AC\x85#\x7f
+\x7fb\t lead\x7f\xe9:\t	#\x7fb\t lead\x7f\xe9:\t
+\t\x00	#\t\x00
+\x7f	#\x7f
+xxxxxxxxxxxxxxxxxxxx:\u20ac\\\u4e2d: \xe9	#xxxxxxxxxxxxxxxxxxxx:\\u20AC\\\\u4E2D: \xe9
+\\=a\u4e2d\x00	#\\=a\\u4E2D\x00
+\x00\u2028a\u2028b\u4e2d '!'	#\x00\\u2028a\\u2028b\\u4E2D '!'
+ \n:trail b	# \n#:trail b
+\xa0\x7f\x85\xe9\\\t\u4e2d":	#\xa0\x7f\x85\xe9\\\t\\u4E2D":
+\u2028trail '\u2028=xxxxxxxxxxxxxxxxxxxx\r!\n	#\\u2028trail '\\u2028=xxxxxxxxxxxxxxxxxxxx\n!\n#
+	#
+\u20ac\xe9	#\\u20AC\xe9
+	#
+\u2028a\f#\\u0041trail \r\x00	#\\u2028a\f#\\u0041trail \n#\x00
+trail \\u0041	#trail \\u0041
+\x7f!\xa0\u2028\U0001f600'\r	#\x7f!\xa0\\u2028\\uD83D\\uDE00'\n#
+'\\n	#'\\n
+\x7f\u20ac\x00\xfc\t'b	#\x7f\\u20AC\x00\xfc\t'b
+!\U0001f600\\u0041a"\xe9#\xfc	#!\\uD83D\\uDE00\\u0041a"\xe9#\xfc
+ \u2028 lead\x7f	# \\u2028 lead\x7f
+:\r"\f	#:\n#"\f
+ \\u0041 lead	# \\u0041 lead
+	#
+\r\u2028' \\n!\r""=	#\n#\\u2028' \\n!\n#""=
+\xe9\u4e2d\\	#\xe9\\u4E2D\\
+\t\ftrail   "\u4e2d lead	#\t\ftrail   "\\u4E2D lead
+\u20ac\x00=	#\\u20AC\x00=
+=\\n	#=\\n
+#!trail :\n\xa0\u2028a\\n"	##!trail :\n#\xa0\\u2028a\\n"
+: \u2028\\u0041\x7f\xe9 lead\\n	#: \\u2028\\u0041\x7f\xe9 lead\\n
+\x85b:#\xfc\u20ac\x85\\:	#\x85b:#\xfc\\u20AC\x85\\:
+	#
+!\xe9\x00\xe9\\\n	#!\xe9\x00\xe9\\\n#
+	#
+\t\xa0\xfc lead'\f\r\U0001f600	#\t\xa0\xfc lead'\f\n#\\uD83D\\uDE00
+trail \nbtrail =\\\\	#trail \n#btrail =\\\\
+"	#"
+'b\t\U0001f600 lead#\r\u2028	#'b\t\\uD83D\\uDE00 lead#\n#\\u2028
+\\u0041	#\\u0041
+\u20ac	#\\u20AC
+\x7f lead\xe9\u20ac\xa0\x00\xa0 !	#\x7f lead\xe9\\u20AC\xa0\x00\xa0 !
+	#
+\\u0041bb"\u4e2d	#\\u0041bb"\\u4E2D
+\n\xa0\n\u4e2d\n#'	#\n#\xa0\n#\\u4E2D\n#'
+a=\\	#a=\\
+	#
+\xa0== lead\u4e2d  xxxxxxxxxxxxxxxxxxxx	#\xa0== lead\\u4E2D  xxxxxxxxxxxxxxxxxxxx
+=\x85b	#=\x85b
+\\nxxxxxxxxxxxxxxxxxxxxb!:b	#\\nxxxxxxxxxxxxxxxxxxxxb!:b
+"	#"
+\\\x7f\xe9\u2028\u20ac	#\\\x7f\xe9\\u2028\\u20AC
+\\u0041"\xe9\u2028\xfc\\u0041\na:	#\\u0041"\xe9\\u2028\xfc\\u0041\n#a:
+ a\u4e2d\xe9=\\n\\n!	# a\\u4E2D\xe9=\\n\\n!
+'\\u0041=\xe9\r=\t\xfc\u20ac	#'\\u0041=\xe9\n#=\t\xfc\\u20AC
+\x85"\u20ac"!\n\x85	#\x85"\\u20AC"!\n#\x85
+\\\x00\f	#\\\x00\f
+	#
+\\u0041=xxxxxxxxxxxxxxxxxxxx	#\\u0041=xxxxxxxxxxxxxxxxxxxx
+ lead\x7f lead\n\r'	# lead\x7f lead\n#\n#'
+=	#=
+\u2028"\x85trail :	#\\u2028"\x85trail :
+\x00\t\u20ac lead\xe9'\u20ac'\r\t	#\x00\t\\u20AC lead\xe9'\\u20AC'\n#\t
+\\n\t	#\\n\t
+"\r\x00\x85 lead	#"\n#\x00\x85 lead
+\rxxxxxxxxxxxxxxxxxxxxa' '	#\n#xxxxxxxxxxxxxxxxxxxxa' '
+a\x00b	#a\x00b
+\t\xa0\t=	#\t\xa0\t=
+\t\xa0#\xa0:\x7ftrail \\u0041	#\t\xa0#\xa0:\x7ftrail \\u0041
+\xe9trail \xa0"	#\xe9trail \xa0"
+\xfca\t\\u0041\t	#\xfca\t\\u0041\t
+ leada\xa0\xa0#\x85	# leada\xa0\xa0#\x85
+\t!	#\t!
+"	#"
+\u20actrail \x85\xfc:xxxxxxxxxxxxxxxxxxxx\u4e2d =\r	#\\u20ACtrail \x85\xfc:xxxxxxxxxxxxxxxxxxxx\\u4E2D =\n#
+'b\xa0	#'b\xa0
+	#
+	#
+	#
+a:!trail 'trail 	#a:!trail 'trail 
+\u2028 lead! leadb\x00	#\\u2028 lead! leadb\x00
+\x85a\xfc\\n\xe9\\u0041\\u0041	#\x85a\xfc\\n\xe9\\u0041\\u0041
+	#
+#\xa0\u20acb	##\xa0\\u20ACb
+:xxxxxxxxxxxxxxxxxxxxa\\n\\u0041\xa0\u20ac\u4e2d	#:xxxxxxxxxxxxxxxxxxxxa\\n\\u0041\xa0\\u20AC\\u4E2D
+	#
+\f\u20ac\\n\xfc\x85 lead\x00\xfc\\n\\n	#\f\\u20AC\\n\xfc\x85 lead\x00\xfc\\n\\n
+!\u2028\x85\n\xe9\r	#!\\u2028\x85\n#\xe9\n#
+\x7f\xa0	#\x7f\xa0
+\u4e2d	#\\u4E2D
+\x7f :"=\xa0\\n#=	#\x7f :"=\xa0\\n#=
+\t\u4e2d\xa0a\xfcxxxxxxxxxxxxxxxxxxxx:\\n\xa0=	#\t\\u4E2D\xa0a\xfcxxxxxxxxxxxxxxxxxxxx:\\n\xa0=
+	#
+\\a\f\\xxxxxxxxxxxxxxxxxxxx	#\\a\f\\xxxxxxxxxxxxxxxxxxxx
+b\\u0041a\x00b	#b\\u0041a\x00b
+\x00\u4e2d\xe9'	#\x00\\u4E2D\xe9'
+\u2028\u20ac\x85\txxxxxxxxxxxxxxxxxxxx:!\\n\r	#\\u2028\\u20AC\x85\txxxxxxxxxxxxxxxxxxxx:!\\n\n#
+a\x7ftrail \r\t\xa0\xe9	#a\x7ftrail \n#\t\xa0\xe9
+ ' lead'	# ' lead'
+\x7f\u2028\\n\U0001f600\\b\u2028xxxxxxxxxxxxxxxxxxxx' 	#\x7f\\u2028\\n\\uD83D\\uDE00\\b\\u2028xxxxxxxxxxxxxxxxxxxx' 
+\x7f\u2028\\#\\\u20aca\xa0 leadxxxxxxxxxxxxxxxxxxxx	#\x7f\\u2028\\#\\\\u20ACa\xa0 leadxxxxxxxxxxxxxxxxxxxx
+	#
+\u20ac	#\\u20AC
+=\t	#=\t
+\xe9\U0001f600	#\xe9\\uD83D\\uDE00
+\x7f"\r\x85a\u2028\\u0041 \xfc	#\x7f"\n#\x85a\\u2028\\u0041 \xfc
+\t	#\t
+\n\U0001f600\t\r\f'xxxxxxxxxxxxxxxxxxxx\x7f	#\n#\\uD83D\\uDE00\t\n#\f'xxxxxxxxxxxxxxxxxxxx\x7f
+\u4e2db\u4e2d	#\\u4E2Db\\u4E2D
+ \\n\\u0041trail \f\xa0\\u0041	# \\n\\u0041trail \f\xa0\\u0041
+= lead:\\u0041 lead	#= lead:\\u0041 lead
+	#
+\\u0041\n\t\u2028\\n:\xe9 lead	#\\u0041\n#\t\\u2028\\n:\xe9 lead
+\u4e2d\x85\x00 lead\x7f\x85	#\\u4E2D\x85\x00 lead\x7f\x85
+\x7f\xa0'\x85b\xa0\\u0041\x7f'	#\x7f\xa0'\x85b\xa0\\u0041\x7f'
+\x85"\t \r"! 	#\x85"\t \n#"! 
+trail xxxxxxxxxxxxxxxxxxxxtrail \\\f\u20ac\u20ac	#trail xxxxxxxxxxxxxxxxxxxxtrail \\\f\\u20AC\\u20AC
+\\n\u2028\x00\\n\u2028 \n\U0001f600\xfc	#\\n\\u2028\x00\\n\\u2028 \n#\\uD83D\\uDE00\xfc
+xxxxxxxxxxxxxxxxxxxx ! lead\xa0\u20ac\f	#xxxxxxxxxxxxxxxxxxxx ! lead\xa0\\u20AC\f
+\u2028#	#\\u2028#
+\U0001f600\x7f"\x00'	#\\uD83D\\uDE00\x7f"\x00'
+	#
+\\u0041=\\u0041\r\u2028\U0001f600\U0001f600!	#\\u0041=\\u0041\n#\\u2028\\uD83D\\uDE00\\uD83D\\uDE00!
+\xfc	#\xfc
+\f\x7f\\\\n\t\t\t	#\f\x7f\\\\n\t\t\t
+\u4e2d:	#\\u4E2D:
+"xxxxxxxxxxxxxxxxxxxx lead	#"xxxxxxxxxxxxxxxxxxxx lead
+\xe9:trail \x00trail =b	#\xe9:trail \x00trail =b
+ \n\u20ac	# \n#\\u20AC
+'\x7f:\\n"\\\r	#'\x7f:\\n"\\\n#
+ lead\u4e2d	# lead\\u4E2D
+\\n	#\\n
+b\t\ttrail  leadxxxxxxxxxxxxxxxxxxxxb:a\x85	#b\t\ttrail  leadxxxxxxxxxxxxxxxxxxxxb:a\x85
+:\t\\u0041"\xa0trail 	#:\t\\u0041"\xa0trail 
+\xa0\u4e2dtrail xxxxxxxxxxxxxxxxxxxx	#\xa0\\u4E2Dtrail xxxxxxxxxxxxxxxxxxxx
+	#
+\n\xfc\u20ac\rxxxxxxxxxxxxxxxxxxxx \x7f	#\n#\xfc\\u20AC\n#xxxxxxxxxxxxxxxxxxxx \x7f
+\u4e2d\\!\xfc\xe9\tb	#\\u4E2D\\!\xfc\xe9\tb
+\xfc\u2028	#\xfc\\u2028
+\\n\U0001f600atrail \x85\x00\x00\f\xa0	#\\n\\uD83D\\uDE00atrail \x85\x00\x00\f\xa0
+\x85:b\x85=trail 	#\x85:b\x85=trail 
+\x85	#\x85
+\\\u4e2d	#\\\\u4E2D
+"\u2028 \xa0\n'	#"\\u2028 \xa0\n#'
+\\u0041\u2028:a\\u0041 lead	#\\u0041\\u2028:a\\u0041 lead
+ \u20ac\xfc"!	# \\u20AC\xfc"!
+\x00#\x00'\t\x00\r \f	#\x00#\x00'\t\x00\n# \f
+a\x00\\\\n\u2028\t\xe9 lead	#a\x00\\\\n\\u2028\t\xe9 lead
+"	#"
+\u2028\xe9'=	#\\u2028\xe9'=
+b\x85b\xe9	#b\x85b\xe9
+\\u0041b\\n=\x85trail 	#\\u0041b\\n=\x85trail 
+b\r\\nb	#b\n#\\nb
+ \\\\\x00	# \\\\\x00
+a\xfc\\u0041	#a\xfc\\u0041
+\\"\x00a\f!\f	#\\"\x00a\f!\f
+\\u0041!\x7fbb\t\xe9\u20ac\xe9	#\\u0041!\x7fbb\t\xe9\\u20AC\xe9
+\xfc\t'\n\U0001f600\U0001f600\xa0	#\xfc\t'\n#\\uD83D\\uDE00\\uD83D\\uDE00\xa0
+xxxxxxxxxxxxxxxxxxxx	#xxxxxxxxxxxxxxxxxxxx
+\u20ac\n=\xa0\\trail  leada	#\\u20AC\n#=\xa0\\trail  leada
+\u4e2d \xa0a\x85#	#\\u4E2D \xa0a\x85#
+ \\u0041\x85	# \\u0041\x85
+\r\ftrail xxxxxxxxxxxxxxxxxxxx\\n\ttrail \r	#\n#\ftrail xxxxxxxxxxxxxxxxxxxx\\n\ttrail \n#
+\x85\\na::\n	#\x85\\na::\n#
+\\n\xa0\\n:\u4e2d\xa0 =	#\\n\xa0\\n:\\u4E2D\xa0 =
+\U0001f600 lead"trail  lead lead	#\\uD83D\\uDE00 lead"trail  lead lead
+\x85trail 	#\x85trail 
+\U0001f600	#\\uD83D\\uDE00
+\\n lead\u2028\xa0"\\	#\\n lead\\u2028\xa0"\\
+\\n	#\\n
+ a \u4e2d\U0001f600\n=:\xfc	# a \\u4E2D\\uD83D\\uDE00\n#=:\xfc
+\\n\xfc'	#\\n\xfc'
+\u4e2da:\fbtrail \x7f\\u0041\\n	#\\u4E2Da:\fbtrail \x7f\\u0041\\n
+\t	#\t
+\U0001f600\t\x00\x7f:\n leadtrail \r	#\\uD83D\\uDE00\t\x00\x7f:\n# leadtrail \n#
+\x85\U0001f600a lead\u4e2d\U0001f600\x85	#\x85\\uD83D\\uDE00a lead\\u4E2D\\uD83D\\uDE00\x85
+xxxxxxxxxxxxxxxxxxxx:	#xxxxxxxxxxxxxxxxxxxx:
+\u2028\x85'"\r:'	#\\u2028\x85'"\n#:'
+\u2028 lead\u4e2d\\\\u0041\r	#\\u2028 lead\\u4E2D\\\\u0041\n#
+\xa0\xa0\\a:\x7f	#\xa0\xa0\\a:\x7f
+\x00\xa0\xe9"xxxxxxxxxxxxxxxxxxxx\U0001f600\U0001f600	#\x00\xa0\xe9"xxxxxxxxxxxxxxxxxxxx\\uD83D\\uDE00\\uD83D\\uDE00
+#xxxxxxxxxxxxxxxxxxxxtrail xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\\u0041	##xxxxxxxxxxxxxxxxxxxxtrail xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\\u0041
+:\xa0\U0001f600'\xfc\x00\r\u20ac\xfc	#:\xa0\\uD83D\\uDE00'\xfc\x00\n#\\u20AC\xfc
+trail  lead\xfc\xa0\xa0\f\U0001f600\\u0041#'	#trail  lead\xfc\xa0\xa0\f\\uD83D\\uDE00\\u0041#'
+	#
+\t"b	#\t"b
+\n\r\ntrail \u20ac\u20ac	#\n#\n#trail \\u20AC\\u20AC
+\xa0':\u4e2d\\u0041\u4e2d	#\xa0':\\u4E2D\\u0041\\u4E2D
+	#
+\xfca\x00 \u20ac\\n\xfc\\u0041	#\xfca\x00 \\u20AC\\n\xfc\\u0041
+\n\t	#\n#\t
+\r\n\u2028\f\nxxxxxxxxxxxxxxxxxxxx lead	#\n#\\u2028\f\n#xxxxxxxxxxxxxxxxxxxx lead
+xxxxxxxxxxxxxxxxxxxx\x7ftrail \x85#=xxxxxxxxxxxxxxxxxxxx\u20aca	#xxxxxxxxxxxxxxxxxxxx\x7ftrail \x85#=xxxxxxxxxxxxxxxxxxxx\\u20ACa
+\u20ac'\\natrail   \xe9	#\\u20AC'\\natrail   \xe9
+:\x00\\n\\!\u2028\u4e2d	#:\x00\\n\\!\\u2028\\u4E2D
+\xa0	#\xa0
+\u4e2d\\u0041\x7f\x85\\naxxxxxxxxxxxxxxxxxxxx\xa0#	#\\u4E2D\\u0041\x7f\x85\\naxxxxxxxxxxxxxxxxxxxx\xa0#
+xxxxxxxxxxxxxxxxxxxxb\\n\U0001f600\\	#xxxxxxxxxxxxxxxxxxxxb\\n\\uD83D\\uDE00\\
+#\u4e2d\u20ac leadtrail #	##\\u4E2D\\u20AC leadtrail #
+a\x7ftrail \x85	#a\x7ftrail \x85
+\\\xe9"\xe9:\u4e2d\xfc	#\\\xe9"\xe9:\\u4E2D\xfc
+\x7f\u20ac	#\x7f\\u20AC
+\xfc\xe9\t\xfc	#\xfc\xe9\t\xfc
+a!\xfc=\xa0 \t\x7f 	#a!\xfc=\xa0 \t\x7f 
+a\U0001f600\\n\r=\U0001f600	#a\\uD83D\\uDE00\\n\n#=\\uD83D\\uDE00
+	#
+\f":\r=\xfc	#\f":\n#=\xfc
+\\xxxxxxxxxxxxxxxxxxxxa!	#\\xxxxxxxxxxxxxxxxxxxxa!
+\xa0=\\n\x7f'	#\xa0=\\n\x7f'
+"\u4e2d\f\xa0	#"\\u4E2D\f\xa0
+ \\n	# \\n
+\xe9\\u0041\\n\U0001f600=	#\xe9\\u0041\\n\\uD83D\\uDE00=
+\u20ac\x00	#\\u20AC\x00
+\\n=\n\x00\\b\u2028	#\\n=\n#\x00\\b\\u2028
+trail \t\\u0041\x00#''\xe9\U0001f600a	#trail \t\\u0041\x00#''\xe9\\uD83D\\uDE00a
+\u4e2d\xfc	#\\u4E2D\xfc
+\u4e2d\r=\ta!\xa0\f!	#\\u4E2D\n#=\ta!\xa0\f!
+ lead\\n\U0001f600\t\x00\\u0041	# lead\\n\\uD83D\\uDE00\t\x00\\u0041
+\\u0041\\n	#\\u0041\\n
+\r\U0001f600\xa0\x00	#\n#\\uD83D\\uDE00\xa0\x00
+	#
+\x7f lead leadtrail \n\\n\xfc' lead	#\x7f lead leadtrail \n#\\n\xfc' lead
+xxxxxxxxxxxxxxxxxxxx\\\fb="b	#xxxxxxxxxxxxxxxxxxxx\\\fb="b
+\u4e2d"	#\\u4E2D"
+xxxxxxxxxxxxxxxxxxxx\U0001f600\x00trail !\\	#xxxxxxxxxxxxxxxxxxxx\\uD83D\\uDE00\x00trail !\\
+\xfc'a\f\xa0	#\xfc'a\f\xa0
+	#
+\u4e2d\\u0041\\u0041\u20ac\x00=\u4e2d\xa0	#\\u4E2D\\u0041\\u0041\\u20AC\x00=\\u4E2D\xa0
+=\r\xe9"\\u0041\\	#=\n#\xe9"\\u0041\\
+\x00\\n::a	#\x00\\n::a
+\\u0041= \x85#:\x85	#\\u0041= \x85#:\x85
+trail b=#\u2028	#trail b=#\\u2028
+\xfc\xe9\xa0'	#\xfc\xe9\xa0'
+\u2028\xa0a'\\nb\t	#\\u2028\xa0a'\\nb\t
+ \x00\f	# \x00\f
+'	#'
+bxxxxxxxxxxxxxxxxxxxxb\x7f:	#bxxxxxxxxxxxxxxxxxxxxb\x7f:
+= lead\txxxxxxxxxxxxxxxxxxxx\u20ac\u2028\x00\\	#= lead\txxxxxxxxxxxxxxxxxxxx\\u20AC\\u2028\x00\\
+\x00! lead\xe9\U0001f600\xe9xxxxxxxxxxxxxxxxxxxx	#\x00! lead\xe9\\uD83D\\uDE00\xe9xxxxxxxxxxxxxxxxxxxx
+=\U0001f600"\\\\n	#=\\uD83D\\uDE00"\\\\n
+\u4e2d\u4e2d\xa0\x7f\u2028\xe9\xfc\u4e2d\\n	#\\u4E2D\\u4E2D\xa0\x7f\\u2028\xe9\xfc\\u4E2D\\n
+\f!\x7f\\\xfc	#\f!\x7f\\\xfc
+\x00\xfc\x00\xfc\x7f\U0001f600\f\xfc	#\x00\xfc\x00\xfc\x7f\\uD83D\\uDE00\f\xfc
+ :'trail 	# :'trail 
+b\x85\x00 lead\xfc\\u0041 lead\t	#b\x85\x00 lead\xfc\\u0041 lead\t
+\xe9\x85xxxxxxxxxxxxxxxxxxxx\n:'\xe9\n	#\xe9\x85xxxxxxxxxxxxxxxxxxxx\n#:'\xe9\n#
+\f\x00#\u2028!btrail 	#\f\x00#\\u2028!btrail 
+xxxxxxxxxxxxxxxxxxxx\\u0041\xe9\\\x7f\\\u4e2d#b	#xxxxxxxxxxxxxxxxxxxx\\u0041\xe9\\\x7f\\\\u4E2D#b
+\f:\n\u2028\xa0\n	#\f:\n#\\u2028\xa0\n#
+xxxxxxxxxxxxxxxxxxxx\U0001f600:	#xxxxxxxxxxxxxxxxxxxx\\uD83D\\uDE00:
+:b\tb\nb\u4e2d\ttrail 	#:b\tb\n#b\\u4E2D\ttrail 
+\t'\x00:	#\t'\x00:
+\u4e2d	#\\u4E2D
+ =\u20ac lead#\n	# =\\u20AC lead#\n#
+\x7f\\n	#\x7f\\n
+\u2028\xa0\r'"\r lead\u20ac\xe9\x85	#\\u2028\xa0\n#'"\n# lead\\u20AC\xe9\x85
+\U0001f600\\n	#\\uD83D\\uDE00\\n
+!trail \xfc lead\x7f:	#!trail \xfc lead\x7f:
+\xa0:\\n\f! #\x00'\x7f	#\xa0:\\n\f! #\x00'\x7f
+  \U0001f600":\x00	#  \\uD83D\\uDE00":\x00
+\\a\x00	#\\a\x00
+ bb\\\u4e2d:	# bb\\\\u4E2D:
+b\xe9\u20ac#\r\t	#b\xe9\\u20AC#\n#\t
+\txxxxxxxxxxxxxxxxxxxx\n	#\txxxxxxxxxxxxxxxxxxxx\n#
+	#
+\\n\\\n\f	#\\n\\\n#\f
+#\n\t\r	##\n#\t\n#
+\\n	#\\n
+\u4e2d\\n\u2028	#\\u4E2D\\n\\u2028
+\\\t	#\\\t
+a\U0001f600\\n:!\\\ftrail 	#a\\uD83D\\uDE00\\n:!\\\ftrail 
+\t"\\n	#\t"\\n
+\\	#\\
+	#
+\x00\xe9xxxxxxxxxxxxxxxxxxxxb	#\x00\xe9xxxxxxxxxxxxxxxxxxxxb
+\u4e2d	#\\u4E2D
+	#
+:"trail trail \xe9\xfc	#:"trail trail \xe9\xfc
+\\n\\n:"\\u0041\x7f="\xe9	#\\n\\n:"\\u0041\x7f="\xe9
+\U0001f600	#\\uD83D\\uDE00
+\n#\t\x00xxxxxxxxxxxxxxxxxxxx!\f\x85\u2028	#\n#\t\x00xxxxxxxxxxxxxxxxxxxx!\f\x85\\u2028
+ \f\\u0041	# \f\\u0041
+b	#b
+\x7f!\\n\x7f\r=\x00\nxxxxxxxxxxxxxxxxxxxx"	#\x7f!\\n\x7f\n#=\x00\n#xxxxxxxxxxxxxxxxxxxx"
+:\t\fxxxxxxxxxxxxxxxxxxxx#\\u0041	#:\t\fxxxxxxxxxxxxxxxxxxxx#\\u0041
+\t\r\x85	#\t\n#\x85
+ leadb\x00	# leadb\x00
+\\:\r\u4e2d'\fa#	#\\:\n#\\u4E2D'\fa#
+\\u0041 \t\t!\x7f\f	#\\u0041 \t\t!\x7f\f
+\u4e2d\u2028\f'\u2028b"	#\\u4E2D\\u2028\f'\\u2028b"
+xxxxxxxxxxxxxxxxxxxx	#xxxxxxxxxxxxxxxxxxxx
+	#
+\u2028	#\\u2028
+\xe9\x7f\f	#\xe9\x7f\f
+xxxxxxxxxxxxxxxxxxxx\xa0\x00\\n\t\\nxxxxxxxxxxxxxxxxxxxx	#xxxxxxxxxxxxxxxxxxxx\xa0\x00\\n\t\\nxxxxxxxxxxxxxxxxxxxx
+\u2028atrail \x85	#\\u2028atrail \x85
+ \x85\xe9\t=\U0001f600 lead\x85\U0001f600	# \x85\xe9\t=\\uD83D\\uDE00 lead\x85\\uD83D\\uDE00
+\x85xxxxxxxxxxxxxxxxxxxx\\ xxxxxxxxxxxxxxxxxxxx	#\x85xxxxxxxxxxxxxxxxxxxx\\ xxxxxxxxxxxxxxxxxxxx
+	#
+\u2028\\u0041 \xe9:#b"	#\\u2028\\u0041 \xe9:#b"
+	#
+\r\\n\x7f\U0001f600" lead\xa0\f	#\n#\\n\x7f\\uD83D\\uDE00" lead\xa0\f
+\u4e2d!\ta\xfc! \\u0041\x7f\xa0	#\\u4E2D!\ta\xfc! \\u0041\x7f\xa0
+\U0001f600: \\\xfc\n\xfc	#\\uD83D\\uDE00: \\\xfc\n#\xfc
+xxxxxxxxxxxxxxxxxxxx\x00'axxxxxxxxxxxxxxxxxxxx	#xxxxxxxxxxxxxxxxxxxx\x00'axxxxxxxxxxxxxxxxxxxx
+a=\\\x85	#a=\\\x85
+\r\u4e2d! 	#\n#\\u4E2D! 
+\\na\xa0	#\\na\xa0
+\U0001f600trail \xe9:\xe9	#\\uD83D\\uDE00trail \xe9:\xe9
+\u20ac\u2028\U0001f600trail  leadb	#\\u20AC\\u2028\\uD83D\\uDE00trail  leadb
+\x7f	#\x7f
+\xe9\\n\u20ac \\n\u20ac=	#\xe9\\n\\u20AC \\n\\u20AC=
+\x00\xfc	#\x00\xfc
+	#
+ lead\U0001f600\u20ac'a" lead	# lead\\uD83D\\uDE00\\u20AC'a" lead
+\xe9a	#\xe9a
+\xe9\r \t=\u2028!xxxxxxxxxxxxxxxxxxxx\\n	#\xe9\n# \t=\\u2028!xxxxxxxxxxxxxxxxxxxx\\n
+\\u0041xxxxxxxxxxxxxxxxxxxx	#\\u0041xxxxxxxxxxxxxxxxxxxx
+\r\x00\x00xxxxxxxxxxxxxxxxxxxxb=\\u0041trail trail \xfc	#\n#\x00\x00xxxxxxxxxxxxxxxxxxxxb=\\u0041trail trail \xfc
+ lead\\nbtrail \xa0	# lead\\nbtrail \xa0
+b\xa0	#b\xa0
+trail \u20acb lead	#trail \\u20ACb lead
+\t'	#\t'
+ #\u20actrail trail \\trail xxxxxxxxxxxxxxxxxxxx	# #\\u20ACtrail trail \\trail xxxxxxxxxxxxxxxxxxxx
+=#\U0001f600\u20ac\xa0	#=#\\uD83D\\uDE00\\u20AC\xa0
+:\xa0\\u0041'	#:\xa0\\u0041'
+trail \rb\t	#trail \n#b\t
+\\n=#a\xe9\\\x00\n	#\\n=#a\xe9\\\x00\n#
+::\xa0\u2028a"\n	#::\xa0\\u2028a"\n#
+b\xfc\f\xe9"\n\r\f\t\r	#b\xfc\f\xe9"\n#\n#\f\t\n#
+\u2028'\fa\\\u20ac\\\xa0	#\\u2028'\fa\\\\u20AC\\\xa0
+\u20ac":\ttrail trail \t	#\\u20AC":\ttrail trail \t
+	#
+\xa0=\t\x85xxxxxxxxxxxxxxxxxxxx	#\xa0=\t\x85xxxxxxxxxxxxxxxxxxxx
+a "\u2028a\xa0	#a "\\u2028a\xa0
+\u2028xxxxxxxxxxxxxxxxxxxx\x85aatrail \n	#\\u2028xxxxxxxxxxxxxxxxxxxx\x85aatrail \n#
+\f\t\xa0b\f!\r"	#\f\t\xa0b\f!\n#"
+\xe9xxxxxxxxxxxxxxxxxxxx\U0001f600\r\x7ftrail \U0001f600 \xa0	#\xe9xxxxxxxxxxxxxxxxxxxx\\uD83D\\uDE00\n#\x7ftrail \\uD83D\\uDE00 \xa0
+\u2028\r\u4e2d\xa0\xe9\xe9\x00trail 	#\\u2028\n#\\u4E2D\xa0\xe9\xe9\x00trail 
+\xfc\u4e2d\r\\: \x00#	#\xfc\\u4E2D\n#\\: \x00#
+\xe9\\u0041	#\xe9\\u0041
+'\u20ac\n\f\u4e2d	#'\\u20AC\n#\f\\u4E2D
+\r\U0001f600\r\n\r\\u0041\r\u2028:\u20ac	#\n#\\uD83D\\uDE00\n#\n#\\u0041\n#\\u2028:\\u20AC
+\xe9'\x00\x7fa leadb\\u0041\x85\x85	#\xe9'\x00\x7fa leadb\\u0041\x85\x85
+	#
+\xe9	#\xe9
+\n	#\n#
+\x00\x00 lead##: lead:\u4e2d\x85	#\x00\x00 lead##: lead:\\u4E2D\x85
+\f :=\xfc	#\f :=\xfc
+\x7fxxxxxxxxxxxxxxxxxxxx"	#\x7fxxxxxxxxxxxxxxxxxxxx"
+\\u0041\x85trail 	#\\u0041\x85trail 
+\x85\x85! lead\r:	#\x85\x85! lead\n#:
+\f\u4e2d:!b\xfc'\t"=	#\f\\u4E2D:!b\xfc'\t"=
+\\\U0001f600	#\\\\uD83D\\uDE00
+:\u4e2d\r\U0001f600\u20ac\u20ac\r\n	#:\\u4E2D\n#\\uD83D\\uDE00\\u20AC\\u20AC\n#
+xxxxxxxxxxxxxxxxxxxx\\ntrail \x7f=\txxxxxxxxxxxxxxxxxxxx\x7f	#xxxxxxxxxxxxxxxxxxxx\\ntrail \x7f=\txxxxxxxxxxxxxxxxxxxx\x7f
+	#
+#"\u4e2dtrail "=	##"\\u4E2Dtrail "=
+\u4e2d#	#\\u4E2D#
+\x7f\n!	#\x7f\n!
+=\r\na\u20ac#\xe9	#=\n#a\\u20AC#\xe9
+xxxxxxxxxxxxxxxxxxxxb\x00\xfc\\n\\\\u0041xxxxxxxxxxxxxxxxxxxx\\n\n	#xxxxxxxxxxxxxxxxxxxxb\x00\xfc\\n\\\\u0041xxxxxxxxxxxxxxxxxxxx\\n\n#
+bxxxxxxxxxxxxxxxxxxxx\\"'\x7f	#bxxxxxxxxxxxxxxxxxxxx\\"'\x7f
+\xa0\U0001f600\u2028:	#\xa0\\uD83D\\uDE00\\u2028:
+\u20ac\r\u4e2da\u2028:	#\\u20AC\n#\\u4E2Da\\u2028:
+\x7f#\r\n\u20actrail \r\\n!:	#\x7f#\n#\\u20ACtrail \n#\\n!:
+\U0001f600xxxxxxxxxxxxxxxxxxxx lead lead:\u2028 lead	#\\uD83D\\uDE00xxxxxxxxxxxxxxxxxxxx lead lead:\\u2028 lead
+\r\t\r"\u4e2d	#\n#\t\n#"\\u4E2D
+='!\r\x85	#='!\n#\x85
+\f=xxxxxxxxxxxxxxxxxxxx	#\f=xxxxxxxxxxxxxxxxxxxx
+\f\x85\x00:#:a"\xe9	#\f\x85\x00:#:a"\xe9
+btrail \r=\n 	#btrail \n#=\n# 
+\x00trail xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\xfc	#\x00trail xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\xfc
+	#
+' \\\u4e2d\u2028\u4e2d	#' \\\\u4E2D\\u2028\\u4E2D
+\u20ac='\xfctrail \\u0041	#\\u20AC='\xfctrail \\u0041
+\\u0041\t\u2028\\\xe9\x85\x00\U0001f600\x7f	#\\u0041\t\\u2028\\\xe9\x85\x00\\uD83D\\uDE00\x7f
+\t lead\u2028#trail \u4e2d\f:!	#\t lead\\u2028#trail \\u4E2D\f:!
+\f:a\n\\	#\f:a\n#\\
+\xfc\t:\x7f\\:\x00	#\xfc\t:\x7f\\:\x00
+#\xe9!\f 	##\xe9!\f 
+=\\\t\rxxxxxxxxxxxxxxxxxxxx\r\n	#=\\\t\n#xxxxxxxxxxxxxxxxxxxx\n#
+	#
+trail !\r"\x00\u2028xxxxxxxxxxxxxxxxxxxx=xxxxxxxxxxxxxxxxxxxx=	#trail !\n#"\x00\\u2028xxxxxxxxxxxxxxxxxxxx=xxxxxxxxxxxxxxxxxxxx=
+\u2028\xa0trail =\u4e2db\U0001f600=\u2028\\	#\\u2028\xa0trail =\\u4E2Db\\uD83D\\uDE00=\\u2028\\
+\\n	#\\n
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\t\u4e2db lead\r\xa0	#xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\t\\u4E2Db lead\n#\xa0
+\n:\u20ac!\xfc\xe9 lead	#\n#:\\u20AC!\xfc\xe9 lead
+\\n \t\x7f\xfc	#\\n \t\x7f\xfc
+\\n\xe9\u4e2d\xa0\x85:'\t=	#\\n\xe9\\u4E2D\xa0\x85:'\t=
+	#
+\x7f\r\x85= a\n\r#\r	#\x7f\n#\x85= a\n#\n#\n#
+\t\t	#\t\t
+\\u0041\xe9\n\u4e2d\r!	#\\u0041\xe9\n#\\u4E2D\n!
+\xfc\\n\x00	#\xfc\\n\x00
+= lead\xa0	#= lead\xa0
+\u2028\U0001f600=\n: \t \xfc\f	#\\u2028\\uD83D\\uDE00=\n#: \t \xfc\f
+\t\t\u20ac\xa0\\n\x00	#\t\t\\u20AC\xa0\\n\x00
+\\n	#\\n
+\\n\xfc\f\u20acb\\	#\\n\xfc\f\\u20ACb\\
+\x85\u20ac\u20ac	#\x85\\u20AC\\u20AC
+: \t lead\\n\u2028\\nb	#: \t lead\\n\\u2028\\nb
+a\\!"\xe9\xe9	#a\\!"\xe9\xe9
+b\xa0\\\xe9	#b\xa0\\\xe9
+\U0001f600\U0001f600\x00\\u0041\r\t\f\xe9\U0001f600	#\\uD83D\\uDE00\\uD83D\\uDE00\x00\\u0041\n#\t\f\xe9\\uD83D\\uDE00
+"b\\	#"b\\
+\\ leada:	#\\ leada:
+\\nxxxxxxxxxxxxxxxxxxxx\u2028\x85\\u0041\u4e2d\r	#\\nxxxxxxxxxxxxxxxxxxxx\\u2028\x85\\u0041\\u4E2D\n#
+trail \u2028\u2028\f\x00 lead:	#trail \\u2028\\u2028\f\x00 lead:
+a\\b	#a\\b
+\xa0'	#\xa0'
+ lead#\xa0\u2028:\U0001f600\\n	# lead#\xa0\\u2028:\\uD83D\\uDE00\\n
+\\u0041\U0001f600\x85\\u0041\x00	#\\u0041\\uD83D\\uDE00\x85\\u0041\x00
+\r\x85\\:\U0001f600\x7f\t\u4e2d:	#\n#\x85\\:\\uD83D\\uDE00\x7f\t\\u4E2D:
+	#
+\x7f	#\x7f
+#\n	##\n#
+\u20ac\t\u4e2d=\\u0041\n lead\f\xe9	#\\u20AC\t\\u4E2D=\\u0041\n# lead\f\xe9
+\\n\\u0041 lead:	#\\n\\u0041 lead:
+#"xxxxxxxxxxxxxxxxxxxxa\r\natrail 	##"xxxxxxxxxxxxxxxxxxxxa\n#atrail 
+xxxxxxxxxxxxxxxxxxxx\n\u20ac\xfca:\u2028\\#\xfc	#xxxxxxxxxxxxxxxxxxxx\n#\\u20AC\xfca:\\u2028\\#\xfc
+#=xxxxxxxxxxxxxxxxxxxx	##=xxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxx lead\xe9\x00\\\x85	#xxxxxxxxxxxxxxxxxxxx lead\xe9\x00\\\x85
+\r\x7ftrail 	#\n#\x7ftrail 
+\u2028a\xe9\f lead\t\n#	#\\u2028a\xe9\f lead\t\n#
+\x7f\xa0trail xxxxxxxxxxxxxxxxxxxx#\u4e2dtrail \xe9\u20ac	#\x7f\xa0trail xxxxxxxxxxxxxxxxxxxx#\\u4E2Dtrail \xe9\\u20AC
+\xfc	#\xfc
+	#
+\u2028\t'\xfc#\u2028\r=\\n\x85	#\\u2028\t'\xfc#\\u2028\n#=\\n\x85
+\x7f\\u0041"	#\x7f\\u0041"
+#	##
+xxxxxxxxxxxxxxxxxxxx\\n	#xxxxxxxxxxxxxxxxxxxx\\n
+\U0001f600:\x00	#\\uD83D\\uDE00:\x00
+a\x7f:\\\x85\u20ac\U0001f600"	#a\x7f:\\\x85\\u20AC\\uD83D\\uDE00"
+ lead lead\x85 lead""\t\u4e2da\x85	# lead lead\x85 lead""\t\\u4E2Da\x85
+\x00\xa0 lead\u4e2d\\\xfc \ra	#\x00\xa0 lead\\u4E2D\\\xfc \n#a
+\n lead	#\n# lead
+\xe9\xfctrail \x85\\u0041\xe9\u20ac\xe9	#\xe9\xfctrail \x85\\u0041\xe9\\u20AC\xe9
+'\x00: \\n'\xfc\t\\n	#'\x00: \\n'\xfc\t\\n
+ 	# 
+\\n\u20ac\xe9\f\u2028	#\\n\\u20AC\xe9\f\\u2028
+\xfc\x85!\xfc\f\\n	#\xfc\x85!\xfc\f\\n
+\u4e2d\n\u2028trail \u4e2dxxxxxxxxxxxxxxxxxxxx \u2028	#\\u4E2D\n#\\u2028trail \\u4E2Dxxxxxxxxxxxxxxxxxxxx \\u2028
+'\x00\xa0\u4e2d\f#\r#	#'\x00\xa0\\u4E2D\f#\n#
+\\\t\u2028\r\n\u4e2da=\\u0041	#\\\t\\u2028\n#\\u4E2Da=\\u0041
+\xe9\n#	#\xe9\n#
+\r'#a\u20ac\ttrail \u4e2d\u4e2d\u20ac	#\n#'#a\\u20AC\ttrail \\u4E2D\\u4E2D\\u20AC
+\t\n\u2028	#\t\n#\\u2028
+\xa0\x7f	#\xa0\x7f
+\x7f'\xe9\xfc\u2028\\	#\x7f'\xe9\xfc\\u2028\\
+"a lead	#"a lead
+\U0001f600\xa0#	#\\uD83D\\uDE00\xa0#
+\xe9b\xe9a	#\xe9b\xe9a
+ \U0001f600 	# \\uD83D\\uDE00 
+ lead\u20ac:\\n'!b\\trail \r	# lead\\u20AC:\\n'!b\\trail \n#
+\\=\n\u2028\u2028\t\xa0\\u0041	#\\=\n#\\u2028\\u2028\t\xa0\\u0041
+a!:\xa0\f\rxxxxxxxxxxxxxxxxxxxxtrail \U0001f600\xa0	#a!:\xa0\f\n#xxxxxxxxxxxxxxxxxxxxtrail \\uD83D\\uDE00\xa0
+\u2028\\n\\n#\xfc"	#\\u2028\\n\\n#\xfc"
+\x85	#\x85
+\x7f\n\xa0	#\x7f\n#\xa0
+trail \x7f\xa0\u4e2d\u2028#\r"\u2028	#trail \x7f\xa0\\u4E2D\\u2028#\n#"\\u2028
+\\trail trail 	#\\trail trail 
+xxxxxxxxxxxxxxxxxxxx\xfc\xa0\u20ac=	#xxxxxxxxxxxxxxxxxxxx\xfc\xa0\\u20AC=
+	#
+ lead'=\x00\\n\xfc\\\\	# lead'=\x00\\n\xfc\\\\
+\\#\xe9	#\\#\xe9
+\u20ac\n#\r#\x00\\\f	#\\u20AC\n#\n#\x00\\\f
+\f '\f"	#\f '\f"
+\xa0	#\xa0
+\x85=\f\f\x7f!	#\x85=\f\f\x7f!
+	#
+\f\u20ac\\n	#\f\\u20AC\\n
+\u2028	#\\u2028
+\\\r" \\\n lead#\u4e2d\t	#\\\n#" \\\n# lead#\\u4E2D\t
+xxxxxxxxxxxxxxxxxxxx\n	#xxxxxxxxxxxxxxxxxxxx\n#
+#	##
+"=	#"=
+b!\\nxxxxxxxxxxxxxxxxxxxx\f'\r	#b!\\nxxxxxxxxxxxxxxxxxxxx\f'\n#
+\\u0041\xa0trail \f\x7f\\u0041xxxxxxxxxxxxxxxxxxxx\x7f=	#\\u0041\xa0trail \f\x7f\\u0041xxxxxxxxxxxxxxxxxxxx\x7f=
+a\x85\xfc\u20ac\xfc\\\\	#a\x85\xfc\\u20AC\xfc\\\\
+'	#'
+\x00\U0001f600=\xe9!xxxxxxxxxxxxxxxxxxxx\x7f#\x85	#\x00\\uD83D\\uDE00=\xe9!xxxxxxxxxxxxxxxxxxxx\x7f#\x85
+\u4e2d'\x00xxxxxxxxxxxxxxxxxxxx\\u0041=	#\\u4E2D'\x00xxxxxxxxxxxxxxxxxxxx\\u0041=
+	#
+\f	#\f
+	#
+ !\xfc\u2028	# !\xfc\\u2028
+\\n\t\\'\u4e2dxxxxxxxxxxxxxxxxxxxx\\n	#\\n\t\\'\\u4E2Dxxxxxxxxxxxxxxxxxxxx\\n
+\xfc\\u0041"\u4e2d\U0001f600\U0001f600\\u0041\xa0	#\xfc\\u0041"\\u4E2D\\uD83D\\uDE00\\uD83D\\uDE00\\u0041\xa0
+'	#'
+\U0001f600	#\\uD83D\\uDE00
+#\u20ac	##\\u20AC
+\xa0\t\\u0041\f\\'\U0001f600\n	#\xa0\t\\u0041\f\\'\\uD83D\\uDE00\n#
+"\f\x85\u4e2d\\n\U0001f600	#"\f\x85\\u4E2D\\n\\uD83D\\uDE00
+	#
+:\u4e2d\n\xfc	#:\\u4E2D\n#\xfc
+a\u2028\\\U0001f600bb\t	#a\\u2028\\\\uD83D\\uDE00bb\t
+\u2028xxxxxxxxxxxxxxxxxxxx \U0001f600\x85	#\\u2028xxxxxxxxxxxxxxxxxxxx \\uD83D\\uDE00\x85
+'\u4e2d'	#'\\u4E2D'
+\\u0041a\x7f\x85\f	#\\u0041a\x7f\x85\f
+ leadtrail \U0001f600	# leadtrail \\uD83D\\uDE00
+'trail ab\x7f\xe9\f	#'trail ab\x7f\xe9\f
+ \r\xe9  '	# \n#\xe9  '
+\xe9\\	#\xe9\\
+	#
+\t=\xe9\t\xfc	#\t=\xe9\t\xfc
+\f\xa0\u20ac\x7f	#\f\xa0\\u20AC\x7f
+\n=\naa\\\x00a	#\n#=\n#aa\\\x00a
+\u2028 \nbb\x00	#\\u2028 \n#bb\x00
+\\n\rb\nxxxxxxxxxxxxxxxxxxxx\\u0041:\\n\txxxxxxxxxxxxxxxxxxxx	#\\n\n#b\n#xxxxxxxxxxxxxxxxxxxx\\u0041:\\n\txxxxxxxxxxxxxxxxxxxx
+\\b\x00	#\\b\x00
+ lead\nxxxxxxxxxxxxxxxxxxxx\x7fxxxxxxxxxxxxxxxxxxxx\\n\\u0041	# lead\n#xxxxxxxxxxxxxxxxxxxx\x7fxxxxxxxxxxxxxxxxxxxx\\n\\u0041
+!\r\\u0041\u20ac\U0001f600\\u0041=	#!\n#\\u0041\\u20AC\\uD83D\\uDE00\\u0041=
+\xa0\x00\xe9\\\x85	#\xa0\x00\xe9\\\x85
+\\\u4e2d":\x7f	#\\\\u4E2D":\x7f
+\u4e2d\\n\xfc!\r\n\u2028	#\\u4E2D\\n\xfc!\n#\\u2028
+\u4e2d\\n	#\\u4E2D\\n
+\u4e2d\U0001f600\U0001f600:	#\\u4E2D\\uD83D\\uDE00\\uD83D\\uDE00:
+\\u0041\n!\xfc leadxxxxxxxxxxxxxxxxxxxx'	#\\u0041\n!\xfc leadxxxxxxxxxxxxxxxxxxxx'
+\x00	#\x00
+\x85\u20ac\u4e2d#=\x00\\n\\\xa0b	#\x85\\u20AC\\u4E2D#=\x00\\n\\\xa0b
+	#
+xxxxxxxxxxxxxxxxxxxx	#xxxxxxxxxxxxxxxxxxxx
+"\x7f\\\u4e2d\xe9!:a!trail 	#"\x7f\\\\u4E2D\xe9!:a!trail 
+xxxxxxxxxxxxxxxxxxxx\r\t\xe9"\x7f\U0001f600=	#xxxxxxxxxxxxxxxxxxxx\n#\t\xe9"\x7f\\uD83D\\uDE00=
+\U0001f600\r\u2028b\x00#	#\\uD83D\\uDE00\n#\\u2028b\x00#
+!\f\f\n\x7fxxxxxxxxxxxxxxxxxxxx\\n\\u0041:	#!\f\f\n#\x7fxxxxxxxxxxxxxxxxxxxx\\n\\u0041:
+\x00	#\x00
+\xfc\r\xe9	#\xfc\n#\xe9
+!	#!
+\x85\t\t\\\U0001f600	#\x85\t\t\\\\uD83D\\uDE00
+\x7f	#\x7f
+\u2028\xfc	#\\u2028\xfc
+"	#"
+\xfc	#\xfc
+ \\n\u20ac\ttrail \u20ac	# \\n\\u20AC\ttrail \\u20AC
+	#
+b	#b
+	#
+a:\u2028	#a:\\u2028
+	#
+\xa0\x7f\r\xfc \x00\n\\u0041	#\xa0\x7f\n#\xfc \x00\n#\\u0041
+\n\xe9\n\\	#\n#\xe9\n#\\
+\U0001f600 	#\\uD83D\\uDE00 
+:\u4e2d\x85	#:\\u4E2D\x85
+"\x7f\x7f'	#"\x7f\x7f'
+	#
+\\n\\u0041\n	#\\n\\u0041\n#
+#trail #""\U0001f600\u4e2d\x85	##trail #""\\uD83D\\uDE00\\u4E2D\x85
+\u2028b\n\\\u4e2d\x85	#\\u2028b\n#\\\\u4E2D\x85
+\u2028xxxxxxxxxxxxxxxxxxxx\u4e2d\xa0\n'\u20ac\u2028	#\\u2028xxxxxxxxxxxxxxxxxxxx\\u4E2D\xa0\n#'\\u20AC\\u2028
+\n\\u0041\u2028\xfc\x85\u20ac=a\t	#\n#\\u0041\\u2028\xfc\x85\\u20AC=a\t
+\\u0041trail #::	#\\u0041trail #::
+\\u0041\\u0041\xfc\xa0\x7fa\u4e2d\u4e2d\u20ac\xe9	#\\u0041\\u0041\xfc\xa0\x7fa\\u4E2D\\u4E2D\\u20AC\xe9
+	#
+\t	#\t
+\xfc":	#\xfc":
+=\x00\U0001f600a	#=\x00\\uD83D\\uDE00a
+\u4e2dtrail \u20ac  \u2028trail 	#\\u4E2Dtrail \\u20AC  \\u2028trail 
+\xfc\u2028trail 	#\xfc\\u2028trail 
+trail 'trail \x85\xfc	#trail 'trail \x85\xfc
+\x85\xe9\xfc	#\x85\xe9\xfc
+\n=	#\n#=
+\\n\t\\	#\\n\t\\
+"\u4e2d \x00 lead\xfc'a lead:	#"\\u4E2D \x00 lead\xfc'a lead:
+!#	#!#
+"\xfc'\U0001f600\rb#	#"\xfc'\\uD83D\\uDE00\n#b#
+=	#=
+"	#"
+\xfc!	#\xfc!
+xxxxxxxxxxxxxxxxxxxx\u4e2d\x7f\u20ac\n \u4e2d\xa0\xe9	#xxxxxxxxxxxxxxxxxxxx\\u4E2D\x7f\\u20AC\n# \\u4E2D\xa0\xe9
+\u20ac\r\f\xfc'\u2028\x85:trail 	#\\u20AC\n#\f\xfc'\\u2028\x85:trail 
+\xe9#!\u4e2d\U0001f600	#\xe9#!\\u4E2D\\uD83D\\uDE00
+\x85\x7f\r\\u0041\x7f\u2028\x00	#\x85\x7f\n#\\u0041\x7f\\u2028\x00
+ 	# 
+\u4e2d\\\x7f\t\x85\U0001f600\u4e2d \u4e2d	#\\u4E2D\\\x7f\t\x85\\uD83D\\uDE00\\u4E2D \\u4E2D
+\u2028\u4e2d\\u0041\x7f##\u4e2da	#\\u2028\\u4E2D\\u0041\x7f##\\u4E2Da
+ lead!\n	# lead!\n#
+xxxxxxxxxxxxxxxxxxxx lead\\\\	#xxxxxxxxxxxxxxxxxxxx lead\\\\
+	#
+b\xfc\xfc"\u2028	#b\xfc\xfc"\\u2028
+"\\n=\t"\xe9\xa0  lead	#"\\n=\t"\xe9\xa0  lead
+'	#'
+\U0001f600=\\n\x00	#\\uD83D\\uDE00=\\n\x00
+"\\n\xe9\u20ac	#"\\n\xe9\\u20AC
+a\u4e2d=	#a\\u4E2D=
+#b\u2028\\u0041a\\\\n	##b\\u2028\\u0041a\\\\n
+\xe9\U0001f600#\xfc\x85 \\n\x85\f\\n	#\xe9\\uD83D\\uDE00#\xfc\x85 \\n\x85\f\\n
+xxxxxxxxxxxxxxxxxxxxtrail \xfc	#xxxxxxxxxxxxxxxxxxxxtrail \xfc
+\\\u20ac='#!xxxxxxxxxxxxxxxxxxxx\xa0	#\\\\u20AC='#!xxxxxxxxxxxxxxxxxxxx\xa0
+\f\x00\U0001f600	#\f\x00\\uD83D\\uDE00
+\u2028	#\\u2028
+\f:\nxxxxxxxxxxxxxxxxxxxx	#\f:\n#xxxxxxxxxxxxxxxxxxxx
+!\\n\u20ac\x00:\t\x00 leada	#!\\n\\u20AC\x00:\t\x00 leada
+ lead'trail "\u20ac\xe9	# lead'trail "\\u20AC\xe9
+\x7f\xe9\\u0041a	#\x7f\xe9\\u0041a
+	#
+ lead\\b	# lead\\b
+"\x7f:\x85	#"\x7f:\x85
+trail \u4e2d\\n	#trail \\u4E2D\\n
+\xfc::\u2028\x7f=b\f	#\xfc::\\u2028\x7f=b\f
+\\b'\x00	#\\b'\x00
+\\u0041\xfctrail =!\x85#xxxxxxxxxxxxxxxxxxxxb	#\\u0041\xfctrail =!\x85#xxxxxxxxxxxxxxxxxxxxb
+\U0001f600'a\x7f\\n\\u0041\u20ac\\n\x85	#\\uD83D\\uDE00'a\x7f\\n\\u0041\\u20AC\\n\x85
+baxxxxxxxxxxxxxxxxxxxx\u20ac\xa0!\f\xe9\n!	#baxxxxxxxxxxxxxxxxxxxx\\u20AC\xa0!\f\xe9\n!
+!\x7f\x7f"\r\\n\u2028\u4e2d	#!\x7f\x7f"\n#\\n\\u2028\\u4E2D
+\x00	#\x00
+#\\u0041\r\xe9trail trail \\u0041:	##\\u0041\n#\xe9trail trail \\u0041:
+'\u4e2d::\ntrail b\u4e2d	#'\\u4E2D::\n#trail b\\u4E2D
+	#
+\x85\x85! lead	#\x85\x85! lead
+\U0001f600:!\\!\xa0\x85	#\\uD83D\\uDE00:!\\!\xa0\x85
+\\u0041=  lead\xfc#\r\x00\r	#\\u0041=  lead\xfc#\n#\x00\n#
+\\u0041a!\xe9	#\\u0041a!\xe9
+\f=\t\f'	#\f=\t\f'
+\r\u2028"b\x7f\f"\f\x00	#\n#\\u2028"b\x7f\f"\f\x00
+:\xe9\\u0041\xfca\\n leadb=	#:\xe9\\u0041\xfca\\n leadb=
+"	#"
+:xxxxxxxxxxxxxxxxxxxx!\x85btrail \x00=	#:xxxxxxxxxxxxxxxxxxxx!\x85btrail \x00=
+a\U0001f600 lead\x85\xfc	#a\\uD83D\\uDE00 lead\x85\xfc
+	#
+\f=	#\f=
+\xfc lead\u2028	#\xfc lead\\u2028
+'\x85\x85'\xfc	#'\x85\x85'\xfc
+b\U0001f600\xfc=\n\f"	#b\\uD83D\\uDE00\xfc=\n#\f"
+\f\U0001f600	#\f\\uD83D\\uDE00
+xxxxxxxxxxxxxxxxxxxx\x85'xxxxxxxxxxxxxxxxxxxx\u4e2d	#xxxxxxxxxxxxxxxxxxxx\x85'xxxxxxxxxxxxxxxxxxxx\\u4E2D
+a\x00\x85	#a\x00\x85
+! lead=	#! lead=
+' \u2028\\u0041xxxxxxxxxxxxxxxxxxxx\x00'	#' \\u2028\\u0041xxxxxxxxxxxxxxxxxxxx\x00'
+\xfc	#\xfc
+\xfc\n\u4e2d \u4e2da\ta	#\xfc\n#\\u4E2D \\u4E2Da\ta
+	#
+ lead\rtrail !\u2028 \u20ac\\trail a	# lead\n#trail !\\u2028 \\u20AC\\trail a
+\n:\u2028xxxxxxxxxxxxxxxxxxxx:\xe9 lead"\ntrail 	#\n#:\\u2028xxxxxxxxxxxxxxxxxxxx:\xe9 lead"\n#trail 
+\r\xfcb\x7f\\trail 	#\n#\xfcb\x7f\\trail 
+\U0001f600	#\\uD83D\\uDE00
+\\	#\\
+ lead!	# lead!
+	#
+\\	#\\
+:\xe9\f	#:\xe9\f
+\xa0\r\x7f\\n=\xa0	#\xa0\n#\x7f\\n=\xa0
+\xe9\xfc	#\xe9\xfc
+\xfc'\x85:\u4e2d\x00\\n	#\xfc'\x85:\\u4E2D\x00\\n
+#'''\xa0"\x7f\x7f\\u0041xxxxxxxxxxxxxxxxxxxx	##'''\xa0"\x7f\x7f\\u0041xxxxxxxxxxxxxxxxxxxx
+trail \\\\xxxxxxxxxxxxxxxxxxxxa=' lead\xfc\n	#trail \\\\xxxxxxxxxxxxxxxxxxxxa=' lead\xfc\n#
+\xa0'\\	#\xa0'\\
+\x7f"\u2028\xfc=\xe9 \t\x7f	#\x7f"\\u2028\xfc=\xe9 \t\x7f
+\x85\U0001f600\u2028\u2028 leadxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\u20ac	#\x85\\uD83D\\uDE00\\u2028\\u2028 leadxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\\u20AC
+\xa0\xe9trail 	#\xa0\xe9trail 
+\xe9\\ 	#\xe9\\ 
+aa\\n'\\n::\n	#aa\\n'\\n::\n#
+\u2028\r"\u20ac\\n!\f\x7ftrail :	#\\u2028\n#"\\u20AC\\n!\f\x7ftrail :
+\rb	#\n#b
+"\xa0aa	#"\xa0aa
+\xe9\u2028\u20ac\u20actrail 	#\xe9\\u2028\\u20AC\\u20ACtrail 
+\f\U0001f600 lead\f \U0001f600'\t\xe9=	#\f\\uD83D\\uDE00 lead\f \\uD83D\\uDE00'\t\xe9=
+xxxxxxxxxxxxxxxxxxxx\\n\\u0041:\n\\u0041xxxxxxxxxxxxxxxxxxxx!\u2028	#xxxxxxxxxxxxxxxxxxxx\\n\\u0041:\n#\\u0041xxxxxxxxxxxxxxxxxxxx!\\u2028
+\\# """\x00"	#\\# """\x00"
+=trail  '\x7f\xfc lead\U0001f600	#=trail  '\x7f\xfc lead\\uD83D\\uDE00
+\u2028\x7f\u2028 lead\\n!='\r	#\\u2028\x7f\\u2028 lead\\n!='\n#
+!	#!
+\x7f\xfc\t\U0001f600!xxxxxxxxxxxxxxxxxxxxtrail '	#\x7f\xfc\t\\uD83D\\uDE00!xxxxxxxxxxxxxxxxxxxxtrail '
+=\f\\n	#=\f\\n
+\r	#\n#
+b\\ \u20ac	#b\\ \\u20AC
+trail \r=xxxxxxxxxxxxxxxxxxxx\r \r	#trail \n#=xxxxxxxxxxxxxxxxxxxx\n# \n#
+\x7f\x00	#\x7f\x00
+	#
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	#xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+	#
+\xe9	#\xe9
+\\na lead	#\\na lead
+\xfc \t!	#\xfc \t!
+\U0001f600\u4e2d\xe9\x7f\U0001f600\\u0041	#\\uD83D\\uDE00\\u4E2D\xe9\x7f\\uD83D\\uDE00\\u0041
+\xfc!\u4e2db\xa0\\'\U0001f600\xe9	#\xfc!\\u4E2Db\xa0\\'\\uD83D\\uDE00\xe9
+#\\na=!\x00\t\u20acb=	##\\na=!\x00\t\\u20ACb=
+\\ \x7f	#\\ \x7f
+!xxxxxxxxxxxxxxxxxxxx\u2028\xa0!bb=	#!xxxxxxxxxxxxxxxxxxxx\\u2028\xa0!bb=
+ lead\r\x00\u4e2d\u20ac\\n##	# lead\n#\x00\\u4E2D\\u20AC\\n##
+xxxxxxxxxxxxxxxxxxxx\\nb\xfc\\\\n	#xxxxxxxxxxxxxxxxxxxx\\nb\xfc\\\\n
+\\	#\\
+'trail \\u0041	#'trail \\u0041
+\t\xfc\x00\\u0041bbtrail \f\x7f	#\t\xfc\x00\\u0041bbtrail \f\x7f
+	#
+\xa0a \f\u2028: \u4e2db\U0001f600	#\xa0a \f\\u2028: \\u4E2Db\\uD83D\\uDE00
+\u20ac:\\\t\x7f#\\n\t	#\\u20AC:\\\t\x7f#\\n\t
+	#
+atrail \u20ac\u20ac! lead\u4e2d\xe9	#atrail \\u20AC\\u20AC! lead\\u4E2D\xe9
+\\u0041\n=\xe9trail "	#\\u0041\n#=\xe9trail "
+xxxxxxxxxxxxxxxxxxxx"\\n	#xxxxxxxxxxxxxxxxxxxx"\\n
+	#
+\x7ftrail a=#"\xe9\f\xfc	#\x7ftrail a=#"\xe9\f\xfc
+\u2028 lead\u20ac\fb\x00\\\n=#	#\\u2028 lead\\u20AC\fb\x00\\\n#=#
+\f\r	#\f\n#
+	#
+trail 	#trail 
+\U0001f600\x85	#\\uD83D\\uDE00\x85
+	#
+: lead=:: \u4e2d	#: lead=:: \\u4E2D
+\r\nb\n\x00'	#\n#b\n#\x00'
+=\f=	#=\f=
+\t\u4e2d\u2028\t:\\n!	#\t\\u4E2D\\u2028\t:\\n!
+"\u4e2db\f=\n	#"\\u4E2Db\f=\n#
+\x85\r\U0001f600\\na=	#\x85\n#\\uD83D\\uDE00\\na=
+\n	#\n#
+\\\x7f"trail =a#	#\\\x7f"trail =a#
+\u20ac#\xfctrail 	#\\u20AC#\xfctrail 
+\u20ac #\u20ac!bb\\xxxxxxxxxxxxxxxxxxxx	#\\u20AC #\\u20AC!bb\\xxxxxxxxxxxxxxxxxxxx
+ lead\x00\xe9\u20ac	# lead\x00\xe9\\u20AC
+\xe9!a	#\xe9!a
+	#
+\t\xa0	#\t\xa0
+#\\xxxxxxxxxxxxxxxxxxxx\f\n\\=\n\rxxxxxxxxxxxxxxxxxxxx	##\\xxxxxxxxxxxxxxxxxxxx\f\n#\\=\n#\n#xxxxxxxxxxxxxxxxxxxx
+\x7f\u20ac\f\x85\\\xa0\r	#\x7f\\u20AC\f\x85\\\xa0\n#
+\\u0041\u4e2d\x00!\\n\x85\xe9xxxxxxxxxxxxxxxxxxxx\\n	#\\u0041\\u4E2D\x00!\\n\x85\xe9xxxxxxxxxxxxxxxxxxxx\\n
+!b\x7f\\n\u20ac#	#!b\x7f\\n\\u20AC#
+\U0001f600\U0001f600\x00\n=\x00	#\\uD83D\\uDE00\\uD83D\\uDE00\x00\n#=\x00
+\xfc\x7f	#\xfc\x7f
+btrail 	#btrail 
+\xfctrail \\n	#\xfctrail \\n
+'"\u20ac\\n	#'"\\u20AC\\n
+b\\u0041	#b\\u0041
+	#
+\xa0#\\u0041b \x85\t\r\xfc	#\xa0#\\u0041b \x85\t\n#\xfc
+\x7f\n\xa0\f	#\x7f\n#\xa0\f
+\xfctrail \ta\xe9	#\xfctrail \ta\xe9
+\u2028\\n'!\u4e2d	#\\u2028\\n'!\\u4E2D
+":" \t \x00'	#":" \t \x00'
+"\\\xa0\u2028\u4e2d"\\u0041'\x85	#"\\\xa0\\u2028\\u4E2D"\\u0041'\x85
+\\n\rxxxxxxxxxxxxxxxxxxxx\r:#	#\\n\n#xxxxxxxxxxxxxxxxxxxx\n#:#
+\r\u2028\\u0041\r: leada\xe9	#\n#\\u2028\\u0041\n#: leada\xe9
+\nxxxxxxxxxxxxxxxxxxxx\u2028	#\n#xxxxxxxxxxxxxxxxxxxx\\u2028
+xxxxxxxxxxxxxxxxxxxx\u2028\u4e2d\xfc	#xxxxxxxxxxxxxxxxxxxx\\u2028\\u4E2D\xfc
+\n\x00	#\n#\x00
+=\x00xxxxxxxxxxxxxxxxxxxx\ttrail \u4e2d"	#=\x00xxxxxxxxxxxxxxxxxxxx\ttrail \\u4E2D"
+\u4e2d\t\n\xfc	#\\u4E2D\t\n#\xfc
+#\\	##\\
+#=\U0001f600 \xa0#trail   lead\r	##=\\uD83D\\uDE00 \xa0#trail   lead\n#
+"":!\U0001f600\xa0=\\u0041trail 	#"":!\\uD83D\\uDE00\xa0=\\u0041trail 
+\\\u20ac'\U0001f600 lead	#\\\\u20AC'\\uD83D\\uDE00 lead
+'!\u4e2d\u4e2d\xfc\rtrail 	#'!\\u4E2D\\u4E2D\xfc\n#trail 
+	#
+ \x7fb"	# \x7fb"
+	#
+\t:a"\u4e2d\t	#\t:a"\\u4E2D\t
+\x00\\trail b\u4e2d\xa0	#\x00\\trail b\\u4E2D\xa0
+b lead\u2028trail #\x85\\\\n	#b lead\\u2028trail #\x85\\\\n
+\u20ac\x00!!trail \x7f	#\\u20AC\x00!!trail \x7f
+\fa" leadxxxxxxxxxxxxxxxxxxxx \\n\xa0\\	#\fa" leadxxxxxxxxxxxxxxxxxxxx \\n\xa0\\
+b'\t\r\xfc\u2028\f:	#b'\t\n#\xfc\\u2028\f:
+	#
+\r=\u4e2d\f\u2028'\\n	#\n#=\\u4E2D\f\\u2028'\\n
+\\\\n\u4e2d\U0001f600a'\\u0041\\\xe9xxxxxxxxxxxxxxxxxxxx	#\\\\n\\u4E2D\\uD83D\\uDE00a'\\u0041\\\xe9xxxxxxxxxxxxxxxxxxxx
+\u4e2db	#\\u4E2Db
+xxxxxxxxxxxxxxxxxxxx\\u0041xxxxxxxxxxxxxxxxxxxx\u20ac	#xxxxxxxxxxxxxxxxxxxx\\u0041xxxxxxxxxxxxxxxxxxxx\\u20AC
+\u4e2d\\n\u20ac\\u0041\u20ac	#\\u4E2D\\n\\u20AC\\u0041\\u20AC
+\U0001f600\x00 trail b\xfc\u20acxxxxxxxxxxxxxxxxxxxx	#\\uD83D\\uDE00\x00 trail b\xfc\\u20ACxxxxxxxxxxxxxxxxxxxx
+\\	#\\
+\\'\x85\f#	#\\'\x85\f#
+\xe9\\n\u2028xxxxxxxxxxxxxxxxxxxx:	#\xe9\\n\\u2028xxxxxxxxxxxxxxxxxxxx:
+	#
+\\nb"\u4e2d leada\U0001f600	#\\nb"\\u4E2D leada\\uD83D\\uDE00
+\f\xe9\r"\r	#\f\xe9\n#"\n#
+\xa0\f\U0001f600 \r	#\xa0\f\\uD83D\\uDE00 \n#
+\t"\\u0041	#\t"\\u0041
+	#
+#\xe9\rb\xe9\xa0\ta	##\xe9\n#b\xe9\xa0\ta
+\x7ftrail 	#\x7ftrail 
+\\u0041=\u2028'\\u0041\\na#!	#\\u0041=\\u2028'\\u0041\\na#!
+a\x7f"\u20acxxxxxxxxxxxxxxxxxxxx\u20ac\r	#a\x7f"\\u20ACxxxxxxxxxxxxxxxxxxxx\\u20AC\n#
+\x00	#\x00
+	#
+\\n\\u0041a\u20ac\x7fxxxxxxxxxxxxxxxxxxxx	#\\n\\u0041a\\u20AC\x7fxxxxxxxxxxxxxxxxxxxx
+\xe9"#\t\t#\u2028	#\xe9"#\t\t#\\u2028
+ \x85"\U0001f600a	# \x85"\\uD83D\\uDE00a
+\xfcb trail \U0001f600	#\xfcb trail \\uD83D\\uDE00
+ leada\x7f"\u2028\x7f\\\u4e2d	# leada\x7f"\\u2028\x7f\\\\u4E2D
+a\xa0\U0001f600trail \t\U0001f600\u20ac\t\ftrail 	#a\xa0\\uD83D\\uDE00trail \t\\uD83D\\uDE00\\u20AC\t\ftrail 
+\xe9'\r!\n lead:\u4e2d	#\xe9'\n!\n# lead:\\u4E2D
+\x00' :\r \u20ac	#\x00' :\n# \\u20AC
+ lead\u20ac\\\xa0 b!#	# lead\\u20AC\\\xa0 b!#
+\u2028\u20ac\u2028\u20ac\u2028trail \xe9	#\\u2028\\u20AC\\u2028\\u20AC\\u2028trail \xe9
+	#
+\\na\t lead=\u4e2d\\n	#\\na\t lead=\\u4E2D\\n
+\\u0041trail :\u4e2d\u2028\u2028"=\x85\x85	#\\u0041trail :\\u4E2D\\u2028\\u2028"=\x85\x85
+b\n\r\\n \x7f\\\x00\x85	#b\n#\n#\\n \x7f\\\x00\x85
+ \t!\U0001f600\U0001f600	# \t!\\uD83D\\uDE00\\uD83D\\uDE00
+\\nxxxxxxxxxxxxxxxxxxxx\u4e2d\\:\ftrail \\u0041	#\\nxxxxxxxxxxxxxxxxxxxx\\u4E2D\\:\ftrail \\u0041
+\x85\r	#\x85\n#
+\u4e2d\u2028\f\u2028\n!	#\\u4E2D\\u2028\f\\u2028\n!
+	#
+\xe9\n\u20ac"\f\ta:	#\xe9\n#\\u20AC"\f\ta:
+ lead\\natrail \xa0!#\t	# lead\\natrail \xa0!#\t
+\xe9 lead\x7f\u20ac\u2028\r\x00	#\xe9 lead\x7f\\u20AC\\u2028\n#\x00
+ \\u0041	# \\u0041
+\f	#\f
+ !\\n\\\x7ftrail  \xa0'	# !\\n\\\x7ftrail  \xa0'
+\\n\x00\\u0041!=\f	#\\n\x00\\u0041!=\f
+trail :	#trail :
+xxxxxxxxxxxxxxxxxxxx	#xxxxxxxxxxxxxxxxxxxx
+	#
+\xfc\\u0041\u4e2d\xe9\xe9	#\xfc\\u0041\\u4E2D\xe9\xe9
+xxxxxxxxxxxxxxxxxxxx	#xxxxxxxxxxxxxxxxxxxx
+\\\\u0041	#\\\\u0041
+\u2028	#\\u2028
+\u2028 \n\x85	#\\u2028 \n#\x85
+\xa0\xa0\u20ac'\x00\f lead \\ lead	#\xa0\xa0\\u20AC'\x00\f lead \\ lead
+\xfc:\x00\u2028"!\x7f\x85	#\xfc:\x00\\u2028"!\x7f\x85
+'!\t\x85\u20ac\u20ac xxxxxxxxxxxxxxxxxxxx:	#'!\t\x85\\u20AC\\u20AC xxxxxxxxxxxxxxxxxxxx:
+trail  \xe9\x00\t\\	#trail  \xe9\x00\t\\
+a#\xfc lead\u4e2d\f	#a#\xfc lead\\u4E2D\f
+\tb\xa0 \xfc\rtrail \\n	#\tb\xa0 \xfc\n#trail \\n
+\fb:\x00\x00:#	#\fb:\x00\x00:#
+\xfc#\ftrail 	#\xfc#\ftrail 
+ \f"	# \f"
+	#
+\xe9 \x00\\\U0001f600a	#\xe9 \x00\\\\uD83D\\uDE00a
+'\U0001f600 lead\u20ac\r\xfc	#'\\uD83D\\uDE00 lead\\u20AC\n#\xfc
+xxxxxxxxxxxxxxxxxxxxa\u2028!\\\u4e2d	#xxxxxxxxxxxxxxxxxxxxa\\u2028!\\\\u4E2D
+\\u0041\x00"\x85a\x00	#\\u0041\x00"\x85a\x00
+\u4e2d!\\u0041\\n\xe9'\t\x7f	#\\u4E2D!\\u0041\\n\xe9'\t\x7f
+\f\u4e2d	#\f\\u4E2D
+#b\\\xe9trail \t\ta'\n	##b\\\xe9trail \t\ta'\n#
+\r	#\n#
+ #\txxxxxxxxxxxxxxxxxxxx\x85 #\n\xe9	# #\txxxxxxxxxxxxxxxxxxxx\x85 #\n#\xe9
+trail \n	#trail \n#
+\u4e2d\U0001f600\f lead	#\\u4E2D\\uD83D\\uDE00\f lead
+\\n#\xe9	#\\n#\xe9
+xxxxxxxxxxxxxxxxxxxx	#xxxxxxxxxxxxxxxxxxxx
+\n\u20ac\f\f	#\n#\\u20AC\f\f
+\u4e2d\\n lead\x00\u4e2d\r	#\\u4E2D\\n lead\x00\\u4E2D\n#
+:\f\xe9\n=	#:\f\xe9\n#=
+'\xa0\r\\n\r	#'\xa0\n#\\n\n#
+\t!\u2028\xfca\\u0041"\U0001f600\x00\t	#\t!\\u2028\xfca\\u0041"\\uD83D\\uDE00\x00\t
+:\f\u20ac	#:\f\\u20AC
+=	#=
+	#
+\x00\u20ac\xfc\f	#\x00\\u20AC\xfc\f
+a\t\r\U0001f600	#a\t\n#\\uD83D\\uDE00
+=b lead\n\nb lead	#=b lead\n#\n#b lead
+\t	#\t
+:	#:
+b\x00!\xa0\u4e2d\\u0041!\xa0\xa0\x00	#b\x00!\xa0\\u4E2D\\u0041!\xa0\xa0\x00
+\u2028trail \t'xxxxxxxxxxxxxxxxxxxx\f\xfc\x00\n	#\\u2028trail \t'xxxxxxxxxxxxxxxxxxxx\f\xfc\x00\n#
+\\\u4e2dxxxxxxxxxxxxxxxxxxxx!	#\\\\u4E2Dxxxxxxxxxxxxxxxxxxxx!
+\t\u20ac\xfc lead\u4e2d\f=\x00\xfc	#\t\\u20AC\xfc lead\\u4E2D\f=\x00\xfc
+\\b\x00\t\\n	#\\b\x00\t\\n
+\xa0\r \\u0041	#\xa0\n# \\u0041
+	#
+\xfc\xa0	#\xfc\xa0
+ lead\u20ac:\xe9\\" 	# lead\\u20AC:\xe9\\" 
+\xe9\x7f\x85xxxxxxxxxxxxxxxxxxxx	#\xe9\x7f\x85xxxxxxxxxxxxxxxxxxxx
+ !\u4e2d\xa0\u20ac\\nb	# !\\u4E2D\xa0\\u20AC\\nb
+\n\u20ac::	#\n#\\u20AC::
+a\rtrail #	#a\n#trail #
+\xfcb:\u2028\xe9xxxxxxxxxxxxxxxxxxxx \f'\xfc	#\xfcb:\\u2028\xe9xxxxxxxxxxxxxxxxxxxx \f'\xfc
+\x7f\x00	#\x7f\x00
+ lead'\xe9	# lead'\xe9
+\n\r	#\n#\n#
+\\	#\\
+\xfc\\n leadtrail =	#\xfc\\n leadtrail =
+\u20ac\f\xfc b\n\u4e2d\xa0	#\\u20AC\f\xfc b\n#\\u4E2D\xa0
+\\u0041	#\\u0041
+\\u0041!\\u0041\xe9\\n'	#\\u0041!\\u0041\xe9\\n'
+\\: lead\xe9#	#\\: lead\xe9#
+#\U0001f600\U0001f600\xa0 lead\x00\\n\\n	##\\uD83D\\uDE00\\uD83D\\uDE00\xa0 lead\x00\\n\\n
+\x85'\t\x85 \u4e2d\xe9\U0001f600\t 	#\x85'\t\x85 \\u4E2D\xe9\\uD83D\\uDE00\t 
+trail \r:\f \U0001f600a\r	#trail \n#:\f \\uD83D\\uDE00a\n#
+\x85\x85\r\\\t\t#\u20ac\x00\u4e2d	#\x85\x85\n#\\\t\t#\\u20AC\x00\\u4E2D
+	#
+b\u4e2d'	#b\\u4E2D'
+b leada'\\u0041\\	#b leada'\\u0041\\
+\x85\x7f=\x7f\t	#\x85\x7f=\x7f\t
+\\	#\\
+"\xa0\x7f\xa0!#\u2028'	#"\xa0\x7f\xa0!#\\u2028'
+a\U0001f600!\x85trail \r\U0001f600\x7ftrail \\	#a\\uD83D\\uDE00!\x85trail \n#\\uD83D\\uDE00\x7ftrail \\
+	#
+\\n\U0001f600\rxxxxxxxxxxxxxxxxxxxx\xa0\\ lead\t"	#\\n\\uD83D\\uDE00\n#xxxxxxxxxxxxxxxxxxxx\xa0\\ lead\t"
+	#
+\u2028\u20ac#\r\U0001f600\xa0xxxxxxxxxxxxxxxxxxxx\u2028\\u0041\U0001f600	#\\u2028\\u20AC#\n#\\uD83D\\uDE00\xa0xxxxxxxxxxxxxxxxxxxx\\u2028\\u0041\\uD83D\\uDE00
+b	#b
+trail \xfc	#trail \xfc
+\xa0"'!a\xa0\xe9\u2028	#\xa0"'!a\xa0\xe9\\u2028
+\xa0\f\\n\xfc\\u0041\t	#\xa0\f\\n\xfc\\u0041\t
+\x00\\n\xa0\u2028\f	#\x00\\n\xa0\\u2028\f
+\u4e2d \u20ac\xa0\t\n\u4e2d\n	#\\u4E2D \\u20AC\xa0\t\n#\\u4E2D\n#
+\u2028'\t\x7f\u4e2d\x7fxxxxxxxxxxxxxxxxxxxx	#\\u2028'\t\x7f\\u4E2D\x7fxxxxxxxxxxxxxxxxxxxx
+\n\f'\t\f	#\n#\f'\t\f
+a\xe9:\u4e2d\t#\t!xxxxxxxxxxxxxxxxxxxx\\n	#a\xe9:\\u4E2D\t#\t!xxxxxxxxxxxxxxxxxxxx\\n
+\n\xe9 =a	#\n#\xe9 =a
+\ttrail trail !\t\t\xa0\x85=	#\ttrail trail !\t\t\xa0\x85=
+xxxxxxxxxxxxxxxxxxxxa\x00	#xxxxxxxxxxxxxxxxxxxxa\x00
+\n\u2028\\\x7f\r\\n	#\n#\\u2028\\\x7f\n#\\n
+ 	# 
+\xfc	#\xfc
+ lead "\x00\x7f	# lead "\x00\x7f
+\\u0041\u20ac\\n\u2028\u20ac= \xfc lead 	#\\u0041\\u20AC\\n\\u2028\\u20AC= \xfc lead 
+\U0001f600'\x85\u20ac#"	#\\uD83D\\uDE00'\x85\\u20AC#"
+\ta\f	#\ta\f
+\xa0	#\xa0
+'xxxxxxxxxxxxxxxxxxxx" lead'\x85\f#	#'xxxxxxxxxxxxxxxxxxxx" lead'\x85\f#
+\u4e2d'\xa0\\u0041trail \\ntrail 	#\\u4E2D'\xa0\\u0041trail \\ntrail 
+\\u0041\n\x85'	#\\u0041\n#\x85'
+\u2028"	#\\u2028"
+\\u0041\u4e2d	#\\u0041\\u4E2D
+	#
+\x7f	#\x7f
+\t	#\t
+\f	#\f
+"\\u0041\r\u2028trail 	#"\\u0041\n#\\u2028trail 
+	#
+	#
+\t\xe9\x85	#\t\xe9\x85
+	#
+atrail :# leadtrail 	#atrail :# leadtrail 
+:a!"!\U0001f600:  	#:a!"!\\uD83D\\uDE00:  
+\u20ac\xe9	#\\u20AC\xe9
+\x7f\u2028	#\x7f\\u2028
+	#
+:'	#:'
+ leadb'\x85bxxxxxxxxxxxxxxxxxxxx\f	# leadb'\x85bxxxxxxxxxxxxxxxxxxxx\f
+\u2028!\n\n!'\x00\xfc:	#\\u2028!\n#\n!'\x00\xfc:
+\x85#\x00\x7fxxxxxxxxxxxxxxxxxxxx	#\x85#\x00\x7fxxxxxxxxxxxxxxxxxxxx
+b	#b
+\n	#\n#
+\U0001f600trail \x7f#\U0001f600 lead	#\\uD83D\\uDE00trail \x7f#\\uD83D\\uDE00 lead
+'\t\u4e2d\\\U0001f600a	#'\t\\u4E2D\\\\uD83D\\uDE00a
+\u4e2d:\u4e2d	#\\u4E2D:\\u4E2D
+\rtrail !"'\\\\n\xe9\\u0041#	#\n#trail !"'\\\\n\xe9\\u0041#
+\\\r \\\r\u20ac	#\\\n# \\\n#\\u20AC
+	#
+xxxxxxxxxxxxxxxxxxxxb\\u0041	#xxxxxxxxxxxxxxxxxxxxb\\u0041
+	#
+\u20ac!xxxxxxxxxxxxxxxxxxxx!	#\\u20AC!xxxxxxxxxxxxxxxxxxxx!
+a\xa0	#a\xa0
+b\u20ac\xa0	#b\\u20AC\xa0
+	#
+\x85\x00\u2028\xe9a\t:\t\n	#\x85\x00\\u2028\xe9a\t:\t\n#
+	#
+!\n\u20ac\u20ac=\t'\ratrail 	#!\n#\\u20AC\\u20AC=\t'\n#atrail 
+\xe9	#\xe9
+=\r\txxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxtrail =\n\\n\r	#=\n#\txxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxtrail =\n#\\n\n#
+\x85!=!\U0001f600\\n	#\x85!=!\\uD83D\\uDE00\\n
+\t lead#\\u0041xxxxxxxxxxxxxxxxxxxx\u4e2d#a	#\t lead#\\u0041xxxxxxxxxxxxxxxxxxxx\\u4E2D#a
+! \n \u2028='atrail \n	#! \n# \\u2028='atrail \n#
+\f\t \xfc"\x7f\t	#\f\t \xfc"\x7f\t
+\xfc\u4e2dba:	#\xfc\\u4E2Dba:
+\xfc	#\xfc
+\u4e2d"\\n\n\xa0	#\\u4E2D"\\n\n#\xa0
+\xfc\\n\xa0trail a\x7fxxxxxxxxxxxxxxxxxxxx\f	#\xfc\\n\xa0trail a\x7fxxxxxxxxxxxxxxxxxxxx\f
+a! lead\x85xxxxxxxxxxxxxxxxxxxxa	#a! lead\x85xxxxxxxxxxxxxxxxxxxxa
+trail 	#trail 
+	#
+\xe9\\u0041 #a\\\u4e2d	#\xe9\\u0041 #a\\\\u4E2D
+\u20ac\u20ac\f\xa0\u20ac"\\n\U0001f600\x7f=	#\\u20AC\\u20AC\f\xa0\\u20AC"\\n\\uD83D\\uDE00\x7f=
+"xxxxxxxxxxxxxxxxxxxx\r\n\u4e2d\u4e2d!\xa0	#"xxxxxxxxxxxxxxxxxxxx\n#\\u4E2D\\u4E2D!\xa0
+xxxxxxxxxxxxxxxxxxxx\x00\r\u20ac\r\n\\	#xxxxxxxxxxxxxxxxxxxx\x00\n#\\u20AC\n#\\
+	#
+"\n\xfc	#"\n#\xfc
+:a\f\\n\U0001f600\U0001f600\x85#	#:a\f\\n\\uD83D\\uDE00\\uD83D\\uDE00\x85#
+'!#:\n\\\u20ac\U0001f600	#'!#:\n#\\\\u20AC\\uD83D\\uDE00
+	#
+	#
+!\x85#trail \u20ac\\u0041\t	#!\x85#trail \\u20AC\\u0041\t
+\xe9 \rxxxxxxxxxxxxxxxxxxxx	#\xe9 \n#xxxxxxxxxxxxxxxxxxxx
+\u2028\xa0#b'\U0001f600xxxxxxxxxxxxxxxxxxxx\f!xxxxxxxxxxxxxxxxxxxx	#\\u2028\xa0#b'\\uD83D\\uDE00xxxxxxxxxxxxxxxxxxxx\f!xxxxxxxxxxxxxxxxxxxx
+\u20ac\xe9xxxxxxxxxxxxxxxxxxxx\x00\x7f	#\\u20AC\xe9xxxxxxxxxxxxxxxxxxxx\x00\x7f
+\r\t#\r	#\n#\t#\n#
+\U0001f600	#\\uD83D\\uDE00
+!\n  \x00\u2028\\u0041	#!\n#  \x00\\u2028\\u0041
+\r'\xfc leadxxxxxxxxxxxxxxxxxxxx 	#\n#'\xfc leadxxxxxxxxxxxxxxxxxxxx 
+\\na	#\\na
+	#
+\r lead\x00\xa0\x7f"\\u0041	#\n# lead\x00\xa0\x7f"\\u0041
+ b	# b
+\\n\u2028":trail trail \r\\n"\xa0	#\\n\\u2028":trail trail \n#\\n"\xa0
+\r""\\#\rtrail "	#\n#""\\#\n#trail "
+\\n\U0001f600\u4e2d\xe9!a\\n\\	#\\n\\uD83D\\uDE00\\u4E2D\xe9!a\\n\\
+	#
+\\u0041"xxxxxxxxxxxxxxxxxxxx\\xxxxxxxxxxxxxxxxxxxx\f lead	#\\u0041"xxxxxxxxxxxxxxxxxxxx\\xxxxxxxxxxxxxxxxxxxx\f lead
+\u20ac\U0001f600\u2028'trail trail \t	#\\u20AC\\uD83D\\uDE00\\u2028'trail trail \t
+!=\\\t\u2028 lead\n leadxxxxxxxxxxxxxxxxxxxx	#!=\\\t\\u2028 lead\n# leadxxxxxxxxxxxxxxxxxxxx
+=\\n\u20ac\na	#=\\n\\u20AC\n#a
+\x7fa\x7f leadb 	#\x7fa\x7f leadb 
+:\\n\xe9trail \t\u4e2d	#:\\n\xe9trail \t\\u4E2D
+\xfc\u2028 \\n\f\xfc	#\xfc\\u2028 \\n\f\xfc
+\u2028 lead\u2028\r!\xa0\U0001f600!	#\\u2028 lead\\u2028\n!\xa0\\uD83D\\uDE00!
+\u20ac a\xa0	#\\u20AC a\xa0
+\x7f \u20ac\x85'	#\x7f \\u20AC\x85'
+\u4e2d:b'b\x85'\t	#\\u4E2D:b'b\x85'\t
+	#
+\x00\f:trail \u4e2d\x00\xe9	#\x00\f:trail \\u4E2D\x00\xe9
+  \n\x00\x00:\u2028	#  \n#\x00\x00:\\u2028
+	#
+a:\\\t\\!	#a:\\\t\\!
+\x7f'	#\x7f'
+\x00\n:\xa0 "a\u4e2d	#\x00\n#:\xa0 "a\\u4E2D
+\xfc\t#\\u0041\xe9\r\u2028\xa0	#\xfc\t#\\u0041\xe9\n#\\u2028\xa0
+'xxxxxxxxxxxxxxxxxxxx leadbtrail  lead\u4e2dtrail 	#'xxxxxxxxxxxxxxxxxxxx leadbtrail  lead\\u4E2Dtrail 
+	#
+\u20ac	#\\u20AC
+	#
+'\n\\\x85=\u20ac	#'\n#\\\x85=\\u20AC
+ \x00:\n	# \x00:\n#
+	#
+ \xfcxxxxxxxxxxxxxxxxxxxx=\x00\f"\x7f:	# \xfcxxxxxxxxxxxxxxxxxxxx=\x00\f"\x7f:
+" b\xa0trail trail \r#'	#" b\xa0trail trail \n#'
+:'\U0001f600:\\n\n \\n\r\xfc	#:'\\uD83D\\uDE00:\\n\n# \\n\n#\xfc
+\ra=trail =a	#\n#a=trail =a
+\\\x7fb	#\\\x7fb
+#\x00\t\u20ac	##\x00\t\\u20AC
+!" lead\xe9	#!" lead\xe9
+\xe9#b:\xfc\xfc \\u0041\U0001f600\f	#\xe9#b:\xfc\xfc \\u0041\\uD83D\\uDE00\f
+\U0001f600	#\\uD83D\\uDE00
+xxxxxxxxxxxxxxxxxxxx\r\\u0041xxxxxxxxxxxxxxxxxxxx#\n\x85	#xxxxxxxxxxxxxxxxxxxx\n#\\u0041xxxxxxxxxxxxxxxxxxxx#\n#\x85
+\u2028=='\t\x85\\n\u20actrail \t	#\\u2028=='\t\x85\\n\\u20ACtrail \t
+:\U0001f600\\n\n \\n \U0001f600\u2028	#:\\uD83D\\uDE00\\n\n# \\n \\uD83D\\uDE00\\u2028
+\t:"xxxxxxxxxxxxxxxxxxxx"\\\\u0041\f\\n\n	#\t:"xxxxxxxxxxxxxxxxxxxx"\\\\u0041\f\\n\n#
+\xa0\n\x00	#\xa0\n#\x00
+\\	#\\
+:	#:
+\n=:	#\n#=:
+trail \\u0041\U0001f600\u4e2dxxxxxxxxxxxxxxxxxxxx\\\xfc\t	#trail \\u0041\\uD83D\\uDE00\\u4E2Dxxxxxxxxxxxxxxxxxxxx\\\xfc\t
+=\nb\\ntrail 	#=\n#b\\ntrail 
+\u2028aa\\u0041\xe9	#\\u2028aa\\u0041\xe9
+\x7f\x85\r\x85	#\x7f\x85\n#\x85
+\xfc	#\xfc
+\xa0\\u0041\u4e2d:\x85\xfc	#\xa0\\u0041\\u4E2D:\x85\xfc
+\xfc\\\\n\x7f\\n \xa0\xe9\u4e2d	#\xfc\\\\n\x7f\\n \xa0\xe9\\u4E2D
+"\xa0\u4e2d	#"\xa0\\u4E2D
+\rxxxxxxxxxxxxxxxxxxxxa\xe9\\\u4e2db\t\x7f\\	#\n#xxxxxxxxxxxxxxxxxxxxa\xe9\\\\u4E2Db\t\x7f\\
+\xa0b\x85\\u0041\xe9	#\xa0b\x85\\u0041\xe9
+!\u4e2d'xxxxxxxxxxxxxxxxxxxx	#!\\u4E2D'xxxxxxxxxxxxxxxxxxxx
+a\U0001f600b\xfc!\x7f	#a\\uD83D\\uDE00b\xfc!\x7f
+trail  lead":\x85\x00'	#trail  lead":\x85\x00'
+ lead\xa0a!=:'\xe9	# lead\xa0a!=:'\xe9
+	#
+\xe9\u20actrail 	#\xe9\\u20ACtrail 
+\u20ac\x00xxxxxxxxxxxxxxxxxxxx lead\U0001f600\x7f	#\\u20AC\x00xxxxxxxxxxxxxxxxxxxx lead\\uD83D\\uDE00\x7f
+	#
+'	#'
+\U0001f600"\xfc#trail \u2028\r	#\\uD83D\\uDE00"\xfc#trail \\u2028\n#
+\\\\u0041\n\u4e2d\n!\t	#\\\\u0041\n#\\u4E2D\n!\t
+\t! lead\r\x7f	#\t! lead\n#\x7f
+	#
+'\u20ac\xa0b\n\U0001f600xxxxxxxxxxxxxxxxxxxx\\u0041	#'\\u20AC\xa0b\n#\\uD83D\\uDE00xxxxxxxxxxxxxxxxxxxx\\u0041
+\rtrail \xe9\\	#\n#trail \xe9\\
+ \x85: \x7fa	# \x85: \x7fa
+"\u2028=	#"\\u2028=
+xxxxxxxxxxxxxxxxxxxx:"\u20ac\xe9\u2028	#xxxxxxxxxxxxxxxxxxxx:"\\u20AC\xe9\\u2028
+=\u20ac\r\t:\ntrail \n\x00xxxxxxxxxxxxxxxxxxxx	#=\\u20AC\n#\t:\n#trail \n#\x00xxxxxxxxxxxxxxxxxxxx
+	#
+\f\f\r\u20ac\xe9\xe9\x7f\r	#\f\f\n#\\u20AC\xe9\xe9\x7f\n#
+\\n\\u0041\x85!\t	#\\n\\u0041\x85!\t
+\xa0 \\n lead'\U0001f600\u2028 lead\\u0041	#\xa0 \\n lead'\\uD83D\\uDE00\\u2028 lead\\u0041
+\xe9:b	#\xe9:b
+\u20ac	#\\u20AC
+\f\u20ac\u20ac	#\f\\u20AC\\u20AC
+a\x00	#a\x00
+\u4e2d\\!	#\\u4E2D\\!
+ lead\u4e2d\x00\x85	# lead\\u4E2D\x00\x85
+!xxxxxxxxxxxxxxxxxxxxb!\xe9\u4e2d\u20ac\u20ac	#!xxxxxxxxxxxxxxxxxxxxb!\xe9\\u4E2D\\u20AC\\u20AC
+xxxxxxxxxxxxxxxxxxxx#b\xa0!\xe9\u20ac	#xxxxxxxxxxxxxxxxxxxx#b\xa0!\xe9\\u20AC
+\xfctrail 	#\xfctrail 
+	#
+\r\u2028	#\n#\\u2028
+\\u0041	#\\u0041
+\x00\x7f"	#\x00\x7f"
+\r\\  lead\xa0xxxxxxxxxxxxxxxxxxxx\f\tb\\u0041	#\n#\\  lead\xa0xxxxxxxxxxxxxxxxxxxx\f\tb\\u0041
+\r\u20ac\\n\\n#\x7f\U0001f600	#\n#\\u20AC\\n\\n#\x7f\\uD83D\\uDE00
+\fa\\\\\xfc\u4e2da\xe9	#\fa\\\\\xfc\\u4E2Da\xe9
+\\u0041\\n#\x7f	#\\u0041\\n#\x7f
+\u20ac\u4e2d\x7fa\\	#\\u20AC\\u4E2D\x7fa\\
+ 	# 
+	#
+ lead=\u20ac lead\u2028\f=" lead	# lead=\\u20AC lead\\u2028\f=" lead
+\\n\t	#\\n\t
+	#
+ \\\x85\n"\r	# \\\x85\n#"\n#
+\\n"\f\\u0041\\u0041\x85\r	#\\n"\f\\u0041\\u0041\x85\n#
+\f	#\f
+\f\x7f\xa0:	#\f\x7f\xa0:
+trail \u4e2d\r\t\xa0	#trail \\u4E2D\n#\t\xa0
+	#
+\rxxxxxxxxxxxxxxxxxxxx\xfc\n	#\n#xxxxxxxxxxxxxxxxxxxx\xfc\n#
+\xfc:trail  '#\u2028	#\xfc:trail  '#\\u2028
+trail \u20ac"\x85\\n!\\n lead\\n\xfc	#trail \\u20AC"\x85\\n!\\n lead\\n\xfc
+	#
+ lead	# lead
+\f\\\f	#\f\\\f
+	#
+"\f lead\xa0 leadtrail 	#"\f lead\xa0 leadtrail 
+b'\\u0041 #	#b'\\u0041 #
+\x85\u20ac#\xa0\f\\n	#\x85\\u20AC#\xa0\f\\n
+trail #'"=\r!\x7f	#trail #'"=\n!\x7f
+\u4e2d\x85' !\u2028b\\\u4e2d\u2028	#\\u4E2D\x85' !\\u2028b\\\\u4E2D\\u2028
+	#
+	#
+=trail \\ \r"	#=trail \\ \n#"
+xxxxxxxxxxxxxxxxxxxxb\\\\u0041\u2028\xa0\\n	#xxxxxxxxxxxxxxxxxxxxb\\\\u0041\\u2028\xa0\\n
+\xa0	#\xa0
+\f\u4e2d\u4e2d\fa\u2028a 	#\f\\u4E2D\\u4E2D\fa\\u2028a 
+ b\U0001f600\xfc\U0001f600:\x7f =	# b\\uD83D\\uDE00\xfc\\uD83D\\uDE00:\x7f =
+\x7f	#\x7f
+\\n\u4e2d\\ntrail xxxxxxxxxxxxxxxxxxxx=	#\\n\\u4E2D\\ntrail xxxxxxxxxxxxxxxxxxxx=
+\\u0041a\U0001f600#\f"\\u0041 leadb"	#\\u0041a\\uD83D\\uDE00#\f"\\u0041 leadb"
+\\u0041\u2028\u2028\xe9:\u20actrail \n\\u0041\u20ac	#\\u0041\\u2028\\u2028\xe9:\\u20ACtrail \n#\\u0041\\u20AC
+\r\\	#\n#\\
+trail \u2028\U0001f600\\u0041\xa0\u2028trail "#	#trail \\u2028\\uD83D\\uDE00\\u0041\xa0\\u2028trail "#
+\n\x85\x00\u20ac!\r'	#\n#\x85\x00\\u20AC!\n#'
+\U0001f600\x85\f\r\U0001f600\u4e2d	#\\uD83D\\uDE00\x85\f\n#\\uD83D\\uDE00\\u4E2D
+\x7fbxxxxxxxxxxxxxxxxxxxx leadtrail "'!	#\x7fbxxxxxxxxxxxxxxxxxxxx leadtrail "'!
+::'xxxxxxxxxxxxxxxxxxxx	#::'xxxxxxxxxxxxxxxxxxxx
+\U0001f600=\x85=\t\x7f\u2028 \r	#\\uD83D\\uDE00=\x85=\t\x7f\\u2028 \n#
+\x85\U0001f600xxxxxxxxxxxxxxxxxxxxa#\f	#\x85\\uD83D\\uDE00xxxxxxxxxxxxxxxxxxxxa#\f
+\\na\r	#\\na\n#
+:\xa0\u20ac\x7f:\xe9\f!	#:\xa0\\u20AC\x7f:\xe9\f!
+'	#'
+\\n\\b\x7f=" lead	#\\n\\b\x7f=" lead
+xxxxxxxxxxxxxxxxxxxx:\f	#xxxxxxxxxxxxxxxxxxxx:\f
+"\U0001f600 	#"\\uD83D\\uDE00 
+\xfc	#\xfc
+\u20ac\\n:\xfc\\u0041:	#\\u20AC\\n:\xfc\\u0041:
+\u2028=	#\\u2028=
+\\\x7f!\U0001f600\xfc\r!"\t!	#\\\x7f!\\uD83D\\uDE00\xfc\n!"\t!
+":trail 	#":trail 
+\\\u4e2d\u4e2dxxxxxxxxxxxxxxxxxxxx\u2028:=	#\\\\u4E2D\\u4E2Dxxxxxxxxxxxxxxxxxxxx\\u2028:=
+\\"a\u4e2d\n	#\\"a\\u4E2D\n#
+a=''	#a=''
+ lead\u20ac\x7f	# lead\\u20AC\x7f
+\u20ac=a\\u0041#\x85 lead:	#\\u20AC=a\\u0041#\x85 lead:
+\x00	#\x00
+\xfc\xfc\u20ac\\u0041\x00!':\u2028\u4e2d	#\xfc\xfc\\u20AC\\u0041\x00!':\\u2028\\u4E2D
+xxxxxxxxxxxxxxxxxxxx\u20ac\u20ac	#xxxxxxxxxxxxxxxxxxxx\\u20AC\\u20AC
+\f\f\xa0\f\\n	#\f\f\xa0\f\\n
+\xe9 	#\xe9 
+!\U0001f600	#!\\uD83D\\uDE00
+\u2028\U0001f600\xa0	#\\u2028\\uD83D\\uDE00\xa0
+xxxxxxxxxxxxxxxxxxxx:xxxxxxxxxxxxxxxxxxxx\u4e2d!\xa0\t\xe9\x7f\x85	#xxxxxxxxxxxxxxxxxxxx:xxxxxxxxxxxxxxxxxxxx\\u4E2D!\xa0\t\xe9\x7f\x85
+\\n\x85	#\\n\x85
+# lead:\r\t	## lead:\n#\t
+trail #	#trail #
+bb\\\\u0041	#bb\\\\u0041
+	#
+# lead	## lead
+a trail \xa0\x00\\u0041\n\x00\x00	#a trail \xa0\x00\\u0041\n#\x00\x00
+\u2028\xa0\f\xfc	#\\u2028\xa0\f\xfc
+\r\x7fxxxxxxxxxxxxxxxxxxxxa	#\n#\x7fxxxxxxxxxxxxxxxxxxxxa
+\r\x85\f \u4e2d!	#\n#\x85\f \\u4E2D!
+==!\f	#==!\f
+'!trail  a\u4e2d\\u0041	#'!trail  a\\u4E2D\\u0041
+\u20ac\xe9\f\u20ac\\nb lead\f	#\\u20AC\xe9\f\\u20AC\\nb lead\f
+!\U0001f600\\	#!\\uD83D\\uDE00\\
+\\u0041\U0001f600'\\nb\x00#"	#\\u0041\\uD83D\\uDE00'\\nb\x00#"
+	#
+trail :!\r\u20ac\x85	#trail :!\n#\\u20AC\x85
+\u20ac"\nxxxxxxxxxxxxxxxxxxxx"	#\\u20AC"\n#xxxxxxxxxxxxxxxxxxxx"
+!:"\r	#!:"\n#
+	#
+\xa0	#\xa0
+\\n"b=\u2028a\r	#\\n"b=\\u2028a\n#
+\x7f\\u0041'\\\U0001f600:\\	#\x7f\\u0041'\\\\uD83D\\uDE00:\\
+\xa0"\n\r\\\x00\u4e2d=	#\xa0"\n#\n#\\\x00\\u4E2D=
+\U0001f600atrail '\r\n	#\\uD83D\\uDE00atrail '\n#
+\u20ac\U0001f600\u2028a	#\\u20AC\\uD83D\\uDE00\\u2028a
+'!xxxxxxxxxxxxxxxxxxxx	#'!xxxxxxxxxxxxxxxxxxxx
+	#
+"\x85	#"\x85
+\u20ac\xe9\\u0041\u20ac trail \u2028:\x7f"	#\\u20AC\xe9\\u0041\\u20AC trail \\u2028:\x7f"
+\ntrail \\nxxxxxxxxxxxxxxxxxxxx\\ntrail 	#\n#trail \\nxxxxxxxxxxxxxxxxxxxx\\ntrail 
+:\u2028\x85xxxxxxxxxxxxxxxxxxxx\\u0041\f\xe9\xa0	#:\\u2028\x85xxxxxxxxxxxxxxxxxxxx\\u0041\f\xe9\xa0
+\x85\xfc\u20ac	#\x85\xfc\\u20AC
+'	#'
+:\rtrail a\r!!	#:\n#trail a\n!!
+\n#\\\t\\n"='\xfc\u4e2d	#\n#\\\t\\n"='\xfc\\u4E2D
+#=\u20ac	##=\\u20AC
+\\n\U0001f600=	#\\n\\uD83D\\uDE00=
+ lead=\r\xfc	# lead=\n#\xfc
+\t\x7f\x7f lead\xfc"	#\t\x7f\x7f lead\xfc"
+trail \U0001f600xxxxxxxxxxxxxxxxxxxx\\	#trail \\uD83D\\uDE00xxxxxxxxxxxxxxxxxxxx\\
+!!\u2028\xa0	#!!\\u2028\xa0
+\x85xxxxxxxxxxxxxxxxxxxx:\u4e2dxxxxxxxxxxxxxxxxxxxx\\n	#\x85xxxxxxxxxxxxxxxxxxxx:\\u4E2Dxxxxxxxxxxxxxxxxxxxx\\n
+\\u0041#\u20ac	#\\u0041#\\u20AC
+\f\\ lead	#\f\\ lead
+=#= \xfc\n 	#=#= \xfc\n# 
+	#
+\u20ac:\xe9	#\\u20AC:\xe9
+\xa0"\n \x00\\	#\xa0"\n# \x00\\
+	#
+\\\\u0041\xfc"\u2028"\f\u2028	#\\\\u0041\xfc"\\u2028"\f\\u2028
+\xfc\xfcxxxxxxxxxxxxxxxxxxxx'\t#	#\xfc\xfcxxxxxxxxxxxxxxxxxxxx'\t#
+\U0001f600	#\\uD83D\\uDE00
+a\t\\n!xxxxxxxxxxxxxxxxxxxx\\n\u4e2d\t	#a\t\\n!xxxxxxxxxxxxxxxxxxxx\\n\\u4E2D\t
+\xe9\\ntrail b\\u0041\x00	#\xe9\\ntrail b\\u0041\x00
+'\u2028b\\\\u0041''	#'\\u2028b\\\\u0041''
+\x00\xfc\r	#\x00\xfc\n#
+ lead\u4e2db\\\n \u20ac	# lead\\u4E2Db\\\n# \\u20AC
+\x7f \xfc	#\x7f \xfc
+\f: lead lead	#\f: lead lead
+\xe9\xe9\u20acaxxxxxxxxxxxxxxxxxxxx\xe9	#\xe9\xe9\\u20ACaxxxxxxxxxxxxxxxxxxxx\xe9
+\u4e2d\xe9\x00	#\\u4E2D\xe9\x00
+	#
+	#
+\xe9:\\\xfc::\n\x00	#\xe9:\\\xfc::\n#\x00
+ 	# 
+a	#a
+trail  \ntrail 	#trail  \n#trail 
+\U0001f600	#\\uD83D\\uDE00
+	#
+\u20aca:\t	#\\u20ACa:\t
+#: lead	##: lead
+\x00\\n\u20ac\n"\xfc\xe9	#\x00\\n\\u20AC\n#"\xfc\xe9
+:trail \\u0041\t\u20ac\\u0041\xa0\\n	#:trail \\u0041\t\\u20AC\\u0041\xa0\\n
+\n\u4e2d\r\u2028\x85\xfc\xa0\x7f'\xa0	#\n#\\u4E2D\n#\\u2028\x85\xfc\xa0\x7f'\xa0
+=" 'b\u20ac	#=" 'b\\u20AC
+\t:xxxxxxxxxxxxxxxxxxxx!!xxxxxxxxxxxxxxxxxxxx#\x00trail 	#\t:xxxxxxxxxxxxxxxxxxxx!!xxxxxxxxxxxxxxxxxxxx#\x00trail 
+\\u0041\n	#\\u0041\n#
+xxxxxxxxxxxxxxxxxxxx\u4e2d	#xxxxxxxxxxxxxxxxxxxx\\u4E2D
+:trail \n\u4e2d=\n\ftrail \\u0041\u2028	#:trail \n#\\u4E2D=\n#\ftrail \\u0041\\u2028
+\u20acb\U0001f600 lead\t\f	#\\u20ACb\\uD83D\\uDE00 lead\t\f
+\n	#\n#
+# \t	## \t
+\u4e2d\t\x00	#\\u4E2D\t\x00
+\f\x00\u4e2d\xfc\\u0041	#\f\x00\\u4E2D\xfc\\u0041
+ \u4e2d#\xa0\t\u4e2d	# \\u4E2D#\xa0\t\\u4E2D
+\U0001f600\u20ac\xa0 	#\\uD83D\\uDE00\\u20AC\xa0 
+ \xe9\xa0 lead	# \xe9\xa0 lead
+\x7f\u20ac\r\U0001f600 	#\x7f\\u20AC\n#\\uD83D\\uDE00 
+b\\n\\u0041b\\	#b\\n\\u0041b\\
+\r\t#	#\n#\t#
+'":\xfc=\t\u2028\xa0\U0001f600	#'":\xfc=\t\\u2028\xa0\\uD83D\\uDE00
+\\\xa0\xa0\x7f	#\\\xa0\xa0\x7f
+\u20ac!\\	#\\u20AC!\\
+\xe9\t"\x00!\\n\\\\	#\xe9\t"\x00!\\n\\\\
+=!	#=!
+\f\x00\u4e2dtrail b\xa0\u2028\\\\u0041	#\f\x00\\u4E2Dtrail b\xa0\\u2028\\\\u0041
+\xa0\\u0041'a	#\xa0\\u0041'a
+	#
+ \\u0041!\x7f lead''\xe9	# \\u0041!\x7f lead''\xe9
+\\u0041b\r=\xfc\xe9	#\\u0041b\n#=\xfc\xe9
+	#
+'\u20ac	#'\\u20AC
+	#
+ \\n\xfc\U0001f600a"\u2028"\u20ac	# \\n\xfc\\uD83D\\uDE00a"\\u2028"\\u20AC
+\xa0\U0001f600\t	#\xa0\\uD83D\\uDE00\t
+\U0001f600	#\\uD83D\\uDE00
+\u2028\u20ac\\\\\x7fxxxxxxxxxxxxxxxxxxxx\\n\u20ac\\n	#\\u2028\\u20AC\\\\\x7fxxxxxxxxxxxxxxxxxxxx\\n\\u20AC\\n
+\xfc lead\u2028\\n=\u20ac\\xxxxxxxxxxxxxxxxxxxx	#\xfc lead\\u2028\\n=\\u20AC\\xxxxxxxxxxxxxxxxxxxx
+ lead lead\\u0041\\trail  lead'\u4e2d	# lead lead\\u0041\\trail  lead'\\u4E2D
+!\f\\n lead\u20ac\xa0\\n!trail \U0001f600	#!\f\\n lead\\u20AC\xa0\\n!trail \\uD83D\\uDE00
+\x85\\u0041\\ lead\r\x00xxxxxxxxxxxxxxxxxxxx\\n:\x85	#\x85\\u0041\\ lead\n#\x00xxxxxxxxxxxxxxxxxxxx\\n:\x85
+\\\u20ac\txxxxxxxxxxxxxxxxxxxxa\U0001f600\ta=	#\\\\u20AC\txxxxxxxxxxxxxxxxxxxxa\\uD83D\\uDE00\ta=
+ lead\f	# lead\f
+\u2028\t\U0001f600#"trail 	#\\u2028\t\\uD83D\\uDE00#"trail 
+xxxxxxxxxxxxxxxxxxxx\f\\\\'\\u0041\U0001f600\xe9\r	#xxxxxxxxxxxxxxxxxxxx\f\\\\'\\u0041\\uD83D\\uDE00\xe9\n#
+\x85\U0001f600'\x00\x7f	#\x85\\uD83D\\uDE00'\x00\x7f
+!\u20ac#a\\\f\n\x00	#!\\u20AC#a\\\f\n#\x00
+xxxxxxxxxxxxxxxxxxxx\u4e2d""xxxxxxxxxxxxxxxxxxxx	#xxxxxxxxxxxxxxxxxxxx\\u4E2D""xxxxxxxxxxxxxxxxxxxx
+	#
+\u20ac\\n'\\ 	#\\u20AC\\n'\\ 
+\x00\x7ftrail 	#\x00\x7ftrail 
+\u2028"\t'=:\x85\f	#\\u2028"\t'=:\x85\f
+\u20ac\n\u2028\xfc\r:\U0001f600\x00	#\\u20AC\n#\\u2028\xfc\n#:\\uD83D\\uDE00\x00
+:#\x00\\n\xfc	#:#\x00\\n\xfc
+	#
+\u4e2d\r	#\\u4E2D\n#
+!\t\t\r\x85\f\u20ac	#!\t\t\n#\x85\f\\u20AC
+==trail '	#==trail '
+!\x7fb	#!\x7fb
+\t\t \t\\u0041\r	#\t\t \t\\u0041\n#
+\x7f\n\f\x85\u2028\xa0	#\x7f\n#\f\x85\\u2028\xa0
+\u4e2d\xa0\r=b":\x00xxxxxxxxxxxxxxxxxxxx\xa0	#\\u4E2D\xa0\n#=b":\x00xxxxxxxxxxxxxxxxxxxx\xa0
+\\n=trail \xa0\xe9\U0001f600"\\u0041\U0001f600	#\\n=trail \xa0\xe9\\uD83D\\uDE00"\\u0041\\uD83D\\uDE00
+\t\\n\x85'\xfc	#\t\\n\x85'\xfc
+:\u20ac\\n\x85\xe9\n!\\u0041\\u0041\u2028	#:\\u20AC\\n\x85\xe9\n!\\u0041\\u0041\\u2028
+xxxxxxxxxxxxxxxxxxxx:!	#xxxxxxxxxxxxxxxxxxxx:!
+\u4e2da\xe9xxxxxxxxxxxxxxxxxxxx=xxxxxxxxxxxxxxxxxxxx	#\\u4E2Da\xe9xxxxxxxxxxxxxxxxxxxx=xxxxxxxxxxxxxxxxxxxx
+\\u0041#:\x00\r	#\\u0041#:\x00\n#
+ lead\f	# lead\f
+\u4e2dtrail \x7f\\u0041='\n\n	#\\u4E2Dtrail \x7f\\u0041='\n#\n#
+\u4e2d\x7ftrail \xe9\n\u20ac	#\\u4E2D\x7ftrail \xe9\n#\\u20AC
+\xfc'\x85"b=	#\xfc'\x85"b=
+\r\u2028\x85 lead	#\n#\\u2028\x85 lead
+\t\x00xxxxxxxxxxxxxxxxxxxx'\\n\x00\\u0041\\	#\t\x00xxxxxxxxxxxxxxxxxxxx'\\n\x00\\u0041\\
+\u20acb!	#\\u20ACb!
+\n\\n\\n\f\xfc\u4e2d	#\n#\\n\\n\f\xfc\\u4E2D
+=\xe9\xa0\xa0\xa0b\x7f\x00	#=\xe9\xa0\xa0\xa0b\x7f\x00
+ lead\n\u20ac\\u0041\u2028	# lead\n#\\u20AC\\u0041\\u2028
+\u2028	#\\u2028
+\\u0041 \rxxxxxxxxxxxxxxxxxxxx"\u2028 lead\\u0041!	#\\u0041 \n#xxxxxxxxxxxxxxxxxxxx"\\u2028 lead\\u0041!
+\t\t\u2028\n\u20ac\\!\u20ac	#\t\t\\u2028\n#\\u20AC\\!\\u20AC
+\u2028\\n\\n\x85	#\\u2028\\n\\n\x85
+!\x7fb!\x85\\n=\U0001f600\xfc	#!\x7fb!\x85\\n=\\uD83D\\uDE00\xfc
+\x85'" lead\\nb\\	#\x85'" lead\\nb\\
+\U0001f600\u20ac lead\u20ac\xfc\\n\xa0	#\\uD83D\\uDE00\\u20AC lead\\u20AC\xfc\\n\xa0
+'\n\x00" lead\U0001f600b:'	#'\n#\x00" lead\\uD83D\\uDE00b:'
+	#
+\u2028\U0001f600xxxxxxxxxxxxxxxxxxxx\u20ac\x00=\u4e2d	#\\u2028\\uD83D\\uDE00xxxxxxxxxxxxxxxxxxxx\\u20AC\x00=\\u4E2D
+\xe9\x85a:\x00a\u4e2d:'\xfc	#\xe9\x85a:\x00a\\u4E2D:'\xfc
+\\n\u2028\u20ac\\\\u0041\x00#	#\\n\\u2028\\u20AC\\\\u0041\x00#
+\n::	#\n#::
+'\xe9	#'\xe9
+'!\x85\x00\x85ab\u2028	#'!\x85\x00\x85ab\\u2028
+\t\u2028 \f:\xfc	#\t\\u2028 \f:\xfc
+a\n	#a\n#
+\ratrail ''"\\xxxxxxxxxxxxxxxxxxxx\xfc	#\n#atrail ''"\\xxxxxxxxxxxxxxxxxxxx\xfc
+\f!	#\f!
+=\\n	#=\\n
+a\xfc\\u0041a#xxxxxxxxxxxxxxxxxxxx\u2028#	#a\xfc\\u0041a#xxxxxxxxxxxxxxxxxxxx\\u2028#
+	#
+\u20ac 	#\\u20AC 
+a lead lead	#a lead lead
+:	#:
+\\\xe9\xa0\\\xa0\x00	#\\\xe9\xa0\\\xa0\x00
+\x85#\u4e2d\x00	#\x85#\\u4E2D\x00
+\x7f\U0001f600\x7f lead	#\x7f\\uD83D\\uDE00\x7f lead
+a\U0001f600\xe9trail !\xa0\u2028\xe9"\xfc	#a\\uD83D\\uDE00\xe9trail !\xa0\\u2028\xe9"\xfc
+"\x7f \\=\n#\x7fb	#"\x7f \\=\n#\x7fb
+trail !=	#trail !=
+\u2028	#\\u2028
+b lead leada\u20ac\xfc\xfc!'	#b lead leada\\u20AC\xfc\xfc!'
+\na =	#\n#a =
+xxxxxxxxxxxxxxxxxxxx	#xxxxxxxxxxxxxxxxxxxx
+\r\n\\=\x85b\n\u4e2d!	#\n#\\=\x85b\n#\\u4E2D!
+\xe9"=xxxxxxxxxxxxxxxxxxxx\u4e2d\x85\xe9\x7f\r\r	#\xe9"=xxxxxxxxxxxxxxxxxxxx\\u4E2D\x85\xe9\x7f\n#\n#
+b\\n\t	#b\\n\t
+	#
+\xa0\xe9"\xa0a lead\xa0\\na'	#\xa0\xe9"\xa0a lead\xa0\\na'
+\\u0041 lead"\\n=\u4e2d	#\\u0041 lead"\\n=\\u4E2D
+	#
+\x85\u2028a\\n=\r\u20ac\xa0trail 	#\x85\\u2028a\\n=\n#\\u20AC\xa0trail 
+\t\xfc	#\t\xfc
+\u20ac\xe9\xa0\U0001f600\n\x00="\fb	#\\u20AC\xe9\xa0\\uD83D\\uDE00\n#\x00="\fb
+b\\\U0001f600xxxxxxxxxxxxxxxxxxxx	#b\\\\uD83D\\uDE00xxxxxxxxxxxxxxxxxxxx
+!\U0001f600 \r\x85	#!\\uD83D\\uDE00 \n#\x85
+ lead\u2028\\\n\xe9\t\u20ac#a\\u0041	# lead\\u2028\\\n#\xe9\t\\u20AC#a\\u0041
+	#
+ lead\u20ac=\f lead\xa0#\xfc	# lead\\u20AC=\f lead\xa0#\xfc
+:\x7f\r\u2028\xfc\\	#:\x7f\n#\\u2028\xfc\\
+"	#"
+=\xe9" lead\xfc:	#=\xe9" lead\xfc:
+\f\u2028"\x00	#\f\\u2028"\x00
+\u2028trail 	#\\u2028trail 
+\r\u2028\\n	#\n#\\u2028\\n
+\\\U0001f600= \x85	#\\\\uD83D\\uDE00= \x85
+xxxxxxxxxxxxxxxxxxxx\x00	#xxxxxxxxxxxxxxxxxxxx\x00
+a	#a
+ lead'=\u2028\x00	# lead'=\\u2028\x00
+\xa0!	#\xa0!
+	#
+\xa0	#\xa0
+\u20ac\n\f:b\f	#\\u20AC\n#\f:b\f
+\\n\n\U0001f600\u2028	#\\n\n#\\uD83D\\uDE00\\u2028
+!\f\\n\xa0\\n'xxxxxxxxxxxxxxxxxxxx	#!\f\\n\xa0\\n'xxxxxxxxxxxxxxxxxxxx
+\u4e2d\u2028#trail xxxxxxxxxxxxxxxxxxxx	#\\u4E2D\\u2028#trail xxxxxxxxxxxxxxxxxxxx
+	#
+!\u2028\\u0041\r\u2028:	#!\\u2028\\u0041\n#\\u2028:
+\xa0\\xxxxxxxxxxxxxxxxxxxx\r#\r	#\xa0\\xxxxxxxxxxxxxxxxxxxx\n#\n#
+\xfc\u2028 lead	#\xfc\\u2028 lead
+\u2028b\\\u4e2d\x85\\=\n\x00	#\\u2028b\\\\u4E2D\x85\\=\n#\x00
+\r\t\x7f\f:\n\xa0	#\n#\t\x7f\f:\n#\xa0
+\x00\U0001f600 lead\\\u2028!	#\x00\\uD83D\\uDE00 lead\\\\u2028!
+\xfc\x00\x00\U0001f600a\xfc!	#\xfc\x00\x00\\uD83D\\uDE00a\xfc!
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\xe9'\f\\n\xfc\u20ac:	#xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\xe9'\f\\n\xfc\\u20AC:
+\\b	#\\b
+b=\\n\u20ac\u4e2d\xfc\f"\x00	#b=\\n\\u20AC\\u4E2D\xfc\f"\x00
+\x85 \xa0\u2028\\n\xa0\xa0	#\x85 \xa0\\u2028\\n\xa0\xa0
+xxxxxxxxxxxxxxxxxxxx\x85 	#xxxxxxxxxxxxxxxxxxxx\x85 
+!"\u20ac	#!"\\u20AC
+:\u20ac"b:#"	#:\\u20AC"b:#"
+a	#a
+!\f	#!\f
+"\\u0041	#"\\u0041
+trail \xe9\x00\u4e2d lead\xa0\u2028\u2028	#trail \xe9\x00\\u4E2D lead\xa0\\u2028\\u2028
+ lead\xa0\u4e2d!\xfc\t	# lead\xa0\\u4E2D!\xfc\t
+##!a\xe9\u4e2d\n\\u0041\n\u20ac	###!a\xe9\\u4E2D\n#\\u0041\n#\\u20AC
+ \\u0041\u4e2d\x85a#\f	# \\u0041\\u4E2D\x85a#\f
+xxxxxxxxxxxxxxxxxxxx	#xxxxxxxxxxxxxxxxxxxx
+:xxxxxxxxxxxxxxxxxxxx\U0001f600\xa0xxxxxxxxxxxxxxxxxxxx	#:xxxxxxxxxxxxxxxxxxxx\\uD83D\\uDE00\xa0xxxxxxxxxxxxxxxxxxxx
+	#
+=\xe9\u20ac':=	#=\xe9\\u20AC':=
+=xxxxxxxxxxxxxxxxxxxx\U0001f600\\n\x85\xa0trail xxxxxxxxxxxxxxxxxxxxtrail 	#=xxxxxxxxxxxxxxxxxxxx\\uD83D\\uDE00\\n\x85\xa0trail xxxxxxxxxxxxxxxxxxxxtrail 
+\x00= lead	#\x00= lead
+\x7f"	#\x7f"
+\x7f\\'a\x85\t\x00	#\x7f\\'a\x85\t\x00
+:\u2028\n\\\xe9 \xfc\xfc\x85	#:\\u2028\n#\\\xe9 \xfc\xfc\x85
+xxxxxxxxxxxxxxxxxxxx=trail \u20ac\r\\n\xe9"\x85trail 	#xxxxxxxxxxxxxxxxxxxx=trail \\u20AC\n#\\n\xe9"\x85trail 
+\x7f"\xfcb#!\u4e2d\U0001f600	#\x7f"\xfcb#!\\u4E2D\\uD83D\\uDE00
+\t	#\t
+\f\r\nb\\u0041\xe9=\\n\\u0041\t	#\f\n#b\\u0041\xe9=\\n\\u0041\t
+	#
+\\u0041trail '\\n\n=	#\\u0041trail '\\n\n#=
+\x85xxxxxxxxxxxxxxxxxxxx\\n\xfc\\u0041\\'	#\x85xxxxxxxxxxxxxxxxxxxx\\n\xfc\\u0041\\'
+\\n \x7fa\\u0041\x00b\x7f	#\\n \x7fa\\u0041\x00b\x7f
+\u2028\u4e2d	#\\u2028\\u4E2D
+\xe9trail \\n:\xe9b	#\xe9trail \\n:\xe9b
+\\u0041'	#\\u0041'
+\u2028:"b	#\\u2028:"b
+\f\f \\u0041'"\n' 	#\f\f \\u0041'"\n#' 
+\x85\u4e2d#\x85	#\x85\\u4E2D#\x85
+	#
+\n\x7f	#\n#\x7f
+\n"\\u0041\u4e2dxxxxxxxxxxxxxxxxxxxx lead\\u0041="\u2028	#\n#"\\u0041\\u4E2Dxxxxxxxxxxxxxxxxxxxx lead\\u0041="\\u2028
+trail \u20ac!\u20ac\\\u4e2d	#trail \\u20AC!\\u20AC\\\\u4E2D
+trail \u2028\fb	#trail \\u2028\fb
+a\U0001f600:\n	#a\\uD83D\\uDE00:\n#
+ lead\u2028\r	# lead\\u2028\n#
+\u2028\U0001f600 \u2028\r\\u0041	#\\u2028\\uD83D\\uDE00 \\u2028\n#\\u0041
+\u4e2d'\f\f!a a	#\\u4E2D'\f\f!a a
+=\x7fb\t\xa0\f\\u0041b\x00	#=\x7fb\t\xa0\f\\u0041b\x00
+\x85\t\u20actrail \u4e2d"	#\x85\t\\u20ACtrail \\u4E2D"
+a lead leadxxxxxxxxxxxxxxxxxxxx	#a lead leadxxxxxxxxxxxxxxxxxxxx
+\\\n!\n	#\\\n!\n#
+\u4e2d\xfc	#\\u4E2D\xfc
+\t\xa0\f	#\t\xa0\f
+\xa0\n!	#\xa0\n!
+\x85\x7f	#\x85\x7f
+\U0001f600	#\\uD83D\\uDE00
+\x00\\n\x85a lead\u20ac\u20ac\r	#\x00\\n\x85a lead\\u20AC\\u20AC\n#
+\xe9\xa0\xe9!a\U0001f600	#\xe9\xa0\xe9!a\\uD83D\\uDE00
+\f\t\x85"!	#\f\t\x85"!
+\r\u2028!\u2028\\	#\n#\\u2028!\\u2028\\
+xxxxxxxxxxxxxxxxxxxx:= lead	#xxxxxxxxxxxxxxxxxxxx:= lead
+\xfc	#\xfc
+\n\n\f\x85	#\n#\n#\f\x85
+	#
+bxxxxxxxxxxxxxxxxxxxx\f'\t	#bxxxxxxxxxxxxxxxxxxxx\f'\t
+\x85\t\xa0\x00	#\x85\t\xa0\x00
+#="\xfc\r"\xa0	##="\xfc\n#"\xa0
+'\u2028trail \U0001f600	#'\\u2028trail \\uD83D\\uDE00
+\u4e2d\u20ac\n	#\\u4E2D\\u20AC\n#
+!\\u0041\u4e2d\xfc\x7f\n	#!\\u0041\\u4E2D\xfc\x7f\n#
+	#
+\xa0\u20ac\f	#\xa0\\u20AC\f
+\f	#\f
+	#
+\x85\x85 lead\\	#\x85\x85 lead\\
+\u20ac\f	#\\u20AC\f
+\\n\x00\u2028trail \x00\u20ac	#\\n\x00\\u2028trail \x00\\u20AC
+#\xa0	##\xa0
+\\n\xfc'	#\\n\xfc'
+ \xe9'\x00\xa0\u2028!	# \xe9'\x00\xa0\\u2028!
+\xfc lead'\xa0\\u0041	#\xfc lead'\xa0\\u0041
+:\x7fxxxxxxxxxxxxxxxxxxxx\xa0xxxxxxxxxxxxxxxxxxxx'\x7f"trail !	#:\x7fxxxxxxxxxxxxxxxxxxxx\xa0xxxxxxxxxxxxxxxxxxxx'\x7f"trail !
+	#
+\xe9\xa0\\n#"\rtrail 	#\xe9\xa0\\n#"\n#trail 
+	#
+	#
+\u2028\\\\n\\u0041\t\xfc	#\\u2028\\\\n\\u0041\t\xfc
+b :xxxxxxxxxxxxxxxxxxxx\x7f:=b"'	#b :xxxxxxxxxxxxxxxxxxxx\x7f:=b"'
+=trail \xa0:\x7f##\t\u20ac:	#=trail \xa0:\x7f##\t\\u20AC:
+\f\x7f=\\n\\n\xa0"	#\f\x7f=\\n\\n\xa0"
+\f\xfc#\t	#\f\xfc#\t
+\xa0 lead	#\xa0 lead
+ lead\U0001f600\xe9\u20ac\u4e2d\u4e2d\n	# lead\\uD83D\\uDE00\xe9\\u20AC\\u4E2D\\u4E2D\n#
+\xa0"\u2028 lead\xfc\xfc"\x85\\n	#\xa0"\\u2028 lead\xfc\xfc"\x85\\n

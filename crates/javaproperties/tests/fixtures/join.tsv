@@ -1,0 +1,61 @@
+key	value	separator	joined
+a	b	=	a=b
+a	b	: 	a: b
+a	b	 	a b
+a	b	\t	a\tb
+a	b	 = 	a = b
+a b	c d	=	a\\ b=c d
+a b	c d	: 	a\\ b: c d
+a b	c d	 	a\\ b c d
+a b	c d	\t	a\\ b\tc d
+a b	c d	 = 	a\\ b = c d
+a=b	c:d	=	a\\=b=c\\:d
+a=b	c:d	: 	a\\=b: c\\:d
+a=b	c:d	 	a\\=b c\\:d
+a=b	c:d	\t	a\\=b\tc\\:d
+a=b	c:d	 = 	a\\=b = c\\:d
+a	 lead	=	a=\\ lead
+a	 lead	: 	a: \\ lead
+a	 lead	 	a \\ lead
+a	 lead	\t	a\t\\ lead
+a	 lead	 = 	a = \\ lead
+a	trail 	=	a=trail 
+a	trail 	: 	a: trail 
+a	trail 	 	a trail 
+a	trail 	\t	a\ttrail 
+a	trail 	 = 	a = trail 
+		=	=
+		: 	: 
+		 	 
+		\t	\t
+		 = 	 = 
+	x	=	=x
+	x	: 	: x
+	x	 	 x
+	x	\t	\tx
+	x	 = 	 = x
+k		=	k=
+k		: 	k: 
+k		 	k 
+k		\t	k\t
+k		 = 	k = 
+a#b	c!d	=	a\\#b=c\\!d
+a#b	c!d	: 	a\\#b: c\\!d
+a#b	c!d	 	a\\#b c\\!d
+a#b	c!d	\t	a\\#b\tc\\!d
+a#b	c!d	 = 	a\\#b = c\\!d
+caf\xe9	\u4e2d\u6587	=	caf\\u00E9=\\u4E2D\\u6587
+caf\xe9	\u4e2d\u6587	: 	caf\\u00E9: \\u4E2D\\u6587
+caf\xe9	\u4e2d\u6587	 	caf\\u00E9 \\u4E2D\\u6587
+caf\xe9	\u4e2d\u6587	\t	caf\\u00E9\t\\u4E2D\\u6587
+caf\xe9	\u4e2d\u6587	 = 	caf\\u00E9 = \\u4E2D\\u6587
+a\\b	c\\d	=	a\\\\b=c\\\\d
+a\\b	c\\d	: 	a\\\\b: c\\\\d
+a\\b	c\\d	 	a\\\\b c\\\\d
+a\\b	c\\d	\t	a\\\\b\tc\\\\d
+a\\b	c\\d	 = 	a\\\\b = c\\\\d
+a\tb	c\nd	=	a\\tb=c\\nd
+a\tb	c\nd	: 	a\\tb: c\\nd
+a\tb	c\nd	 	a\\tb c\\nd
+a\tb	c\nd	\t	a\\tb\tc\\nd
+a\tb	c\nd	 = 	a\\tb = c\\nd

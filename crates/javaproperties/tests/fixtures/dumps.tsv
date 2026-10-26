@@ -1,0 +1,801 @@
+count	separator	has_comments	comments	sort_keys	ensure_ascii	document	pairs
+2	=	0		0	1	a=1\nb=2\n	a	1	b	2
+2	=	0		0	0	a=1\nb=2\n	a	1	b	2
+2	=	0		1	1	a=1\nb=2\n	a	1	b	2
+2	=	0		1	0	a=1\nb=2\n	a	1	b	2
+2	=	1		0	1	#\na=1\nb=2\n	a	1	b	2
+2	=	1		0	0	#\na=1\nb=2\n	a	1	b	2
+2	=	1		1	1	#\na=1\nb=2\n	a	1	b	2
+2	=	1		1	0	#\na=1\nb=2\n	a	1	b	2
+2	=	1	note	0	1	#note\na=1\nb=2\n	a	1	b	2
+2	=	1	note	0	0	#note\na=1\nb=2\n	a	1	b	2
+2	=	1	note	1	1	#note\na=1\nb=2\n	a	1	b	2
+2	=	1	note	1	0	#note\na=1\nb=2\n	a	1	b	2
+2	=	1	one\ntwo	0	1	#one\n#two\na=1\nb=2\n	a	1	b	2
+2	=	1	one\ntwo	0	0	#one\n#two\na=1\nb=2\n	a	1	b	2
+2	=	1	one\ntwo	1	1	#one\n#two\na=1\nb=2\n	a	1	b	2
+2	=	1	one\ntwo	1	0	#one\n#two\na=1\nb=2\n	a	1	b	2
+2	: 	0		0	1	a: 1\nb: 2\n	a	1	b	2
+2	: 	0		0	0	a: 1\nb: 2\n	a	1	b	2
+2	: 	0		1	1	a: 1\nb: 2\n	a	1	b	2
+2	: 	0		1	0	a: 1\nb: 2\n	a	1	b	2
+2	: 	1		0	1	#\na: 1\nb: 2\n	a	1	b	2
+2	: 	1		0	0	#\na: 1\nb: 2\n	a	1	b	2
+2	: 	1		1	1	#\na: 1\nb: 2\n	a	1	b	2
+2	: 	1		1	0	#\na: 1\nb: 2\n	a	1	b	2
+2	: 	1	note	0	1	#note\na: 1\nb: 2\n	a	1	b	2
+2	: 	1	note	0	0	#note\na: 1\nb: 2\n	a	1	b	2
+2	: 	1	note	1	1	#note\na: 1\nb: 2\n	a	1	b	2
+2	: 	1	note	1	0	#note\na: 1\nb: 2\n	a	1	b	2
+2	: 	1	one\ntwo	0	1	#one\n#two\na: 1\nb: 2\n	a	1	b	2
+2	: 	1	one\ntwo	0	0	#one\n#two\na: 1\nb: 2\n	a	1	b	2
+2	: 	1	one\ntwo	1	1	#one\n#two\na: 1\nb: 2\n	a	1	b	2
+2	: 	1	one\ntwo	1	0	#one\n#two\na: 1\nb: 2\n	a	1	b	2
+2	 	0		0	1	a 1\nb 2\n	a	1	b	2
+2	 	0		0	0	a 1\nb 2\n	a	1	b	2
+2	 	0		1	1	a 1\nb 2\n	a	1	b	2
+2	 	0		1	0	a 1\nb 2\n	a	1	b	2
+2	 	1		0	1	#\na 1\nb 2\n	a	1	b	2
+2	 	1		0	0	#\na 1\nb 2\n	a	1	b	2
+2	 	1		1	1	#\na 1\nb 2\n	a	1	b	2
+2	 	1		1	0	#\na 1\nb 2\n	a	1	b	2
+2	 	1	note	0	1	#note\na 1\nb 2\n	a	1	b	2
+2	 	1	note	0	0	#note\na 1\nb 2\n	a	1	b	2
+2	 	1	note	1	1	#note\na 1\nb 2\n	a	1	b	2
+2	 	1	note	1	0	#note\na 1\nb 2\n	a	1	b	2
+2	 	1	one\ntwo	0	1	#one\n#two\na 1\nb 2\n	a	1	b	2
+2	 	1	one\ntwo	0	0	#one\n#two\na 1\nb 2\n	a	1	b	2
+2	 	1	one\ntwo	1	1	#one\n#two\na 1\nb 2\n	a	1	b	2
+2	 	1	one\ntwo	1	0	#one\n#two\na 1\nb 2\n	a	1	b	2
+2	\t	0		0	1	a\t1\nb\t2\n	a	1	b	2
+2	\t	0		0	0	a\t1\nb\t2\n	a	1	b	2
+2	\t	0		1	1	a\t1\nb\t2\n	a	1	b	2
+2	\t	0		1	0	a\t1\nb\t2\n	a	1	b	2
+2	\t	1		0	1	#\na\t1\nb\t2\n	a	1	b	2
+2	\t	1		0	0	#\na\t1\nb\t2\n	a	1	b	2
+2	\t	1		1	1	#\na\t1\nb\t2\n	a	1	b	2
+2	\t	1		1	0	#\na\t1\nb\t2\n	a	1	b	2
+2	\t	1	note	0	1	#note\na\t1\nb\t2\n	a	1	b	2
+2	\t	1	note	0	0	#note\na\t1\nb\t2\n	a	1	b	2
+2	\t	1	note	1	1	#note\na\t1\nb\t2\n	a	1	b	2
+2	\t	1	note	1	0	#note\na\t1\nb\t2\n	a	1	b	2
+2	\t	1	one\ntwo	0	1	#one\n#two\na\t1\nb\t2\n	a	1	b	2
+2	\t	1	one\ntwo	0	0	#one\n#two\na\t1\nb\t2\n	a	1	b	2
+2	\t	1	one\ntwo	1	1	#one\n#two\na\t1\nb\t2\n	a	1	b	2
+2	\t	1	one\ntwo	1	0	#one\n#two\na\t1\nb\t2\n	a	1	b	2
+2	 = 	0		0	1	a = 1\nb = 2\n	a	1	b	2
+2	 = 	0		0	0	a = 1\nb = 2\n	a	1	b	2
+2	 = 	0		1	1	a = 1\nb = 2\n	a	1	b	2
+2	 = 	0		1	0	a = 1\nb = 2\n	a	1	b	2
+2	 = 	1		0	1	#\na = 1\nb = 2\n	a	1	b	2
+2	 = 	1		0	0	#\na = 1\nb = 2\n	a	1	b	2
+2	 = 	1		1	1	#\na = 1\nb = 2\n	a	1	b	2
+2	 = 	1		1	0	#\na = 1\nb = 2\n	a	1	b	2
+2	 = 	1	note	0	1	#note\na = 1\nb = 2\n	a	1	b	2
+2	 = 	1	note	0	0	#note\na = 1\nb = 2\n	a	1	b	2
+2	 = 	1	note	1	1	#note\na = 1\nb = 2\n	a	1	b	2
+2	 = 	1	note	1	0	#note\na = 1\nb = 2\n	a	1	b	2
+2	 = 	1	one\ntwo	0	1	#one\n#two\na = 1\nb = 2\n	a	1	b	2
+2	 = 	1	one\ntwo	0	0	#one\n#two\na = 1\nb = 2\n	a	1	b	2
+2	 = 	1	one\ntwo	1	1	#one\n#two\na = 1\nb = 2\n	a	1	b	2
+2	 = 	1	one\ntwo	1	0	#one\n#two\na = 1\nb = 2\n	a	1	b	2
+2	=	0		0	1	b=2\na=1\n	b	2	a	1
+2	=	0		0	0	b=2\na=1\n	b	2	a	1
+2	=	0		1	1	a=1\nb=2\n	b	2	a	1
+2	=	0		1	0	a=1\nb=2\n	b	2	a	1
+2	=	1		0	1	#\nb=2\na=1\n	b	2	a	1
+2	=	1		0	0	#\nb=2\na=1\n	b	2	a	1
+2	=	1		1	1	#\na=1\nb=2\n	b	2	a	1
+2	=	1		1	0	#\na=1\nb=2\n	b	2	a	1
+2	=	1	note	0	1	#note\nb=2\na=1\n	b	2	a	1
+2	=	1	note	0	0	#note\nb=2\na=1\n	b	2	a	1
+2	=	1	note	1	1	#note\na=1\nb=2\n	b	2	a	1
+2	=	1	note	1	0	#note\na=1\nb=2\n	b	2	a	1
+2	=	1	one\ntwo	0	1	#one\n#two\nb=2\na=1\n	b	2	a	1
+2	=	1	one\ntwo	0	0	#one\n#two\nb=2\na=1\n	b	2	a	1
+2	=	1	one\ntwo	1	1	#one\n#two\na=1\nb=2\n	b	2	a	1
+2	=	1	one\ntwo	1	0	#one\n#two\na=1\nb=2\n	b	2	a	1
+2	: 	0		0	1	b: 2\na: 1\n	b	2	a	1
+2	: 	0		0	0	b: 2\na: 1\n	b	2	a	1
+2	: 	0		1	1	a: 1\nb: 2\n	b	2	a	1
+2	: 	0		1	0	a: 1\nb: 2\n	b	2	a	1
+2	: 	1		0	1	#\nb: 2\na: 1\n	b	2	a	1
+2	: 	1		0	0	#\nb: 2\na: 1\n	b	2	a	1
+2	: 	1		1	1	#\na: 1\nb: 2\n	b	2	a	1
+2	: 	1		1	0	#\na: 1\nb: 2\n	b	2	a	1
+2	: 	1	note	0	1	#note\nb: 2\na: 1\n	b	2	a	1
+2	: 	1	note	0	0	#note\nb: 2\na: 1\n	b	2	a	1
+2	: 	1	note	1	1	#note\na: 1\nb: 2\n	b	2	a	1
+2	: 	1	note	1	0	#note\na: 1\nb: 2\n	b	2	a	1
+2	: 	1	one\ntwo	0	1	#one\n#two\nb: 2\na: 1\n	b	2	a	1
+2	: 	1	one\ntwo	0	0	#one\n#two\nb: 2\na: 1\n	b	2	a	1
+2	: 	1	one\ntwo	1	1	#one\n#two\na: 1\nb: 2\n	b	2	a	1
+2	: 	1	one\ntwo	1	0	#one\n#two\na: 1\nb: 2\n	b	2	a	1
+2	 	0		0	1	b 2\na 1\n	b	2	a	1
+2	 	0		0	0	b 2\na 1\n	b	2	a	1
+2	 	0		1	1	a 1\nb 2\n	b	2	a	1
+2	 	0		1	0	a 1\nb 2\n	b	2	a	1
+2	 	1		0	1	#\nb 2\na 1\n	b	2	a	1
+2	 	1		0	0	#\nb 2\na 1\n	b	2	a	1
+2	 	1		1	1	#\na 1\nb 2\n	b	2	a	1
+2	 	1		1	0	#\na 1\nb 2\n	b	2	a	1
+2	 	1	note	0	1	#note\nb 2\na 1\n	b	2	a	1
+2	 	1	note	0	0	#note\nb 2\na 1\n	b	2	a	1
+2	 	1	note	1	1	#note\na 1\nb 2\n	b	2	a	1
+2	 	1	note	1	0	#note\na 1\nb 2\n	b	2	a	1
+2	 	1	one\ntwo	0	1	#one\n#two\nb 2\na 1\n	b	2	a	1
+2	 	1	one\ntwo	0	0	#one\n#two\nb 2\na 1\n	b	2	a	1
+2	 	1	one\ntwo	1	1	#one\n#two\na 1\nb 2\n	b	2	a	1
+2	 	1	one\ntwo	1	0	#one\n#two\na 1\nb 2\n	b	2	a	1
+2	\t	0		0	1	b\t2\na\t1\n	b	2	a	1
+2	\t	0		0	0	b\t2\na\t1\n	b	2	a	1
+2	\t	0		1	1	a\t1\nb\t2\n	b	2	a	1
+2	\t	0		1	0	a\t1\nb\t2\n	b	2	a	1
+2	\t	1		0	1	#\nb\t2\na\t1\n	b	2	a	1
+2	\t	1		0	0	#\nb\t2\na\t1\n	b	2	a	1
+2	\t	1		1	1	#\na\t1\nb\t2\n	b	2	a	1
+2	\t	1		1	0	#\na\t1\nb\t2\n	b	2	a	1
+2	\t	1	note	0	1	#note\nb\t2\na\t1\n	b	2	a	1
+2	\t	1	note	0	0	#note\nb\t2\na\t1\n	b	2	a	1
+2	\t	1	note	1	1	#note\na\t1\nb\t2\n	b	2	a	1
+2	\t	1	note	1	0	#note\na\t1\nb\t2\n	b	2	a	1
+2	\t	1	one\ntwo	0	1	#one\n#two\nb\t2\na\t1\n	b	2	a	1
+2	\t	1	one\ntwo	0	0	#one\n#two\nb\t2\na\t1\n	b	2	a	1
+2	\t	1	one\ntwo	1	1	#one\n#two\na\t1\nb\t2\n	b	2	a	1
+2	\t	1	one\ntwo	1	0	#one\n#two\na\t1\nb\t2\n	b	2	a	1
+2	 = 	0		0	1	b = 2\na = 1\n	b	2	a	1
+2	 = 	0		0	0	b = 2\na = 1\n	b	2	a	1
+2	 = 	0		1	1	a = 1\nb = 2\n	b	2	a	1
+2	 = 	0		1	0	a = 1\nb = 2\n	b	2	a	1
+2	 = 	1		0	1	#\nb = 2\na = 1\n	b	2	a	1
+2	 = 	1		0	0	#\nb = 2\na = 1\n	b	2	a	1
+2	 = 	1		1	1	#\na = 1\nb = 2\n	b	2	a	1
+2	 = 	1		1	0	#\na = 1\nb = 2\n	b	2	a	1
+2	 = 	1	note	0	1	#note\nb = 2\na = 1\n	b	2	a	1
+2	 = 	1	note	0	0	#note\nb = 2\na = 1\n	b	2	a	1
+2	 = 	1	note	1	1	#note\na = 1\nb = 2\n	b	2	a	1
+2	 = 	1	note	1	0	#note\na = 1\nb = 2\n	b	2	a	1
+2	 = 	1	one\ntwo	0	1	#one\n#two\nb = 2\na = 1\n	b	2	a	1
+2	 = 	1	one\ntwo	0	0	#one\n#two\nb = 2\na = 1\n	b	2	a	1
+2	 = 	1	one\ntwo	1	1	#one\n#two\na = 1\nb = 2\n	b	2	a	1
+2	 = 	1	one\ntwo	1	0	#one\n#two\na = 1\nb = 2\n	b	2	a	1
+2	=	0		0	1	k=\\ lead\nk2=trail \n	k	 lead	k2	trail 
+2	=	0		0	0	k=\\ lead\nk2=trail \n	k	 lead	k2	trail 
+2	=	0		1	1	k=\\ lead\nk2=trail \n	k	 lead	k2	trail 
+2	=	0		1	0	k=\\ lead\nk2=trail \n	k	 lead	k2	trail 
+2	=	1		0	1	#\nk=\\ lead\nk2=trail \n	k	 lead	k2	trail 
+2	=	1		0	0	#\nk=\\ lead\nk2=trail \n	k	 lead	k2	trail 
+2	=	1		1	1	#\nk=\\ lead\nk2=trail \n	k	 lead	k2	trail 
+2	=	1		1	0	#\nk=\\ lead\nk2=trail \n	k	 lead	k2	trail 
+2	=	1	note	0	1	#note\nk=\\ lead\nk2=trail \n	k	 lead	k2	trail 
+2	=	1	note	0	0	#note\nk=\\ lead\nk2=trail \n	k	 lead	k2	trail 
+2	=	1	note	1	1	#note\nk=\\ lead\nk2=trail \n	k	 lead	k2	trail 
+2	=	1	note	1	0	#note\nk=\\ lead\nk2=trail \n	k	 lead	k2	trail 
+2	=	1	one\ntwo	0	1	#one\n#two\nk=\\ lead\nk2=trail \n	k	 lead	k2	trail 
+2	=	1	one\ntwo	0	0	#one\n#two\nk=\\ lead\nk2=trail \n	k	 lead	k2	trail 
+2	=	1	one\ntwo	1	1	#one\n#two\nk=\\ lead\nk2=trail \n	k	 lead	k2	trail 
+2	=	1	one\ntwo	1	0	#one\n#two\nk=\\ lead\nk2=trail \n	k	 lead	k2	trail 
+2	: 	0		0	1	k: \\ lead\nk2: trail \n	k	 lead	k2	trail 
+2	: 	0		0	0	k: \\ lead\nk2: trail \n	k	 lead	k2	trail 
+2	: 	0		1	1	k: \\ lead\nk2: trail \n	k	 lead	k2	trail 
+2	: 	0		1	0	k: \\ lead\nk2: trail \n	k	 lead	k2	trail 
+2	: 	1		0	1	#\nk: \\ lead\nk2: trail \n	k	 lead	k2	trail 
+2	: 	1		0	0	#\nk: \\ lead\nk2: trail \n	k	 lead	k2	trail 
+2	: 	1		1	1	#\nk: \\ lead\nk2: trail \n	k	 lead	k2	trail 
+2	: 	1		1	0	#\nk: \\ lead\nk2: trail \n	k	 lead	k2	trail 
+2	: 	1	note	0	1	#note\nk: \\ lead\nk2: trail \n	k	 lead	k2	trail 
+2	: 	1	note	0	0	#note\nk: \\ lead\nk2: trail \n	k	 lead	k2	trail 
+2	: 	1	note	1	1	#note\nk: \\ lead\nk2: trail \n	k	 lead	k2	trail 
+2	: 	1	note	1	0	#note\nk: \\ lead\nk2: trail \n	k	 lead	k2	trail 
+2	: 	1	one\ntwo	0	1	#one\n#two\nk: \\ lead\nk2: trail \n	k	 lead	k2	trail 
+2	: 	1	one\ntwo	0	0	#one\n#two\nk: \\ lead\nk2: trail \n	k	 lead	k2	trail 
+2	: 	1	one\ntwo	1	1	#one\n#two\nk: \\ lead\nk2: trail \n	k	 lead	k2	trail 
+2	: 	1	one\ntwo	1	0	#one\n#two\nk: \\ lead\nk2: trail \n	k	 lead	k2	trail 
+2	 	0		0	1	k \\ lead\nk2 trail \n	k	 lead	k2	trail 
+2	 	0		0	0	k \\ lead\nk2 trail \n	k	 lead	k2	trail 
+2	 	0		1	1	k \\ lead\nk2 trail \n	k	 lead	k2	trail 
+2	 	0		1	0	k \\ lead\nk2 trail \n	k	 lead	k2	trail 
+2	 	1		0	1	#\nk \\ lead\nk2 trail \n	k	 lead	k2	trail 
+2	 	1		0	0	#\nk \\ lead\nk2 trail \n	k	 lead	k2	trail 
+2	 	1		1	1	#\nk \\ lead\nk2 trail \n	k	 lead	k2	trail 
+2	 	1		1	0	#\nk \\ lead\nk2 trail \n	k	 lead	k2	trail 
+2	 	1	note	0	1	#note\nk \\ lead\nk2 trail \n	k	 lead	k2	trail 
+2	 	1	note	0	0	#note\nk \\ lead\nk2 trail \n	k	 lead	k2	trail 
+2	 	1	note	1	1	#note\nk \\ lead\nk2 trail \n	k	 lead	k2	trail 
+2	 	1	note	1	0	#note\nk \\ lead\nk2 trail \n	k	 lead	k2	trail 
+2	 	1	one\ntwo	0	1	#one\n#two\nk \\ lead\nk2 trail \n	k	 lead	k2	trail 
+2	 	1	one\ntwo	0	0	#one\n#two\nk \\ lead\nk2 trail \n	k	 lead	k2	trail 
+2	 	1	one\ntwo	1	1	#one\n#two\nk \\ lead\nk2 trail \n	k	 lead	k2	trail 
+2	 	1	one\ntwo	1	0	#one\n#two\nk \\ lead\nk2 trail \n	k	 lead	k2	trail 
+2	\t	0		0	1	k\t\\ lead\nk2\ttrail \n	k	 lead	k2	trail 
+2	\t	0		0	0	k\t\\ lead\nk2\ttrail \n	k	 lead	k2	trail 
+2	\t	0		1	1	k\t\\ lead\nk2\ttrail \n	k	 lead	k2	trail 
+2	\t	0		1	0	k\t\\ lead\nk2\ttrail \n	k	 lead	k2	trail 
+2	\t	1		0	1	#\nk\t\\ lead\nk2\ttrail \n	k	 lead	k2	trail 
+2	\t	1		0	0	#\nk\t\\ lead\nk2\ttrail \n	k	 lead	k2	trail 
+2	\t	1		1	1	#\nk\t\\ lead\nk2\ttrail \n	k	 lead	k2	trail 
+2	\t	1		1	0	#\nk\t\\ lead\nk2\ttrail \n	k	 lead	k2	trail 
+2	\t	1	note	0	1	#note\nk\t\\ lead\nk2\ttrail \n	k	 lead	k2	trail 
+2	\t	1	note	0	0	#note\nk\t\\ lead\nk2\ttrail \n	k	 lead	k2	trail 
+2	\t	1	note	1	1	#note\nk\t\\ lead\nk2\ttrail \n	k	 lead	k2	trail 
+2	\t	1	note	1	0	#note\nk\t\\ lead\nk2\ttrail \n	k	 lead	k2	trail 
+2	\t	1	one\ntwo	0	1	#one\n#two\nk\t\\ lead\nk2\ttrail \n	k	 lead	k2	trail 
+2	\t	1	one\ntwo	0	0	#one\n#two\nk\t\\ lead\nk2\ttrail \n	k	 lead	k2	trail 
+2	\t	1	one\ntwo	1	1	#one\n#two\nk\t\\ lead\nk2\ttrail \n	k	 lead	k2	trail 
+2	\t	1	one\ntwo	1	0	#one\n#two\nk\t\\ lead\nk2\ttrail \n	k	 lead	k2	trail 
+2	 = 	0		0	1	k = \\ lead\nk2 = trail \n	k	 lead	k2	trail 
+2	 = 	0		0	0	k = \\ lead\nk2 = trail \n	k	 lead	k2	trail 
+2	 = 	0		1	1	k = \\ lead\nk2 = trail \n	k	 lead	k2	trail 
+2	 = 	0		1	0	k = \\ lead\nk2 = trail \n	k	 lead	k2	trail 
+2	 = 	1		0	1	#\nk = \\ lead\nk2 = trail \n	k	 lead	k2	trail 
+2	 = 	1		0	0	#\nk = \\ lead\nk2 = trail \n	k	 lead	k2	trail 
+2	 = 	1		1	1	#\nk = \\ lead\nk2 = trail \n	k	 lead	k2	trail 
+2	 = 	1		1	0	#\nk = \\ lead\nk2 = trail \n	k	 lead	k2	trail 
+2	 = 	1	note	0	1	#note\nk = \\ lead\nk2 = trail \n	k	 lead	k2	trail 
+2	 = 	1	note	0	0	#note\nk = \\ lead\nk2 = trail \n	k	 lead	k2	trail 
+2	 = 	1	note	1	1	#note\nk = \\ lead\nk2 = trail \n	k	 lead	k2	trail 
+2	 = 	1	note	1	0	#note\nk = \\ lead\nk2 = trail \n	k	 lead	k2	trail 
+2	 = 	1	one\ntwo	0	1	#one\n#two\nk = \\ lead\nk2 = trail \n	k	 lead	k2	trail 
+2	 = 	1	one\ntwo	0	0	#one\n#two\nk = \\ lead\nk2 = trail \n	k	 lead	k2	trail 
+2	 = 	1	one\ntwo	1	1	#one\n#two\nk = \\ lead\nk2 = trail \n	k	 lead	k2	trail 
+2	 = 	1	one\ntwo	1	0	#one\n#two\nk = \\ lead\nk2 = trail \n	k	 lead	k2	trail 
+1	=	0		0	1	a\\ b=c d\n	a b	c d
+1	=	0		0	0	a\\ b=c d\n	a b	c d
+1	=	0		1	1	a\\ b=c d\n	a b	c d
+1	=	0		1	0	a\\ b=c d\n	a b	c d
+1	=	1		0	1	#\na\\ b=c d\n	a b	c d
+1	=	1		0	0	#\na\\ b=c d\n	a b	c d
+1	=	1		1	1	#\na\\ b=c d\n	a b	c d
+1	=	1		1	0	#\na\\ b=c d\n	a b	c d
+1	=	1	note	0	1	#note\na\\ b=c d\n	a b	c d
+1	=	1	note	0	0	#note\na\\ b=c d\n	a b	c d
+1	=	1	note	1	1	#note\na\\ b=c d\n	a b	c d
+1	=	1	note	1	0	#note\na\\ b=c d\n	a b	c d
+1	=	1	one\ntwo	0	1	#one\n#two\na\\ b=c d\n	a b	c d
+1	=	1	one\ntwo	0	0	#one\n#two\na\\ b=c d\n	a b	c d
+1	=	1	one\ntwo	1	1	#one\n#two\na\\ b=c d\n	a b	c d
+1	=	1	one\ntwo	1	0	#one\n#two\na\\ b=c d\n	a b	c d
+1	: 	0		0	1	a\\ b: c d\n	a b	c d
+1	: 	0		0	0	a\\ b: c d\n	a b	c d
+1	: 	0		1	1	a\\ b: c d\n	a b	c d
+1	: 	0		1	0	a\\ b: c d\n	a b	c d
+1	: 	1		0	1	#\na\\ b: c d\n	a b	c d
+1	: 	1		0	0	#\na\\ b: c d\n	a b	c d
+1	: 	1		1	1	#\na\\ b: c d\n	a b	c d
+1	: 	1		1	0	#\na\\ b: c d\n	a b	c d
+1	: 	1	note	0	1	#note\na\\ b: c d\n	a b	c d
+1	: 	1	note	0	0	#note\na\\ b: c d\n	a b	c d
+1	: 	1	note	1	1	#note\na\\ b: c d\n	a b	c d
+1	: 	1	note	1	0	#note\na\\ b: c d\n	a b	c d
+1	: 	1	one\ntwo	0	1	#one\n#two\na\\ b: c d\n	a b	c d
+1	: 	1	one\ntwo	0	0	#one\n#two\na\\ b: c d\n	a b	c d
+1	: 	1	one\ntwo	1	1	#one\n#two\na\\ b: c d\n	a b	c d
+1	: 	1	one\ntwo	1	0	#one\n#two\na\\ b: c d\n	a b	c d
+1	 	0		0	1	a\\ b c d\n	a b	c d
+1	 	0		0	0	a\\ b c d\n	a b	c d
+1	 	0		1	1	a\\ b c d\n	a b	c d
+1	 	0		1	0	a\\ b c d\n	a b	c d
+1	 	1		0	1	#\na\\ b c d\n	a b	c d
+1	 	1		0	0	#\na\\ b c d\n	a b	c d
+1	 	1		1	1	#\na\\ b c d\n	a b	c d
+1	 	1		1	0	#\na\\ b c d\n	a b	c d
+1	 	1	note	0	1	#note\na\\ b c d\n	a b	c d
+1	 	1	note	0	0	#note\na\\ b c d\n	a b	c d
+1	 	1	note	1	1	#note\na\\ b c d\n	a b	c d
+1	 	1	note	1	0	#note\na\\ b c d\n	a b	c d
+1	 	1	one\ntwo	0	1	#one\n#two\na\\ b c d\n	a b	c d
+1	 	1	one\ntwo	0	0	#one\n#two\na\\ b c d\n	a b	c d
+1	 	1	one\ntwo	1	1	#one\n#two\na\\ b c d\n	a b	c d
+1	 	1	one\ntwo	1	0	#one\n#two\na\\ b c d\n	a b	c d
+1	\t	0		0	1	a\\ b\tc d\n	a b	c d
+1	\t	0		0	0	a\\ b\tc d\n	a b	c d
+1	\t	0		1	1	a\\ b\tc d\n	a b	c d
+1	\t	0		1	0	a\\ b\tc d\n	a b	c d
+1	\t	1		0	1	#\na\\ b\tc d\n	a b	c d
+1	\t	1		0	0	#\na\\ b\tc d\n	a b	c d
+1	\t	1		1	1	#\na\\ b\tc d\n	a b	c d
+1	\t	1		1	0	#\na\\ b\tc d\n	a b	c d
+1	\t	1	note	0	1	#note\na\\ b\tc d\n	a b	c d
+1	\t	1	note	0	0	#note\na\\ b\tc d\n	a b	c d
+1	\t	1	note	1	1	#note\na\\ b\tc d\n	a b	c d
+1	\t	1	note	1	0	#note\na\\ b\tc d\n	a b	c d
+1	\t	1	one\ntwo	0	1	#one\n#two\na\\ b\tc d\n	a b	c d
+1	\t	1	one\ntwo	0	0	#one\n#two\na\\ b\tc d\n	a b	c d
+1	\t	1	one\ntwo	1	1	#one\n#two\na\\ b\tc d\n	a b	c d
+1	\t	1	one\ntwo	1	0	#one\n#two\na\\ b\tc d\n	a b	c d
+1	 = 	0		0	1	a\\ b = c d\n	a b	c d
+1	 = 	0		0	0	a\\ b = c d\n	a b	c d
+1	 = 	0		1	1	a\\ b = c d\n	a b	c d
+1	 = 	0		1	0	a\\ b = c d\n	a b	c d
+1	 = 	1		0	1	#\na\\ b = c d\n	a b	c d
+1	 = 	1		0	0	#\na\\ b = c d\n	a b	c d
+1	 = 	1		1	1	#\na\\ b = c d\n	a b	c d
+1	 = 	1		1	0	#\na\\ b = c d\n	a b	c d
+1	 = 	1	note	0	1	#note\na\\ b = c d\n	a b	c d
+1	 = 	1	note	0	0	#note\na\\ b = c d\n	a b	c d
+1	 = 	1	note	1	1	#note\na\\ b = c d\n	a b	c d
+1	 = 	1	note	1	0	#note\na\\ b = c d\n	a b	c d
+1	 = 	1	one\ntwo	0	1	#one\n#two\na\\ b = c d\n	a b	c d
+1	 = 	1	one\ntwo	0	0	#one\n#two\na\\ b = c d\n	a b	c d
+1	 = 	1	one\ntwo	1	1	#one\n#two\na\\ b = c d\n	a b	c d
+1	 = 	1	one\ntwo	1	0	#one\n#two\na\\ b = c d\n	a b	c d
+1	=	0		0	1	caf\\u00E9=\\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	0		0	0	caf\xe9=\u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	0		1	1	caf\\u00E9=\\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	0		1	0	caf\xe9=\u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1		0	1	#\ncaf\\u00E9=\\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1		0	0	#\ncaf\xe9=\u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1		1	1	#\ncaf\\u00E9=\\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1		1	0	#\ncaf\xe9=\u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1	note	0	1	#note\ncaf\\u00E9=\\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1	note	0	0	#note\ncaf\xe9=\u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1	note	1	1	#note\ncaf\\u00E9=\\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1	note	1	0	#note\ncaf\xe9=\u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1	one\ntwo	0	1	#one\n#two\ncaf\\u00E9=\\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1	one\ntwo	0	0	#one\n#two\ncaf\xe9=\u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1	one\ntwo	1	1	#one\n#two\ncaf\\u00E9=\\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1	one\ntwo	1	0	#one\n#two\ncaf\xe9=\u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	: 	0		0	1	caf\\u00E9: \\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	: 	0		0	0	caf\xe9: \u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	: 	0		1	1	caf\\u00E9: \\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	: 	0		1	0	caf\xe9: \u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	: 	1		0	1	#\ncaf\\u00E9: \\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	: 	1		0	0	#\ncaf\xe9: \u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	: 	1		1	1	#\ncaf\\u00E9: \\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	: 	1		1	0	#\ncaf\xe9: \u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	: 	1	note	0	1	#note\ncaf\\u00E9: \\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	: 	1	note	0	0	#note\ncaf\xe9: \u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	: 	1	note	1	1	#note\ncaf\\u00E9: \\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	: 	1	note	1	0	#note\ncaf\xe9: \u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	: 	1	one\ntwo	0	1	#one\n#two\ncaf\\u00E9: \\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	: 	1	one\ntwo	0	0	#one\n#two\ncaf\xe9: \u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	: 	1	one\ntwo	1	1	#one\n#two\ncaf\\u00E9: \\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	: 	1	one\ntwo	1	0	#one\n#two\ncaf\xe9: \u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	 	0		0	1	caf\\u00E9 \\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	 	0		0	0	caf\xe9 \u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	 	0		1	1	caf\\u00E9 \\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	 	0		1	0	caf\xe9 \u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	 	1		0	1	#\ncaf\\u00E9 \\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	 	1		0	0	#\ncaf\xe9 \u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	 	1		1	1	#\ncaf\\u00E9 \\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	 	1		1	0	#\ncaf\xe9 \u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	 	1	note	0	1	#note\ncaf\\u00E9 \\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	 	1	note	0	0	#note\ncaf\xe9 \u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	 	1	note	1	1	#note\ncaf\\u00E9 \\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	 	1	note	1	0	#note\ncaf\xe9 \u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	 	1	one\ntwo	0	1	#one\n#two\ncaf\\u00E9 \\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	 	1	one\ntwo	0	0	#one\n#two\ncaf\xe9 \u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	 	1	one\ntwo	1	1	#one\n#two\ncaf\\u00E9 \\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	 	1	one\ntwo	1	0	#one\n#two\ncaf\xe9 \u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	\t	0		0	1	caf\\u00E9\t\\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	\t	0		0	0	caf\xe9\t\u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	\t	0		1	1	caf\\u00E9\t\\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	\t	0		1	0	caf\xe9\t\u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	\t	1		0	1	#\ncaf\\u00E9\t\\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	\t	1		0	0	#\ncaf\xe9\t\u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	\t	1		1	1	#\ncaf\\u00E9\t\\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	\t	1		1	0	#\ncaf\xe9\t\u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	\t	1	note	0	1	#note\ncaf\\u00E9\t\\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	\t	1	note	0	0	#note\ncaf\xe9\t\u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	\t	1	note	1	1	#note\ncaf\\u00E9\t\\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	\t	1	note	1	0	#note\ncaf\xe9\t\u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	\t	1	one\ntwo	0	1	#one\n#two\ncaf\\u00E9\t\\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	\t	1	one\ntwo	0	0	#one\n#two\ncaf\xe9\t\u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	\t	1	one\ntwo	1	1	#one\n#two\ncaf\\u00E9\t\\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	\t	1	one\ntwo	1	0	#one\n#two\ncaf\xe9\t\u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	 = 	0		0	1	caf\\u00E9 = \\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	 = 	0		0	0	caf\xe9 = \u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	 = 	0		1	1	caf\\u00E9 = \\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	 = 	0		1	0	caf\xe9 = \u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	 = 	1		0	1	#\ncaf\\u00E9 = \\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	 = 	1		0	0	#\ncaf\xe9 = \u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	 = 	1		1	1	#\ncaf\\u00E9 = \\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	 = 	1		1	0	#\ncaf\xe9 = \u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	 = 	1	note	0	1	#note\ncaf\\u00E9 = \\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	 = 	1	note	0	0	#note\ncaf\xe9 = \u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	 = 	1	note	1	1	#note\ncaf\\u00E9 = \\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	 = 	1	note	1	0	#note\ncaf\xe9 = \u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	 = 	1	one\ntwo	0	1	#one\n#two\ncaf\\u00E9 = \\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	 = 	1	one\ntwo	0	0	#one\n#two\ncaf\xe9 = \u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	 = 	1	one\ntwo	1	1	#one\n#two\ncaf\\u00E9 = \\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	 = 	1	one\ntwo	1	0	#one\n#two\ncaf\xe9 = \u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+2	=	0		0	1	=x\nk=\n		x	k	
+2	=	0		0	0	=x\nk=\n		x	k	
+2	=	0		1	1	=x\nk=\n		x	k	
+2	=	0		1	0	=x\nk=\n		x	k	
+2	=	1		0	1	#\n=x\nk=\n		x	k	
+2	=	1		0	0	#\n=x\nk=\n		x	k	
+2	=	1		1	1	#\n=x\nk=\n		x	k	
+2	=	1		1	0	#\n=x\nk=\n		x	k	
+2	=	1	note	0	1	#note\n=x\nk=\n		x	k	
+2	=	1	note	0	0	#note\n=x\nk=\n		x	k	
+2	=	1	note	1	1	#note\n=x\nk=\n		x	k	
+2	=	1	note	1	0	#note\n=x\nk=\n		x	k	
+2	=	1	one\ntwo	0	1	#one\n#two\n=x\nk=\n		x	k	
+2	=	1	one\ntwo	0	0	#one\n#two\n=x\nk=\n		x	k	
+2	=	1	one\ntwo	1	1	#one\n#two\n=x\nk=\n		x	k	
+2	=	1	one\ntwo	1	0	#one\n#two\n=x\nk=\n		x	k	
+2	: 	0		0	1	: x\nk: \n		x	k	
+2	: 	0		0	0	: x\nk: \n		x	k	
+2	: 	0		1	1	: x\nk: \n		x	k	
+2	: 	0		1	0	: x\nk: \n		x	k	
+2	: 	1		0	1	#\n: x\nk: \n		x	k	
+2	: 	1		0	0	#\n: x\nk: \n		x	k	
+2	: 	1		1	1	#\n: x\nk: \n		x	k	
+2	: 	1		1	0	#\n: x\nk: \n		x	k	
+2	: 	1	note	0	1	#note\n: x\nk: \n		x	k	
+2	: 	1	note	0	0	#note\n: x\nk: \n		x	k	
+2	: 	1	note	1	1	#note\n: x\nk: \n		x	k	
+2	: 	1	note	1	0	#note\n: x\nk: \n		x	k	
+2	: 	1	one\ntwo	0	1	#one\n#two\n: x\nk: \n		x	k	
+2	: 	1	one\ntwo	0	0	#one\n#two\n: x\nk: \n		x	k	
+2	: 	1	one\ntwo	1	1	#one\n#two\n: x\nk: \n		x	k	
+2	: 	1	one\ntwo	1	0	#one\n#two\n: x\nk: \n		x	k	
+2	 	0		0	1	 x\nk \n		x	k	
+2	 	0		0	0	 x\nk \n		x	k	
+2	 	0		1	1	 x\nk \n		x	k	
+2	 	0		1	0	 x\nk \n		x	k	
+2	 	1		0	1	#\n x\nk \n		x	k	
+2	 	1		0	0	#\n x\nk \n		x	k	
+2	 	1		1	1	#\n x\nk \n		x	k	
+2	 	1		1	0	#\n x\nk \n		x	k	
+2	 	1	note	0	1	#note\n x\nk \n		x	k	
+2	 	1	note	0	0	#note\n x\nk \n		x	k	
+2	 	1	note	1	1	#note\n x\nk \n		x	k	
+2	 	1	note	1	0	#note\n x\nk \n		x	k	
+2	 	1	one\ntwo	0	1	#one\n#two\n x\nk \n		x	k	
+2	 	1	one\ntwo	0	0	#one\n#two\n x\nk \n		x	k	
+2	 	1	one\ntwo	1	1	#one\n#two\n x\nk \n		x	k	
+2	 	1	one\ntwo	1	0	#one\n#two\n x\nk \n		x	k	
+2	\t	0		0	1	\tx\nk\t\n		x	k	
+2	\t	0		0	0	\tx\nk\t\n		x	k	
+2	\t	0		1	1	\tx\nk\t\n		x	k	
+2	\t	0		1	0	\tx\nk\t\n		x	k	
+2	\t	1		0	1	#\n\tx\nk\t\n		x	k	
+2	\t	1		0	0	#\n\tx\nk\t\n		x	k	
+2	\t	1		1	1	#\n\tx\nk\t\n		x	k	
+2	\t	1		1	0	#\n\tx\nk\t\n		x	k	
+2	\t	1	note	0	1	#note\n\tx\nk\t\n		x	k	
+2	\t	1	note	0	0	#note\n\tx\nk\t\n		x	k	
+2	\t	1	note	1	1	#note\n\tx\nk\t\n		x	k	
+2	\t	1	note	1	0	#note\n\tx\nk\t\n		x	k	
+2	\t	1	one\ntwo	0	1	#one\n#two\n\tx\nk\t\n		x	k	
+2	\t	1	one\ntwo	0	0	#one\n#two\n\tx\nk\t\n		x	k	
+2	\t	1	one\ntwo	1	1	#one\n#two\n\tx\nk\t\n		x	k	
+2	\t	1	one\ntwo	1	0	#one\n#two\n\tx\nk\t\n		x	k	
+2	 = 	0		0	1	 = x\nk = \n		x	k	
+2	 = 	0		0	0	 = x\nk = \n		x	k	
+2	 = 	0		1	1	 = x\nk = \n		x	k	
+2	 = 	0		1	0	 = x\nk = \n		x	k	
+2	 = 	1		0	1	#\n = x\nk = \n		x	k	
+2	 = 	1		0	0	#\n = x\nk = \n		x	k	
+2	 = 	1		1	1	#\n = x\nk = \n		x	k	
+2	 = 	1		1	0	#\n = x\nk = \n		x	k	
+2	 = 	1	note	0	1	#note\n = x\nk = \n		x	k	
+2	 = 	1	note	0	0	#note\n = x\nk = \n		x	k	
+2	 = 	1	note	1	1	#note\n = x\nk = \n		x	k	
+2	 = 	1	note	1	0	#note\n = x\nk = \n		x	k	
+2	 = 	1	one\ntwo	0	1	#one\n#two\n = x\nk = \n		x	k	
+2	 = 	1	one\ntwo	0	0	#one\n#two\n = x\nk = \n		x	k	
+2	 = 	1	one\ntwo	1	1	#one\n#two\n = x\nk = \n		x	k	
+2	 = 	1	one\ntwo	1	0	#one\n#two\n = x\nk = \n		x	k	
+1	=	0		0	1	a\\#b=c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	=	0		0	0	a\\#b=c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	=	0		1	1	a\\#b=c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	=	0		1	0	a\\#b=c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	=	1		0	1	#\na\\#b=c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	=	1		0	0	#\na\\#b=c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	=	1		1	1	#\na\\#b=c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	=	1		1	0	#\na\\#b=c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	=	1	note	0	1	#note\na\\#b=c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	=	1	note	0	0	#note\na\\#b=c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	=	1	note	1	1	#note\na\\#b=c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	=	1	note	1	0	#note\na\\#b=c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	=	1	one\ntwo	0	1	#one\n#two\na\\#b=c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	=	1	one\ntwo	0	0	#one\n#two\na\\#b=c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	=	1	one\ntwo	1	1	#one\n#two\na\\#b=c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	=	1	one\ntwo	1	0	#one\n#two\na\\#b=c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	: 	0		0	1	a\\#b: c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	: 	0		0	0	a\\#b: c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	: 	0		1	1	a\\#b: c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	: 	0		1	0	a\\#b: c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	: 	1		0	1	#\na\\#b: c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	: 	1		0	0	#\na\\#b: c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	: 	1		1	1	#\na\\#b: c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	: 	1		1	0	#\na\\#b: c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	: 	1	note	0	1	#note\na\\#b: c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	: 	1	note	0	0	#note\na\\#b: c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	: 	1	note	1	1	#note\na\\#b: c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	: 	1	note	1	0	#note\na\\#b: c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	: 	1	one\ntwo	0	1	#one\n#two\na\\#b: c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	: 	1	one\ntwo	0	0	#one\n#two\na\\#b: c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	: 	1	one\ntwo	1	1	#one\n#two\na\\#b: c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	: 	1	one\ntwo	1	0	#one\n#two\na\\#b: c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	 	0		0	1	a\\#b c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	 	0		0	0	a\\#b c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	 	0		1	1	a\\#b c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	 	0		1	0	a\\#b c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	 	1		0	1	#\na\\#b c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	 	1		0	0	#\na\\#b c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	 	1		1	1	#\na\\#b c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	 	1		1	0	#\na\\#b c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	 	1	note	0	1	#note\na\\#b c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	 	1	note	0	0	#note\na\\#b c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	 	1	note	1	1	#note\na\\#b c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	 	1	note	1	0	#note\na\\#b c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	 	1	one\ntwo	0	1	#one\n#two\na\\#b c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	 	1	one\ntwo	0	0	#one\n#two\na\\#b c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	 	1	one\ntwo	1	1	#one\n#two\na\\#b c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	 	1	one\ntwo	1	0	#one\n#two\na\\#b c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	\t	0		0	1	a\\#b\tc\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	\t	0		0	0	a\\#b\tc\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	\t	0		1	1	a\\#b\tc\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	\t	0		1	0	a\\#b\tc\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	\t	1		0	1	#\na\\#b\tc\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	\t	1		0	0	#\na\\#b\tc\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	\t	1		1	1	#\na\\#b\tc\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	\t	1		1	0	#\na\\#b\tc\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	\t	1	note	0	1	#note\na\\#b\tc\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	\t	1	note	0	0	#note\na\\#b\tc\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	\t	1	note	1	1	#note\na\\#b\tc\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	\t	1	note	1	0	#note\na\\#b\tc\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	\t	1	one\ntwo	0	1	#one\n#two\na\\#b\tc\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	\t	1	one\ntwo	0	0	#one\n#two\na\\#b\tc\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	\t	1	one\ntwo	1	1	#one\n#two\na\\#b\tc\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	\t	1	one\ntwo	1	0	#one\n#two\na\\#b\tc\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	 = 	0		0	1	a\\#b = c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	 = 	0		0	0	a\\#b = c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	 = 	0		1	1	a\\#b = c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	 = 	0		1	0	a\\#b = c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	 = 	1		0	1	#\na\\#b = c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	 = 	1		0	0	#\na\\#b = c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	 = 	1		1	1	#\na\\#b = c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	 = 	1		1	0	#\na\\#b = c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	 = 	1	note	0	1	#note\na\\#b = c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	 = 	1	note	0	0	#note\na\\#b = c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	 = 	1	note	1	1	#note\na\\#b = c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	 = 	1	note	1	0	#note\na\\#b = c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	 = 	1	one\ntwo	0	1	#one\n#two\na\\#b = c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	 = 	1	one\ntwo	0	0	#one\n#two\na\\#b = c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	 = 	1	one\ntwo	1	1	#one\n#two\na\\#b = c\\=d\\:e\\!f\n	a#b	c=d:e!f
+1	 = 	1	one\ntwo	1	0	#one\n#two\na\\#b = c\\=d\\:e\\!f\n	a#b	c=d:e!f
+2	=	0		0	1	dup=1\ndup=2\n	dup	1	dup	2
+2	=	0		0	0	dup=1\ndup=2\n	dup	1	dup	2
+2	=	0		1	1	dup=1\ndup=2\n	dup	1	dup	2
+2	=	0		1	0	dup=1\ndup=2\n	dup	1	dup	2
+2	=	1		0	1	#\ndup=1\ndup=2\n	dup	1	dup	2
+2	=	1		0	0	#\ndup=1\ndup=2\n	dup	1	dup	2
+2	=	1		1	1	#\ndup=1\ndup=2\n	dup	1	dup	2
+2	=	1		1	0	#\ndup=1\ndup=2\n	dup	1	dup	2
+2	=	1	note	0	1	#note\ndup=1\ndup=2\n	dup	1	dup	2
+2	=	1	note	0	0	#note\ndup=1\ndup=2\n	dup	1	dup	2
+2	=	1	note	1	1	#note\ndup=1\ndup=2\n	dup	1	dup	2
+2	=	1	note	1	0	#note\ndup=1\ndup=2\n	dup	1	dup	2
+2	=	1	one\ntwo	0	1	#one\n#two\ndup=1\ndup=2\n	dup	1	dup	2
+2	=	1	one\ntwo	0	0	#one\n#two\ndup=1\ndup=2\n	dup	1	dup	2
+2	=	1	one\ntwo	1	1	#one\n#two\ndup=1\ndup=2\n	dup	1	dup	2
+2	=	1	one\ntwo	1	0	#one\n#two\ndup=1\ndup=2\n	dup	1	dup	2
+2	: 	0		0	1	dup: 1\ndup: 2\n	dup	1	dup	2
+2	: 	0		0	0	dup: 1\ndup: 2\n	dup	1	dup	2
+2	: 	0		1	1	dup: 1\ndup: 2\n	dup	1	dup	2
+2	: 	0		1	0	dup: 1\ndup: 2\n	dup	1	dup	2
+2	: 	1		0	1	#\ndup: 1\ndup: 2\n	dup	1	dup	2
+2	: 	1		0	0	#\ndup: 1\ndup: 2\n	dup	1	dup	2
+2	: 	1		1	1	#\ndup: 1\ndup: 2\n	dup	1	dup	2
+2	: 	1		1	0	#\ndup: 1\ndup: 2\n	dup	1	dup	2
+2	: 	1	note	0	1	#note\ndup: 1\ndup: 2\n	dup	1	dup	2
+2	: 	1	note	0	0	#note\ndup: 1\ndup: 2\n	dup	1	dup	2
+2	: 	1	note	1	1	#note\ndup: 1\ndup: 2\n	dup	1	dup	2
+2	: 	1	note	1	0	#note\ndup: 1\ndup: 2\n	dup	1	dup	2
+2	: 	1	one\ntwo	0	1	#one\n#two\ndup: 1\ndup: 2\n	dup	1	dup	2
+2	: 	1	one\ntwo	0	0	#one\n#two\ndup: 1\ndup: 2\n	dup	1	dup	2
+2	: 	1	one\ntwo	1	1	#one\n#two\ndup: 1\ndup: 2\n	dup	1	dup	2
+2	: 	1	one\ntwo	1	0	#one\n#two\ndup: 1\ndup: 2\n	dup	1	dup	2
+2	 	0		0	1	dup 1\ndup 2\n	dup	1	dup	2
+2	 	0		0	0	dup 1\ndup 2\n	dup	1	dup	2
+2	 	0		1	1	dup 1\ndup 2\n	dup	1	dup	2
+2	 	0		1	0	dup 1\ndup 2\n	dup	1	dup	2
+2	 	1		0	1	#\ndup 1\ndup 2\n	dup	1	dup	2
+2	 	1		0	0	#\ndup 1\ndup 2\n	dup	1	dup	2
+2	 	1		1	1	#\ndup 1\ndup 2\n	dup	1	dup	2
+2	 	1		1	0	#\ndup 1\ndup 2\n	dup	1	dup	2
+2	 	1	note	0	1	#note\ndup 1\ndup 2\n	dup	1	dup	2
+2	 	1	note	0	0	#note\ndup 1\ndup 2\n	dup	1	dup	2
+2	 	1	note	1	1	#note\ndup 1\ndup 2\n	dup	1	dup	2
+2	 	1	note	1	0	#note\ndup 1\ndup 2\n	dup	1	dup	2
+2	 	1	one\ntwo	0	1	#one\n#two\ndup 1\ndup 2\n	dup	1	dup	2
+2	 	1	one\ntwo	0	0	#one\n#two\ndup 1\ndup 2\n	dup	1	dup	2
+2	 	1	one\ntwo	1	1	#one\n#two\ndup 1\ndup 2\n	dup	1	dup	2
+2	 	1	one\ntwo	1	0	#one\n#two\ndup 1\ndup 2\n	dup	1	dup	2
+2	\t	0		0	1	dup\t1\ndup\t2\n	dup	1	dup	2
+2	\t	0		0	0	dup\t1\ndup\t2\n	dup	1	dup	2
+2	\t	0		1	1	dup\t1\ndup\t2\n	dup	1	dup	2
+2	\t	0		1	0	dup\t1\ndup\t2\n	dup	1	dup	2
+2	\t	1		0	1	#\ndup\t1\ndup\t2\n	dup	1	dup	2
+2	\t	1		0	0	#\ndup\t1\ndup\t2\n	dup	1	dup	2
+2	\t	1		1	1	#\ndup\t1\ndup\t2\n	dup	1	dup	2
+2	\t	1		1	0	#\ndup\t1\ndup\t2\n	dup	1	dup	2
+2	\t	1	note	0	1	#note\ndup\t1\ndup\t2\n	dup	1	dup	2
+2	\t	1	note	0	0	#note\ndup\t1\ndup\t2\n	dup	1	dup	2
+2	\t	1	note	1	1	#note\ndup\t1\ndup\t2\n	dup	1	dup	2
+2	\t	1	note	1	0	#note\ndup\t1\ndup\t2\n	dup	1	dup	2
+2	\t	1	one\ntwo	0	1	#one\n#two\ndup\t1\ndup\t2\n	dup	1	dup	2
+2	\t	1	one\ntwo	0	0	#one\n#two\ndup\t1\ndup\t2\n	dup	1	dup	2
+2	\t	1	one\ntwo	1	1	#one\n#two\ndup\t1\ndup\t2\n	dup	1	dup	2
+2	\t	1	one\ntwo	1	0	#one\n#two\ndup\t1\ndup\t2\n	dup	1	dup	2
+2	 = 	0		0	1	dup = 1\ndup = 2\n	dup	1	dup	2
+2	 = 	0		0	0	dup = 1\ndup = 2\n	dup	1	dup	2
+2	 = 	0		1	1	dup = 1\ndup = 2\n	dup	1	dup	2
+2	 = 	0		1	0	dup = 1\ndup = 2\n	dup	1	dup	2
+2	 = 	1		0	1	#\ndup = 1\ndup = 2\n	dup	1	dup	2
+2	 = 	1		0	0	#\ndup = 1\ndup = 2\n	dup	1	dup	2
+2	 = 	1		1	1	#\ndup = 1\ndup = 2\n	dup	1	dup	2
+2	 = 	1		1	0	#\ndup = 1\ndup = 2\n	dup	1	dup	2
+2	 = 	1	note	0	1	#note\ndup = 1\ndup = 2\n	dup	1	dup	2
+2	 = 	1	note	0	0	#note\ndup = 1\ndup = 2\n	dup	1	dup	2
+2	 = 	1	note	1	1	#note\ndup = 1\ndup = 2\n	dup	1	dup	2
+2	 = 	1	note	1	0	#note\ndup = 1\ndup = 2\n	dup	1	dup	2
+2	 = 	1	one\ntwo	0	1	#one\n#two\ndup = 1\ndup = 2\n	dup	1	dup	2
+2	 = 	1	one\ntwo	0	0	#one\n#two\ndup = 1\ndup = 2\n	dup	1	dup	2
+2	 = 	1	one\ntwo	1	1	#one\n#two\ndup = 1\ndup = 2\n	dup	1	dup	2
+2	 = 	1	one\ntwo	1	0	#one\n#two\ndup = 1\ndup = 2\n	dup	1	dup	2
+1	=	0		0	1	a\\tb=c\\nd\n	a\tb	c\nd
+1	=	0		0	0	a\\tb=c\\nd\n	a\tb	c\nd
+1	=	0		1	1	a\\tb=c\\nd\n	a\tb	c\nd
+1	=	0		1	0	a\\tb=c\\nd\n	a\tb	c\nd
+1	=	1		0	1	#\na\\tb=c\\nd\n	a\tb	c\nd
+1	=	1		0	0	#\na\\tb=c\\nd\n	a\tb	c\nd
+1	=	1		1	1	#\na\\tb=c\\nd\n	a\tb	c\nd
+1	=	1		1	0	#\na\\tb=c\\nd\n	a\tb	c\nd
+1	=	1	note	0	1	#note\na\\tb=c\\nd\n	a\tb	c\nd
+1	=	1	note	0	0	#note\na\\tb=c\\nd\n	a\tb	c\nd
+1	=	1	note	1	1	#note\na\\tb=c\\nd\n	a\tb	c\nd
+1	=	1	note	1	0	#note\na\\tb=c\\nd\n	a\tb	c\nd
+1	=	1	one\ntwo	0	1	#one\n#two\na\\tb=c\\nd\n	a\tb	c\nd
+1	=	1	one\ntwo	0	0	#one\n#two\na\\tb=c\\nd\n	a\tb	c\nd
+1	=	1	one\ntwo	1	1	#one\n#two\na\\tb=c\\nd\n	a\tb	c\nd
+1	=	1	one\ntwo	1	0	#one\n#two\na\\tb=c\\nd\n	a\tb	c\nd
+1	: 	0		0	1	a\\tb: c\\nd\n	a\tb	c\nd
+1	: 	0		0	0	a\\tb: c\\nd\n	a\tb	c\nd
+1	: 	0		1	1	a\\tb: c\\nd\n	a\tb	c\nd
+1	: 	0		1	0	a\\tb: c\\nd\n	a\tb	c\nd
+1	: 	1		0	1	#\na\\tb: c\\nd\n	a\tb	c\nd
+1	: 	1		0	0	#\na\\tb: c\\nd\n	a\tb	c\nd
+1	: 	1		1	1	#\na\\tb: c\\nd\n	a\tb	c\nd
+1	: 	1		1	0	#\na\\tb: c\\nd\n	a\tb	c\nd
+1	: 	1	note	0	1	#note\na\\tb: c\\nd\n	a\tb	c\nd
+1	: 	1	note	0	0	#note\na\\tb: c\\nd\n	a\tb	c\nd
+1	: 	1	note	1	1	#note\na\\tb: c\\nd\n	a\tb	c\nd
+1	: 	1	note	1	0	#note\na\\tb: c\\nd\n	a\tb	c\nd
+1	: 	1	one\ntwo	0	1	#one\n#two\na\\tb: c\\nd\n	a\tb	c\nd
+1	: 	1	one\ntwo	0	0	#one\n#two\na\\tb: c\\nd\n	a\tb	c\nd
+1	: 	1	one\ntwo	1	1	#one\n#two\na\\tb: c\\nd\n	a\tb	c\nd
+1	: 	1	one\ntwo	1	0	#one\n#two\na\\tb: c\\nd\n	a\tb	c\nd
+1	 	0		0	1	a\\tb c\\nd\n	a\tb	c\nd
+1	 	0		0	0	a\\tb c\\nd\n	a\tb	c\nd
+1	 	0		1	1	a\\tb c\\nd\n	a\tb	c\nd
+1	 	0		1	0	a\\tb c\\nd\n	a\tb	c\nd
+1	 	1		0	1	#\na\\tb c\\nd\n	a\tb	c\nd
+1	 	1		0	0	#\na\\tb c\\nd\n	a\tb	c\nd
+1	 	1		1	1	#\na\\tb c\\nd\n	a\tb	c\nd
+1	 	1		1	0	#\na\\tb c\\nd\n	a\tb	c\nd
+1	 	1	note	0	1	#note\na\\tb c\\nd\n	a\tb	c\nd
+1	 	1	note	0	0	#note\na\\tb c\\nd\n	a\tb	c\nd
+1	 	1	note	1	1	#note\na\\tb c\\nd\n	a\tb	c\nd
+1	 	1	note	1	0	#note\na\\tb c\\nd\n	a\tb	c\nd
+1	 	1	one\ntwo	0	1	#one\n#two\na\\tb c\\nd\n	a\tb	c\nd
+1	 	1	one\ntwo	0	0	#one\n#two\na\\tb c\\nd\n	a\tb	c\nd
+1	 	1	one\ntwo	1	1	#one\n#two\na\\tb c\\nd\n	a\tb	c\nd
+1	 	1	one\ntwo	1	0	#one\n#two\na\\tb c\\nd\n	a\tb	c\nd
+1	\t	0		0	1	a\\tb\tc\\nd\n	a\tb	c\nd
+1	\t	0		0	0	a\\tb\tc\\nd\n	a\tb	c\nd
+1	\t	0		1	1	a\\tb\tc\\nd\n	a\tb	c\nd
+1	\t	0		1	0	a\\tb\tc\\nd\n	a\tb	c\nd
+1	\t	1		0	1	#\na\\tb\tc\\nd\n	a\tb	c\nd
+1	\t	1		0	0	#\na\\tb\tc\\nd\n	a\tb	c\nd
+1	\t	1		1	1	#\na\\tb\tc\\nd\n	a\tb	c\nd
+1	\t	1		1	0	#\na\\tb\tc\\nd\n	a\tb	c\nd
+1	\t	1	note	0	1	#note\na\\tb\tc\\nd\n	a\tb	c\nd
+1	\t	1	note	0	0	#note\na\\tb\tc\\nd\n	a\tb	c\nd
+1	\t	1	note	1	1	#note\na\\tb\tc\\nd\n	a\tb	c\nd
+1	\t	1	note	1	0	#note\na\\tb\tc\\nd\n	a\tb	c\nd
+1	\t	1	one\ntwo	0	1	#one\n#two\na\\tb\tc\\nd\n	a\tb	c\nd
+1	\t	1	one\ntwo	0	0	#one\n#two\na\\tb\tc\\nd\n	a\tb	c\nd
+1	\t	1	one\ntwo	1	1	#one\n#two\na\\tb\tc\\nd\n	a\tb	c\nd
+1	\t	1	one\ntwo	1	0	#one\n#two\na\\tb\tc\\nd\n	a\tb	c\nd
+1	 = 	0		0	1	a\\tb = c\\nd\n	a\tb	c\nd
+1	 = 	0		0	0	a\\tb = c\\nd\n	a\tb	c\nd
+1	 = 	0		1	1	a\\tb = c\\nd\n	a\tb	c\nd
+1	 = 	0		1	0	a\\tb = c\\nd\n	a\tb	c\nd
+1	 = 	1		0	1	#\na\\tb = c\\nd\n	a\tb	c\nd
+1	 = 	1		0	0	#\na\\tb = c\\nd\n	a\tb	c\nd
+1	 = 	1		1	1	#\na\\tb = c\\nd\n	a\tb	c\nd
+1	 = 	1		1	0	#\na\\tb = c\\nd\n	a\tb	c\nd
+1	 = 	1	note	0	1	#note\na\\tb = c\\nd\n	a\tb	c\nd
+1	 = 	1	note	0	0	#note\na\\tb = c\\nd\n	a\tb	c\nd
+1	 = 	1	note	1	1	#note\na\\tb = c\\nd\n	a\tb	c\nd
+1	 = 	1	note	1	0	#note\na\\tb = c\\nd\n	a\tb	c\nd
+1	 = 	1	one\ntwo	0	1	#one\n#two\na\\tb = c\\nd\n	a\tb	c\nd
+1	 = 	1	one\ntwo	0	0	#one\n#two\na\\tb = c\\nd\n	a\tb	c\nd
+1	 = 	1	one\ntwo	1	1	#one\n#two\na\\tb = c\\nd\n	a\tb	c\nd
+1	 = 	1	one\ntwo	1	0	#one\n#two\na\\tb = c\\nd\n	a\tb	c\nd
+0	=	0		0	1	
+0	=	0		0	0	
+0	=	0		1	1	
+0	=	0		1	0	
+0	=	1		0	1	#\n
+0	=	1		0	0	#\n
+0	=	1		1	1	#\n
+0	=	1		1	0	#\n
+0	=	1	note	0	1	#note\n
+0	=	1	note	0	0	#note\n
+0	=	1	note	1	1	#note\n
+0	=	1	note	1	0	#note\n
+0	=	1	one\ntwo	0	1	#one\n#two\n
+0	=	1	one\ntwo	0	0	#one\n#two\n
+0	=	1	one\ntwo	1	1	#one\n#two\n
+0	=	1	one\ntwo	1	0	#one\n#two\n
+0	: 	0		0	1	
+0	: 	0		0	0	
+0	: 	0		1	1	
+0	: 	0		1	0	
+0	: 	1		0	1	#\n
+0	: 	1		0	0	#\n
+0	: 	1		1	1	#\n
+0	: 	1		1	0	#\n
+0	: 	1	note	0	1	#note\n
+0	: 	1	note	0	0	#note\n
+0	: 	1	note	1	1	#note\n
+0	: 	1	note	1	0	#note\n
+0	: 	1	one\ntwo	0	1	#one\n#two\n
+0	: 	1	one\ntwo	0	0	#one\n#two\n
+0	: 	1	one\ntwo	1	1	#one\n#two\n
+0	: 	1	one\ntwo	1	0	#one\n#two\n
+0	 	0		0	1	
+0	 	0		0	0	
+0	 	0		1	1	
+0	 	0		1	0	
+0	 	1		0	1	#\n
+0	 	1		0	0	#\n
+0	 	1		1	1	#\n
+0	 	1		1	0	#\n
+0	 	1	note	0	1	#note\n
+0	 	1	note	0	0	#note\n
+0	 	1	note	1	1	#note\n
+0	 	1	note	1	0	#note\n
+0	 	1	one\ntwo	0	1	#one\n#two\n
+0	 	1	one\ntwo	0	0	#one\n#two\n
+0	 	1	one\ntwo	1	1	#one\n#two\n
+0	 	1	one\ntwo	1	0	#one\n#two\n
+0	\t	0		0	1	
+0	\t	0		0	0	
+0	\t	0		1	1	
+0	\t	0		1	0	
+0	\t	1		0	1	#\n
+0	\t	1		0	0	#\n
+0	\t	1		1	1	#\n
+0	\t	1		1	0	#\n
+0	\t	1	note	0	1	#note\n
+0	\t	1	note	0	0	#note\n
+0	\t	1	note	1	1	#note\n
+0	\t	1	note	1	0	#note\n
+0	\t	1	one\ntwo	0	1	#one\n#two\n
+0	\t	1	one\ntwo	0	0	#one\n#two\n
+0	\t	1	one\ntwo	1	1	#one\n#two\n
+0	\t	1	one\ntwo	1	0	#one\n#two\n
+0	 = 	0		0	1	
+0	 = 	0		0	0	
+0	 = 	0		1	1	
+0	 = 	0		1	0	
+0	 = 	1		0	1	#\n
+0	 = 	1		0	0	#\n
+0	 = 	1		1	1	#\n
+0	 = 	1		1	0	#\n
+0	 = 	1	note	0	1	#note\n
+0	 = 	1	note	0	0	#note\n
+0	 = 	1	note	1	1	#note\n
+0	 = 	1	note	1	0	#note\n
+0	 = 	1	one\ntwo	0	1	#one\n#two\n
+0	 = 	1	one\ntwo	0	0	#one\n#two\n
+0	 = 	1	one\ntwo	1	1	#one\n#two\n
+0	 = 	1	one\ntwo	1	0	#one\n#two\n

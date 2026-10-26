@@ -68,6 +68,37 @@ assert_eq!(properties.store(None), "a\\ b=one\ncaf\\u00E9=two\n");
 same because every escape is ASCII, and `store_to` writes them to anything
 writable.
 
+`store_with` is the rest of the reference's writer: the separator, a comment, a
+timestamp comment, sorting, and whether non-ASCII is escaped. The pieces are
+exported on their own too - `escape`, `join_key_value` and `to_comment` - because
+they are useful without a whole document.
+
+```rust
+use javaproperties::{Properties, WriteOptions, join_key_value, to_comment};
+
+// The three pieces, as the reference's `escape`, `join_key_value` and
+// `to_comment`.
+assert_eq!(join_key_value("a b", "c d", "="), "a\\ b=c d");
+assert_eq!(to_comment("one\ntwo"), "#one\n#two");
+
+let properties = Properties::from_pairs(vec![
+    ("b".to_string(), "2".to_string()),
+    ("a".to_string(), "1".to_string()),
+]);
+let text = properties.store_with(&WriteOptions {
+    separator: ": ",
+    sort_keys: true,
+    timestamp: Some(0),
+    ..WriteOptions::default()
+});
+assert_eq!(text, "#Thu Jan 01 00:00:00 UTC 1970\na: 1\nb: 2\n");
+```
+
+The one deliberate difference from the reference is the timestamp. Java renders
+it in the local timezone, reading the host's; this crate has no timezone database
+and takes no dependency, so it renders UTC and says so, which is why the function
+is `java_timestamp_utc` rather than a silent `java_timestamp`.
+
 ## How it is checked
 
 Against Python's `javaproperties` package, which replicates
@@ -83,6 +114,16 @@ produces are replayed against `Properties::store`. That is the side which found
 the two disagreements above - the missing escapes for `#`, `!`, `=` and `:`, and
 the line wrap that could cut a `\uXXXX` escape in half - because a corpus of
 inputs can only ever check the reader.
+
+The writer API added later is checked against the reference directly. A corpus of
+inputs cannot check an escape function, so `scripts/fuzz/javaproperties/gen_writer.py`
+records what the reference's own `escape`, `join_key_value`, `to_comment`,
+`java_timestamp` and `dumps(separator=, comments=, sort_keys=, ensure_ascii=)`
+return for a curated set and **two thousand random strings**, and the crate has to
+produce the same bytes. That corpus immediately found two more rules the first
+version of the writer had wrong: the reference sorts by key *and then value*, not
+by key alone, so a key given twice is ordered by its value; and an empty comment
+string writes a bare `#` line, which is not the same as no comment at all.
 
 The random corpus is generated with a fixed seed by `scripts/fuzz/javaproperties/`,
 so it can be rebuilt exactly,

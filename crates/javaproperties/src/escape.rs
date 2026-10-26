@@ -1,9 +1,13 @@
-//! Escape sequences in keys and values.
+//! Escape sequences in keys and values, and the writing side that produces them.
 //!
 //! A backslash introduces an escape when it is not itself escaped. Two escapes
 //! are not the obvious ones: a `\u` not followed by four hex digits is an error
 //! rather than a literal `u`, and a backslash before an ordinary character is
 //! dropped rather than kept.
+//!
+//! Writing is the mirror of reading. The rules below are
+//! `java.util.Properties.store`'s `saveConvert`, and they are checked against
+//! Python's `javaproperties`, which is itself tested against Java.
 
 use std::fmt;
 
