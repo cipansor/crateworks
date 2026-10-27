@@ -56,7 +56,15 @@ KINDS = [
 
 # The set is pinned so a silent upstream shrink or a changed filter is caught
 # here rather than shipped.
-EXPECTED_ROWS = 11848
+#
+# OurAirports is maintained continuously, so this number moves on its own: it
+# was 11,848 when the crate was first generated and 11,889 on 2026-10-21, the
+# difference being a South African cleanup (13 strips dropped, 54 added, 10
+# corrected). That is the point of the assertion. It is not a stable constant to
+# be relaxed when it fails - a failure means upstream has moved and the table
+# has to be regenerated and the change reviewed, because the crate ships a
+# snapshot and the gate is a freshness check rather than a reproducibility one.
+EXPECTED_ROWS = 11889
 
 
 def fetch() -> str:

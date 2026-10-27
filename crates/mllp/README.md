@@ -3,7 +3,7 @@
 [![crates.io](https://img.shields.io/crates/v/mllp.svg)](https://crates.io/crates/mllp)
 [![docs.rs](https://docs.rs/mllp/badge.svg)](https://docs.rs/mllp)
 
-MLLP framing for HL7 v2 messages. No dependencies.
+MLLP framing and HL7 v2 parsing. No dependencies.
 
 MLLP, the Minimal Lower Layer Protocol, is how almost every HL7 v2 message
 travels over TCP. It wraps each message in a start block, the payload, and an
@@ -30,6 +30,45 @@ assert!(decoder.next_frame().is_none()); // half a frame, wait for more
 decoder.push(b"|FAC|20260101||ADT^A01|1|P|2.5.1\r\x1c\x0d");
 assert_eq!(decoder.next_frame().unwrap().unwrap(), message);
 ```
+
+## Parsing the message
+
+Framing gets the bytes to you; `Message` opens them up. It splits a message into
+segments, a segment into fields, and a field into repetitions of components of
+subcomponents, using the delimiters the message declares in its own header.
+
+```rust
+use mllp::Message;
+
+let raw = "MSH|^~\\&|SEND|FAC|RECV|FAC|20260101||ADT^A01|1|P|2.5.1\r\
+           PID|1||12345^^^MRN~67890^^^MRN||DOE^JOHN\r";
+let message = Message::parse(raw).unwrap();
+
+// The segments, in order.
+assert_eq!(message.segment_names().collect::<Vec<_>>(), ["MSH", "PID"]);
+
+// A field, by its HL7 reference.
+let name = message.field("PID-5").unwrap();
+assert_eq!(name.text(), "DOE^JOHN");
+assert_eq!(name.component(1), Some("DOE"));
+
+// A repeating field, one repetition at a time.
+let ids = message.field("PID-3").unwrap();
+assert_eq!(ids.repetitions().count(), 2);
+
+// A value with the delimiter escapes resolved.
+assert_eq!(message.value("MSH-3").unwrap(), "SEND");
+```
+
+Everything borrows from the input, so parsing copies nothing. The parser is a
+*reader*, not a validator: it does not know which fields a given message type
+requires, and it does not reject a site-specific segment. It splits on the
+delimiters and returns the pieces, which is what a receiver needs before it can
+decide what the message means.
+
+`Message::parse` takes the delimiters from MSH, so a message that uses `#` as
+its field separator parses with the same code. `Message::to_er7` writes the
+message back out.
 
 ## The framing bytes
 
@@ -67,11 +106,14 @@ missing terminator, not a limit on real messages.
 
 ## What it does not do
 
-This crate frames bytes. It does not parse HL7 v2: the payload is opaque, and the
-delimiters that make up a message (`|`, `^`, `~`, `&`) are the caller's business.
-It does not open sockets, retry, or decide how long to wait for a reply, and it
-does not implement TLS or the newer, block-based MLLP (MLLP over HTTPS). It also
-does not build HL7 acknowledgement messages; that needs a message parser.
+`Message` reads the structure of a message; it does not validate one. It does not
+know which fields a message type requires, it does not check a field against a
+table, and it does not build an acknowledgement (`ACK`) for you: that is a
+message-construction task on top of the parser, not part of it.
+
+The framing layer does not open sockets, retry, or decide how long to wait for a
+reply, and it does not implement TLS or the newer, block-based MLLP (MLLP over
+HTTPS).
 
 Part of the [crateworks](https://github.com/cipansor/crateworks)
 workspace. Licensed under the Apache License, Version 2.0, copyright Yayasan

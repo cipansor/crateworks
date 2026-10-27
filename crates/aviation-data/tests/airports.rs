@@ -103,7 +103,10 @@ fn the_code_spaces_outrank_the_ident_space() {
 #[test]
 fn table_shape_is_stable() {
     assert_eq!(count(), all().len());
-    assert_eq!(count(), 11_848);
+    // Pinned to the generated snapshot. OurAirports is maintained continuously,
+    // so this moves when the table is regenerated; the aviation gate is what
+    // decides whether the new number is right.
+    assert_eq!(count(), 11_889);
     // Sorted by ident, and idents are unique, so a binary search would work.
     let mut previous = "";
     for airport in all() {

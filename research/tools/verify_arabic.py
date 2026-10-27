@@ -1,0 +1,293 @@
+#!/usr/bin/env python3
+"""Differential gate for `crates/arabic` against PyPI `arabic-reshaper`.
+
+Every other crate here that has an independent reference is checked against it
+over a wide corpus, and `arabic` was the exception: it had hand-written fixture
+tests and no oracle. That is the weakest position for a shaping crate, because
+the contextual-form tables are large, transcribed from Unicode, and a wrong
+entry is invisible - the output is still plausible Arabic.
+
+This gate generates a corpus, reshapes it with both implementations, and diffs
+the two. It exits non-zero on any difference.
+
+The corpus has three parts:
+
+* every Arabic letter in isolation, in each of the three joining contexts, so a
+  single wrong form in the table is caught rather than averaged away;
+* every adjacent pair of Arabic letters, which is what decides the medial and
+  final forms;
+* words and phrases with ligatures, harakat, tatweel, zero-width joiners and
+  mixed non-Arabic runs, which is where the shaping rules interact.
+
+Run:  python3 research/tools/verify_arabic.py
+Needs: pip install arabic-reshaper
+"""
+
+import os
+import pathlib
+import subprocess
+import sys
+
+import arabic_reshaper
+
+# The reference deletes harakat by default; this crate keeps them. Comparing the
+# defaults would report every mark as a difference and hide the real ones, so the
+# reference is configured to match the crate's `Options::default()`. The other
+# flags are the reference's own defaults, named here so a future change to them
+# is a visible edit rather than a silent shift in what is being compared.
+REFERENCE = arabic_reshaper.ArabicReshaper(
+    {
+        "delete_harakat": False,
+        "delete_tatweel": False,
+        "support_zwj": True,
+        "support_ligatures": True,
+    }
+)
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+CRATE = ROOT / "crates" / "arabic"
+CARGO_ENV = {
+    **os.environ,
+    "PATH": "/workspace/.toolchain/cargo/bin:" + os.environ.get("PATH", ""),
+    "CARGO_HOME": "/workspace/.toolchain/cargo",
+}
+
+# The Arabic letters this crate claims to shape. Kept as a literal list rather
+# than derived from the crate so that a letter the crate silently drops shows up
+# as a mismatch instead of being absent from the corpus too.
+LETTERS = [
+    *map(chr, range(0x0621, 0x063B)),  # hamza .. ghain
+    *map(chr, range(0x0641, 0x064B)),  # feh .. alef maksura
+    "\u0640",  # tatweel
+    *map(chr, range(0x0671, 0x0674)),  # alef wasla, hamza above alef
+    *map(chr, range(0x0679, 0x0688)),  # tteh .. ddal
+    "\u0691", "\u0698",  # rreh, jeh
+    *map(chr, range(0x06A4, 0x06A7)),  # veh, veeh, peh
+    "\u06A9", "\u06AF",  # keheh, gaf
+    *map(chr, range(0x06BA, 0x06BD)),  # noon ghunna, heh goal
+    "\u06BE", "\u06C0", "\u06C1", "\u06C2", "\u06C3",  # heh doachashmee ..
+    "\u06CC", "\u06D2", "\u06D3",  # farsi yeh, yeh barree
+]
+
+HARAKAT = ["\u064E", "\u064F", "\u0650", "\u0652", "\u0651", "\u0670"]
+
+WORDS = [
+    "السلام عليكم",
+    "بسم الله الرحمن الرحيم",
+    "لا إله إلا الله",
+    "محمد",
+    "الله",
+    "مرحبا بالعالم",
+    "اللغة العربية",
+    "الكتاب",
+    "مدرسة",
+    "مسجد",
+    "قرآن",
+    "صلاة",
+    "اللهم صل على محمد",
+    "أحمد",
+    "إبراهيم",
+    "يوسف",
+    "عبد الرحمن",
+    "لا",
+    "لله",
+    "بالله",
+    "كتاب",
+    "كتب",
+    "يكتب",
+    "مكتبة",
+    "شمس",
+    "قمر",
+    "نجم",
+    "ماء",
+    "هواء",
+    "أرض",
+    "سماء",
+    "صباح الخير",
+    "مساء النور",
+    "شكرا جزيلا",
+    "من فضلك",
+    "إن شاء الله",
+    "ما شاء الله",
+    "الحمد لله",
+    "سبحان الله",
+    "الله أكبر",
+    "اللغة",
+    "القرآن الكريم",
+    "الحديث الشريف",
+    "الفقه",
+    "التفسير",
+    "النحو",
+    "الصرف",
+    "البلاغة",
+    "التجويد",
+    # Mixed scripts and punctuation, where the shaping must not bleed.
+    "Hello السلام",
+    "السلام Hello",
+    "abc",
+    "123",
+    "السلام، عليكم!",
+    "«السلام»",
+    "السلام (عليكم)",
+    # Explicit joining controls.
+    "\u200dالله\u200d",
+    "ب\u200cب",
+    # Tatweel inside a word.
+    "مـحـمـد",
+    # Harakat on letters that also join.
+    "مُحَمَّد",
+    "كَتَبَ",
+    "اللّٰه",
+]
+
+
+def corpus():
+    """Every input the two implementations are compared on."""
+    cases = []
+    # A letter alone, between two letters, and at each end.
+    for letter in LETTERS:
+        cases.append(letter)
+        cases.append("ب" + letter)
+        cases.append(letter + "ب")
+        cases.append("ب" + letter + "ب")
+    # Every adjacent pair, which decides the medial and final forms.
+    for first in LETTERS:
+        for second in LETTERS:
+            cases.append(first + second)
+    # Every letter with a following harakat.
+    for letter in LETTERS:
+        for mark in HARAKAT:
+            cases.append(letter + mark)
+            cases.append("ب" + letter + mark + "ب")
+    # Words and phrases.
+    cases.extend(WORDS)
+    return cases
+
+
+EXAMPLE = '''//! Generated by research/tools/verify_arabic.py. Do not edit.
+use std::io::{self, Read};
+use arabic::{Direction, reshape};
+
+fn main() {
+    let mut input = String::new();
+    io::stdin().read_to_string(&mut input).unwrap();
+    for line in input.split('\\n') {
+        if line.is_empty() {
+            continue;
+        }
+        let text = unescape(line);
+        println!("{}", reshape(&text, Direction::Logical));
+    }
+}
+
+// The corpus is written one case per line with \\u{..} escapes, because a case
+// may contain a newline-adjacent control character that would otherwise break
+// the framing.
+fn unescape(line: &str) -> String {
+    let mut out = String::new();
+    let mut chars = line.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\\\\' && chars.peek() == Some(&'u') {
+            chars.next();
+            let mut hex = String::new();
+            if chars.peek() == Some(&'{') {
+                chars.next();
+                for c in chars.by_ref() {
+                    if c == '}' { break; }
+                    hex.push(c);
+                }
+            } else {
+                for _ in 0..4 {
+                    if let Some(c) = chars.next() { hex.push(c); }
+                }
+            }
+            if let Ok(n) = u32::from_str_radix(&hex, 16) {
+                if let Some(c) = char::from_u32(n) { out.push(c); }
+            }
+        } else if c == '\\\\' && chars.peek() == Some(&'n') {
+            chars.next();
+            out.push('\\n');
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+'''
+
+
+def escape(text: str) -> str:
+    """Writes a case as one line, escaping anything that would break framing."""
+    out = []
+    for c in text:
+        if c == "\\":
+            out.append("\\\\")
+        elif c == "\n":
+            out.append("\\n")
+        elif ord(c) < 0x20 or ord(c) == 0x7F:
+            out.append(f"\\u{{{ord(c):X}}}")
+        else:
+            out.append(c)
+    return "".join(out)
+
+
+def run_rust(cases):
+    example = CRATE / "examples" / "_oracle_reshape.rs"
+    example.parent.mkdir(exist_ok=True)
+    example.write_text(EXAMPLE)
+    try:
+        r = subprocess.run(
+            ["cargo", "run", "--quiet", "--example", "_oracle_reshape"],
+            cwd=CRATE,
+            input="\n".join(escape(c) for c in cases) + "\n",
+            capture_output=True,
+            text=True,
+            env=CARGO_ENV,
+        )
+        if r.returncode != 0:
+            raise SystemExit(r.stderr[-4000:])
+        return r.stdout.split("\n")
+    finally:
+        example.unlink()
+
+
+def main() -> int:
+    cases = corpus()
+    ours = run_rust(cases)
+    mismatches = 0
+    shown = 0
+    crashes = 0
+    for index, text in enumerate(cases):
+        mine = ours[index] if index < len(ours) else "<missing>"
+        try:
+            theirs = REFERENCE.reshape(text)
+        except Exception as exc:  # noqa: BLE001 - the reference's own failure
+            # arabic-reshaper 3.0.0 raises IndexError on a harakat that follows a
+            # letter it does not know (e.g. "آ" + "ِ"). That is a defect in the
+            # reference, not a disagreement with this crate, so it is counted
+            # separately instead of being reported as a mismatch.
+            crashes += 1
+            continue
+        if mine != theirs:
+            mismatches += 1
+            if shown < 25:
+                shown += 1
+                print(
+                    f"MISMATCH {escape(text)!r}\n"
+                    f"  rust={mine!r}\n"
+                    f"  ref ={theirs!r}"
+                )
+    if mismatches > shown:
+        print(f"... and {mismatches - shown} more")
+    compared = len(cases) - crashes
+    print(
+        f"\n{compared - mismatches}/{compared} reshape cases agree "
+        f"with arabic-reshaper {arabic_reshaper.__version__}"
+    )
+    if crashes:
+        print(f"{crashes} cases skipped: the reference raises on them")
+    return 1 if mismatches else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

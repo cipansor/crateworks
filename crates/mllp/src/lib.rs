@@ -3,9 +3,11 @@
 
 mod decoder;
 mod frame;
+mod message;
 
 pub use decoder::Decoder;
 pub use frame::{CARRIAGE_RETURN, END_BLOCK, START_BLOCK, frame, unframe};
+pub use message::{Field, Message, ParseError, Segment, Separators};
 
 /// Why a byte sequence is not a valid MLLP frame.
 ///

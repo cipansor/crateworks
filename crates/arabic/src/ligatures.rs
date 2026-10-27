@@ -68,6 +68,12 @@ const LIGATURES: [Ligature; 9] = [
 
 /// Replaces the standard ligatures in shaped text.
 ///
+/// Combining marks are transparent to the match: they are skipped while the
+/// pattern is compared against the letters, and the ones that fell inside the
+/// span are re-emitted after the replacement. Without that, `اللّٰه` - the word
+/// "Allah" with the shadda it is normally written with - would not collapse,
+/// because the mark sits between the second lam and the heh.
+///
 /// The scan is left to right and non-overlapping, and a replacement is never
 /// itself rescanned, so "lam alef alef" collapses only the first pair.
 pub(crate) fn apply(shaped: &str) -> String {
@@ -75,11 +81,34 @@ pub(crate) fn apply(shaped: &str) -> String {
     let mut out = String::with_capacity(shaped.len());
     let mut i = 0;
     'outer: while i < chars.len() {
+        if crate::is_harakat(chars[i]) {
+            out.push(chars[i]);
+            i += 1;
+            continue;
+        }
         for ligature in &LIGATURES {
             let pattern = ligature.pattern;
-            if i + pattern.len() <= chars.len() && chars[i..i + pattern.len()] == *pattern {
+            let mut position = i;
+            let mut marks = Vec::new();
+            let mut matched = true;
+            for (index, expected) in pattern.iter().enumerate() {
+                if index > 0 {
+                    while position < chars.len() && crate::is_harakat(chars[position]) {
+                        marks.push(chars[position]);
+                        position += 1;
+                    }
+                }
+                if position < chars.len() && chars[position] == *expected {
+                    position += 1;
+                } else {
+                    matched = false;
+                    break;
+                }
+            }
+            if matched {
                 out.push(ligature.replacement);
-                i += pattern.len();
+                out.extend(marks);
+                i = position;
                 continue 'outer;
             }
         }
@@ -126,7 +155,28 @@ mod tests {
     }
 
     #[test]
+    fn a_mark_inside_a_ligature_does_not_stop_it() {
+        // Shaped "Allah" with a shadda and a superscript alef between the
+        // second lam and the heh, which is how the word is normally written.
+        assert_eq!(
+            apply("\u{fe8d}\u{fedf}\u{fee0}\u{651}\u{670}\u{feea}"),
+            "\u{fdf2}\u{651}\u{670}"
+        );
+    }
+
+    #[test]
+    fn a_mark_inside_lam_alef_does_not_stop_it() {
+        // Lam, fatha, alef: the ligature forms and the mark follows it.
+        assert_eq!(apply("\u{fedf}\u{64e}\u{fe8e}"), "\u{fefb}\u{64e}");
+    }
+
+    #[test]
     fn a_ligature_at_the_very_end_is_found() {
         assert_eq!(apply("x\u{fedf}\u{fe8e}"), "x\u{fefb}");
+    }
+
+    #[test]
+    fn a_mark_after_a_ligature_stays_after_it() {
+        assert_eq!(apply("\u{fedf}\u{fe8e}\u{64e}"), "\u{fefb}\u{64e}");
     }
 }
