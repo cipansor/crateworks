@@ -124,9 +124,7 @@ impl<'a> Message<'a> {
     /// [`ParseError::TruncatedHeader`] when MSH cannot carry its delimiters,
     /// and [`ParseError::UnnamedSegment`] for a segment with no name.
     pub fn parse(raw: &'a str) -> Result<Self, ParseError> {
-        let mut lines = raw
-            .split(['\r', '\n'])
-            .filter(|line| !line.is_empty());
+        let mut lines = raw.split(['\r', '\n']).filter(|line| !line.is_empty());
 
         let header = lines.next().ok_or(ParseError::Empty)?;
         if !header.starts_with("MSH") {
@@ -298,7 +296,10 @@ impl<'a> Segment<'a> {
             fields.push(Field::new(separator, separators));
         }
         if !rest.is_empty() {
-            fields.extend(rest.split(separators.field).map(|f| Field::new(f, separators)));
+            fields.extend(
+                rest.split(separators.field)
+                    .map(|f| Field::new(f, separators)),
+            );
         } else if !is_header {
             // A bare segment name still has one, empty, field, which is how
             // `EVN` with nothing after it is read.
@@ -410,9 +411,11 @@ impl<'a> Field<'a> {
     /// Subcomponent `index` of component `component`, both numbered from 1.
     #[must_use]
     pub fn subcomponent(&self, component: usize, index: usize) -> Option<&'a str> {
-        index
-            .checked_sub(1)
-            .and_then(|i| self.component(component)?.split(self.separators.subcomponent).nth(i))
+        index.checked_sub(1).and_then(|i| {
+            self.component(component)?
+                .split(self.separators.subcomponent)
+                .nth(i)
+        })
     }
 
     /// The field with its delimiter escapes resolved.
@@ -506,8 +509,8 @@ mod tests {
 
     #[test]
     fn a_non_default_separator_is_honoured() {
-        let message = Message::parse("MSH#*~\\&#SEND#FAC#R#F#20260101###ADT*A01#1#P#2.5.1\rPID#1\r")
-            .unwrap();
+        let message =
+            Message::parse("MSH#*~\\&#SEND#FAC#R#F#20260101###ADT*A01#1#P#2.5.1\rPID#1\r").unwrap();
         assert_eq!(message.separators().field, '#');
         assert_eq!(message.separators().component, '*');
         assert_eq!(message.field("MSH-3").unwrap().text(), "SEND");
@@ -527,7 +530,10 @@ mod tests {
     fn repetitions_split_on_the_repetition_separator() {
         let message = Message::parse(SAMPLE).unwrap();
         let field = message.field("PID-3").unwrap();
-        assert_eq!(field.repetitions().collect::<Vec<_>>(), ["12345^^^MRN", "67890^^^MRN"]);
+        assert_eq!(
+            field.repetitions().collect::<Vec<_>>(),
+            ["12345^^^MRN", "67890^^^MRN"]
+        );
         assert_eq!(field.value(), "12345^^^MRN");
         assert_eq!(field.component(1), Some("12345"));
         assert_eq!(field.component(4), Some("MRN"));
@@ -535,9 +541,11 @@ mod tests {
 
     #[test]
     fn subcomponents_split_on_the_subcomponent_separator() {
-        let message = Message::parse("MSH|^~\\&|S|F|R|F|20260101||ADT^A01|1|P|2.5.1\r\
-                                      PID|1||12345^^^MRN&MR&A^A\r")
-            .unwrap();
+        let message = Message::parse(
+            "MSH|^~\\&|S|F|R|F|20260101||ADT^A01|1|P|2.5.1\r\
+                                      PID|1||12345^^^MRN&MR&A^A\r",
+        )
+        .unwrap();
         let field = message.field("PID-3").unwrap();
         assert_eq!(field.component(4), Some("MRN&MR&A"));
         assert_eq!(field.subcomponent(4, 1), Some("MRN"));
@@ -546,9 +554,11 @@ mod tests {
 
     #[test]
     fn the_value_of_a_field_resolves_delimiter_escapes() {
-        let message = Message::parse("MSH|^~\\&|S|F|R|F|20260101||ADT^A01|1|P|2.5.1\r\
-                                      PID|1||A\\F\\B\\S\\C\\T\\D\\E\\E\r")
-            .unwrap();
+        let message = Message::parse(
+            "MSH|^~\\&|S|F|R|F|20260101||ADT^A01|1|P|2.5.1\r\
+                                      PID|1||A\\F\\B\\S\\C\\T\\D\\E\\E\r",
+        )
+        .unwrap();
         assert_eq!(
             message.value("PID-3").unwrap(),
             "A|B^C&D\\E",
@@ -558,28 +568,36 @@ mod tests {
 
     #[test]
     fn an_unknown_escape_is_left_alone() {
-        let message = Message::parse("MSH|^~\\&|S|F|R|F|20260101||ADT^A01|1|P|2.5.1\r\
-                                      PID|1||A\\.br\\B\r")
-            .unwrap();
+        let message = Message::parse(
+            "MSH|^~\\&|S|F|R|F|20260101||ADT^A01|1|P|2.5.1\r\
+                                      PID|1||A\\.br\\B\r",
+        )
+        .unwrap();
         assert_eq!(message.value("PID-3").unwrap(), "A\\.br\\B");
     }
 
     #[test]
     fn a_repeating_segment_is_found_by_name() {
-        let message = Message::parse("MSH|^~\\&|S|F|R|F|20260101||ORU^R01|1|P|2.5.1\r\
-                                      OBX|1|ST|A||one\rOBX|2|ST|B||two\r")
-            .unwrap();
+        let message = Message::parse(
+            "MSH|^~\\&|S|F|R|F|20260101||ORU^R01|1|P|2.5.1\r\
+                                      OBX|1|ST|A||one\rOBX|2|ST|B||two\r",
+        )
+        .unwrap();
         let values: Vec<_> = message
             .segments_named("OBX")
             .map(|s| s.field(5).unwrap().text())
             .collect();
         assert_eq!(values, ["one", "two"]);
-        assert_eq!(message.segment("OBX").unwrap().field(5).unwrap().text(), "one");
+        assert_eq!(
+            message.segment("OBX").unwrap().field(5).unwrap().text(),
+            "one"
+        );
     }
 
     #[test]
     fn line_feeds_and_carriage_returns_both_end_a_segment() {
-        let crlf = Message::parse("MSH|^~\\&|S|F|R|F|20260101||ADT^A01|1|P|2.5.1\r\nPID|1\r").unwrap();
+        let crlf =
+            Message::parse("MSH|^~\\&|S|F|R|F|20260101||ADT^A01|1|P|2.5.1\r\nPID|1\r").unwrap();
         let lf = Message::parse("MSH|^~\\&|S|F|R|F|20260101||ADT^A01|1|P|2.5.1\nPID|1\n").unwrap();
         assert_eq!(crlf.segment_names().collect::<Vec<_>>(), ["MSH", "PID"]);
         assert_eq!(lf.segment_names().collect::<Vec<_>>(), ["MSH", "PID"]);
@@ -601,7 +619,11 @@ mod tests {
         // Segments are joined with a carriage return and no trailing one is
         // added, so the output equals the input modulo the final terminator.
         assert_eq!(message.to_er7(), SAMPLE.trim_end_matches('\r'));
-        assert_eq!(message.text(), SAMPLE, "the original bytes are kept as given");
+        assert_eq!(
+            message.text(),
+            SAMPLE,
+            "the original bytes are kept as given"
+        );
     }
 
     #[test]
@@ -615,7 +637,10 @@ mod tests {
 
     #[test]
     fn a_header_without_its_delimiters_is_rejected() {
-        assert_eq!(Message::parse("MSH").unwrap_err(), ParseError::TruncatedHeader);
+        assert_eq!(
+            Message::parse("MSH").unwrap_err(),
+            ParseError::TruncatedHeader
+        );
         assert_eq!(
             Message::parse("MSH|^~").unwrap_err(),
             ParseError::TruncatedHeader
