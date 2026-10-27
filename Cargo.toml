@@ -25,6 +25,7 @@ members = [
     "crates/pades",
     "crates/address-parser",
     "crates/aviation-data",
+    "crates/runits",
 ]
 
 [workspace.package]

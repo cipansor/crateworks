@@ -1,0 +1,24 @@
+crateworks
+Copyright 2026 Yayasan Pesantren Cipansor and contributors
+
+This product includes software developed by Yayasan Pesantren Cipansor and
+contributors (https://github.com/cipansor/crateworks).
+
+It also includes a unit table derived from the definition files of
+[Pint](https://github.com/hgrecco/pint) 0.26.2, `default_en.txt` and
+`constants_en.txt`, which Pint publishes under the BSD 3-Clause licence:
+
+    Copyright (c) 2012 by Hernan E. Grecco and contributors.
+    See AUTHORS for more details.
+    Some rights reserved.
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the conditions of the
+    BSD 3-Clause licence are met.
+
+`crates/runits/src/table.rs` and `crates/runits/tests/fixtures/pint_units.tsv`
+are generated from those files by `research/tools/gen_units.py` and
+`research/tools/verify_units.py`. The table is data, not code: it records the
+factor, dimension and offset of each unit so that a conversion can be carried
+out without Pint present.
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).

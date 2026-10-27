@@ -1,0 +1,18 @@
+[package]
+name = "runits"
+description = "Runtime unit conversion: parse and convert quantities written as text, such as \"3.5 kg\" to \"lb\", from a table compiled in from pint."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+keywords = ["units", "unit-conversion", "measurement", "si", "pint"]
+categories = ["science", "parser-implementations"]
+readme = "README.md"
+
+[dependencies]
+
+[lints]
+workspace = true
