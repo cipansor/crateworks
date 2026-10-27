@@ -62,7 +62,7 @@ the rest depend only on `xmlkit` or `pdfa` from this same workspace.
 | [`javaproperties`](crates/javaproperties) | Java `.properties`: escapes, continuations, ISO-8859-1 default | npm `properties` is downloaded 300,000 times a week; the Rust `java-properties` has not moved since 2023 |
 | [`object-hash`](crates/object-hash) | A stable hash of a structured value, order-independent | npm `object-hash` is downloaded over 40 million times a week; the name is free and the only Rust equivalent has 58 recent downloads |
 | [`mllp`](crates/mllp) | MLLP framing for HL7 v2 messages, with a streaming decoder | PyPI `hl7apy` is downloaded 758,000 times a month; the Rust HL7 crates are leaderless and none validates |
-| [`cssprint`](crates/cssprint) | Lay out HTML and CSS for paged output: the box model and block layout | WeasyPrint on PyPI and `pdfmake` on npm (1,864,382 downloads a week) carry the demand, while the six Rust crates that attempt it are all under 5,100 recent downloads and none is complete; the usual answer is to ship a headless Chromium |
+| [`cssprint`](crates/cssprint) | Lay out HTML and CSS for paged output: the box model, block layout and inline layout | WeasyPrint on PyPI and `pdfmake` on npm (1,864,382 downloads a week) carry the demand, while the six Rust crates that attempt it are all under 5,100 recent downloads and none is complete; the usual answer is to ship a headless Chromium |
 
 ### Text and addresses
 

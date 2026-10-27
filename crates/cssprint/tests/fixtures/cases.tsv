@@ -16,3 +16,19 @@ display_none	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{widt
 border_widths	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{width:50px;height:20px;border-width:1px 2px 3px 4px;border-style:solid}</style><div></div>
 min_width	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{width:10px;min-width:60px;height:20px}</style><div></div>
 max_width	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{width:120px;max-width:40px;height:20px}</style><div></div>
+text_one_line	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint}</style><div>hello</div>
+text_font_size	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;font-size:10px}</style><div>abc</div>
+text_wrap	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;width:40px}</style><div>hello world</div>
+text_wrap_mid_word	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;width:48px}</style><div>abcdefgh</div>
+text_spaces_collapse	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint}</style><div>a    b</div>
+text_trim	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint}</style><div>   a   </div>
+text_newline	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint}</style><div>a\nb</div>
+text_line_height_px	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;line-height:30px}</style><div>abc</div>
+text_line_height_number	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;line-height:2}</style><div>abc</div>
+text_inline	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint}</style><div>ab<i>cd</i>ef</div>
+text_inline_nested	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint}</style><div>a<b><i>bc</i></b>d</div>
+text_inline_wrap	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;width:64px}</style><div>ab<i>cd ef</i>gh</div>
+text_inline_font_size	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint}</style><div>a<span style="font-size:24px">b</span>c</div>
+text_empty	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint}</style><div></div>
+text_whitespace_only	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint}</style><div>   </div>
+text_between_blocks	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint}</style><div>a</div>   <div>b</div>

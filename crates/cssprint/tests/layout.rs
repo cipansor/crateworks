@@ -18,6 +18,7 @@ use cssprint::{LayoutBox, Stylesheet, layout};
 #[derive(Debug, Clone)]
 struct Expected {
     tag: String,
+    text: String,
     content_x: f64,
     content_y: f64,
     width: f64,
@@ -58,9 +59,30 @@ fn cases() -> BTreeMap<String, String> {
             continue;
         }
         let (case, html) = line.split_once('\t').expect("case<TAB>html");
-        map.insert(case.to_owned(), html.to_owned());
+        // The generator escapes a tab and a newline so a case stays one row.
+        map.insert(case.to_owned(), unescape(html));
     }
     map
+}
+
+/// Reverse the generator's escaping of a TSV field.
+fn unescape(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut characters = text.chars();
+    while let Some(character) = characters.next() {
+        if character != '\\' {
+            out.push(character);
+            continue;
+        }
+        match characters.next() {
+            Some('n') => out.push('\n'),
+            Some('t') => out.push('\t'),
+            Some('\\') => out.push('\\'),
+            Some(other) => out.push(other),
+            None => out.push('\\'),
+        }
+    }
+    out
 }
 
 /// Read `layout.tsv` into `case -> path -> expected box`.
@@ -82,6 +104,7 @@ fn expected() -> BTreeMap<String, BTreeMap<String, Expected>> {
         };
         let box_ = Expected {
             tag: field[2].to_owned(),
+            text: field.get(20).copied().unwrap_or("").to_owned(),
             content_x: number(4),
             content_y: number(5),
             width: number(6),
@@ -105,6 +128,7 @@ fn flatten(root: &LayoutBox, path: &str, out: &mut BTreeMap<String, Expected>) {
         if path.is_empty() { "0" } else { path }.to_owned(),
         Expected {
             tag: root.tag.clone(),
+            text: root.text.clone().unwrap_or_default(),
             content_x: root.content_x,
             content_y: root.content_y,
             width: root.width,
@@ -191,6 +215,12 @@ fn compare(
             failures.push(format!(
                 "{case} [{path}]: tag is `{}`, expected `{}`",
                 got.tag, expected.tag
+            ));
+        }
+        if got.text != expected.text {
+            failures.push(format!(
+                "{case} [{path}]: text is {:?}, expected {:?}",
+                got.text, expected.text
             ));
         }
         let fields = [

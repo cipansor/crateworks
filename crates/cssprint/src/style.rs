@@ -12,8 +12,24 @@ use crate::error::Error;
 pub(crate) enum Display {
     /// A block box, laid out vertically.
     Block,
+    /// An inline box, laid out in lines inside a block.
+    Inline,
     /// No box at all; the element and its subtree are removed.
     None,
+}
+
+/// The `line-height` property, before the used value is worked out.
+///
+/// `normal` and a bare number both depend on the element's font size, so they
+/// are kept unresolved here; `Px` does not.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) enum LineHeight {
+    /// `normal`, which is one em for the fonts this crate supports.
+    Normal,
+    /// A length in pixels.
+    Px(f64),
+    /// A multiple of the font size.
+    Number(f64),
 }
 
 /// A length, either absolute or a percentage of the containing block.
@@ -59,7 +75,14 @@ pub(crate) struct Style {
     pub(crate) padding: Sides,
     /// The border widths, which are zero unless a border style is set.
     pub(crate) border: Sides,
+    /// The `font-size` in pixels, which is inherited.
+    pub(crate) font_size: f64,
+    /// The `line-height`, which is inherited.
+    pub(crate) line_height: LineHeight,
 }
+
+/// The font size an element has when nothing sets one.
+const DEFAULT_FONT_SIZE: f64 = 16.0;
 
 impl Default for Style {
     fn default() -> Self {
@@ -72,6 +95,20 @@ impl Default for Style {
             margin: [Length::Px(0.0); 4],
             padding: Sides::default(),
             border: Sides::default(),
+            font_size: DEFAULT_FONT_SIZE,
+            line_height: LineHeight::Normal,
+        }
+    }
+}
+
+impl Style {
+    /// The used `line-height`: a length, with `normal` and a bare number
+    /// resolved against the font size.
+    pub(crate) fn used_line_height(&self) -> f64 {
+        match self.line_height {
+            LineHeight::Normal => self.font_size,
+            LineHeight::Px(value) => value,
+            LineHeight::Number(factor) => factor * self.font_size,
         }
     }
 }
@@ -79,16 +116,15 @@ impl Default for Style {
 /// The `display` an element has before any author style is applied.
 ///
 /// This mirrors the reference's test user-agent stylesheet: the block tags it
-/// lists are blocks, the tags it hides produce no box, and anything else is an
-/// inline container, which for this crate means its children are laid out in
-/// its place.
+/// lists are blocks, the tags it hides produce no box, and everything else is
+/// inline.
 fn initial_display(element: &Element) -> Display {
     if is_hidden(&element.tag) {
         Display::None
     } else if is_block(&element.tag) {
         Display::Block
     } else {
-        Display::None
+        Display::Inline
     }
 }
 
@@ -97,9 +133,18 @@ fn initial_display(element: &Element) -> Display {
 /// # Errors
 ///
 /// Returns [`Error::Malformed`] when a declaration cannot be read.
-pub(crate) fn compute(element: &Element, stylesheet: &Stylesheet) -> Result<Style, Error> {
+/// `parent` supplies the inherited properties, which are `font-size` and
+/// `line-height`. The root element passes `None` and gets the defaults.
+pub(crate) fn compute(
+    element: &Element,
+    stylesheet: &Stylesheet,
+    parent: Option<&Style>,
+) -> Result<Style, Error> {
+    let inherited = parent.cloned().unwrap_or_default();
     let mut style = Style {
         display: initial_display(element),
+        font_size: inherited.font_size,
+        line_height: inherited.line_height,
         ..Style::default()
     };
 
@@ -135,6 +180,7 @@ fn apply(style: &mut Style, declaration: &Declaration) -> Result<(), Error> {
         "display" => {
             style.display = match value {
                 "block" => Display::Block,
+                "inline" => Display::Inline,
                 "none" => Display::None,
                 other => {
                     return Err(Error::Unsupported(format!(
@@ -186,6 +232,11 @@ fn apply(style: &mut Style, declaration: &Declaration) -> Result<(), Error> {
         // `border: 2px solid` sets the width as its length component. A border
         // style of `none` is not distinguished, because the corpus never uses
         // it; the widths are simply taken.
+        "font-size" => {
+            style.font_size = pixels(value)
+                .ok_or_else(|| Error::Unsupported(format!("font-size: {value} is not a length")))?;
+        }
+        "line-height" => style.line_height = line_height(value)?,
         "border" => style.border = border_shorthand(value)?,
         "border-top" => style.border.top = border_width(value)?,
         "border-right" => style.border.right = border_width(value)?,
@@ -201,7 +252,6 @@ fn apply(style: &mut Style, declaration: &Declaration) -> Result<(), Error> {
         | "color"
         | "background"
         | "background-color"
-        | "font-size"
         | "font-family"
         | "direction"
         | "box-sizing" => {}
@@ -212,6 +262,26 @@ fn apply(style: &mut Style, declaration: &Declaration) -> Result<(), Error> {
         }
     }
     Ok(())
+}
+
+/// Read `line-height`: `normal`, a length, or a bare multiple of the font size.
+fn line_height(value: &str) -> Result<LineHeight, Error> {
+    let value = value.trim();
+    if value == "normal" {
+        return Ok(LineHeight::Normal);
+    }
+    // A length carries a unit; a bare number is a multiple of the font size.
+    if let Some(number) = value.strip_suffix("px") {
+        return number
+            .trim()
+            .parse::<f64>()
+            .map(LineHeight::Px)
+            .map_err(|_| Error::Malformed(format!("cannot read line-height `{value}`")));
+    }
+    value
+        .parse::<f64>()
+        .map(LineHeight::Number)
+        .map_err(|_| Error::Malformed(format!("cannot read line-height `{value}`")))
 }
 
 /// Read a length: pixels, a percentage, `auto`, or a bare zero.

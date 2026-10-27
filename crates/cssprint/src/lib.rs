@@ -5,15 +5,19 @@
 //! before writing a PDF. Doing that in Rust has meant either driving a browser
 //! or placing every element by hand.
 //!
-//! What is implemented is the CSS 2.1 block formatting context. A block box
-//! fills the width of its containing block unless `width` says otherwise, and
-//! each later sibling is placed below the previous one. Margins, padding and
-//! borders are resolved, `auto` margins are distributed, percentages resolve
-//! against the containing block, `min-width` and `max-width` are applied, and
-//! adjacent vertical margins collapse.
+//! What is implemented is the CSS 2.1 block formatting context and inline
+//! layout. A block box fills the width of its containing block unless `width`
+//! says otherwise, and each later sibling is placed below the previous one.
+//! Margins, padding and borders are resolved, `auto` margins are distributed,
+//! percentages resolve against the containing block, `min-width` and `max-width`
+//! are applied, and adjacent vertical margins collapse. Text and inline elements
+//! are gathered into line boxes, wrapped to the block's width, and placed on a
+//! shared baseline, with whitespace collapsed and `font-size` and `line-height`
+//! inherited.
 //!
-//! Text and inline layout are deliberately absent, because they need font
-//! metrics and would make the result depend on the fonts installed.
+//! Text is measured for one font: the monospace font the checked corpus uses,
+//! where every glyph advances one em. A proportional font would need a metrics
+//! source, which is not covered.
 //!
 //! The behaviour is checked against [WeasyPrint](https://github.com/Kozea/WeasyPrint),
 //! the reference implementation for CSS paged media: `tests/layout.rs` lays out

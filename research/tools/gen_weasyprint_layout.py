@@ -28,14 +28,23 @@ Needs `pip install weasyprint`. Run from the repository root:
 
     python3 research/tools/gen_weasyprint_layout.py crates/cssprint
 
-The corpus is deliberately small and covers only the CSS subset a first slice
-should implement: the box model (width, height, margin, padding, border) and
-block layout, plus the page size. It is meant to grow.
+The corpus covers the box model (width, height, margin, padding, border), block
+layout and inline layout. Text is included, and it is reproducible because the
+cases load the reference's own test font: `weasyprint.otf` is derived from Ahem,
+so every glyph advances exactly one em, the ascent is 819/1024 em, the descent
+205/1024 em and the normal line height is one em. Line breaking is then
+arithmetic, not a guess about installed fonts.
+
+The font file belongs to WeasyPrint and is not redistributed here; pass its
+location with `--font` or clone WeasyPrint next to the workspace. Only the
+generated TSV is committed, and it holds numbers, so it is the same on every
+machine.
 """
 
 from __future__ import annotations
 
 import argparse
+import os
 import pathlib
 import sys
 
@@ -89,6 +98,43 @@ def cases() -> list[tuple[str, str]]:
                       "<div></div>"),
         ("max_width", f"<style>{page}body{{margin:0}}div{{width:120px;max-width:40px;height:20px}}</style>"
                       "<div></div>"),
+        # Inline layout. The font is monospace at one em per glyph, so every
+        # width below is the character count times the font size.
+        ("text_one_line", f"<style>{page}body{{margin:0}}div{{font-family:weasyprint}}</style>"
+                          "<div>hello</div>"),
+        ("text_font_size", f"<style>{page}body{{margin:0}}"
+                           "div{font-family:weasyprint;font-size:10px}</style><div>abc</div>"),
+        ("text_wrap", f"<style>{page}body{{margin:0}}"
+                      "div{font-family:weasyprint;width:40px}</style><div>hello world</div>"),
+        ("text_wrap_mid_word", f"<style>{page}body{{margin:0}}"
+                               "div{font-family:weasyprint;width:48px}</style><div>abcdefgh</div>"),
+        ("text_spaces_collapse", f"<style>{page}body{{margin:0}}"
+                                 "div{font-family:weasyprint}</style><div>a    b</div>"),
+        ("text_trim", f"<style>{page}body{{margin:0}}"
+                      "div{font-family:weasyprint}</style><div>   a   </div>"),
+        ("text_newline", f"<style>{page}body{{margin:0}}"
+                         "div{font-family:weasyprint}</style><div>a\nb</div>"),
+        ("text_line_height_px", f"<style>{page}body{{margin:0}}"
+                                "div{font-family:weasyprint;line-height:30px}</style><div>abc</div>"),
+        ("text_line_height_number", f"<style>{page}body{{margin:0}}"
+                                    "div{font-family:weasyprint;line-height:2}</style><div>abc</div>"),
+        ("text_inline", f"<style>{page}body{{margin:0}}"
+                        "div{font-family:weasyprint}</style><div>ab<i>cd</i>ef</div>"),
+        ("text_inline_nested", f"<style>{page}body{{margin:0}}"
+                               "div{font-family:weasyprint}</style><div>a<b><i>bc</i></b>d</div>"),
+        ("text_inline_wrap", f"<style>{page}body{{margin:0}}"
+                             "div{font-family:weasyprint;width:64px}</style>"
+                             "<div>ab<i>cd ef</i>gh</div>"),
+        ("text_inline_font_size", f"<style>{page}body{{margin:0}}"
+                                  "div{font-family:weasyprint}</style>"
+                                  "<div>a<span style=\"font-size:24px\">b</span>c</div>"),
+        ("text_empty", f"<style>{page}body{{margin:0}}"
+                       "div{font-family:weasyprint}</style><div></div>"),
+        ("text_whitespace_only", f"<style>{page}body{{margin:0}}"
+                                 "div{font-family:weasyprint}</style><div>   </div>"),
+        ("text_between_blocks", f"<style>{page}body{{margin:0}}"
+                                "div{font-family:weasyprint}</style>"
+                                "<div>a</div>   <div>b</div>"),
     ]
 
 
@@ -137,6 +183,12 @@ def walk(box, path: str, out: list[tuple]) -> None:
         walk(child, f"{path}.{index}" if path else str(index), out)
 
 
+def escape(text: str) -> str:
+    """Make `text` safe for one TSV field, escaping the two characters that
+    would otherwise split the row. The Rust reader reverses this."""
+    return text.replace("\\", "\\\\").replace("\t", "\\t").replace("\n", "\\n")
+
+
 def _accessor(box, name: str) -> str:
     """Call a coordinate accessor, tolerating a box that does not have it."""
     method = getattr(box, name, None)
@@ -155,11 +207,38 @@ def _num(value) -> str:
     return f"{value:.2f}"
 
 
-def render(html: str):
-    """Lay out `html` and return the page box, using WeasyPrint's own entry point."""
-    from weasyprint import HTML
+FONT_SHEET = "@font-face { src: url(weasyprint.otf); font-family: weasyprint }"
 
-    document = HTML(string=html).render()
+
+def find_font(explicit: str | None) -> pathlib.Path:
+    """Locate the reference's test font, which makes text layout reproducible."""
+    candidates = []
+    if explicit:
+        candidates.append(pathlib.Path(explicit))
+    if env := os.environ.get("WEASYPRINT_DIR"):
+        candidates.append(pathlib.Path(env) / "tests" / "resources" / "weasyprint.otf")
+    candidates.append(pathlib.Path("/tmp/weasyprint/tests/resources/weasyprint.otf"))
+    for path in candidates:
+        if path.is_file():
+            return path
+    print(
+        "the reference's test font (weasyprint.otf) was not found; pass --font, or "
+        "set WEASYPRINT_DIR to a WeasyPrint checkout",
+        file=sys.stderr,
+    )
+    raise SystemExit(2)
+
+
+def render(html: str, font: pathlib.Path, font_config):
+    """Lay out `html` and return the page box, using WeasyPrint's own entry point.
+
+    The font is supplied as an extra stylesheet rather than written into each
+    case, so the committed inputs stay clean and the cases read like HTML.
+    """
+    from weasyprint import HTML, CSS
+
+    sheet = CSS(string=FONT_SHEET, base_url=str(font.parent) + "/", font_config=font_config)
+    document = HTML(string=html).render(font_config=font_config, stylesheets=[sheet])
     page, = document.pages
     # The public `Page` object does not expose the tree; the reference's own
     # test helper (`tests/testing_utils.py`) reaches it the same way.
@@ -170,17 +249,21 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("crate", nargs="?", help="crate directory, e.g. crates/cssprint")
     parser.add_argument("--show", action="store_true", help="print each tree to stdout")
+    parser.add_argument("--font", help="path to the reference's weasyprint.otf")
     args = parser.parse_args()
 
     try:
-        import weasyprint  # noqa: F401
+        from weasyprint.text.fonts import FontConfiguration
     except ImportError:
         print("weasyprint is not installed; run `pip install weasyprint`", file=sys.stderr)
         return 2
 
+    font = find_font(args.font)
+    font_config = FontConfiguration()
+
     rows: list[tuple[str, ...]] = []
     for case, html in cases():
-        page = render(html)
+        page = render(html, font, font_config)
         out: list[tuple] = []
         walk(page, "", out)
         if args.show:
@@ -212,19 +295,16 @@ def main() -> int:
     fixtures.mkdir(parents=True, exist_ok=True)
 
     # The Rust test needs the same inputs, so they are written beside the
-    # expected tree. Tabs and newlines would break the TSV, so both are
-    # rejected rather than silently mangled.
+    # expected tree. A tab or a newline would break the TSV, so they are escaped
+    # and the test unescapes them; the layout fixture needs no escaping, because
+    # whitespace collapsing means a text box never contains either.
     inputs = fixtures / "cases.tsv"
     with inputs.open("w") as handle:
         handle.write("# Generated by research/tools/gen_weasyprint_layout.py."
                      " Do not edit.\n")
         handle.write("# case\thtml\n")
         for case, html in cases():
-            if "\t" in html or "\n" in html:
-                print(f"case {case} contains a tab or newline; cannot be a TSV row",
-                      file=sys.stderr)
-                return 2
-            handle.write(f"{case}\t{html}\n")
+            handle.write(f"{case}\t{escape(html)}\n")
 
     target = fixtures / "layout.tsv"
     with target.open("w") as handle:

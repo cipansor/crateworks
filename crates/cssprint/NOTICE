@@ -16,4 +16,9 @@ which CourtBouillon publishes under the BSD 3-Clause licence:
 records the box tree WeasyPrint produces for a small HTML document, so that this
 crate's layout can be compared against it without WeasyPrint present.
 
+The generator loads WeasyPrint's test font, `tests/resources/weasyprint.otf`,
+which is derived from Ahem and is published under the same BSD 3-Clause licence.
+That font is used only to produce the fixture; it is not redistributed here, and
+this crate reads no font files.
+
 Licensed under the Apache License, Version 2.0 (see LICENSE).
