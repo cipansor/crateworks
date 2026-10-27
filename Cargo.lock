@@ -15,6 +15,10 @@ name = "arabic"
 version = "0.1.5"
 
 [[package]]
+name = "aviation-data"
+version = "0.1.5"
+
+[[package]]
 name = "ebics"
 version = "0.1.5"
 dependencies = [

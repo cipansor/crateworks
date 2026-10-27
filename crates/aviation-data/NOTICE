@@ -1,0 +1,12 @@
+crateworks
+Copyright 2026 Yayasan Pesantren Cipansor and contributors
+
+This product includes software developed by Yayasan Pesantren Cipansor and
+contributors (https://github.com/cipansor/crateworks).
+
+It also includes the OurAirports airport reference data published by David
+Megginson (https://ourairports.com/data/), which OurAirports places in the
+public domain. The table in `data/airports.tsv` is generated from it by
+`research/tools/gen_aviation.py`.
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).

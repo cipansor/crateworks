@@ -24,6 +24,7 @@ members = [
     "crates/fuzzy-score",
     "crates/pades",
     "crates/address-parser",
+    "crates/aviation-data",
 ]
 
 [workspace.package]

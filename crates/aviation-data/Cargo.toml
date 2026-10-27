@@ -1,0 +1,18 @@
+[package]
+name = "aviation-data"
+description = "Airport reference data: look up airports by IATA, ICAO, GPS or local code, search them, and measure the distance between them."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+keywords = ["aviation", "airport", "iata", "icao", "geography"]
+categories = ["data-structures", "science"]
+readme = "README.md"
+
+[dependencies]
+
+[lints]
+workspace = true

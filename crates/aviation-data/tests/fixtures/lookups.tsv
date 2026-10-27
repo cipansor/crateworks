@@ -1,0 +1,25 @@
+# ident	kind	name	iata	icaolat	lon
+EGLL	large_airport	London Heathrow Airport	LHR	EGLL	51.470748	-0.459909
+KJFK	large_airport	John F. Kennedy International Airport	JFK	KJFK	40.639447	-73.779317
+WIII	large_airport	Soekarno-Hatta International Airport	CGK	WIII	-6.12557	106.655998
+OMDB	large_airport	Dubai International Airport	DXB	OMDB	25.24979	55.370992
+RJTT	large_airport	Tokyo Haneda International Airport	HND	RJTT	35.549678	139.786958
+WSSS	large_airport	Singapore Changi Airport	SIN	WSSS	1.35019	103.994003
+EHAM	large_airport	Amsterdam Airport Schiphol	AMS	EHAM	52.308601	4.76389
+VHHH	large_airport	Hong Kong International Airport	HKG	VHHH	22.31184	113.914862
+KLAX	large_airport	Los Angeles International Airport	LAX	KLAX	33.942501	-118.407997
+YSSY	large_airport	Sydney Kingsford Smith International Airport	SYD	YSSY	-33.946098	151.177002
+LFPG	large_airport	Charles de Gaulle International Airport	CDG	LFPG	49.00896	2.554117
+EDDF	large_airport	Frankfurt Main Airport	FRA	EDDF	50.026706	8.55835
+RJAA	large_airport	Narita International Airport	NRT	RJAA	35.76858	140.388714
+VIDP	large_airport	Indira Gandhi International Airport	DEL	VIDP	28.55563	77.09519
+OTHH	large_airport	Hamad International Airport	DOH	OTHH	25.273056	51.608056
+ZBAA	large_airport	Beijing Capital International Airport	PEK	ZBAA	40.077349	116.596702
+KATL	large_airport	Hartsfield Jackson Atlanta International Airport	ATL	KATL	33.6367	-84.428101
+CYYZ	large_airport	Toronto Pearson International Airport	YYZ	CYYZ	43.675935	-79.629421
+SBGR	large_airport	São Paulo/Guarulhos–Governor André Franco Montoro International Airport	GRU	SBGR	-23.431274	-46.469954
+FACT	large_airport	Cape Town International Airport	CPT	FACT	-33.97403	18.604333
+OMAA	large_airport	Zayed International Airport	AUH	OMAA	24.440966	54.649237
+LTFM	large_airport	İstanbul Airport	IST	LTFM	41.274874	28.732136
+LEMD	large_airport	Adolfo Suárez Madrid–Barajas Airport	MAD	LEMD	40.493407	-3.572249
+HECA	large_airport	Cairo International Airport	CAI	HECA	30.111534	31.396694

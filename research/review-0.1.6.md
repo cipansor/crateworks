@@ -36,13 +36,14 @@ re-checked against it. All of them pass:
 | `object-hash` canonical form | npm `object-hash` | byte-identical canonical form |
 | `verify_spreadsheet.py` (new) | npm `@formulajs/formulajs` 4.6.1 | **171/171 cases agree** |
 | `verify_hijri_locales.py` (new) | PyPI `hijridate` 2.6.0 | **132/132 names agree** |
+| `verify_aviation.py` (new) | OurAirports `airports.csv` | 11,848 rows and 22,429 codes agree |
 
 `verify_fuzzy_score.py` refused to run with `python-Levenshtein` installed,
 because that swaps the reference's `difflib.SequenceMatcher` for a different
 implementation and would have made the comparison meaningless. That refusal is
 the gate working.
 
-## The 23 crates
+## The crates
 
 Verdicts: **extend** (upstream does materially more and we should close it),
 **hold** (scope is right; the work is correctness, not surface), **focused**
@@ -73,6 +74,7 @@ Verdicts: **extend** (upstream does materially more and we should close it),
 | `pades` | PyPI `endesive` 115K/mo | `signature` 134M, `cms` 5.7M | focused |
 | `fuzzy-score` | PyPI `thefuzz` 8.0M/mo | `strsim` 258M, `rapidfuzz` 4.9M | focused |
 | `address-parser` | npm `parse-address` 105K/wk | `postal` 6.5K (2023, FFI) | **extend** |
+| `aviation-data` (new) | PyPI `airportsdata` 1.59M/mo | `airports` 875K (2022, **timezone only**) | **new** |
 
 ## What this round develops
 
@@ -130,12 +132,27 @@ Rust crate under Apache-2.0/MIT. Round 20 records this, seven further domains it
 swept and rejected with the reason, and the re-measured survivors from rounds
 13-19.
 
+**Shipped.** `crates/aviation-data` carries the table compiled in: the 11,848
+non-closed airports that have an IATA or ICAO code (the rest cannot be looked up,
+and keeping all 86,286 rows would triple the file for no reachable record).
+Lookup by IATA, ICAO, GPS, local code and `ident`; filters by country, continent
+and kind; search by name or municipality; `distance_km` and `near` on the
+haversine. A new gate, `verify_aviation.py`, rebuilds the expected table from the
+upstream CSV and diffs it against the crate field by field - **11,848 rows and
+22,429 codes agree**.
+
+The gate earned its place immediately: it caught a wrong precedence in `find`.
+Fifteen rows carry an `ident` that is a *different* row's code (fourteen of them
+ICAO), so an `ident`-first search returns the wrong airport for codes such as
+`WABK` - Karubaga Airport by `ident`, Biri Airstrip by ICAO. The code columns now
+outrank `ident`. A mutation test confirms the gate fails on the old order.
+
 ## Documentation drift found
 
 `PLAN.md` is the per-crate coverage document and it had drifted from the code:
 
-* It documents 21 crates; the workspace has 23 (`address-parser` and
-  `fuzzy-score` are absent).
+* It documents 21 crates; the workspace has 24 (`address-parser`,
+  `fuzzy-score` and `aviation-data` are absent).
 * It says `holidays-rs` "covers five countries (Indonesia, United States,
   United Kingdom, Germany, France)". The crate covers **27**.
 * It says `stdnum-rs` covers a list that stops at Indian Aadhaar. The crate

@@ -60,3 +60,7 @@ marker = "seatgeek/fuzzywuzzy"
 [[upstream]]
 project = "parse-address (npm) by Hassansin"
 marker = "hassansin/parse-address"
+
+[[upstream]]
+project = "OurAirports airport data by David Megginson"
+marker = "ourairports.com"
