@@ -104,12 +104,47 @@ A frame that never terminates would otherwise grow the buffer without bound.
 `Decoder::with_max_frame_size` changes the ceiling. That is a guard against a
 missing terminator, not a limit on real messages.
 
+## Answering a message
+
+An interface that receives a message must send an acknowledgement back. HL7 v2
+defines that as a message of its own: `MSH`, then `MSA`, whose MSH-10 echoes the
+control id of the message being acknowledged and whose MSA-1 is the code that
+says what happened to it.
+
+```rust
+use mllp::{AckCode, AckContext, Message, build_ack};
+
+let received = Message::parse(
+    "MSH|^~\\&|SEND|FAC|RECV|FAC|20260101||ADT^A01|MSG0001|P|2.5.1\rPID|1||12345\r",
+).unwrap();
+
+// Read the header values the reply has to carry.
+let context = AckContext::from_message(&received);
+
+// Build the reply. The control id is the reply's own MSH-10, which is new;
+// the original one is echoed in MSA-2.
+let ack = build_ack(&context, AckCode::Accept, "ACK0001", "", received.separators());
+
+let reply = Message::parse(&ack).unwrap();
+assert_eq!(reply.value("MSA-1").unwrap(), "AA");
+assert_eq!(reply.value("MSA-2").unwrap(), "MSG0001");
+assert_eq!(reply.value("MSH-3").unwrap(), "RECV"); // the facilities swap
+```
+
+`AckCode` has the three application codes: `Accept` (`AA`), `Error` (`AE`) for
+an application failure and `Reject` (`AR`) for a version or format problem. The
+reply is written with the delimiters of the message it answers, so a peer that
+uses `#` as its field separator gets a reply it can read. MSH-7, the build time,
+is left empty; a caller that wants it sets it afterwards.
+
 ## What it does not do
 
 `Message` reads the structure of a message; it does not validate one. It does not
-know which fields a message type requires, it does not check a field against a
-table, and it does not build an acknowledgement (`ACK`) for you: that is a
-message-construction task on top of the parser, not part of it.
+know which fields a message type requires, and it does not check a field against
+a table. `build_ack` writes the `MSA` an interface needs to reply, but it does
+not build the enhanced acknowledgement mode (`MSA-4`, the error condition, and
+the `ERR` segment that describes it); that is a larger structure and is left to
+the caller.
 
 The framing layer does not open sockets, retry, or decide how long to wait for a
 reply, and it does not implement TLS or the newer, block-based MLLP (MLLP over

@@ -26,7 +26,10 @@ Ukrainian ЄДРПОУ, the Austrian UID and TIN, the Latvian PVN, the Monégasq
 and the microstate numbers of Andorra, Liechtenstein, San Marino, Albania,
 Azerbaijan, Moldova and the Faroe Islands. The Americas bring the United States
 Social Security and taxpayer numbers, the Chilean RUT, the Colombian NIT, the
-Peruvian RUC, the Argentine CUIT, the Paraguayan RUC and the Salvadoran NIT.
+Peruvian RUC, the Argentine CUIT, the Paraguayan RUC, the Salvadoran NIT, the
+Ecuadorian CI and RUC, the Guatemalan NIT, the Costa Rican CPJ, the Dominican
+RNC and the Cuban NI. Iceland contributes the kennitala and the VSK number, and
+Mauritius the NID.
 Asia and Oceania contribute the Japanese corporate and My Number identifiers,
 the Pakistani CNIC, the Taiwanese UBN, the Israeli identity number, the Thai
 PIN, the Singapore UEN, the Malaysian NRIC, the Vietnamese MST, the Indonesian
@@ -34,7 +37,7 @@ NPWP and NIK, and the Chinese, Korean and Australian numbers. The United Kingdom
 is represented by the NHS number, the UTR, the VAT number and SEDOL, and Africa
 and the Middle East by the South African identity number, the Greek ΑΜΚΑ, and
 the tax and company numbers of Algeria, Egypt, Ghana, Kenya, Morocco,
-Mozambique, Senegal and Tunisia. [`Country::ALL`](https://docs.rs/stdnum-rs)
+Mozambique, Senegal, Tunisia and Guinea. [`Country::ALL`](https://docs.rs/stdnum-rs)
 lists them all.
 
 The numbers whose separator sets differ per country are shape checks that clean
@@ -78,7 +81,7 @@ contributors, which in turn follows each authority's published specification.
 This is an independent reimplementation and shares no code with it; see
 [`NOTICE`](https://github.com/cipansor/crateworks/blob/main/crates/stdnum-rs/NOTICE).
 
-`tests/fixtures/stdnum_vectors.tsv` holds 24,533 numbers labelled by that
+`tests/fixtures/stdnum_vectors.tsv` holds 31,136 numbers labelled by that
 reference: every number in its own documentation plus each single-digit
 substitution of a valid number, the last character dropped and a character
 appended. `tests/readme.rs` replays the file, so a change that makes this crate

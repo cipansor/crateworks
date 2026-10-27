@@ -137,6 +137,17 @@ COUNTRIES: dict[str, str] = {
     "AustriaTin": "at.tin",
     "ParaguayRuc": "py.ruc",
     "ElSalvadorNit": "sv.nit",
+    # The national modules that had no counterpart when the crate was reviewed.
+    "IcelandKennitala": "is_.kennitala",
+    "IcelandVsk": "is_.vsk",
+    "EcuadorCi": "ec.ci",
+    "EcuadorRuc": "ec.ruc",
+    "GuatemalaNit": "gt.nit",
+    "CostaRicaCpj": "cr.cpj",
+    "DominicanRepublicRnc": "do.rnc",
+    "GuineaNifp": "gn.nifp",
+    "CubaNi": "cu.ni",
+    "MauritiusNid": "mu.nid",
 }
 
 EXAMPLE_RE = re.compile(r">>> validate\('([^']*)'\)")
@@ -160,6 +171,14 @@ INTERNATIONAL: dict[str, str] = {
     "Isni": "isni",
     "CasNumber": "casrn",
     "CreditorReference": "iso11649",
+}
+
+
+# Modules whose reference docstring carries no doctest, so the gate has no
+# published value to seed mutations from. Each entry is a number the reference
+# accepts, found by solving its own check-digit routine.
+SEEDS: dict[str, list[str]] = {
+    "mu.nid": ["A1501920000003", "B0203901234568"],
 }
 
 
@@ -237,6 +256,7 @@ def main() -> int:
             print(f"!! {rust_name}: cannot import stdnum.{py_name}: {exc}")
             return 1
         accepted, rejected = examples(mod)
+        accepted.extend(SEEDS.get(py_name, ()))
         if not accepted:
             print(f"!! {rust_name}: no accepted doctest example in stdnum.{py_name}")
             return 1

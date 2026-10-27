@@ -51,7 +51,7 @@ fn every_labelled_number_agrees_with_python_stdnum() {
             disagreements.push(format!("{name} {value:?}"));
         }
     }
-    assert!(agree > 24_500, "only {agree} vectors were compared");
+    assert!(agree > 31_000, "only {agree} vectors were compared");
     assert!(
         disagreements.is_empty(),
         "{} numbers disagree with python-stdnum: {:?}",
@@ -184,6 +184,16 @@ fn country_named(name: &str) -> Option<Country> {
         "AustriaTin" => Country::AustriaTin,
         "ParaguayRuc" => Country::ParaguayRuc,
         "ElSalvadorNit" => Country::ElSalvadorNit,
+        "IcelandKennitala" => Country::IcelandKennitala,
+        "IcelandVsk" => Country::IcelandVsk,
+        "EcuadorCi" => Country::EcuadorCi,
+        "EcuadorRuc" => Country::EcuadorRuc,
+        "GuatemalaNit" => Country::GuatemalaNit,
+        "CostaRicaCpj" => Country::CostaRicaCpj,
+        "DominicanRepublicRnc" => Country::DominicanRepublicRnc,
+        "GuineaNifp" => Country::GuineaNifp,
+        "CubaNi" => Country::CubaNi,
+        "MauritiusNid" => Country::MauritiusNid,
         _ => return None,
     })
 }

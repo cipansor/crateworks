@@ -30,13 +30,14 @@ re-checked against it. All of them pass:
 | Gate | Reference | Result |
 | --- | --- | --- |
 | `verify_holidays.py` | PyPI `holidays` 0.107 | **0 undocumented defects** across 31 calendars |
-| `gen_stdnum_vectors.py` | PyPI `python-stdnum` | 19,104 vectors agree, 0 added |
+| `gen_stdnum_vectors.py` | PyPI `python-stdnum` | **31,136 vectors agree**, 1,845 added |
 | `verify_fuzzy_score.py` | PyPI `fuzzywuzzy` 0.18.0 | 2,100 pairs x 10 functions, **0 mismatches** |
 | `address-parser` oracle | npm `parse-address` 1.1.2 | 3,954 labelled cases agree |
 | `object-hash` canonical form | npm `object-hash` | byte-identical canonical form |
 | `verify_spreadsheet.py` (new) | npm `@formulajs/formulajs` 4.6.1 | **171/171 cases agree** |
 | `verify_hijri_locales.py` (new) | PyPI `hijridate` 2.6.0 | **132/132 names agree** |
 | `verify_aviation.py` (new) | OurAirports `airports.csv` | 11,848 rows and 22,429 codes agree |
+| `verify_mllp.py` (extended) | PyPI `hl7apy` 1.3.5 | **135/135 fields and 8/8 ACK replies agree** |
 
 `verify_fuzzy_score.py` refused to run with `python-Levenshtein` installed,
 because that swaps the reference's `difflib.SequenceMatcher` for a different
@@ -87,10 +88,16 @@ work is verified by the same oracle as the old:
    Malta, Greece and Romania - taking it to **31**, each checked by
    `verify_holidays.py`, which now reports **0 undocumented defects across 31
    calendars**.
-2. **`stdnum-rs`** - 57 identifier types against `python-stdnum`'s 90 modules.
-   Add national identifiers from regions the crate already reaches but does not
-   finish (Africa, the Middle East, South Asia), each with its vectors generated
-   by the existing script.
+2. **`stdnum-rs`** - 102 national variants against `python-stdnum`'s 89 national
+   modules. **Shipped**: the ten national modules the crate had no counterpart
+   for - Iceland (`is_.kennitala`, `is_.vsk`), Ecuador (`ec.ci`, `ec.ruc`),
+   Guatemala (`gt.nit`), Costa Rica (`cr.cpj`), the Dominican Republic
+   (`do.rnc`), Guinea (`gn.nifp`), Cuba (`cu.ni`) and Mauritius (`mu.nid`) -
+   taking it to **112**. `gen_stdnum_vectors.py` now covers all of them, so the
+   fixture grew from 19,104 to **31,136** labelled numbers, and the comparison
+   found two real bugs on its first run: the kennitala accepted a century marker
+   other than 0 or 9, and the Costa Rican CPJ accepted class-3 type `001`, which
+   the reference rejects.
 3. **`spreadsheet-formula`** - was 38 functions plus `IF`/`IFERROR`.
    **Shipped**: 33 new functions - the rounding family (`CEILING`, `FLOOR`,
    `MROUND`, `TRUNC`, `EVEN`, `ODD`, `QUOTIENT`), logarithms and number theory
@@ -110,10 +117,20 @@ work is verified by the same oracle as the old:
    **132/132 names** against PyPI `hijridate` 2.6.0; it caught four Bengali
    transcription slips on its first run.
 
-`arabic`, `soap-client`, `iso20022-rs` and `mllp` are recorded as extendable but
+**`mllp`** - the reference `hl7apy` answers every message it receives with an
+acknowledgement, and the crate had no way to build one. **Shipped**:
+`ack::{AckContext, AckCode, build}`, which reads the header values the reply
+must carry off the received message, swaps the sender and receiver, echoes the
+original control id in `MSA-2` and writes the reply with the *received*
+message's delimiters. `verify_mllp.py` now reads the reply back with `hl7apy`
+and asserts the contract field by field - **8/8 replies agree** - and a mutation
+that restores the classic sender/receiver swap makes it fail, so the check is
+not vacuous.
+
+`arabic`, `soap-client` and `iso20022-rs` are recorded as extendable but
 deferred: each needs a design decision (a layout engine, a code generator, a
-`pacs` model, an HL7 v2 parser) that is a crate of its own rather than a
-feature, and shipping a half of one would be worse than the honest gap.
+`pacs` model) that is a crate of its own rather than a feature, and shipping a
+half of one would be worse than the honest gap.
 
 ## A new opening found while reviewing
 

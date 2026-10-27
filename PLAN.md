@@ -58,13 +58,14 @@ Rust equivalent.
 
 **Covers today.** IBAN (78 countries, MOD-97, check-digit generation), ISBN-10
 and ISBN-13 with conversion, EAN-8/EAN-13/UPC-A with UPC-to-EAN conversion,
-Luhn with check-digit generation, and national identifiers: Indonesian NPWP and
-NIK, Brazilian CPF and CNPJ, Spanish DNI and NIE, German tax ID, Polish PESEL,
-Indian Aadhaar with Verhoeff.
+Luhn with check-digit generation, thirteen international identifiers (ISIN,
+CUSIP, FIGI, LEI, BIC, GRID, ISSN, ISRC, IMEI, ISMN, ISNI, CAS number, ISO
+11649 creditor reference), and **112 national identifiers across 90 countries**,
+reached through `Country::ALL`. Every one of `python-stdnum`'s 89 national
+modules now has a counterpart.
 
-**Not covered.** The remaining national identifiers, and anything that needs a
-registry lookup. A number that passes may still be unissued; this is a form
-filter, not proof of existence.
+**Not covered.** Anything that needs a registry lookup. A number that passes may
+still be unissued; this is a form filter, not proof of existence.
 
 ## 4. `spreadsheet-formula`
 
@@ -318,11 +319,16 @@ and none frames a stream.
 **Covers today.** Framing and unframing, plus a streaming `Decoder` that
 reassembles frames from reads that do not line up with them. The terminator is
 the pair `0x1C 0x0D`, never a lone `0x0D`, because HL7 v2 ends every segment with
-a carriage return.
+a carriage return. A message can be read into its segments and fields with
+`Message`, and answered with `ack::build`, which writes the `MSA` acknowledgement
+an interface must send back - swapping the sender and receiver and echoing the
+control id, in the delimiters the received message used. `verify_mllp.py` checks
+both the parse and the reply against `hl7apy`.
 
-**Not covered.** Parsing HL7 v2, opening sockets, TLS, and the newer block-based
-MLLP over HTTPS. A frame that never terminates stops at 16 MiB rather than
-growing the buffer without bound.
+**Not covered.** The enhanced acknowledgement mode (the `ERR` segment and
+`MSA-4`), validation against a message profile, opening sockets, TLS, and the
+newer block-based MLLP over HTTPS. A frame that never terminates stops at 16 MiB
+rather than growing the buffer without bound.
 
 ## 19. `ebics`
 

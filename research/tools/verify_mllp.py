@@ -109,10 +109,14 @@ def reference_parse(raw: str) -> dict:
     return out
 
 
-def rust_parse(corpus: list[str]) -> list[dict]:
-    """Compile a driver against the crate and parse the corpus with it."""
+def rust_parse(corpus: list[str]) -> tuple[list[dict], list[str]]:
+    """Compile a driver against the crate and parse the corpus with it.
+
+    Also builds an `ACK` for every message, so the gate checks the reply the
+    crate produces and not only the fields it reads.
+    """
     driver = r'''
-use mllp::Message;
+use mllp::{AckCode, AckContext, Message, build_ack};
 use std::io::Read;
 
 fn main() {
@@ -132,6 +136,15 @@ fn main() {
                 println!("{index}\t{name}-{number}\t{}", field.text());
             }
         }
+        let context = AckContext::from_message(&message);
+        let ack = build_ack(
+            &context,
+            AckCode::Accept,
+            &format!("ACK{index:04}"),
+            "ok",
+            message.separators(),
+        );
+        println!("ACK\t{index}\t{}", ack.replace('\r', "\\r"));
     }
 }
 '''
@@ -169,13 +182,55 @@ fn main() {
         shutil.rmtree(tmp, ignore_errors=True)
 
     parsed: list[dict[str, str]] = [{} for _ in corpus]
+    acks: list[str] = ["" for _ in corpus]
     for line in out.splitlines():
         parts = line.split("\t")
+        if parts[0] == "ACK" and len(parts) == 3:
+            acks[int(parts[1])] = parts[2].replace("\\r", "\r")
+            continue
         if len(parts) != 3:
             continue
         index, reference, text = parts
         parsed[int(index)][reference] = text
-    return parsed
+    return parsed, acks
+
+
+def check_ack(raw: str, ack: str, index: int) -> int:
+    """Read the crate's ACK back with hl7apy and assert the reply contract.
+
+    hl7apy is used as the reader, so a reply the crate considers well formed is
+    only accepted here if the reference parser agrees on every field an ACK is
+    required to carry.
+    """
+    from hl7apy.parser import parse_message
+
+    original = reference_parse(raw)
+    reply = reference_parse(ack)
+    problems = 0
+
+    def expect(reference: str, value: str, why: str) -> None:
+        nonlocal problems
+        # hl7apy omits an absent field rather than returning an empty string,
+        # while the crate writes the empty field. Both mean "no value", so an
+        # absent field is compared as empty.
+        got = reply.get(reference) or ""
+        if got != value:
+            print(f"  ack {index}: {reference} is {got!r}, expected {value!r} ({why})")
+            problems += 1
+
+    # MSH-10 is the reply's own control id, not the one being acknowledged.
+    expect("MSH-10", f"ACK{index:04}", "fresh control id")
+    # MSA-1 is the acceptance code, MSA-2 echoes the original MSH-10.
+    expect("MSA-1", "AA", "accept code")
+    expect("MSA-2", original.get("MSH-10") or "", "echoed control id")
+    # The reply travels the other way, so sender and receiver swap.
+    expect("MSH-3", original.get("MSH-5") or "", "swapped sending application")
+    expect("MSH-5", original.get("MSH-3") or "", "swapped receiving application")
+    expect("MSH-6", original.get("MSH-4") or "", "swapped receiving facility")
+    # The version is kept so both ends agree on the grammar. A message with no
+    # MSH-12 is malformed; the reply still names the version it speaks.
+    expect("MSH-12", original.get("MSH-12") or "2.5.1", "kept version")
+    return problems
 
 
 def main() -> int:
@@ -185,7 +240,7 @@ def main() -> int:
         print("needs: pip install hl7apy==1.3.5")
         return 2
 
-    rust = rust_parse(CORPUS)
+    rust, acks = rust_parse(CORPUS)
     mismatches = 0
     compared = 0
 
@@ -205,8 +260,14 @@ def main() -> int:
                 mismatches += 1
 
     print(f"\n{compared - mismatches}/{compared} fields agree with hl7apy")
-    if mismatches:
-        print(f"{mismatches} MISMATCH(ES)")
+
+    ack_problems = 0
+    for index, raw in enumerate(CORPUS):
+        ack_problems += check_ack(raw, acks[index], index)
+    print(f"{len(CORPUS) - ack_problems}/{len(CORPUS)} ACK replies agree with hl7apy")
+
+    if mismatches or ack_problems:
+        print(f"{mismatches + ack_problems} MISMATCH(ES)")
         return 1
     return 0
 

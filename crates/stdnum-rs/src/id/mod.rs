@@ -15,6 +15,7 @@
 use crate::{Error, Result};
 
 mod africa;
+mod americas_ext;
 mod asia;
 mod asia_ext;
 mod balkans;
@@ -31,6 +32,9 @@ mod southeast_asia;
 mod vat;
 
 use africa::{algeria, egypt, ghana, kenya, morocco, mozambique, senegal, tunisia, vietnam};
+use americas_ext::{
+    costa_rica, cuba, dominican_republic, ecuador, guatemala, guinea, iceland, mauritius,
+};
 use asia::{china, india, korea, mexico, turkey};
 use asia_ext::{
     greece, israel, japan, malaysia, pakistan, singapore, south_africa, taiwan, thailand,
@@ -271,6 +275,26 @@ pub enum Country {
     ParaguayRuc,
     /// El Salvador: NIT tax identification number, 14 digits.
     ElSalvadorNit,
+    /// Iceland: kennitala, personal or organisation identity code, 10 digits.
+    IcelandKennitala,
+    /// Iceland: VSK number, VAT registration, 5 or 6 digits.
+    IcelandVsk,
+    /// Ecuador: CI personal identity code, 10 digits.
+    EcuadorCi,
+    /// Ecuador: RUC taxpayer number, 13 digits.
+    EcuadorRuc,
+    /// Guatemala: NIT tax number, up to 12 characters.
+    GuatemalaNit,
+    /// Costa Rica: CPJ juridical person number, 10 digits.
+    CostaRicaCpj,
+    /// Dominican Republic: RNC taxpayer number, 9 digits.
+    DominicanRepublicRnc,
+    /// Guinea: NIFp permanent fiscal identification number, 9 digits.
+    GuineaNifp,
+    /// Cuba: NI identity number, 11 digits.
+    CubaNi,
+    /// Mauritius: NID national identifier, 14 characters.
+    MauritiusNid,
 }
 
 impl Country {
@@ -378,6 +402,16 @@ impl Country {
         Self::AustriaTin,
         Self::ParaguayRuc,
         Self::ElSalvadorNit,
+        Self::IcelandKennitala,
+        Self::IcelandVsk,
+        Self::EcuadorCi,
+        Self::EcuadorRuc,
+        Self::GuatemalaNit,
+        Self::CostaRicaCpj,
+        Self::DominicanRepublicRnc,
+        Self::GuineaNifp,
+        Self::CubaNi,
+        Self::MauritiusNid,
     ];
 
     /// A short English description of the identifier.
@@ -486,6 +520,16 @@ impl Country {
             Self::AustriaTin => "Austria TIN tax number",
             Self::ParaguayRuc => "Paraguay RUC",
             Self::ElSalvadorNit => "El Salvador NIT",
+            Self::IcelandKennitala => "Iceland kennitala",
+            Self::IcelandVsk => "Iceland VSK VAT number",
+            Self::EcuadorCi => "Ecuador CI identity number",
+            Self::EcuadorRuc => "Ecuador RUC taxpayer number",
+            Self::GuatemalaNit => "Guatemala NIT",
+            Self::CostaRicaCpj => "Costa Rica CPJ juridical person number",
+            Self::DominicanRepublicRnc => "Dominican Republic RNC",
+            Self::GuineaNifp => "Guinea NIFp tax number",
+            Self::CubaNi => "Cuba NI identity number",
+            Self::MauritiusNid => "Mauritius NID national identifier",
         }
     }
 }
@@ -558,7 +602,17 @@ impl IdNumber {
             | Country::AustriaUid
             | Country::AustriaTin
             | Country::ParaguayRuc
-            | Country::ElSalvadorNit => input,
+            | Country::ElSalvadorNit
+            | Country::IcelandKennitala
+            | Country::IcelandVsk
+            | Country::EcuadorCi
+            | Country::EcuadorRuc
+            | Country::GuatemalaNit
+            | Country::CostaRicaCpj
+            | Country::DominicanRepublicRnc
+            | Country::GuineaNifp
+            | Country::CubaNi
+            | Country::MauritiusNid => input,
             _ => normalized.as_str(),
         };
         match country {
@@ -664,6 +718,16 @@ impl IdNumber {
             Country::AustriaTin => austria::validate_tin(subject)?,
             Country::ParaguayRuc => paraguay::validate_ruc(subject)?,
             Country::ElSalvadorNit => el_salvador::validate_nit(subject)?,
+            Country::IcelandKennitala => iceland::validate_kennitala(subject)?,
+            Country::IcelandVsk => iceland::validate_vsk(subject)?,
+            Country::EcuadorCi => ecuador::validate_ci(subject)?,
+            Country::EcuadorRuc => ecuador::validate_ruc(subject)?,
+            Country::GuatemalaNit => guatemala::validate_nit(subject)?,
+            Country::CostaRicaCpj => costa_rica::validate_cpj(subject)?,
+            Country::DominicanRepublicRnc => dominican_republic::validate_rnc(subject)?,
+            Country::GuineaNifp => guinea::validate_nifp(subject)?,
+            Country::CubaNi => cuba::validate_ni(subject)?,
+            Country::MauritiusNid => mauritius::validate_nid(subject)?,
         }
         Ok(Self {
             country,

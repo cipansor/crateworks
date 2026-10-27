@@ -1,10 +1,12 @@
 #![doc = include_str!("../README.md")]
 #![forbid(unsafe_code)]
 
+mod ack;
 mod decoder;
 mod frame;
 mod message;
 
+pub use ack::{AckCode, AckContext, build as build_ack};
 pub use decoder::Decoder;
 pub use frame::{CARRIAGE_RETURN, END_BLOCK, START_BLOCK, frame, unframe};
 pub use message::{Field, Message, ParseError, Segment, Separators};
