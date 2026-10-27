@@ -58,17 +58,49 @@ def nth_weekday(y, month, weekday, nth):
         return None
 
 
-def base_shape(dates):
-    """The base rule that produces `dates`, or None.
+def orthodox_easter(y):
+    """The crate's `Date::orthodox_easter`, transcribed from `src/date.rs`."""
+    a, b, c = y % 4, y % 7, y % 19
+    d = (19 * c + 15) % 30
+    e = (2 * a + 4 * b - d + 34) % 7
+    month = (d + e + 114) // 31
+    day = (d + e + 114) % 31 + 1
+    shift = max((y // 100) - (y // 400) - 2, 10)
+    return datetime.date(y, month, day) + datetime.timedelta(days=shift)
+
+
+def on_or_after(y, month, day, weekday):
+    d = datetime.date(y, month, day)
+    return d + datetime.timedelta(days=((weekday - 1) - d.weekday()) % 7)
+
+
+def on_or_before(y, month, day, weekday):
+    d = datetime.date(y, month, day)
+    return d - datetime.timedelta(days=(d.weekday() - ((weekday - 1) % 7)) % 7)
+
+
+def shapes_for(dates):
+    """Every crate shape that reproduces `dates`, cheapest first.
 
     The crate numbers weekdays with Sunday as 0, while `datetime.weekday()`
-    numbers them with Monday as 0, so the weekday is converted here. A rule that
-    lands on the last occurrence of its weekday in the month is emitted as
-    `nth: 5`, which is how the crate spells "last".
+    numbers them with Monday as 0, so each candidate converts the weekday with
+    `(wd + 1) % 7` on the way out. Returning all candidates lets `derive` pick
+    the one that also holds inside every year run, instead of committing to the
+    first match and failing the run check.
     """
+    out = []
     if len({(d.month, d.day) for d in dates}) == 1:
         m, day = next(iter({(d.month, d.day) for d in dates}))
-        return ("fixed", m, day)
+        out.append(("fixed", m, day))
+    if len({(d - easter(d.year)).days for d in dates}) == 1:
+        out.append(("easter", next(iter({(d - easter(d.year)).days for d in dates}))))
+    try:
+        if len({(d - orthodox_easter(d.year)).days for d in dates}) == 1:
+            out.append(
+                ("orthodox", next(iter({(d - orthodox_easter(d.year)).days for d in dates})))
+            )
+    except ValueError:
+        pass
     if (
         len({d.month for d in dates}) == 1
         and len({d.weekday() for d in dates}) == 1
@@ -77,20 +109,33 @@ def base_shape(dates):
         m = dates[0].month
         wd = (dates[0].weekday() + 1) % 7
         nth = (dates[0].day - 1) // 7 + 1
-        return ("nth", m, wd, nth)
-    if len({(d - easter(d.year)).days for d in dates}) == 1:
-        return ("easter", next(iter({(d - easter(d.year)).days for d in dates})))
-    return None
+        out.append(("nth", m, wd, nth))
+    if len({d.month for d in dates}) == 1 and len({d.weekday() for d in dates}) == 1:
+        m = dates[0].month
+        wd = (dates[0].weekday() + 1) % 7
+        # "the first <wd> on or after day D": D may sit up to six days before the
+        # earliest occurrence, so the latest safe D is the minimum day.
+        lo, hi = min(d.day for d in dates), max(d.day for d in dates)
+        out.append(("on_after", m, lo, wd))
+        out.append(("on_before", m, hi, wd))
+    return out
 
 
 def resolve(shape, y):
     if shape is None:
         return None
-    if shape[0] == "fixed":
+    kind = shape[0]
+    if kind == "fixed":
         return datetime.date(y, shape[1], shape[2])
-    if shape[0] == "nth":
+    if kind == "nth":
         return nth_weekday(y, shape[1], shape[2], shape[3])
-    return easter(y) + datetime.timedelta(days=shape[1])
+    if kind == "easter":
+        return easter(y) + datetime.timedelta(days=shape[1])
+    if kind == "orthodox":
+        return orthodox_easter(y) + datetime.timedelta(days=shape[1])
+    if kind == "on_after":
+        return on_or_after(y, shape[1], shape[2], shape[3])
+    return on_or_before(y, shape[1], shape[2], shape[3])
 
 
 def contiguous(years):
@@ -110,15 +155,28 @@ def contiguous(years):
 
 def rust_rule(shape, frm, to):
     """Render a rule with its year gate."""
-    if shape[0] == "fixed":
+    kind = shape[0]
+    if kind == "fixed":
         core = f"Rule::Fixed {{ month: {shape[1]}, day: {shape[2]} }}"
-    elif shape[0] == "nth":
+    elif kind == "nth":
         core = (
             f"Rule::NthWeekday {{ month: {shape[1]}, weekday: {shape[2]}, "
             f"nth: {shape[3]} }}"
         )
-    else:
+    elif kind == "easter":
         core = f"Rule::EasterOffset({shape[1]})"
+    elif kind == "orthodox":
+        core = f"Rule::OrthodoxEasterOffset({shape[1]})"
+    elif kind == "on_after":
+        core = (
+            f"Rule::WeekdayOnOrAfter {{ month: {shape[1]}, day: {shape[2]}, "
+            f"weekday: {shape[3]} }}"
+        )
+    else:
+        core = (
+            f"Rule::WeekdayOnOrBefore {{ month: {shape[1]}, day: {shape[2]}, "
+            f"weekday: {shape[3]} }}"
+        )
     if frm == FIRST and to == LAST:
         return core
     if frm == FIRST:
@@ -135,15 +193,20 @@ def derive(code):
         byname[n][d.year] = d
     entries = []
     for name, byyear in byname.items():
-        dates = list(byyear.values())
-        shape = base_shape(dates)
+        years = set(byyear)
+        runs = contiguous(years)
+        shape = None
+        for candidate in shapes_for(list(byyear.values())):
+            if all(
+                resolve(candidate, y) == byyear[y]
+                for frm, to in runs
+                for y in range(frm, to + 1)
+            ):
+                shape = candidate
+                break
         if shape is None:
             return None, f"unexpressible: {name}"
-        years = set(byyear)
-        for frm, to in contiguous(years):
-            # Guard against a holiday whose date shape changes inside a run.
-            if any(resolve(shape, y) != byyear[y] for y in range(frm, to + 1)):
-                return None, f"shape shifts inside a run: {name} {frm}-{to}"
+        for frm, to in runs:
             entries.append((frm, name, shape, frm, to))
     return entries, None
 

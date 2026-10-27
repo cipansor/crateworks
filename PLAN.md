@@ -26,7 +26,7 @@ memory. Those belong to a dedicated parser.
 settlement dates, and ticket systems computing SLAs. The existing `holidays`
 crate has one release from 2023 and an abandoned repository.
 
-**Covers today.** 44 countries, from Indonesia and the United States through
+**Covers today.** 45 countries, from Indonesia and the United States through
 Europe (including the Orthodox-Easter calendars Cyprus, Greece and Romania, and
 Malta) and Latin America (Mexico, Brazil, El Salvador, Nicaragua and Peru).
 Fixed-date rules, Easter-relative rules via both the Gregorian and the

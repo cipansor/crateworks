@@ -133,6 +133,8 @@ pub enum Country {
     PitcairnIslands,
     /// Tokelau.
     Tokelau,
+    /// Samoa.
+    Samoa,
 }
 
 impl Country {
@@ -182,6 +184,7 @@ impl Country {
         Self::Switzerland,
         Self::PitcairnIslands,
         Self::Tokelau,
+        Self::Samoa,
     ];
 
     /// The holiday rules for this country, in no particular order.
@@ -232,6 +235,7 @@ impl Country {
             Self::Switzerland => SWITZERLAND,
             Self::PitcairnIslands => PITCAIRN_ISLANDS,
             Self::Tokelau => TOKELAU,
+            Self::Samoa => SAMOA,
         }
     }
 
@@ -280,7 +284,8 @@ impl Country {
             | Self::Greenland
             | Self::Switzerland
             | Self::PitcairnIslands
-            | Self::Tokelau => SubstituteStyle::None,
+            | Self::Tokelau
+            | Self::Samoa => SubstituteStyle::None,
             // Latvia moves a weekend holiday to the next Monday from 2007; the
             // two holidays that do not are wrapped in `Rule::NeverSubstituted`.
             Self::Latvia => SubstituteStyle::NextMonday,
@@ -335,6 +340,7 @@ impl Country {
             Self::Switzerland => "Switzerland",
             Self::PitcairnIslands => "Pitcairn Islands",
             Self::Tokelau => "Tokelau",
+            Self::Samoa => "Samoa",
         }
     }
 }
@@ -1004,6 +1010,50 @@ static TOKELAU: &[Holiday] = &[
     ),
 ];
 
+/// Samoa.
+///
+/// Eleven holidays. Mother's Day, Father's Day and White Sunday are each the
+/// Monday on or after a fixed date, which is how the reference states them, so
+/// they are kept on that Monday rather than the Sunday they name. There is no
+/// weekend substitution.
+static SAMOA: &[Holiday] = &[
+    h("New Year's Day", Rule::Fixed { month: 1, day: 1 }),
+    h(
+        "The Day After New Year's Day",
+        Rule::Fixed { month: 1, day: 2 },
+    ),
+    h("Good Friday", Rule::EasterOffset(-2)),
+    h("Day After Good Friday", Rule::EasterOffset(-1)),
+    h("Easter Monday", Rule::EasterOffset(1)),
+    h(
+        "Mother's Day",
+        Rule::WeekdayOnOrAfter {
+            month: 5,
+            day: 9,
+            weekday: 1,
+        },
+    ),
+    h("Independence Day", Rule::Fixed { month: 6, day: 1 }),
+    h(
+        "Father's Day",
+        Rule::WeekdayOnOrAfter {
+            month: 8,
+            day: 9,
+            weekday: 1,
+        },
+    ),
+    h(
+        "White Sunday (Lotu a Tamaiti)",
+        Rule::WeekdayOnOrAfter {
+            month: 10,
+            day: 9,
+            weekday: 1,
+        },
+    ),
+    h("Christmas Day", Rule::Fixed { month: 12, day: 25 }),
+    h("Boxing Day", Rule::Fixed { month: 12, day: 26 }),
+];
+
 /// Places every holiday of `year`, resolving the collisions a substitution
 /// creates.
 ///
@@ -1319,6 +1369,12 @@ impl Calendar {
     #[must_use]
     pub const fn tokelau() -> Self {
         Self::new(Country::Tokelau)
+    }
+
+    /// Builds the calendar for Samoa.
+    #[must_use]
+    pub const fn samoa() -> Self {
+        Self::new(Country::Samoa)
     }
 
     /// Builds the calendar for Cyprus.
@@ -3872,6 +3928,21 @@ mod tests {
         let cal = Calendar::tokelau();
         assert!(cal.holiday_name(d(2002, 9, 3)).is_none());
         assert_eq!(cal.holiday_name(d(2003, 9, 3)), Some("Tokehega Day"));
+    }
+
+    #[test]
+    fn samoa_mothers_day_is_the_monday_on_or_after_the_ninth() {
+        let cal = Calendar::samoa();
+        // 9 May 2026 is a Saturday, so the Monday on or after it is the 11th.
+        assert_eq!(cal.holiday_name(d(2026, 5, 11)), Some("Mother's Day"));
+        assert!(cal.holiday_name(d(2026, 5, 10)).is_none());
+        // 9 August 2026 is a Sunday, so Father's Day falls on the 10th.
+        assert_eq!(cal.holiday_name(d(2026, 8, 10)), Some("Father's Day"));
+        // 9 October 2026 is a Friday, so White Sunday falls on the 12th.
+        assert_eq!(
+            cal.holiday_name(d(2026, 10, 12)),
+            Some("White Sunday (Lotu a Tamaiti)")
+        );
     }
 
     #[test]

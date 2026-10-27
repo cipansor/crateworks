@@ -25,7 +25,7 @@ Denmark, Finland, Ireland, Canada, New Zealand, Czechia, Slovakia, Croatia,
 Slovenia, Estonia, Lithuania, Luxembourg, Iceland, Cyprus, Malta, Greece,
 Romania, Mexico, Latvia, Brazil, El Salvador, Nicaragua, Peru, Andorra, Cabo
 Verde, the Faroe Islands, Greenland, Switzerland (the national set only),
-the Pitcairn Islands and Tokelau. `Country::ALL` lists them.
+the Pitcairn Islands, Tokelau and Samoa. `Country::ALL` lists them.
 
 Greece, Cyprus and Romania keep the Orthodox calendar, so their movable feasts
 are computed from Orthodox Easter with `Rule::OrthodoxEasterOffset` rather than
