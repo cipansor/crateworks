@@ -183,6 +183,18 @@ fn read_cell(chars: &[char], start: usize, sheet: Option<String>) -> Result<(Tok
     }
     let digits: String = chars[digits_start..i].iter().collect();
 
+    // A name can carry digits in the middle, as in `BIN2DEC` or `SUMX2MY2`, and
+    // a cell reference cannot have a letter after its row. So a letter or `_`
+    // following the digits means this is a name, and the rest is read as one.
+    if !digits.is_empty() && i < chars.len() && (chars[i].is_ascii_alphabetic() || chars[i] == '_')
+    {
+        while i < chars.len() && (chars[i].is_ascii_alphanumeric() || chars[i] == '_') {
+            i += 1;
+        }
+        let name: String = chars[letters_start..i].iter().collect();
+        return Ok((Token::Ident(name), i));
+    }
+
     // A sheet qualifier is followed by "!" and then the cell. The sheet name
     // is everything read so far, digits included, because names like "Sheet1"
     // are common.

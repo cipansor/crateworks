@@ -1,9 +1,13 @@
 #![doc = include_str!("../README.md")]
 #![forbid(unsafe_code)]
 
+mod complex;
+mod datetime;
 mod eval;
+mod financial;
 mod functions;
 mod lexer;
+mod lookup;
 mod parser;
 mod value;
 

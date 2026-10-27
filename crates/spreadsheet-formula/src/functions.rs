@@ -11,6 +11,10 @@
 //! argument; the evaluator handles them directly.
 
 use crate::Error;
+use crate::complex::Complex;
+use crate::datetime;
+use crate::financial;
+use crate::lookup::{self, Axis, MatchMode};
 use crate::value::{Error as ValueError, Value};
 
 /// A flattened argument, and whether it came from a cell or range reference.
@@ -18,6 +22,17 @@ use crate::value::{Error as ValueError, Value};
 pub(crate) struct Arg {
     values: Vec<Value>,
     from_ref: bool,
+    /// The number of columns, when the argument is a rectangular range.
+    ///
+    /// The flat `values` are row-major, so the width is all a lookup needs to
+    /// recover the shape. A scalar or a one-dimensional argument has no shape,
+    /// which is what `None` records.
+    width: Option<usize>,
+    /// The cell the argument started at, as `(row, column)`.
+    ///
+    /// `ROW` and `COLUMN` report it, so a reference has to remember where it
+    /// came from and not only what it holds.
+    origin: Option<(u32, u32)>,
 }
 
 impl Arg {
@@ -26,6 +41,8 @@ impl Arg {
         Self {
             values: vec![value],
             from_ref: false,
+            width: None,
+            origin: None,
         }
     }
 
@@ -34,7 +51,37 @@ impl Arg {
         Self {
             values,
             from_ref: true,
+            width: None,
+            origin: None,
         }
+    }
+
+    /// A rectangular range, given row-major and with its width.
+    pub(crate) fn range(values: Vec<Value>, width: usize, origin: (u32, u32)) -> Self {
+        Self {
+            values,
+            from_ref: true,
+            width: Some(width),
+            origin: Some(origin),
+        }
+    }
+
+    /// The same argument, tagged with the cell it was read from.
+    pub(crate) fn with_origin(mut self, origin: (u32, u32)) -> Self {
+        self.origin = Some(origin);
+        self
+    }
+
+    /// The shape of a rectangular range, as `(rows, columns)`.
+    ///
+    /// Returns `None` for anything that is not a range, which is how a lookup
+    /// function knows to reject a scalar argument.
+    fn shape(&self) -> Option<(usize, usize)> {
+        let width = self.width?;
+        if width == 0 {
+            return None;
+        }
+        Some((self.values.len().div_ceil(width), width))
     }
 
     /// The numbers this argument contributes to an aggregating function.
@@ -90,7 +137,15 @@ fn numbers_of(name: &str, args: &[Arg]) -> Result<Vec<f64>, Error> {
 }
 
 /// Calls a function by name.
-pub(crate) fn call(name: &str, args: &[Arg]) -> Result<Value, Error> {
+/// [`call`], with the cell whose formula is being evaluated.
+///
+/// `ROW` and `COLUMN` report that cell when they are given no argument, so the
+/// evaluator has to pass it down.
+pub(crate) fn call_from(
+    name: &str,
+    args: &[Arg],
+    origin: Option<(u32, u32)>,
+) -> Result<Value, Error> {
     match name {
         "SUM" => {
             require_at_least(name, args, 1)?;
@@ -162,6 +217,79 @@ pub(crate) fn call(name: &str, args: &[Arg]) -> Result<Value, Error> {
         }),
         "SQRT" => unary_number(name, args, f64::sqrt),
         "INT" => unary_number(name, args, f64::floor),
+        "SIN" => unary_number(name, args, f64::sin),
+        "COS" => unary_number(name, args, f64::cos),
+        "TAN" => unary_number(name, args, f64::tan),
+        "ASIN" => unary_number(name, args, f64::asin),
+        "ACOS" => unary_number(name, args, f64::acos),
+        "ATAN" => unary_number(name, args, f64::atan),
+        "SINH" => unary_number(name, args, f64::sinh),
+        "COSH" => unary_number(name, args, f64::cosh),
+        "TANH" => unary_number(name, args, f64::tanh),
+        "ASINH" => unary_number(name, args, f64::asinh),
+        "ACOSH" => unary_number(name, args, f64::acosh),
+        "ATANH" => unary_number(name, args, f64::atanh),
+        "DEGREES" => unary_number(name, args, f64::to_degrees),
+        "RADIANS" => unary_number(name, args, f64::to_radians),
+        "SQRTPI" => unary_number(name, args, |n| (n * std::f64::consts::PI).sqrt()),
+        // The reciprocal and hyperbolic-reciprocal family. Each is the
+        // reciprocal of the corresponding base function, and the reference
+        // reports a division by zero where the reciprocal is undefined.
+        "CSC" => unary_number(
+            name,
+            args,
+            |n| {
+                if n == 0.0 { f64::NAN } else { 1.0 / n.sin() }
+            },
+        ),
+        "SEC" => unary_number(name, args, |n| 1.0 / n.cos()),
+        "COT" => unary_number(
+            name,
+            args,
+            |n| {
+                if n == 0.0 { f64::NAN } else { 1.0 / n.tan() }
+            },
+        ),
+        "CSCH" => unary_number(name, args, |n| {
+            if n == 0.0 {
+                f64::NAN
+            } else {
+                2.0 / (n.exp() - (-n).exp())
+            }
+        }),
+        "SECH" => unary_number(name, args, |n| 2.0 / (n.exp() + (-n).exp())),
+        "COTH" => unary_number(name, args, |n| {
+            if n == 0.0 {
+                return f64::NAN;
+            }
+            let e2 = (2.0 * n).exp();
+            (e2 + 1.0) / (e2 - 1.0)
+        }),
+        // `ACOT` is `atan(1/x)`, which differs from `atan(x).recip()` in
+        // quadrant: the reference uses the former, so `ACOT(-1)` is -π/4.
+        "ACOT" => unary_number(name, args, |n| (1.0 / n).atan()),
+        "ACOTH" => unary_number(name, args, |n| 0.5 * ((n + 1.0) / (n - 1.0)).ln()),
+        "ATAN2" => {
+            require_arity(name, args, 2)?;
+            let x = first_number(name, &args[0])?;
+            let y = first_number(name, &args[1])?;
+            Ok(Value::Number(x.atan2(y)))
+        }
+        "GAMMA" => unary_number(name, args, |n| {
+            // The reference rejects zero and negative integers, where the
+            // gamma function has a pole, rather than returning an infinity.
+            if n == 0.0 || (n < 0.0 && n.fract() == 0.0) {
+                f64::NAN
+            } else {
+                gamma_fn(n)
+            }
+        }),
+        "GAMMALN" => unary_number(name, args, gamma_ln),
+        "ERF" => {
+            require_between(name, args, 1, 2)?;
+            Ok(Value::Number(erf(first_number(name, &args[0])?)))
+        }
+        "ERFC" => unary_number(name, args, |n| 1.0 - erf(n)),
         "ROUND" => {
             let (value, digits) = number_and_digits(name, args)?;
             Ok(Value::Number(round_to(value, digits, RoundMode::Half)))
@@ -346,6 +474,325 @@ pub(crate) fn call(name: &str, args: &[Arg]) -> Result<Value, Error> {
         "PI" => {
             require_arity(name, args, 0)?;
             Ok(Value::Number(std::f64::consts::PI))
+        }
+        "COMBIN" => {
+            require_arity(name, args, 2)?;
+            let n = first_number(name, &args[0])?;
+            let k = first_number(name, &args[1])?;
+            // Choosing more than there are is undefined, not zero.
+            if n < k {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            Ok(Value::Number(binomial(n, k)))
+        }
+        "COMBINA" => {
+            require_arity(name, args, 2)?;
+            let n = first_number(name, &args[0])?;
+            let k = first_number(name, &args[1])?;
+            if n < k {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            // Stars and bars: zero of each is one way, otherwise it is `COMBIN`
+            // with the pool raised by one less than the number chosen.
+            if n == 0.0 && k == 0.0 {
+                return Ok(Value::Number(1.0));
+            }
+            Ok(Value::Number(binomial(n + k - 1.0, n - 1.0)))
+        }
+        "PERMUT" => {
+            require_arity(name, args, 2)?;
+            let n = first_number(name, &args[0])?;
+            let k = first_number(name, &args[1])?;
+            if n < 0.0 || k < 0.0 || n < k {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            Ok(Value::Number(factorial(n) / factorial(n - k)))
+        }
+        "PERMUTATIONA" => {
+            require_arity(name, args, 2)?;
+            let n = first_number(name, &args[0])?;
+            let k = first_number(name, &args[1])?;
+            Ok(Value::Number(n.powf(k)))
+        }
+        "MULTINOMIAL" => {
+            require_at_least(name, args, 1)?;
+            let numbers = numbers_of(name, args)?;
+            let total: f64 = numbers.iter().sum();
+            let divisor: f64 = numbers.iter().map(|n| factorial(*n)).product();
+            Ok(Value::Number(factorial(total) / divisor))
+        }
+        "FACTDOUBLE" => unary_number(name, args, |n| {
+            // The product of every second integer down to one; zero and any
+            // negative input are 1, matching the reference.
+            let n = n.floor();
+            if n <= 0.0 {
+                return 1.0;
+            }
+            let mut out = 1.0;
+            let mut i = n;
+            while i > 0.0 {
+                out *= i;
+                i -= 2.0;
+            }
+            out
+        }),
+        // --- descriptive statistics -----------------------------------------
+        "AVEDEV" => {
+            let values = numbers_of(name, args)?;
+            if values.is_empty() {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            let mean = values.iter().sum::<f64>() / values.len() as f64;
+            let total: f64 = values.iter().map(|v| (v - mean).abs()).sum();
+            Ok(Value::Number(total / values.len() as f64))
+        }
+        "DEVSQ" => {
+            let values = numbers_of(name, args)?;
+            let mean = values.iter().sum::<f64>() / values.len() as f64;
+            Ok(Value::Number(
+                values.iter().map(|v| (v - mean).powi(2)).sum(),
+            ))
+        }
+        "GEOMEAN" => {
+            let values = numbers_of(name, args)?;
+            if values.iter().any(|v| *v <= 0.0) {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            let log_sum: f64 = values.iter().map(|v| v.ln()).sum();
+            Ok(Value::Number((log_sum / values.len() as f64).exp()))
+        }
+        "HARMEAN" => {
+            let values = numbers_of(name, args)?;
+            if values.iter().any(|v| *v <= 0.0) {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            let denominator: f64 = values.iter().map(|v| 1.0 / v).sum();
+            Ok(Value::Number(values.len() as f64 / denominator))
+        }
+        "VARS" => {
+            let values = numbers_of(name, args)?;
+            Ok(Value::Number(sample_variance(&values)))
+        }
+        "VARP" => {
+            let values = numbers_of(name, args)?;
+            Ok(Value::Number(population_variance(&values)))
+        }
+        "STDEVS" => {
+            let values = numbers_of(name, args)?;
+            Ok(Value::Number(sample_variance(&values).sqrt()))
+        }
+        "STDEVP" => {
+            let values = numbers_of(name, args)?;
+            Ok(Value::Number(population_variance(&values).sqrt()))
+        }
+        "KURT" => {
+            let values = numbers_of(name, args)?;
+            Ok(Value::Number(kurtosis(&values)))
+        }
+        "SKEW" => {
+            let values = numbers_of(name, args)?;
+            Ok(Value::Number(skewness(&values, true)))
+        }
+        "SKEWP" => {
+            let values = numbers_of(name, args)?;
+            Ok(Value::Number(skewness(&values, false)))
+        }
+        "LARGE" | "SMALL" => {
+            require_arity(name, args, 2)?;
+            let k = first_number(name, &args[1])?;
+            let mut values = args[0]
+                .values
+                .iter()
+                .filter_map(|v| v.as_number().ok())
+                .collect::<Vec<f64>>();
+            // The reference returns an error for a rank below one or beyond the
+            // number of values, rather than a blank.
+            if k < 1.0 || k > values.len() as f64 {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+            let index = if name == "LARGE" {
+                values.len() - k as usize
+            } else {
+                k as usize - 1
+            };
+            Ok(Value::Number(values[index]))
+        }
+        "MODESNGL" => {
+            let values = numbers_of(name, args)?;
+            Ok(Value::Number(mode_single(&values)))
+        }
+        "TRIMMEAN" => {
+            require_arity(name, args, 2)?;
+            let percent = first_number(name, &args[1])?;
+            let mut values = args[0]
+                .values
+                .iter()
+                .filter_map(|v| v.as_number().ok())
+                .collect::<Vec<f64>>();
+            if values.is_empty() {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+            // The number trimmed from each end is half the count, floored to an
+            // even number, which is what keeps the two ends equal.
+            let trim = ((values.len() as f64 * percent).floor() / 2.0) as usize;
+            let kept = &values[trim..values.len() - trim];
+            let mean = kept.iter().sum::<f64>() / kept.len() as f64;
+            Ok(Value::Number(mean))
+        }
+        "PERCENTILEINC" | "PERCENTILEEXC" => {
+            require_arity(name, args, 2)?;
+            let k = first_number(name, &args[1])?;
+            let mut values = args[0]
+                .values
+                .iter()
+                .filter_map(|v| v.as_number().ok())
+                .collect::<Vec<f64>>();
+            if values.is_empty() {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+            let n = values.len() as f64;
+            let l = if name == "PERCENTILEEXC" {
+                // The exclusive form shrinks the range by one at each end, so
+                // the extreme percentiles have no answer.
+                if k < 1.0 / (n + 1.0) || k > 1.0 - 1.0 / (n + 1.0) {
+                    return Err(Error::Arithmetic(ValueError::NotANumber));
+                }
+                k * (n + 1.0) - 1.0
+            } else {
+                if !(0.0..=1.0).contains(&k) {
+                    return Err(Error::Arithmetic(ValueError::NotANumber));
+                }
+                k * (n - 1.0)
+            };
+            Ok(Value::Number(interpolate(&values, l)))
+        }
+        "QUARTILEINC" | "QUARTILEEXC" => {
+            require_arity(name, args, 2)?;
+            let quart = first_number(name, &args[1])?;
+            let fraction = match quart {
+                0.0 => 0.0,
+                1.0 => 0.25,
+                2.0 => 0.5,
+                3.0 => 0.75,
+                4.0 => 1.0,
+                _ => return Err(Error::Arithmetic(ValueError::NotANumber)),
+            };
+            // The exclusive form has no answer at the extremes.
+            if name == "QUARTILEEXC" && (quart == 0.0 || quart == 4.0) {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            let mut values = args[0]
+                .values
+                .iter()
+                .filter_map(|v| v.as_number().ok())
+                .collect::<Vec<f64>>();
+            values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+            let n = values.len() as f64;
+            let l = if name == "QUARTILEEXC" {
+                fraction * (n + 1.0) - 1.0
+            } else {
+                fraction * (n - 1.0)
+            };
+            Ok(Value::Number(interpolate(&values, l)))
+        }
+        "RANKEQ" | "RANKAVG" => {
+            require_between(name, args, 2, 3)?;
+            let number = first_number(name, &args[0])?;
+            let ascending = match args.get(2) {
+                Some(arg) => first_number(name, arg)? != 0.0,
+                None => false,
+            };
+            let mut values = args[1]
+                .values
+                .iter()
+                .filter_map(|v| v.as_number().ok())
+                .collect::<Vec<f64>>();
+            values.sort_by(|a, b| {
+                let order = a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal);
+                if ascending { order } else { order.reverse() }
+            });
+            let Some(position) = values.iter().position(|v| *v == number) else {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            };
+            let tied = values.iter().filter(|v| **v == number).count();
+            // The average rank splits the difference across a run of equals;
+            // `RANKEQ` returns the first of the run.
+            let rank = if name == "RANKAVG" && tied > 1 {
+                (2.0 * position as f64 + tied as f64 + 1.0) / 2.0
+            } else {
+                position as f64 + 1.0
+            };
+            Ok(Value::Number(rank))
+        }
+        "SERIESSUM" => {
+            require_arity(name, args, 4)?;
+            let x = first_number(name, &args[0])?;
+            let n = first_number(name, &args[1])?;
+            let m = first_number(name, &args[2])?;
+            let coefficients: Vec<f64> = args[3]
+                .values
+                .iter()
+                .filter_map(|v| v.as_number().ok())
+                .collect();
+            // a0*x^n + a1*x^(n+m) + a2*x^(n+2m) + ...
+            let total: f64 = coefficients
+                .iter()
+                .enumerate()
+                .map(|(i, a)| a * x.powf(n + (i as f64) * m))
+                .sum();
+            Ok(Value::Number(total))
+        }
+        "SUMX2MY2" | "SUMX2PY2" | "SUMXMY2" => {
+            require_arity(name, args, 2)?;
+            let xs: Vec<f64> = args[0]
+                .values
+                .iter()
+                .filter_map(|v| v.as_number().ok())
+                .collect();
+            let ys: Vec<f64> = args[1]
+                .values
+                .iter()
+                .filter_map(|v| v.as_number().ok())
+                .collect();
+            if xs.len() != ys.len() {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            let total: f64 = xs
+                .iter()
+                .zip(&ys)
+                .map(|(x, y)| match name {
+                    "SUMX2MY2" => x.powi(2) - y.powi(2),
+                    "SUMX2PY2" => x.powi(2) + y.powi(2),
+                    _ => (x - y).powi(2),
+                })
+                .sum();
+            Ok(Value::Number(total))
+        }
+        // `AVERAGEA`, `MAXA` and `MINA` differ from their plain forms in how
+        // they read a cell: text counts as zero and a logical as one or zero,
+        // rather than being skipped.
+        "AVERAGEA" => {
+            let values = values_of_a(name, args);
+            if values.is_empty() {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            let total: f64 = values.iter().sum();
+            Ok(Value::Number(total / values.len() as f64))
+        }
+        "MAXA" => {
+            let values = values_of_a(name, args);
+            Ok(Value::Number(
+                values.iter().fold(f64::NEG_INFINITY, |a, b| a.max(*b)),
+            ))
+        }
+        "MINA" => {
+            let values = values_of_a(name, args);
+            Ok(Value::Number(
+                values.iter().fold(f64::INFINITY, |a, b| a.min(*b)),
+            ))
         }
         "COUNTIF" => {
             require_arity(name, args, 2)?;
@@ -715,6 +1162,985 @@ pub(crate) fn call(name: &str, args: &[Arg]) -> Result<Value, Error> {
                 !args[0].values.first().unwrap_or(&Value::Empty).as_bool(),
             ))
         }
+        "TRUE" => {
+            require_arity(name, args, 0)?;
+            Ok(Value::Bool(true))
+        }
+        "FALSE" => {
+            require_arity(name, args, 0)?;
+            Ok(Value::Bool(false))
+        }
+        "IFNA" => {
+            require_arity(name, args, 2)?;
+            let value = first_value(&args[0]);
+            if matches!(value, Value::Empty) {
+                Ok(first_value(&args[1]))
+            } else {
+                Ok(value)
+            }
+        }
+        "ISERROR" => {
+            require_arity(name, args, 1)?;
+            Ok(Value::Bool(matches!(first_value(&args[0]), Value::Empty)))
+        }
+        "ISNA" => {
+            require_arity(name, args, 1)?;
+            Ok(Value::Bool(matches!(first_value(&args[0]), Value::Empty)))
+        }
+        "NA" => {
+            require_arity(name, args, 0)?;
+            Err(Error::Arithmetic(ValueError::NotANumber))
+        }
+        // --- serial dates ----------------------------------------------------
+        // A date is a number of days from the 1899-12-30 epoch and the time of
+        // day is its fraction; `datetime` holds the arithmetic. Every function
+        // below takes and returns that number.
+        "DATE" => {
+            require_arity(name, args, 3)?;
+            let y = first_number(name, &args[0])?;
+            let m = first_number(name, &args[1])?;
+            let d = first_number(name, &args[2])?;
+            Ok(Value::Number(datetime::date_serial(y, m, d) as f64))
+        }
+        "TIME" => {
+            require_arity(name, args, 3)?;
+            let h = first_number(name, &args[0])?.trunc();
+            let m = first_number(name, &args[1])?.trunc();
+            let s = first_number(name, &args[2])?.trunc();
+            let seconds = h * 3600.0 + m * 60.0 + s;
+            // A spreadsheet wraps a time past midnight rather than overflowing
+            // into the next day.
+            Ok(Value::Number(
+                seconds.rem_euclid(datetime::SECONDS_PER_DAY) / datetime::SECONDS_PER_DAY,
+            ))
+        }
+        "DAY" | "MONTH" | "YEAR" => {
+            require_arity(name, args, 1)?;
+            let serial = first_number(name, &args[0])?;
+            let (y, m, d) = datetime::ymd_from_serial(datetime::date_part(serial));
+            Ok(Value::Number(match name {
+                "DAY" => d,
+                "MONTH" => m,
+                _ => y,
+            } as f64))
+        }
+        "HOUR" | "MINUTE" | "SECOND" => {
+            require_arity(name, args, 1)?;
+            let serial = first_number(name, &args[0])?;
+            let seconds = (datetime::time_part(serial) * datetime::SECONDS_PER_DAY).round() as i64;
+            Ok(Value::Number(match name {
+                "HOUR" => seconds / 3600,
+                "MINUTE" => (seconds / 60) % 60,
+                _ => seconds % 60,
+            } as f64))
+        }
+        "EDATE" | "EOMONTH" => {
+            require_arity(name, args, 2)?;
+            let start = datetime::date_part(first_number(name, &args[0])?);
+            let months = first_number(name, &args[1])?.trunc() as i64;
+            let result = if name == "EDATE" {
+                datetime::edate(start, months)
+            } else {
+                datetime::eomonth(start, months)
+            };
+            Ok(Value::Number(result as f64))
+        }
+        "DAYS" => {
+            require_arity(name, args, 2)?;
+            let end = datetime::date_part(first_number(name, &args[0])?);
+            let start = datetime::date_part(first_number(name, &args[1])?);
+            Ok(Value::Number((end - start) as f64))
+        }
+        "DAYS360" => {
+            require_between(name, args, 2, 3)?;
+            let start = datetime::date_part(first_number(name, &args[0])?);
+            let end = datetime::date_part(first_number(name, &args[1])?);
+            let european = args.get(2).is_some_and(|a| first_value(a).as_bool());
+            let days = if european {
+                datetime::days360_european(start, end)
+            } else {
+                datetime::days360_us(start, end)
+            };
+            Ok(Value::Number(days as f64))
+        }
+        "YEARFRAC" => {
+            require_between(name, args, 2, 3)?;
+            let start = datetime::date_part(first_number(name, &args[0])?);
+            let end = datetime::date_part(first_number(name, &args[1])?);
+            let basis = match args.get(2) {
+                Some(arg) => first_number(name, arg)?.trunc() as i64,
+                None => 0,
+            };
+            Ok(Value::Number(datetime::yearfrac(start, end, basis)))
+        }
+        "DATEDIF" => {
+            require_arity(name, args, 3)?;
+            let start = datetime::date_part(first_number(name, &args[0])?);
+            let end = datetime::date_part(first_number(name, &args[1])?);
+            let unit = first_text(&args[2]).to_ascii_uppercase();
+            datetime::datedif(start, end, &unit)
+                .map(Value::Number)
+                .ok_or(Error::Arithmetic(ValueError::NotANumber))
+        }
+        "WEEKDAY" => {
+            require_between(name, args, 1, 2)?;
+            let serial = datetime::date_part(first_number(name, &args[0])?);
+            let kind = match args.get(1) {
+                Some(arg) => first_number(name, arg)?.trunc() as i64,
+                None => 1,
+            };
+            datetime::weekday(serial, kind)
+                .map(|n| Value::Number(n as f64))
+                .ok_or(Error::Arithmetic(ValueError::NotANumber))
+        }
+        "WEEKNUM" => {
+            require_between(name, args, 1, 2)?;
+            let serial = datetime::date_part(first_number(name, &args[0])?);
+            let kind = match args.get(1) {
+                Some(arg) => first_number(name, arg)?.trunc() as i64,
+                None => 1,
+            };
+            datetime::weeknum(serial, kind)
+                .map(|n| Value::Number(n as f64))
+                .ok_or(Error::Arithmetic(ValueError::NotANumber))
+        }
+        "ISOWEEKNUM" => {
+            require_arity(name, args, 1)?;
+            let serial = datetime::date_part(first_number(name, &args[0])?);
+            Ok(Value::Number(datetime::iso_week(serial) as f64))
+        }
+        "DATEVALUE" => {
+            require_arity(name, args, 1)?;
+            let text = first_text(&args[0]);
+            datetime::parse_date(&text)
+                .map(|s| Value::Number(s as f64))
+                .ok_or(Error::Arithmetic(ValueError::NotANumber))
+        }
+        "TIMEVALUE" => {
+            require_arity(name, args, 1)?;
+            let text = first_text(&args[0]);
+            datetime::parse_time(&text)
+                .map(|s| Value::Number(s / datetime::SECONDS_PER_DAY))
+                .ok_or(Error::Arithmetic(ValueError::NotANumber))
+        }
+        "NETWORKDAYS" | "WORKDAY" => {
+            require_between(name, args, 2, 3)?;
+            let first = datetime::date_part(first_number(name, &args[0])?);
+            let second = first_number(name, &args[1])?;
+            let holidays: Vec<i64> = match args.get(2) {
+                Some(arg) => arg
+                    .values
+                    .iter()
+                    .filter_map(|v| v.as_number().ok())
+                    .map(datetime::date_part)
+                    .collect(),
+                None => Vec::new(),
+            };
+            if name == "NETWORKDAYS" {
+                let end = datetime::date_part(second);
+                Ok(Value::Number(
+                    datetime::networkdays(first, end, &holidays) as f64
+                ))
+            } else {
+                let days = second.trunc() as i64;
+                Ok(Value::Number(
+                    datetime::workday(first, days, &holidays) as f64
+                ))
+            }
+        }
+        // --- lookup and reference --------------------------------------------
+        // These need the shape of a range, not just its values, so the argument
+        // carries its width and the module walks rows and columns.
+        "VLOOKUP" | "HLOOKUP" => {
+            require_between(name, args, 3, 4)?;
+            let vertical = name == "VLOOKUP";
+            // The signature is `(lookup_value, table, index, range_lookup)`, so
+            // the table is the second argument.
+            let table = &args[1];
+            let width = table.width.unwrap_or(table.values.len().max(1));
+            let target = first_value(&args[0]);
+            let approximate = args.get(3).is_none_or(|arg| first_value(arg).as_bool());
+            let mode = if approximate {
+                MatchMode::Approximate
+            } else {
+                MatchMode::Exact
+            };
+            // The index is one-based and must stay inside the table.
+            let index = first_number(name, &args[2])?.trunc();
+            if index < 1.0 {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            let axis = if vertical {
+                Axis::vertical(0, 0, index as i64 - 1)
+            } else {
+                Axis::horizontal(0, 0, index as i64 - 1)
+            };
+            lookup::table_lookup(&table.values, width, &target, mode, vertical, axis)
+                .map(Ok)
+                .unwrap_or(Err(Error::Arithmetic(ValueError::NotANumber)))
+        }
+        "MATCH" => {
+            require_between(name, args, 2, 3)?;
+            let target = first_value(&args[0]);
+            let flag = match args.get(2) {
+                Some(arg) => first_number(name, arg)?,
+                None => 1.0,
+            };
+            let mode = lookup::match_mode(flag);
+            lookup::find(&args[1].values, &target, mode, true)
+                .map(|index| Value::Number(index as f64 + 1.0))
+                .ok_or(Error::Arithmetic(ValueError::NotANumber))
+        }
+        "INDEX" => {
+            require_between(name, args, 2, 4)?;
+            let width = args[0].width.unwrap_or(1);
+            let row = first_number(name, &args[1])?.trunc() as i64;
+            let column = match args.get(2) {
+                Some(arg) => first_number(name, arg)?.trunc() as i64,
+                // A one-column range needs no second index.
+                None => 1,
+            };
+            lookup::index(&args[0].values, width, row, column)
+                .ok_or(Error::Arithmetic(ValueError::NotANumber))
+        }
+        "LOOKUP" => {
+            require_between(name, args, 2, 3)?;
+            let target = first_value(&args[0]);
+            // The three-argument form searches the second range and returns the
+            // value at the same position of the third.
+            if let Some(result) = args.get(2) {
+                let found = lookup::find(&args[1].values, &target, MatchMode::Approximate, false)
+                    .ok_or(Error::Arithmetic(ValueError::NotANumber))?;
+                return result
+                    .values
+                    .get(found)
+                    .cloned()
+                    .ok_or(Error::Arithmetic(ValueError::NotANumber));
+            }
+            let width = args[1].width.unwrap_or(1);
+            lookup::lookup(&args[1].values, width, &target)
+                .ok_or(Error::Arithmetic(ValueError::NotANumber))
+        }
+        "CHOOSE" => {
+            require_at_least(name, args, 2)?;
+            let index = first_number(name, &args[0])?.trunc();
+            if index < 1.0 || index as usize >= args.len() {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            Ok(first_value(&args[index as usize]))
+        }
+        "ROWS" => {
+            require_arity(name, args, 1)?;
+            let (rows, _) = args[0].shape().unwrap_or((args[0].values.len().max(1), 1));
+            Ok(Value::Number(rows as f64))
+        }
+        "COLUMNS" => {
+            require_arity(name, args, 1)?;
+            let (_, columns) = args[0].shape().unwrap_or((1, 1));
+            Ok(Value::Number(columns as f64))
+        }
+        "ROW" => {
+            require_between(name, args, 0, 1)?;
+            // With no argument the row of the calling cell, which the evaluator
+            // supplies as the origin.
+            let row = match args.first().and_then(|arg| arg.origin) {
+                Some((row, _)) => row,
+                None => origin.ok_or(Error::Arithmetic(ValueError::NotANumber))?.0,
+            };
+            Ok(Value::Number(f64::from(row) + 1.0))
+        }
+        "COLUMN" => {
+            require_between(name, args, 0, 1)?;
+            let column = match args.first().and_then(|arg| arg.origin) {
+                Some((_, column)) => column,
+                None => origin.ok_or(Error::Arithmetic(ValueError::NotANumber))?.1,
+            };
+            Ok(Value::Number(f64::from(column) + 1.0))
+        }
+        // --- complex numbers -------------------------------------------------
+        // A complex number is text such as `3+4i`; `complex` parses and formats
+        // it and these arms only marshal the arguments.
+        "COMPLEX" => {
+            require_between(name, args, 2, 3)?;
+            let re = first_number(name, &args[0])?;
+            let im = first_number(name, &args[1])?;
+            let unit = match args.get(2) {
+                Some(arg) => match first_text(arg).to_ascii_lowercase().as_str() {
+                    "i" => 'i',
+                    "j" => 'j',
+                    _ => {
+                        return Err(Error::TypeError {
+                            operation: name.to_string(),
+                            found: first_value(arg),
+                        });
+                    }
+                },
+                None => 'i',
+            };
+            Ok(Value::Text(Complex::new(re, im).format(unit)))
+        }
+        "IMREAL" => {
+            require_arity(name, args, 1)?;
+            Ok(Value::Number(complex_arg(name, &args[0])?.re))
+        }
+        "IMAGINARY" => {
+            require_arity(name, args, 1)?;
+            Ok(Value::Number(complex_arg(name, &args[0])?.im))
+        }
+        "IMABS" => {
+            require_arity(name, args, 1)?;
+            Ok(Value::Number(complex_arg(name, &args[0])?.modulus()))
+        }
+        "IMARGUMENT" => {
+            require_arity(name, args, 1)?;
+            let z = complex_arg(name, &args[0])?;
+            if z.re == 0.0 && z.im == 0.0 {
+                return Err(Error::Arithmetic(ValueError::DivisionByZero));
+            }
+            Ok(Value::Number(z.argument()))
+        }
+        "IMCONJUGATE" => {
+            require_arity(name, args, 1)?;
+            let (z, unit) = complex_and_unit(name, &args[0])?;
+            Ok(Value::Text(z.conjugate().format(unit)))
+        }
+        "IMSQRT" => {
+            require_arity(name, args, 1)?;
+            let (z, unit) = complex_and_unit(name, &args[0])?;
+            Ok(Value::Text(z.sqrt().format(unit)))
+        }
+        "IMEXP" => {
+            require_arity(name, args, 1)?;
+            let (z, unit) = complex_and_unit(name, &args[0])?;
+            Ok(Value::Text(z.exp().format(unit)))
+        }
+        "IMLN" | "IMLOG10" | "IMLOG2" => {
+            require_arity(name, args, 1)?;
+            let (z, unit) = complex_and_unit(name, &args[0])?;
+            if z.re == 0.0 && z.im == 0.0 {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            let ln = z.ln().expect("non-zero checked above");
+            // The other bases are the natural logarithm divided by the base's
+            // logarithm. Dividing rather than multiplying by a reciprocal
+            // matters: the two round differently in the last digit.
+            let scaled = match name {
+                "IMLN" => ln,
+                "IMLOG10" => Complex::new(ln.re / 10f64.ln(), ln.im / 10f64.ln()),
+                _ => Complex::new(ln.re / 2f64.ln(), ln.im / 2f64.ln()),
+            };
+            Ok(Value::Text(scaled.format(unit)))
+        }
+        "IMSIN" => {
+            require_arity(name, args, 1)?;
+            let (z, unit) = complex_and_unit(name, &args[0])?;
+            Ok(Value::Text(z.sin().format(unit)))
+        }
+        "IMCOS" => {
+            require_arity(name, args, 1)?;
+            let (z, unit) = complex_and_unit(name, &args[0])?;
+            Ok(Value::Text(z.cos().format(unit)))
+        }
+        "IMTAN" => {
+            require_arity(name, args, 1)?;
+            let (z, unit) = complex_and_unit(name, &args[0])?;
+            let t = z
+                .tan()
+                .ok_or(Error::Arithmetic(ValueError::DivisionByZero))?;
+            Ok(Value::Text(t.format(unit)))
+        }
+        // The reciprocal functions are the identity over the corresponding
+        // direct one; `IMCOT`, for instance, is `cos / sin`.
+        "IMCOT" | "IMSEC" | "IMCSC" => {
+            require_arity(name, args, 1)?;
+            let (z, unit) = complex_and_unit(name, &args[0])?;
+            let one = Complex::new(1.0, 0.0);
+            let (numerator, denominator) = match name {
+                "IMCOT" => (z.cos(), z.sin()),
+                "IMSEC" => (one, z.cos()),
+                _ => (one, z.sin()),
+            };
+            let value = numerator
+                .div(denominator)
+                .ok_or(Error::Arithmetic(ValueError::DivisionByZero))?;
+            Ok(Value::Text(value.format(unit)))
+        }
+        "IMSINH" | "IMCOSH" | "IMCSCH" | "IMSECH" => {
+            require_arity(name, args, 1)?;
+            let (z, unit) = complex_and_unit(name, &args[0])?;
+            let i = Complex::new(0.0, 1.0);
+            let value = match name {
+                // `sinh z = -i sin(iz)` and `cosh z = cos(iz)`.
+                "IMSINH" => z.mul(i).sin().mul(Complex::new(0.0, -1.0)),
+                "IMCOSH" => z.mul(i).cos(),
+                "IMCSCH" => Complex::new(1.0, 0.0)
+                    .div(z.mul(i).sin().mul(Complex::new(0.0, -1.0)))
+                    .ok_or(Error::Arithmetic(ValueError::DivisionByZero))?,
+                _ => Complex::new(1.0, 0.0)
+                    .div(z.mul(i).cos())
+                    .ok_or(Error::Arithmetic(ValueError::DivisionByZero))?,
+            };
+            Ok(Value::Text(value.format(unit)))
+        }
+        "IMSUM" | "IMSUB" | "IMPRODUCT" => {
+            require_at_least(name, args, 1)?;
+            let unit = complex_unit_of(args)?;
+            let mut values = Vec::with_capacity(args.len());
+            for arg in args {
+                values.push(Complex::parse(&first_text(arg)).ok_or(Error::TypeError {
+                    operation: name.to_string(),
+                    found: first_value(arg),
+                })?);
+            }
+            let mut acc = values[0];
+            match name {
+                "IMSUM" => {
+                    for z in &values[1..] {
+                        acc = Complex::new(acc.re + z.re, acc.im + z.im);
+                    }
+                }
+                "IMSUB" => {
+                    for z in &values[1..] {
+                        acc = Complex::new(acc.re - z.re, acc.im - z.im);
+                    }
+                }
+                _ => {
+                    for z in &values[1..] {
+                        acc = acc.mul(*z);
+                    }
+                }
+            }
+            Ok(Value::Text(acc.format(unit)))
+        }
+        "IMDIV" | "IMPOWER" => {
+            require_arity(name, args, 2)?;
+            let (a, unit) = complex_and_unit(name, &args[0])?;
+            let result = if name == "IMDIV" {
+                let b = Complex::parse(&first_text(&args[1])).ok_or(Error::TypeError {
+                    operation: name.to_string(),
+                    found: first_value(&args[1]),
+                })?;
+                a.div(b)
+                    .ok_or(Error::Arithmetic(ValueError::DivisionByZero))?
+            } else {
+                let n = first_number(name, &args[1])?;
+                a.pow(n).ok_or(Error::Arithmetic(ValueError::NotANumber))?
+            };
+            Ok(Value::Text(result.format(unit)))
+        }
+        // --- financial -------------------------------------------------------
+        "FV" | "PV" | "PMT" => {
+            require_between(name, args, 3, 5)?;
+            let rate = first_number(name, &args[0])?;
+            let nper = first_number(name, &args[1])?;
+            let third = first_number(name, &args[2])?;
+            let fourth = match args.get(3) {
+                Some(arg) => first_number(name, arg)?,
+                None => 0.0,
+            };
+            let kind = kind_arg(args.get(4));
+            let result = match name {
+                "FV" => financial::fv(rate, nper, third, fourth, kind),
+                "PV" => financial::pv(rate, nper, third, fourth, kind),
+                _ => financial::pmt(rate, nper, third, fourth, kind),
+            };
+            result
+                .map(Value::Number)
+                .ok_or(Error::Arithmetic(ValueError::NotANumber))
+        }
+        // `NPER` takes its arguments in a different order from the other three:
+        // the payment comes second and the present value third.
+        "NPER" => {
+            require_between(name, args, 3, 5)?;
+            let rate = first_number(name, &args[0])?;
+            let payment = first_number(name, &args[1])?;
+            let pv_value = first_number(name, &args[2])?;
+            let fv_value = match args.get(3) {
+                Some(arg) => first_number(name, arg)?,
+                None => 0.0,
+            };
+            let kind = kind_arg(args.get(4));
+            financial::nper(rate, payment, pv_value, fv_value, kind)
+                .map(Value::Number)
+                .ok_or(Error::Arithmetic(ValueError::NotANumber))
+        }
+        "IPMT" | "PPMT" => {
+            require_between(name, args, 4, 6)?;
+            let rate = first_number(name, &args[0])?;
+            let per = first_number(name, &args[1])?;
+            let nper = first_number(name, &args[2])?;
+            let pv_value = first_number(name, &args[3])?;
+            let fv_value = match args.get(4) {
+                Some(arg) => first_number(name, arg)?,
+                None => 0.0,
+            };
+            let kind = match args.get(5) {
+                Some(arg) => first_value(arg).as_bool().into(),
+                None => 0.0,
+            };
+            let result = if name == "IPMT" {
+                financial::ipmt(rate, per, nper, pv_value, fv_value, kind)
+            } else {
+                financial::ppmt(rate, per, nper, pv_value, fv_value, kind)
+            };
+            result
+                .map(Value::Number)
+                .ok_or(Error::Arithmetic(ValueError::NotANumber))
+        }
+        "CUMIPMT" | "CUMPRINC" => {
+            require_arity(name, args, 6)?;
+            let rate = first_number(name, &args[0])?;
+            let nper = first_number(name, &args[1])?;
+            let pv_value = first_number(name, &args[2])?;
+            let start = first_number(name, &args[3])?;
+            let end = first_number(name, &args[4])?;
+            let kind = first_value(&args[5]).as_bool().into();
+            let result = if name == "CUMIPMT" {
+                financial::cumipmt(rate, nper, pv_value, start, end, kind)
+            } else {
+                financial::cumprinc(rate, nper, pv_value, start, end, kind)
+            };
+            result
+                .map(Value::Number)
+                .ok_or(Error::Arithmetic(ValueError::NotANumber))
+        }
+        "ISPMT" => {
+            require_arity(name, args, 4)?;
+            let rate = first_number(name, &args[0])?;
+            let per = first_number(name, &args[1])?;
+            let nper = first_number(name, &args[2])?;
+            let pv_value = first_number(name, &args[3])?;
+            financial::ispmt(rate, per, nper, pv_value)
+                .map(Value::Number)
+                .ok_or(Error::Arithmetic(ValueError::NotANumber))
+        }
+        "FVSCHEDULE" => {
+            require_arity(name, args, 2)?;
+            let principal = first_number(name, &args[0])?;
+            let rates = numbers_of(name, &args[1..])?;
+            Ok(Value::Number(financial::fvschedule(principal, &rates)))
+        }
+        "NPV" => {
+            require_at_least(name, args, 2)?;
+            let rate = first_number(name, &args[0])?;
+            let amounts = numbers_of(name, &args[1..])?;
+            financial::npv(rate, &amounts)
+                .map(Value::Number)
+                .ok_or(Error::Arithmetic(ValueError::NotANumber))
+        }
+        "IRR" => {
+            require_between(name, args, 1, 2)?;
+            let amounts = numbers_of(name, &args[0..1])?;
+            let guess = match args.get(1) {
+                Some(arg) => first_number(name, arg)?,
+                None => 0.1,
+            };
+            financial::CashFlows { amounts: &amounts }
+                .irr(guess)
+                .map(Value::Number)
+                .ok_or(Error::Arithmetic(ValueError::NotANumber))
+        }
+        "MIRR" => {
+            require_arity(name, args, 3)?;
+            let amounts = numbers_of(name, &args[0..1])?;
+            let finance_rate = first_number(name, &args[1])?;
+            let reinvest_rate = first_number(name, &args[2])?;
+            financial::mirr(&amounts, finance_rate, reinvest_rate)
+                .map(Value::Number)
+                .ok_or(Error::Arithmetic(ValueError::NotANumber))
+        }
+        "XNPV" => {
+            require_arity(name, args, 3)?;
+            let rate = first_number(name, &args[0])?;
+            let amounts = numbers_of(name, &args[1..2])?;
+            let dates = numbers_of(name, &args[2..3])?;
+            financial::xnpv(rate, &amounts, &dates)
+                .map(Value::Number)
+                .ok_or(Error::Arithmetic(ValueError::NotANumber))
+        }
+        "XIRR" => {
+            require_between(name, args, 2, 3)?;
+            let amounts = numbers_of(name, &args[0..1])?;
+            let dates = numbers_of(name, &args[1..2])?;
+            let guess = match args.get(2) {
+                Some(arg) => first_number(name, arg)?,
+                None => 0.1,
+            };
+            financial::xirr(&amounts, &dates, guess)
+                .map(Value::Number)
+                .ok_or(Error::Arithmetic(ValueError::NotANumber))
+        }
+        "SLN" => {
+            require_arity(name, args, 3)?;
+            let cost = first_number(name, &args[0])?;
+            let salvage = first_number(name, &args[1])?;
+            let life = first_number(name, &args[2])?;
+            financial::sln(cost, salvage, life)
+                .map(Value::Number)
+                .ok_or(Error::Arithmetic(ValueError::DivisionByZero))
+        }
+        "SYD" => {
+            require_arity(name, args, 4)?;
+            let cost = first_number(name, &args[0])?;
+            let salvage = first_number(name, &args[1])?;
+            let life = first_number(name, &args[2])?;
+            let per = first_number(name, &args[3])?;
+            financial::syd(cost, salvage, life, per)
+                .map(Value::Number)
+                .ok_or(Error::Arithmetic(ValueError::NotANumber))
+        }
+        "DDB" => {
+            require_between(name, args, 4, 5)?;
+            let cost = first_number(name, &args[0])?;
+            let salvage = first_number(name, &args[1])?;
+            let life = first_number(name, &args[2])?;
+            let per = first_number(name, &args[3])?;
+            let factor = match args.get(4) {
+                Some(arg) => first_number(name, arg)?,
+                None => 2.0,
+            };
+            financial::ddb(cost, salvage, life, per, factor)
+                .map(Value::Number)
+                .ok_or(Error::Arithmetic(ValueError::NotANumber))
+        }
+        "DB" => {
+            require_between(name, args, 4, 5)?;
+            let cost = first_number(name, &args[0])?;
+            let salvage = first_number(name, &args[1])?;
+            let life = first_number(name, &args[2])?;
+            let per = first_number(name, &args[3])?;
+            let month = match args.get(4) {
+                Some(arg) => first_number(name, arg)?,
+                None => 12.0,
+            };
+            financial::db(cost, salvage, life, per, month)
+                .map(Value::Number)
+                .ok_or(Error::Arithmetic(ValueError::NotANumber))
+        }
+        "EFFECT" => {
+            require_arity(name, args, 2)?;
+            financial::effect(first_number(name, &args[0])?, first_number(name, &args[1])?)
+                .map(Value::Number)
+                .ok_or(Error::Arithmetic(ValueError::NotANumber))
+        }
+        "NOMINAL" => {
+            require_arity(name, args, 2)?;
+            financial::nominal(first_number(name, &args[0])?, first_number(name, &args[1])?)
+                .map(Value::Number)
+                .ok_or(Error::Arithmetic(ValueError::NotANumber))
+        }
+        "RRI" => {
+            require_arity(name, args, 3)?;
+            financial::rri(
+                first_number(name, &args[0])?,
+                first_number(name, &args[1])?,
+                first_number(name, &args[2])?,
+            )
+            .map(Value::Number)
+            .ok_or(Error::Arithmetic(ValueError::NotANumber))
+        }
+        "PDURATION" => {
+            require_arity(name, args, 3)?;
+            financial::pduration(
+                first_number(name, &args[0])?,
+                first_number(name, &args[1])?,
+                first_number(name, &args[2])?,
+            )
+            .map(Value::Number)
+            .ok_or(Error::Arithmetic(ValueError::NotANumber))
+        }
+        "DOLLARDE" | "DOLLARFR" => {
+            require_arity(name, args, 2)?;
+            let value = first_number(name, &args[0])?;
+            let fraction = first_number(name, &args[1])?;
+            let result = if name == "DOLLARDE" {
+                financial::dollarde(value, fraction)
+            } else {
+                financial::dollarfr(value, fraction)
+            };
+            result
+                .map(Value::Number)
+                .ok_or(Error::Arithmetic(ValueError::NotANumber))
+        }
+        "DISC" => {
+            require_between(name, args, 4, 5)?;
+            let basis = args
+                .get(4)
+                .map_or(0, |a| first_value(a).as_number().unwrap_or(0.0) as i64);
+            financial::disc(
+                first_number(name, &args[0])?,
+                first_number(name, &args[1])?,
+                first_number(name, &args[2])?,
+                first_number(name, &args[3])?,
+                basis,
+            )
+            .map(Value::Number)
+            .ok_or(Error::Arithmetic(ValueError::NotANumber))
+        }
+        "PRICEDISC" => {
+            require_between(name, args, 4, 5)?;
+            let basis = args
+                .get(4)
+                .map_or(0, |a| first_value(a).as_number().unwrap_or(0.0) as i64);
+            financial::pricedisc(
+                first_number(name, &args[0])?,
+                first_number(name, &args[1])?,
+                first_number(name, &args[2])?,
+                first_number(name, &args[3])?,
+                basis,
+            )
+            .map(Value::Number)
+            .ok_or(Error::Arithmetic(ValueError::NotANumber))
+        }
+        "TBILLPRICE" | "TBILLYIELD" | "TBILLEQ" => {
+            require_arity(name, args, 3)?;
+            let settlement = first_number(name, &args[0])?;
+            let maturity = first_number(name, &args[1])?;
+            let third = first_number(name, &args[2])?;
+            let result = match name {
+                "TBILLPRICE" => financial::tbillprice(settlement, maturity, third),
+                "TBILLYIELD" => financial::tbillyield(settlement, maturity, third),
+                _ => financial::tbilleq(settlement, maturity, third),
+            };
+            result
+                .map(Value::Number)
+                .ok_or(Error::Arithmetic(ValueError::NotANumber))
+        }
+        // --- base conversion -------------------------------------------------
+        // Every base function works on a fixed ten-digit field: a leading digit
+        // above the base's half is a negative number, which is how a spreadsheet
+        // stores one in these functions.
+        "BIN2DEC" => {
+            require_arity(name, args, 1)?;
+            let text = first_text(&args[0]);
+            let value = parse_radix(&text, 2).ok_or(Error::Arithmetic(ValueError::NotANumber))?;
+            Ok(Value::Number(signed_field(value, &text, 2, 10)))
+        }
+        "HEX2DEC" => {
+            require_arity(name, args, 1)?;
+            let text = first_text(&args[0]);
+            let value = parse_radix(&text, 16).ok_or(Error::Arithmetic(ValueError::NotANumber))?;
+            Ok(Value::Number(signed_field(value, &text, 16, 10)))
+        }
+        "OCT2DEC" => {
+            require_arity(name, args, 1)?;
+            let text = first_text(&args[0]);
+            let value = parse_radix(&text, 8).ok_or(Error::Arithmetic(ValueError::NotANumber))?;
+            Ok(Value::Number(signed_field(value, &text, 8, 10)))
+        }
+        "DEC2BIN" => decimal_to_radix(name, args, 2, 512.0, 511.0),
+        "DEC2OCT" => decimal_to_radix(name, args, 8, 536_870_912.0, 536_870_911.0),
+        "DEC2HEX" => decimal_to_radix(name, args, 16, 549_755_813_888.0, 549_755_813_887.0),
+        "BASE" => {
+            require_between(name, args, 2, 3)?;
+            let number = first_number(name, &args[0])?;
+            let radix = first_number(name, &args[1])? as u32;
+            if !(2..=36).contains(&radix) {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            let digits = radix_digits(number, radix);
+            let min_length = match args.get(2) {
+                Some(arg) => first_number(name, arg)? as usize,
+                None => 0,
+            };
+            Ok(Value::Text(format!(
+                "{digits:0>width$}",
+                width = min_length.max(digits.len())
+            )))
+        }
+        "DECIMAL" => {
+            require_arity(name, args, 2)?;
+            let text = first_text(&args[0]);
+            let radix = first_number(name, &args[1])? as u32;
+            if !(2..=36).contains(&radix) {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            let value =
+                parse_radix(&text, radix).ok_or(Error::Arithmetic(ValueError::NotANumber))?;
+            Ok(Value::Number(value as f64))
+        }
+        // --- bitwise ---------------------------------------------------------
+        "BITAND" | "BITOR" | "BITXOR" => {
+            require_arity(name, args, 2)?;
+            let a = bit_operand(name, &args[0])?;
+            let b = bit_operand(name, &args[1])?;
+            Ok(Value::Number(match name {
+                "BITAND" => (a & b) as f64,
+                "BITOR" => (a | b) as f64,
+                _ => (a ^ b) as f64,
+            }))
+        }
+        "BITLSHIFT" | "BITRSHIFT" => {
+            require_arity(name, args, 2)?;
+            let value = bit_operand(name, &args[0])?;
+            let shift = first_number(name, &args[1])?;
+            if !(0.0..=53.0).contains(&shift) || shift.fract() != 0.0 {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            let shift = shift as u32;
+            let out = if name == "BITLSHIFT" {
+                value.checked_shl(shift)
+            } else {
+                value.checked_shr(shift)
+            };
+            // The reference rejects a shift that would leave the 48-bit range
+            // rather than truncating it.
+            let out = out
+                .filter(|v| *v <= MAX_BIT_VALUE)
+                .ok_or(Error::Arithmetic(ValueError::NotANumber))?;
+            Ok(Value::Number(out as f64))
+        }
+        // --- roman numerals --------------------------------------------------
+        "ROMAN" => {
+            require_arity(name, args, 1)?;
+            let number = first_number(name, &args[0])?;
+            Ok(Value::Text(to_roman(number)))
+        }
+        "ARABIC" => {
+            require_arity(name, args, 1)?;
+            let text = first_text(&args[0]);
+            match from_roman(&text) {
+                Some(value) => Ok(Value::Number(value as f64)),
+                None => Err(Error::Arithmetic(ValueError::NotANumber)),
+            }
+        }
+        // --- information -----------------------------------------------------
+        "ISBLANK" => {
+            require_arity(name, args, 1)?;
+            Ok(Value::Bool(first_value(&args[0]).is_empty()))
+        }
+        "ISNUMBER" => {
+            require_arity(name, args, 1)?;
+            Ok(Value::Bool(matches!(
+                first_value(&args[0]),
+                Value::Number(_)
+            )))
+        }
+        "ISTEXT" => {
+            require_arity(name, args, 1)?;
+            Ok(Value::Bool(matches!(first_value(&args[0]), Value::Text(_))))
+        }
+        "ISNONTEXT" => {
+            require_arity(name, args, 1)?;
+            Ok(Value::Bool(!matches!(
+                first_value(&args[0]),
+                Value::Text(_)
+            )))
+        }
+        "ISLOGICAL" => {
+            require_arity(name, args, 1)?;
+            Ok(Value::Bool(matches!(first_value(&args[0]), Value::Bool(_))))
+        }
+        "ISEVEN" | "ISODD" => {
+            require_arity(name, args, 1)?;
+            // The integer part is what is tested, and the sign is ignored.
+            let n = first_number(name, &args[0])?.abs().floor() as i64;
+            let even = n % 2 == 0;
+            Ok(Value::Bool(if name == "ISEVEN" { even } else { !even }))
+        }
+        "TYPE" => {
+            require_arity(name, args, 1)?;
+            Ok(Value::Number(match first_value(&args[0]) {
+                Value::Number(_) => 1.0,
+                Value::Text(_) => 2.0,
+                Value::Bool(_) => 4.0,
+                Value::Empty => 1.0,
+            }))
+        }
+        "DELTA" => {
+            require_between(name, args, 1, 2)?;
+            let a = first_number(name, &args[0])?;
+            let b = match args.get(1) {
+                Some(arg) => first_number(name, arg)?,
+                None => 0.0,
+            };
+            Ok(Value::Number(if a == b { 1.0 } else { 0.0 }))
+        }
+        "GESTEP" => {
+            require_between(name, args, 1, 2)?;
+            let number = first_number(name, &args[0])?;
+            let step = match args.get(1) {
+                Some(arg) => first_number(name, arg)?,
+                None => 0.0,
+            };
+            Ok(Value::Number(if number >= step { 1.0 } else { 0.0 }))
+        }
+        "XOR" => {
+            require_at_least(name, args, 1)?;
+            // Only the logicals and numbers count, and the result is true when
+            // an odd number of them are true.
+            let truthy = args
+                .iter()
+                .flat_map(|a| a.values.iter())
+                .filter(|v| !v.is_empty())
+                .filter(|v| v.as_number().is_ok())
+                .filter(|v| v.as_bool())
+                .count();
+            Ok(Value::Bool(truthy % 2 == 1))
+        }
+        // --- text ------------------------------------------------------------
+        "REPLACE" => {
+            require_arity(name, args, 4)?;
+            let text = first_text(&args[0]);
+            let start = first_number(name, &args[1])? as usize;
+            let count = first_number(name, &args[2])? as usize;
+            let new = first_text(&args[3]);
+            let chars: Vec<char> = text.chars().collect();
+            // One-based, and a start past the end appends.
+            let from = start.saturating_sub(1).min(chars.len());
+            let to = from.saturating_add(count).min(chars.len());
+            let mut out: String = chars[..from].iter().collect();
+            out.push_str(&new);
+            out.extend(&chars[to..]);
+            Ok(Value::Text(out))
+        }
+        "TEXTJOIN" => {
+            require_at_least(name, args, 3)?;
+            let delimiter = first_text(&args[0]);
+            let ignore_empty = first_value(&args[1]).as_bool();
+            let pieces: Vec<String> = args[2..]
+                .iter()
+                .flat_map(|a| a.values.iter())
+                .filter(|v| !(ignore_empty && v.to_string().is_empty()))
+                .map(ToString::to_string)
+                .collect();
+            Ok(Value::Text(pieces.join(&delimiter)))
+        }
+        "DOLLAR" => {
+            require_between(name, args, 1, 2)?;
+            let value = first_number(name, &args[0])?;
+            let digits = match args.get(1) {
+                Some(arg) => first_number(name, arg)? as i32,
+                None => 2,
+            };
+            // The reference rounds to the requested number of decimals before
+            // formatting, and never shows a negative count of them.
+            let rounded = round_to(value, digits, RoundMode::Half);
+            Ok(Value::Text(format_currency(rounded, digits.max(0))))
+        }
+        "FIXED" => {
+            require_between(name, args, 1, 3)?;
+            let value = first_number(name, &args[0])?;
+            let digits = match args.get(1) {
+                Some(arg) => first_number(name, arg)? as i32,
+                None => 2,
+            };
+            let no_commas = match args.get(2) {
+                Some(arg) => first_value(arg).as_bool(),
+                None => false,
+            };
+            Ok(Value::Text(format_fixed(value, digits, no_commas)))
+        }
+        "NUMBERVALUE" => {
+            require_between(name, args, 1, 3)?;
+            let text = first_text(&args[0]);
+            let decimal_sep = args.get(1).map(first_text).unwrap_or_else(|| ".".into());
+            let group_sep = args.get(2).map(first_text).unwrap_or_else(|| ",".into());
+            match parse_number_value(&text, &decimal_sep, &group_sep) {
+                Some(value) => Ok(Value::Number(value)),
+                None => Err(Error::Arithmetic(ValueError::NotANumber)),
+            }
+        }
         other => Err(Error::UnknownFunction(other.to_string())),
     }
 }
@@ -917,6 +2343,518 @@ fn proper_case(text: &str) -> String {
     out
 }
 
+/// The largest value the bitwise functions accept, `2^48 - 1`.
+const MAX_BIT_VALUE: u64 = (1 << 48) - 1;
+
+/// The factorial of a non-negative integer, truncated, as a float.
+///
+/// Shared by `FACT`, `PERMUT`, `COMBIN` and `MULTINOMIAL`, which all need it.
+fn factorial(n: f64) -> f64 {
+    let n = n.trunc();
+    if n < 0.0 {
+        return f64::NAN;
+    }
+    let mut out = 1.0;
+    let mut i = 2.0;
+    while i <= n {
+        out *= i;
+        i += 1.0;
+    }
+    out
+}
+
+/// `n` choose `k`, computed as a product of ratios so it does not overflow the
+/// factorial of a moderately large `n`.
+fn binomial(n: f64, k: f64) -> f64 {
+    let n = n.trunc();
+    let k = k.trunc().min(n - k.trunc());
+    if k < 0.0 {
+        return f64::NAN;
+    }
+    let mut out = 1.0;
+    let mut i = 0.0;
+    while i < k {
+        out = out * (n - i) / (i + 1.0);
+        i += 1.0;
+    }
+    out.round()
+}
+
+/// The sample variance, dividing by `n - 1`. An empty or single-value input has
+/// no sample variance, which the reference reports as zero.
+fn sample_variance(values: &[f64]) -> f64 {
+    if values.len() < 2 {
+        return 0.0;
+    }
+    let mean = values.iter().sum::<f64>() / values.len() as f64;
+    let sum: f64 = values.iter().map(|v| (v - mean).powi(2)).sum();
+    sum / (values.len() as f64 - 1.0)
+}
+
+/// The population variance, dividing by `n`.
+fn population_variance(values: &[f64]) -> f64 {
+    if values.is_empty() {
+        return 0.0;
+    }
+    let mean = values.iter().sum::<f64>() / values.len() as f64;
+    let sum: f64 = values.iter().map(|v| (v - mean).powi(2)).sum();
+    sum / values.len() as f64
+}
+
+/// The excess kurtosis, using the same sample-based formula as the reference:
+/// the fourth central moment is divided by the sample standard deviation to the
+/// fourth, not the population one.
+fn kurtosis(values: &[f64]) -> f64 {
+    let n = values.len() as f64;
+    let mean = values.iter().sum::<f64>() / n;
+    let sigma: f64 =
+        values.iter().map(|v| (v - mean).powi(4)).sum::<f64>() / sample_variance(values).powi(2);
+    n * (n + 1.0) / ((n - 1.0) * (n - 2.0) * (n - 3.0)) * sigma
+        - 3.0 * (n - 1.0).powi(2) / ((n - 2.0) * (n - 3.0))
+}
+
+/// The skewness of a sample. The sample form (`SKEW`) divides by the sample
+/// standard deviation and corrects for the sample size; the population form
+/// (`SKEWP`) uses the population moments.
+fn skewness(values: &[f64], sample: bool) -> f64 {
+    let n = values.len() as f64;
+    let mean = values.iter().sum::<f64>() / n;
+    if sample {
+        let sigma: f64 = values.iter().map(|v| (v - mean).powi(3)).sum::<f64>();
+        n * sigma / ((n - 1.0) * (n - 2.0) * sample_variance(values).powf(1.5))
+    } else {
+        let m2: f64 = values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / n;
+        let m3: f64 = values.iter().map(|v| (v - mean).powi(3)).sum::<f64>() / n;
+        m3 / m2.powf(1.5)
+    }
+}
+
+/// The most common value, breaking a tie towards the smallest, which is what
+/// `MODESNGL` does. An empty input has no mode and is reported as an error by
+/// the caller through the returned NaN.
+fn mode_single(values: &[f64]) -> f64 {
+    if values.is_empty() {
+        return f64::NAN;
+    }
+    let mut best = values[0];
+    let mut best_count = 0usize;
+    for candidate in values {
+        let count = values.iter().filter(|v| *v == candidate).count();
+        if count > best_count || (count == best_count && *candidate < best) {
+            best = *candidate;
+            best_count = count;
+        }
+    }
+    best
+}
+
+/// The linear interpolation used by the percentile and quartile functions.
+fn interpolate(sorted: &[f64], l: f64) -> f64 {
+    let floor = l.floor();
+    if floor < 0.0 {
+        return sorted[0];
+    }
+    let index = floor as usize;
+    if l == floor || index + 1 >= sorted.len() {
+        return sorted[index.min(sorted.len() - 1)];
+    }
+    sorted[index] + (l - floor) * (sorted[index + 1] - sorted[index])
+}
+
+/// The numbers `AVERAGEA`, `MAXA` and `MINA` act on: a reference contributes
+/// text as zero and a logical as one or zero, where the plain forms skip them.
+fn values_of_a(name: &str, args: &[Arg]) -> Vec<f64> {
+    let _ = name;
+    let mut out = Vec::new();
+    for arg in args {
+        for value in &arg.values {
+            match value {
+                Value::Number(n) => out.push(*n),
+                Value::Bool(b) => out.push(if *b { 1.0 } else { 0.0 }),
+                Value::Empty => {}
+                // Text is zero when read from a cell; written directly it is
+                // parsed like a number, which is how a spreadsheet coerces it.
+                Value::Text(t) => {
+                    if arg.from_ref {
+                        out.push(0.0);
+                    } else if let Ok(n) = t.trim().parse::<f64>() {
+                        out.push(n);
+                    }
+                }
+            }
+        }
+    }
+    out
+}
+
+/// The gamma function, using the same rational approximation the reference's
+/// `jStat.gammafn` uses, so the two agree to the last digit.
+fn gamma_fn(x: f64) -> f64 {
+    const P: [f64; 8] = [
+        -1.716_185_138_865_495,
+        24.765_650_805_575_92,
+        -379.804_256_470_945_63,
+        629.331_155_312_818_4,
+        866.966_202_790_413_3,
+        -31_451.272_968_848_367,
+        -36_144.413_418_691_176,
+        66_456.143_820_240_54,
+    ];
+    const Q: [f64; 8] = [
+        -30.840_230_011_973_9,
+        315.350_626_979_604_16,
+        -1_015.156_367_490_219_2,
+        -3_107.771_671_572_311,
+        22_538.118_420_980_15,
+        4_755.846_277_527_881,
+        -134_659.959_864_969_3,
+        -115_132.259_675_553_5,
+    ];
+    if x > 171.624_376_953_607_6 {
+        return f64::INFINITY;
+    }
+    let mut y = x;
+    let mut fact = 0.0;
+    if y <= 0.0 {
+        let res = y % 1.0 + 3.6e-16;
+        if res != 0.0 {
+            let sign = if ((y as i64) & 1) == 0 { 1.0 } else { -1.0 };
+            fact = sign * std::f64::consts::PI / (std::f64::consts::PI * res).sin();
+            y = 1.0 - y;
+        } else {
+            return f64::INFINITY;
+        }
+    }
+    let yi = y;
+    let mut n = 0.0;
+    let z;
+    if y < 1.0 {
+        z = y;
+        y += 1.0;
+    } else {
+        n = (y as i64) as f64 - 1.0;
+        y -= n;
+        z = y - 1.0;
+    }
+    let mut xnum = 0.0;
+    let mut xden = 0.0;
+    for i in 0..8 {
+        xnum = (xnum + P[i]) * z;
+        xden = xden * z + Q[i];
+    }
+    let mut res = xnum / xden + 1.0;
+    if yi < y {
+        res /= yi;
+    } else if yi > y {
+        let mut i = 0.0;
+        while i < n {
+            res *= y;
+            y += 1.0;
+            i += 1.0;
+        }
+    }
+    if fact != 0.0 {
+        res = fact / res;
+    }
+    res
+}
+
+/// The natural logarithm of the gamma function, using the same series the
+/// reference's `jStat.gammaln` uses.
+fn gamma_ln(x: f64) -> f64 {
+    const COF: [f64; 6] = [
+        76.180_091_729_471_46,
+        -86.505_320_329_416_77,
+        24.014_098_240_830_91,
+        -1.231_739_572_450_155,
+        0.120_865_097_386_617_9e-2,
+        -0.539_523_938_495_3e-5,
+    ];
+    let mut ser = 1.000_000_000_190_015;
+    let xx = x;
+    let mut y = x;
+    let mut tmp = xx + 5.5;
+    tmp -= (xx + 0.5) * tmp.ln();
+    for c in COF {
+        y += 1.0;
+        ser += c / y;
+    }
+    (2.506_628_274_631_000_5 * ser / xx).ln() - tmp
+}
+
+/// The error function, using the same Chebyshev expansion the reference's
+/// `jStat.erf` uses, so the two agree to the last digit.
+fn erf(x: f64) -> f64 {
+    const COF: [f64; 28] = [
+        -1.302_653_719_781_709_4,
+        6.419_697_923_564_903e-1,
+        1.947_647_320_418_583_6e-2,
+        -9.561_514_786_808_63e-3,
+        -9.465_953_444_820_36e-4,
+        3.668_394_978_527_61e-4,
+        4.252_332_480_690_7e-5,
+        -2.027_857_811_253_4e-5,
+        -1.624_290_004_647e-6,
+        1.303_655_835_58e-6,
+        1.562_644_172_2e-8,
+        -8.523_809_591_5e-8,
+        6.529_054_439e-9,
+        5.059_343_495e-9,
+        -9.913_641_56e-10,
+        -2.273_651_22e-10,
+        9.646_791_1e-11,
+        2.394_038e-12,
+        -6.886_027e-12,
+        8.944_87e-13,
+        3.130_92e-13,
+        -1.127_08e-13,
+        3.81e-16,
+        7.106e-15,
+        -1.523e-15,
+        -9.4e-17,
+        1.21e-16,
+        -2.8e-17,
+    ];
+    let (x, is_neg) = if x < 0.0 { (-x, true) } else { (x, false) };
+    let t = 2.0 / (2.0 + x);
+    let ty = 4.0 * t - 2.0;
+    let mut d = 0.0;
+    let mut dd = 0.0;
+    for c in COF.iter().skip(1).rev() {
+        let tmp = d;
+        d = ty * d - dd + c;
+        dd = tmp;
+    }
+    let res = t * (-x * x + 0.5 * (COF[0] + ty * d) - dd).exp();
+    if is_neg { res - 1.0 } else { 1.0 - res }
+}
+
+/// A roman numeral for a number, using the subtractive forms. The reference
+/// rounds toward zero and repeats `M` past 3999 rather than refusing.
+fn to_roman(number: f64) -> String {
+    let n = number.trunc() as i64;
+    if n <= 0 {
+        return String::new();
+    }
+    let table: [(i64, &str); 13] = [
+        (1000, "M"),
+        (900, "CM"),
+        (500, "D"),
+        (400, "CD"),
+        (100, "C"),
+        (90, "XC"),
+        (50, "L"),
+        (40, "XL"),
+        (10, "X"),
+        (9, "IX"),
+        (5, "V"),
+        (4, "IV"),
+        (1, "I"),
+    ];
+    let mut rest = n;
+    let mut out = String::new();
+    for (value, symbol) in table {
+        while rest >= value {
+            out.push_str(symbol);
+            rest -= value;
+        }
+    }
+    out
+}
+
+/// Parses a roman numeral, rejecting a string that is not one. The pattern is
+/// the reference's: only the standard subtractive forms are accepted.
+fn from_roman(text: &str) -> Option<i64> {
+    // The reference matches its pattern against the text as written, so a
+    // lower-case numeral is rejected. The canonical form is upper-case.
+    let upper = text.to_string();
+    if upper.is_empty() {
+        return Some(0);
+    }
+    let chars: Vec<char> = upper.chars().collect();
+    if !chars
+        .iter()
+        .all(|c| matches!(c, 'M' | 'D' | 'C' | 'L' | 'X' | 'V' | 'I'))
+    {
+        return None;
+    }
+    let value = |c: char| match c {
+        'M' => 1000,
+        'D' => 500,
+        'C' => 100,
+        'L' => 50,
+        'X' => 10,
+        'V' => 5,
+        _ => 1,
+    };
+    // A numeral is subtractive where a smaller symbol precedes a larger one.
+    let mut total = 0;
+    let mut i = 0;
+    while i < chars.len() {
+        let current = value(chars[i]);
+        let next = chars.get(i + 1).map(|c| value(*c));
+        if let Some(next) = next
+            && current < next
+        {
+            total += next - current;
+            i += 2;
+            continue;
+        }
+        total += current;
+        i += 1;
+    }
+    // Round-trip check: only a canonical numeral is accepted, so `IIII` and
+    // `MMMM` are rejected the way the reference's pattern rejects them.
+    if to_roman(total as f64) == upper {
+        Some(total)
+    } else {
+        None
+    }
+}
+
+/// Parses a string in a base from 2 to 36 into an integer, or `None` when a
+/// character is not a digit of that base.
+fn parse_radix(text: &str, radix: u32) -> Option<u64> {
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        return Some(0);
+    }
+    let mut out: u64 = 0;
+    for c in trimmed.chars() {
+        let digit = c.to_digit(radix)?;
+        out = out
+            .checked_mul(u64::from(radix))?
+            .checked_add(u64::from(digit))?;
+    }
+    Some(out)
+}
+
+/// Renders a number in a base from 2 to 36, ignoring any fractional part.
+fn radix_digits(number: f64, radix: u32) -> String {
+    let mut n = number.trunc() as i64;
+    if n == 0 {
+        return "0".to_string();
+    }
+    let negative = n < 0;
+    n = n.abs();
+    let mut digits = Vec::new();
+    while n > 0 {
+        let digit = (n % i64::from(radix)) as u32;
+        digits.push(std::char::from_digit(digit, radix).unwrap_or('0'));
+        n /= i64::from(radix);
+    }
+    if negative {
+        digits.push('-');
+    }
+    digits.iter().rev().collect()
+}
+
+/// Interprets a fixed-width field as a signed number: the reference treats a
+/// ten-character string whose leading digit is at or above half the base as a
+/// negative number in two's complement.
+fn signed_field(value: u64, text: &str, radix: u32, width: usize) -> f64 {
+    let chars = text.trim().chars().count();
+    let leading = text.trim().chars().next().and_then(|c| c.to_digit(radix));
+    let modulus = u64::from(radix).pow(width as u32);
+    if chars == width && leading.is_some_and(|d| u64::from(d) >= u64::from(radix) / 2) {
+        value as f64 - modulus as f64
+    } else {
+        value as f64
+    }
+}
+
+/// `DEC2BIN` and its siblings: a decimal number in a target base, as a
+/// ten-character field when negative. The two limits are the base's own.
+fn decimal_to_radix(
+    name: &str,
+    args: &[Arg],
+    radix: u32,
+    low: f64,
+    high: f64,
+) -> Result<Value, Error> {
+    require_between(name, args, 1, 2)?;
+    let number = first_number(name, &args[0])?;
+    if number < -low || number > high {
+        return Err(Error::Arithmetic(ValueError::NotANumber));
+    }
+    let text = if number < 0.0 {
+        // A negative value is written as the base's modulus plus the number.
+        let modulus = f64::from(radix).powi(10);
+        let complement = (modulus + number).trunc();
+        let digits = radix_digits(complement, radix);
+        format!("{digits:0>10}")
+    } else {
+        radix_digits(number, radix)
+    };
+    let places = match args.get(1) {
+        Some(arg) => first_number(name, arg)? as usize,
+        None => 0,
+    };
+    Ok(Value::Text(format!(
+        "{text:0>width$}",
+        width = places.max(text.len())
+    )))
+}
+
+/// A bitwise operand: a non-negative integer at most `2^48 - 1`.
+fn bit_operand(name: &str, arg: &Arg) -> Result<u64, Error> {
+    let value = first_number(name, arg)?;
+    if value < 0.0 || value.fract() != 0.0 || value > MAX_BIT_VALUE as f64 {
+        return Err(Error::Arithmetic(ValueError::NotANumber));
+    }
+    Ok(value as u64)
+}
+
+/// Formats a number as currency: a leading dollar sign, thousands separators
+/// and the given number of decimals, with a negative wrapped in parentheses.
+fn format_currency(value: f64, digits: i32) -> String {
+    let body = format!("{:.digits$}", value.abs(), digits = digits.max(0) as usize);
+    let (whole, fraction) = match body.split_once('.') {
+        Some((w, f)) => (group_thousands(w), format!(".{f}")),
+        None => (group_thousands(&body), String::new()),
+    };
+    if value < 0.0 {
+        format!("$({whole}{fraction})")
+    } else {
+        format!("${whole}{fraction}")
+    }
+}
+
+/// Formats a number the way `FIXED` does: a fixed number of decimals, with
+/// thousands separators unless `no_commas`.
+fn format_fixed(value: f64, digits: i32, no_commas: bool) -> String {
+    let body = format!("{:.digits$}", value, digits = digits.max(0) as usize);
+    let (sign, rest) = match body.strip_prefix('-') {
+        Some(r) => ("-", r.to_string()),
+        None => ("", body),
+    };
+    let (whole, fraction) = match rest.split_once('.') {
+        Some((w, f)) => (w.to_string(), format!(".{f}")),
+        None => (rest, String::new()),
+    };
+    let whole = if no_commas {
+        whole
+    } else {
+        group_thousands(&whole)
+    };
+    format!("{sign}{whole}{fraction}")
+}
+
+/// Parses a number written with an explicit decimal and group separator, the
+/// way `NUMBERVALUE` does. Each separator is replaced once, matching the
+/// reference, which uses `String.replace` with a string argument.
+fn parse_number_value(text: &str, decimal_sep: &str, group_sep: &str) -> Option<f64> {
+    let mut cleaned = if decimal_sep.is_empty() {
+        text.to_string()
+    } else {
+        text.replacen(decimal_sep, ".", 1)
+    };
+    if !group_sep.is_empty() {
+        cleaned = cleaned.replacen(group_sep, "", 1);
+    }
+    cleaned.trim().parse::<f64>().ok()
+}
+
 /// The greatest common divisor of two integers, always non-negative.
 fn gcd_i64(a: i64, b: i64) -> i64 {
     let (mut a, mut b) = (a.abs(), b.abs());
@@ -1109,7 +3047,7 @@ fn split_operator(raw: &str) -> (&str, &str) {
 
 /// Case-insensitive `*`/`?` matching, where `*` is any run of characters, `?`
 /// is one character, and `~` escapes the following wildcard.
-fn wildcard_match(text: &str, pattern: &str) -> bool {
+pub(crate) fn wildcard_match(text: &str, pattern: &str) -> bool {
     let text: Vec<char> = text.to_lowercase().chars().collect();
     let pattern: Vec<char> = pattern.to_lowercase().chars().collect();
     // Iterative backtracking: remember the last `*` so a failed match can
@@ -1160,6 +3098,51 @@ fn first_text(arg: &Arg) -> String {
         .to_string()
 }
 
+/// The complex number an `IM*` function was given, or a type error.
+fn complex_arg(name: &str, arg: &Arg) -> Result<Complex, Error> {
+    Complex::parse(&first_text(arg)).ok_or(Error::TypeError {
+        operation: name.to_string(),
+        found: first_value(arg),
+    })
+}
+
+/// The unit letter a complex argument is written with.
+///
+/// A spreadsheet keeps whichever of `i` and `j` the user typed, so the result
+/// of an `IM*` function is formatted with the same letter it was given.
+fn unit_of(text: &str) -> char {
+    if text.trim().ends_with('j') { 'j' } else { 'i' }
+}
+
+/// The complex argument and the unit letter to format the result with.
+fn complex_and_unit(name: &str, arg: &Arg) -> Result<(Complex, char), Error> {
+    let text = first_text(arg);
+    let z = Complex::parse(&text).ok_or(Error::TypeError {
+        operation: name.to_string(),
+        found: first_value(arg),
+    })?;
+    Ok((z, unit_of(&text)))
+}
+
+/// The unit letter shared by a list of complex arguments, taken from the first.
+fn complex_unit_of(args: &[Arg]) -> Result<char, Error> {
+    Ok(args
+        .first()
+        .map(|arg| unit_of(&first_text(arg)))
+        .unwrap_or('i'))
+}
+
+/// The payment-timing flag the financial functions share.
+///
+/// A spreadsheet accepts `0` or `1` as well as `TRUE` or `FALSE`, and treats a
+/// missing argument as `0` - payment at the end of the period.
+fn kind_arg(arg: Option<&Arg>) -> f64 {
+    match arg {
+        Some(arg) => first_value(arg).as_number().unwrap_or(0.0).trunc(),
+        None => 0.0,
+    }
+}
+
 fn require_arity(name: &str, args: &[Arg], expected: usize) -> Result<(), Error> {
     if args.len() != expected {
         return Err(Error::WrongArity {
@@ -1194,81 +3177,271 @@ fn require_at_least(name: &str, args: &[Arg], minimum: usize) -> Result<(), Erro
 /// against the supported set.
 pub const FUNCTION_NAMES: &[&str] = &[
     "ABS",
+    "ACOS",
+    "ACOSH",
+    "ACOT",
+    "ACOTH",
     "AND",
+    "ARABIC",
+    "ASIN",
+    "ASINH",
+    "ATAN",
+    "ATAN2",
+    "ATANH",
+    "AVEDEV",
     "AVERAGE",
+    "AVERAGEA",
     "AVERAGEIF",
     "AVERAGEIFS",
+    "BASE",
+    "BIN2DEC",
+    "BITAND",
+    "BITLSHIFT",
+    "BITOR",
+    "BITRSHIFT",
+    "BITXOR",
     "CEILING",
     "CHAR",
+    "CHOOSE",
     "CLEAN",
     "CODE",
+    "COLUMN",
+    "COLUMNS",
+    "COMBIN",
+    "COMBINA",
+    "COMPLEX",
     "CONCAT",
     "CONCATENATE",
+    "COS",
+    "COSH",
+    "COT",
+    "COTH",
     "COUNT",
     "COUNTA",
     "COUNTBLANK",
     "COUNTIF",
     "COUNTIFS",
+    "CSC",
+    "CSCH",
+    "CUMIPMT",
+    "CUMPRINC",
+    "DATE",
+    "DATEDIF",
+    "DATEVALUE",
+    "DAY",
+    "DAYS",
+    "DAYS360",
+    "DB",
+    "DDB",
+    "DEC2BIN",
+    "DEC2HEX",
+    "DEC2OCT",
+    "DECIMAL",
+    "DEGREES",
+    "DELTA",
+    "DEVSQ",
+    "DISC",
+    "DOLLAR",
+    "DOLLARDE",
+    "DOLLARFR",
+    "EDATE",
+    "EFFECT",
+    "EOMONTH",
+    "ERF",
+    "ERFC",
     "EVEN",
     "EXACT",
     "EXP",
     "FACT",
+    "FACTDOUBLE",
+    "FALSE",
     "FIND",
+    "FIXED",
     "FLOOR",
+    "FV",
+    "FVSCHEDULE",
+    "GAMMA",
+    "GAMMALN",
     "GCD",
+    "GEOMEAN",
+    "GESTEP",
+    "HARMEAN",
+    "HEX2DEC",
+    "HLOOKUP",
+    "HOUR",
+    "IFNA",
     "IFS",
+    "IMABS",
+    "IMAGINARY",
+    "IMARGUMENT",
+    "IMCONJUGATE",
+    "IMCOS",
+    "IMCOSH",
+    "IMCOT",
+    "IMCSC",
+    "IMCSCH",
+    "IMDIV",
+    "IMEXP",
+    "IMLN",
+    "IMLOG10",
+    "IMLOG2",
+    "IMPOWER",
+    "IMPRODUCT",
+    "IMREAL",
+    "IMSEC",
+    "IMSECH",
+    "IMSIN",
+    "IMSINH",
+    "IMSQRT",
+    "IMSUB",
+    "IMSUM",
+    "IMTAN",
+    "INDEX",
     "INT",
+    "IPMT",
+    "IRR",
+    "ISBLANK",
+    "ISERROR",
+    "ISEVEN",
+    "ISLOGICAL",
+    "ISNA",
+    "ISNONTEXT",
+    "ISNUMBER",
+    "ISODD",
+    "ISPMT",
+    "ISTEXT",
+    "KURT",
+    "LARGE",
     "LCM",
     "LEFT",
     "LEN",
     "LN",
     "LOG",
     "LOG10",
+    "LOOKUP",
     "LOWER",
+    "MATCH",
     "MAX",
+    "MAXA",
     "MAXIFS",
     "MEDIAN",
     "MID",
     "MIN",
+    "MINA",
     "MINIFS",
+    "MINUTE",
+    "MIRR",
     "MOD",
+    "MODESNGL",
+    "MONTH",
     "MROUND",
+    "MULTINOMIAL",
     "N",
+    "NA",
+    "NETWORKDAYS",
+    "NOMINAL",
     "NOT",
+    "NPER",
+    "NPV",
+    "NUMBERVALUE",
+    "OCT2DEC",
     "ODD",
     "OR",
+    "PDURATION",
+    "PERCENTILEEXC",
+    "PERCENTILEINC",
+    "PERMUT",
+    "PERMUTATIONA",
     "PI",
+    "PMT",
     "POWER",
+    "PPMT",
+    "PRICEDISC",
     "PRODUCT",
     "PROPER",
+    "PV",
+    "QUARTILEEXC",
+    "QUARTILEINC",
     "QUOTIENT",
+    "RADIANS",
+    "RANKAVG",
+    "RANKEQ",
+    "REPLACE",
     "REPT",
     "RIGHT",
+    "ROMAN",
     "ROUND",
     "ROUNDDOWN",
     "ROUNDUP",
+    "ROW",
+    "ROWS",
+    "RRI",
     "SEARCH",
+    "SEC",
+    "SECH",
+    "SECOND",
+    "SERIESSUM",
     "SIGN",
+    "SIN",
+    "SINH",
+    "SKEW",
+    "SKEWP",
+    "SLN",
+    "SMALL",
     "SQRT",
+    "SQRTPI",
+    "STDEVP",
+    "STDEVS",
     "SUBSTITUTE",
     "SUM",
     "SUMIF",
     "SUMIFS",
     "SUMPRODUCT",
     "SUMSQ",
+    "SUMX2MY2",
+    "SUMX2PY2",
+    "SUMXMY2",
+    "SYD",
     "T",
+    "TAN",
+    "TANH",
+    "TBILLEQ",
+    "TBILLPRICE",
+    "TBILLYIELD",
     "TEXT",
+    "TEXTJOIN",
+    "TIME",
+    "TIMEVALUE",
     "TRIM",
+    "TRIMMEAN",
+    "TRUE",
     "TRUNC",
+    "TYPE",
     "UNICHAR",
     "UNICODE",
     "UPPER",
     "VALUE",
+    "VARP",
+    "VARS",
+    "VLOOKUP",
+    "WEEKDAY",
+    "WEEKNUM",
+    "WORKDAY",
+    "XIRR",
+    "XNPV",
+    "XOR",
+    "YEAR",
+    "YEARFRAC",
 ];
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// [`call_from`] without an origin, for functions that do not need one.
+    fn call(name: &str, args: &[Arg]) -> Result<Value, Error> {
+        call_from(name, args, None)
+    }
 
     fn n(v: f64) -> Arg {
         Arg::scalar(Value::Number(v))
@@ -1294,6 +3467,288 @@ mod tests {
                 !matches!(result, Err(Error::UnknownFunction(_))),
                 "{name} is advertised but not implemented"
             );
+        }
+    }
+
+    #[test]
+    fn trigonometry_and_hyperbolics_match_the_reference() {
+        assert_eq!(call("SIN", &[n(0.0)]).unwrap(), Value::Number(0.0));
+        assert_eq!(call("COS", &[n(0.0)]).unwrap(), Value::Number(1.0));
+        assert!(close(
+            call("ATAN", &[n(1.0)]).unwrap(),
+            std::f64::consts::FRAC_PI_4,
+        ));
+        assert!(close(
+            call("DEGREES", &[n(std::f64::consts::PI)]).unwrap(),
+            180.0
+        ));
+        assert!(close(
+            call("RADIANS", &[n(180.0)]).unwrap(),
+            std::f64::consts::PI
+        ));
+        // `ACOT` follows `atan(1/x)`, so a negative argument is negative.
+        assert!(close(
+            call("ACOT", &[n(-1.0)]).unwrap(),
+            -std::f64::consts::FRAC_PI_4,
+        ));
+        assert!(close(
+            call("SQRTPI", &[n(4.0)]).unwrap(),
+            3.544_907_701_811_031_8
+        ));
+    }
+
+    #[test]
+    fn combinatorics_and_roman_numerals_match_the_reference() {
+        assert_eq!(
+            call("COMBIN", &[n(5.0), n(2.0)]).unwrap(),
+            Value::Number(10.0)
+        );
+        assert_eq!(
+            call("COMBINA", &[n(5.0), n(2.0)]).unwrap(),
+            Value::Number(15.0)
+        );
+        assert_eq!(
+            call("PERMUT", &[n(5.0), n(2.0)]).unwrap(),
+            Value::Number(20.0)
+        );
+        assert_eq!(call("FACTDOUBLE", &[n(6.0)]).unwrap(), Value::Number(48.0));
+        assert_eq!(
+            call("MULTINOMIAL", &[n(1.0), n(2.0), n(3.0)]).unwrap(),
+            Value::Number(60.0)
+        );
+        assert_eq!(
+            call("ROMAN", &[n(2024.0)]).unwrap(),
+            Value::Text("MMXXIV".into())
+        );
+        assert_eq!(
+            call("ARABIC", &[t("MCMXC")]).unwrap(),
+            Value::Number(1990.0)
+        );
+        // A numeral that is not the canonical form is rejected, as is lower case.
+        assert!(call("ARABIC", &[t("IIII")]).is_err());
+        assert!(call("ARABIC", &[t("iv")]).is_err());
+    }
+
+    #[test]
+    fn base_conversion_uses_the_ten_digit_field() {
+        assert_eq!(call("BIN2DEC", &[t("1010")]).unwrap(), Value::Number(10.0));
+        // Ten digits with a leading 1 is a negative number.
+        assert_eq!(
+            call("BIN2DEC", &[t("1111111111")]).unwrap(),
+            Value::Number(-1.0)
+        );
+        assert_eq!(call("HEX2DEC", &[t("FF")]).unwrap(), Value::Number(255.0));
+        assert_eq!(
+            call("DEC2BIN", &[n(10.0)]).unwrap(),
+            Value::Text("1010".into())
+        );
+        assert_eq!(
+            call("DEC2BIN", &[n(-5.0)]).unwrap(),
+            Value::Text("1111111011".into())
+        );
+        assert_eq!(
+            call("DEC2HEX", &[n(255.0)]).unwrap(),
+            Value::Text("ff".into())
+        );
+        assert_eq!(
+            call("BASE", &[n(255.0), n(16.0)]).unwrap(),
+            Value::Text("ff".into())
+        );
+        assert_eq!(
+            call("DECIMAL", &[t("zz"), n(36.0)]).unwrap(),
+            Value::Number(1295.0)
+        );
+    }
+
+    #[test]
+    fn bit_functions_reject_out_of_range_operands() {
+        assert_eq!(
+            call("BITAND", &[n(5.0), n(3.0)]).unwrap(),
+            Value::Number(1.0)
+        );
+        assert_eq!(
+            call("BITOR", &[n(5.0), n(3.0)]).unwrap(),
+            Value::Number(7.0)
+        );
+        assert_eq!(
+            call("BITXOR", &[n(5.0), n(3.0)]).unwrap(),
+            Value::Number(6.0)
+        );
+        assert_eq!(
+            call("BITLSHIFT", &[n(5.0), n(2.0)]).unwrap(),
+            Value::Number(20.0)
+        );
+        assert_eq!(
+            call("BITRSHIFT", &[n(5.0), n(2.0)]).unwrap(),
+            Value::Number(1.0)
+        );
+        assert!(call("BITAND", &[n(-1.0), n(1.0)]).is_err());
+        // A shift past the 48-bit range has no answer.
+        assert!(call("BITLSHIFT", &[n(5.0), n(54.0)]).is_err());
+    }
+
+    #[test]
+    fn information_functions_read_the_value_kind() {
+        assert_eq!(call("ISNUMBER", &[n(5.0)]).unwrap(), Value::Bool(true));
+        assert_eq!(call("ISNUMBER", &[t("5")]).unwrap(), Value::Bool(false));
+        assert_eq!(call("ISTEXT", &[t("x")]).unwrap(), Value::Bool(true));
+        assert_eq!(
+            call("ISLOGICAL", &[Arg::scalar(Value::Bool(true))]).unwrap(),
+            Value::Bool(true)
+        );
+        assert_eq!(call("ISEVEN", &[n(2.0)]).unwrap(), Value::Bool(true));
+        assert_eq!(call("ISODD", &[n(2.0)]).unwrap(), Value::Bool(false));
+        assert_eq!(call("TYPE", &[n(5.0)]).unwrap(), Value::Number(1.0));
+        assert_eq!(call("TYPE", &[t("x")]).unwrap(), Value::Number(2.0));
+        assert_eq!(
+            call("DELTA", &[n(1.0), n(1.0)]).unwrap(),
+            Value::Number(1.0)
+        );
+        assert_eq!(
+            call("GESTEP", &[n(5.0), n(4.0)]).unwrap(),
+            Value::Number(1.0)
+        );
+        assert_eq!(
+            call(
+                "XOR",
+                &[
+                    Arg::scalar(Value::Bool(true)),
+                    Arg::scalar(Value::Bool(true))
+                ]
+            )
+            .unwrap(),
+            Value::Bool(false)
+        );
+    }
+
+    #[test]
+    fn statistics_use_the_sample_forms_the_reference_uses() {
+        let range = Arg::reference(vec![
+            Value::Number(1.0),
+            Value::Number(2.0),
+            Value::Number(3.0),
+            Value::Number(4.0),
+        ]);
+        assert!(close(
+            call("VARS", std::slice::from_ref(&range)).unwrap(),
+            1.666_666_666_666_666_7
+        ));
+        assert!(close(
+            call("VARP", std::slice::from_ref(&range)).unwrap(),
+            1.25
+        ));
+        assert!(close(
+            call("STDEVS", std::slice::from_ref(&range)).unwrap(),
+            1.290_994_448_735_805_6
+        ));
+        assert!(close(
+            call("AVEDEV", std::slice::from_ref(&range)).unwrap(),
+            1.0
+        ));
+        assert!(close(
+            call("DEVSQ", std::slice::from_ref(&range)).unwrap(),
+            5.0
+        ));
+        assert!(close(
+            call("GEOMEAN", std::slice::from_ref(&range)).unwrap(),
+            2.213_363_839_400_643
+        ));
+        assert!(close(
+            call("HARMEAN", std::slice::from_ref(&range)).unwrap(),
+            1.920_000_000_000_000_4
+        ));
+        assert_eq!(
+            call("LARGE", &[range.clone(), n(2.0)]).unwrap(),
+            Value::Number(3.0)
+        );
+        assert_eq!(
+            call("SMALL", &[range.clone(), n(2.0)]).unwrap(),
+            Value::Number(2.0)
+        );
+        assert!(close(
+            call("PERCENTILEINC", &[range.clone(), n(0.5)]).unwrap(),
+            2.5
+        ));
+        assert!(close(
+            call("TRIMMEAN", &[range.clone(), n(0.5)]).unwrap(),
+            2.5
+        ));
+        assert!(close(
+            call(
+                "KURT",
+                &[Arg::reference(vec![
+                    Value::Number(1.0),
+                    Value::Number(2.0),
+                    Value::Number(3.0),
+                    Value::Number(4.0),
+                    Value::Number(5.0),
+                ])]
+            )
+            .unwrap(),
+            -1.200_000_000_000_002
+        ));
+    }
+
+    #[test]
+    fn special_functions_match_the_reference() {
+        assert!(close(call("GAMMA", &[n(5.0)]).unwrap(), 24.0));
+        assert!(close(
+            call("GAMMA", &[n(0.5)]).unwrap(),
+            1.772_453_855_880_139
+        ));
+        assert!(close(
+            call("ERF", &[n(1.0)]).unwrap(),
+            0.842_700_792_949_714_9
+        ));
+        assert!(close(
+            call("ERFC", &[n(2.0)]).unwrap(),
+            0.004_677_734_981_047_288
+        ));
+        // A pole yields a NaN, which the evaluator turns into a number error.
+        assert!(matches!(call("GAMMA", &[n(0.0)]), Ok(Value::Number(n)) if n.is_nan()));
+    }
+
+    #[test]
+    fn text_helpers_match_the_reference() {
+        assert_eq!(
+            call("REPLACE", &[t("abcdef"), n(2.0), n(3.0), t("XY")]).unwrap(),
+            Value::Text("aXYef".into())
+        );
+        assert_eq!(
+            call("DOLLAR", &[n(1234.5), n(2.0)]).unwrap(),
+            Value::Text("$1,234.50".into())
+        );
+        assert_eq!(
+            call("DOLLAR", &[n(-1234.5), n(2.0)]).unwrap(),
+            Value::Text("$(1,234.50)".into())
+        );
+        assert_eq!(
+            call(
+                "FIXED",
+                &[n(1234.567), n(2.0), Arg::scalar(Value::Bool(true))]
+            )
+            .unwrap(),
+            Value::Text("1234.57".into())
+        );
+        assert_eq!(
+            call("NUMBERVALUE", &[t("1,5"), t(",")]).unwrap(),
+            Value::Number(1.5)
+        );
+        assert_eq!(
+            call(
+                "TEXTJOIN",
+                &[t(","), Arg::scalar(Value::Bool(true)), t("a"), t("b")]
+            )
+            .unwrap(),
+            Value::Text("a,b".into())
+        );
+    }
+
+    /// Whether a numeric result is within a rounding step of the expected one.
+    fn close(value: Value, expected: f64) -> bool {
+        match value {
+            Value::Number(n) => (n - expected).abs() <= 1e-9 * expected.abs().max(1.0),
+            _ => false,
         }
     }
 

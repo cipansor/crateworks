@@ -75,16 +75,19 @@ works with `xlsx`, `ods`, or a database of cells.
 
 **Covers today.** Tokeniser with absolute references, sheet qualifiers and
 ranges; recursive-descent parser with spreadsheet operator precedence;
-evaluator with 71 functions plus `IF` and `IFERROR`, which are handled
+evaluator with 256 functions plus `IF` and `IFERROR`, which are handled
 specially so they do not evaluate both branches. A range size limit bounds the
 work a hostile formula can request. The functions cover arithmetic and rounding,
-logarithms and number theory, text case, search and formatting, position-by-
-position products, and the conditional aggregates (`SUMIFS`, `COUNTIFS`,
-`AVERAGEIFS`, `MAXIFS`, `MINIFS`).
+trigonometry and its hyperbolic and reciprocal forms, logarithms, the gamma and
+error functions, number theory and combinatorics, descriptive statistics, base
+conversion and bitwise operations, roman numerals, text case, search and
+formatting, date and time, complex numbers, financial and depreciation
+calculations, lookup and reference, position-by-position products, and the
+conditional aggregates (`SUMIFS`, `COUNTIFS`, `AVERAGEIFS`, `MAXIFS`, `MINIFS`).
 
-**Not covered.** Array formulas, volatile functions (`NOW`, `RAND`), date and
-lookup functions, iterative recalculation. Cyclic references are detected and
-reported rather than resolved.
+**Not covered.** Array formulas, volatile functions (`NOW`, `RAND`), and
+iterative recalculation. Cyclic references are detected and reported rather than
+resolved.
 
 ## 5. `hijridate`
 

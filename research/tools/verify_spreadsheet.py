@@ -44,6 +44,23 @@ def text(v):
 TRUE = ("TRUE", "true", True)
 FALSE = ("FALSE", "false", False)
 
+
+class Range:
+    """A list of numbers that both sides must see as one argument.
+
+    Rust gets a real cell range in a generated sheet, so the crate sees a
+    reference rather than a list of literals; JS gets the array. That is the
+    distinction the aggregation rules turn on, so the two sides must differ here.
+    """
+
+    def __init__(self, *values):
+        self.values = values
+
+
+def RANGE(*values):
+    """A cell range on the Rust side and an array on the JS side."""
+    return Range(*values)
+
 # function name -> list of argument tuples.
 CASES = {
     "ABS": [(-3.5,), (0.0,), (7.0,)],
@@ -129,21 +146,217 @@ CASES = {
     ],
     "COUNT": [(1, 2, 3), (text("a"), 1)],
     "COUNTA": [(1, 2, 3), (text("a"), 1)],
+    # --- trigonometric and hyperbolic ------------------------------------
+    "SIN": [(0.0,), (1.0,), (-1.0,)],
+    "COS": [(0.0,), (1.0,), (2.0,)],
+    "TAN": [(0.0,), (1.0,), (0.5,)],
+    "ASIN": [(0.5,), (0.0,), (1.0,)],
+    "ACOS": [(0.5,), (1.0,), (0.0,)],
+    "ATAN": [(1.0,), (0.0,), (-1.0,)],
+    "ATAN2": [(1, 1), (0, 1), (-1, -1)],
+    "SINH": [(1.0,), (0.0,), (-1.0,)],
+    "COSH": [(1.0,), (0.0,)],
+    "TANH": [(1.0,), (0.0,)],
+    "ASINH": [(1.0,), (0.0,), (-1.0,)],
+    "ACOSH": [(1.0,), (2.0,)],
+    "ATANH": [(0.5,), (0.0,)],
+    "DEGREES": [(1.0,), (3.141592653589793,)],
+    "RADIANS": [(1.0,), (180.0,)],
+    "SQRTPI": [(2.0,), (0.0,), (4.0,)],
+    "CSC": [(1.0,), (2.0,)],
+    "SEC": [(1.0,), (2.0,), (0.0,)],
+    "COT": [(1.0,), (2.0,)],
+    "CSCH": [(1.0,), (2.0,)],
+    "SECH": [(1.0,), (2.0,)],
+    "COTH": [(1.0,), (2.0,)],
+    "ACOT": [(1.0,), (2.0,), (-1.0,)],
+    "ACOTH": [(2.0,), (-2.0,)],
+    "GAMMA": [(5.0,), (0.5,), (1.0,)],
+    "GAMMALN": [(5.0,), (0.5,), (1.0,)],
+    "ERF": [(1.0,), (0.5,), (-1.0,)],
+    "ERFC": [(1.0,), (0.5,), (2.0,)],
+    # --- combinatorics ---------------------------------------------------
+    "COMBIN": [(5, 2), (10, 3), (0, 0)],
+    "COMBINA": [(5, 2), (3, 3), (0, 0)],
+    "PERMUT": [(5, 2), (10, 3)],
+    "PERMUTATIONA": [(5, 2), (3, 3)],
+    "MULTINOMIAL": [(1, 2, 3), (3, 4)],
+    "FACTDOUBLE": [(6.0,), (7.0,), (0.0,)],
+    # --- descriptive statistics ------------------------------------------
+    "AVEDEV": [(1, 2, 3, 4), (1, 2, 3)],
+    "DEVSQ": [(1, 2, 3, 4), (2, 4, 6)],
+    "GEOMEAN": [(1, 2, 3, 4), (2, 8)],
+    "HARMEAN": [(1, 2, 3, 4), (2, 4)],
+    "VARS": [(1, 2, 3, 4), (1, 2, 3, 4, 5)],
+    "VARP": [(1, 2, 3, 4), (1, 2, 3, 4, 5)],
+    "STDEVS": [(1, 2, 3, 4), (1, 2, 3, 4, 5)],
+    "STDEVP": [(1, 2, 3, 4), (1, 2, 3, 4, 5)],
+    "KURT": [(1, 2, 3, 4, 5), (2, 4, 6, 8)],
+    "SKEW": [(1, 2, 3, 4, 5), (1, 2, 3, 4, 10)],
+    "SKEWP": [(1, 2, 3, 4, 5), (1, 2, 3, 4, 10)],
+    "LARGE": [(RANGE(1, 2, 3, 4), 2), (RANGE(5, 3, 9, 1), 1)],
+    "SMALL": [(RANGE(1, 2, 3, 4), 2), (RANGE(5, 3, 9, 1), 1)],
+    "MODESNGL": [(1, 2, 2, 3), (1, 1, 2, 2)],
+    "TRIMMEAN": [(RANGE(1, 2, 3, 4, 5, 6, 7, 8, 9, 10), 0.2), (RANGE(1, 2, 3, 4), 0.5)],
+    "PERCENTILEINC": [(RANGE(1, 2, 3, 4), 0.5), (RANGE(1, 2, 3, 4), 0), (RANGE(1, 2, 3, 4), 1)],
+    "PERCENTILEEXC": [(RANGE(1, 2, 3, 4), 0.5), (RANGE(1, 2, 3, 4), 0.25)],
+    "QUARTILEINC": [(RANGE(1, 2, 3, 4), 2), (RANGE(1, 2, 3, 4), 1), (RANGE(1, 2, 3, 4), 3)],
+    "QUARTILEEXC": [(RANGE(1, 2, 3, 4), 2), (RANGE(1, 2, 3, 4), 1), (RANGE(1, 2, 3, 4), 3)],
+    "RANKEQ": [(2, RANGE(1, 2, 3)), (4, RANGE(1, 2, 3, 4), 1), (2, RANGE(1, 2, 2, 3))],
+    "RANKAVG": [(2, RANGE(1, 2, 3)), (2, RANGE(1, 2, 2, 3))],
+    "SERIESSUM": [(1, 1, 1, RANGE(1, 2, 3)), (2, 1, 2, RANGE(1, 2, 3))],
+    "SUMX2MY2": [(RANGE(1, 2, 3), RANGE(4, 5, 6))],
+    "SUMX2PY2": [(RANGE(1, 2, 3), RANGE(4, 5, 6))],
+    "SUMXMY2": [(RANGE(1, 2, 3), RANGE(4, 5, 6))],
+    "AVERAGEA": [(1, 2, 3), (1, 2)],
+    "MAXA": [(1, 2, 3), (1, 2)],
+    "MINA": [(1, 2, 3), (1, 2)],
+    # --- base conversion -------------------------------------------------
+    "BIN2DEC": [(text("1010"),), (text("1111111111"),)],
+    "HEX2DEC": [(text("FF"),), (text("ffffffff"),)],
+    "OCT2DEC": [(text("17"),), (text("7777777777"),)],
+    "DEC2BIN": [(10,), (5, 8), (-5,)],
+    "DEC2HEX": [(255,), (255, 4), (-1,)],
+    "DEC2OCT": [(8,), (-8,)],
+    "BASE": [(255, 16), (255, 2), (7, 2, 4)],
+    "DECIMAL": [(text("FF"), 16), (text("zz"), 36)],
+    # --- bitwise ---------------------------------------------------------
+    "BITAND": [(5, 3), (13, 25)],
+    "BITOR": [(5, 3), (13, 25)],
+    "BITXOR": [(5, 3), (13, 25)],
+    "BITLSHIFT": [(5, 2), (5, 0)],
+    "BITRSHIFT": [(5, 2), (5, 0)],
+    # --- roman numerals --------------------------------------------------
+    "ROMAN": [(2024,), (4,), (1994,), (45,)],
+    # --- serial dates ----------------------------------------------------
+    # The reference disagrees with Excel inside the 1900 phantom-leap window
+    # (serials 59 and 60) and returns a `Date` from `WORKDAY` regardless of
+    # serial mode, so those cases live in the crate's own unit tests instead.
+    "DATE": [(2024, 1, 15), (1900, 1, 1), (1900, 2, 28), (2000, 2, 29)],
+    "DAY": [(45306,), (1,), (61,)],
+    "MONTH": [(45306,), (61,)],
+    "YEAR": [(45306,), (60,), (1,)],
+    "TIME": [(12, 30, 15), (0, 0, 0), (23, 59, 59)],
+    "HOUR": [(0.5,), (0.25,), (0.75,)],
+    "MINUTE": [(0.5,), (0.25,), (0.75,)],
+    "SECOND": [(0.5,), (0.25,), (0.75,)],
+    "EDATE": [(45306, 1), (45306, -2), (45292, 12)],
+    "EOMONTH": [(45306, 0), (45306, 1), (45306, -1)],
+    "DAYS": [(45306, 45292), (45292, 45306)],
+    "DAYS360": [(45306, 45473), (45292, 45473), (45292, 45473, TRUE)],
+    "YEARFRAC": [(45292, 45839), (45292, 45839, 1), (45292, 45839, 2), (45292, 45839, 3)],
+    "DATEDIF": [(43875, 45503, text("Y")), (43875, 45503, text("M")), (43875, 45503, text("D")), (43875, 45503, text("MD")), (43875, 45503, text("YM")), (43875, 45503, text("YD"))],
+    "WEEKDAY": [(45306,), (45306, 2), (45306, 3), (45306, 11), (45306, 16)],
+    "WEEKNUM": [(45306,), (45306, 2), (45306, 21)],
+    "ISOWEEKNUM": [(45306,), (44218,)],
+    "DATEVALUE": [(text("2024-01-15"),), (text("1900-01-01"),)],
+    "NETWORKDAYS": [(45292, 45322), (45292, 45322, RANGE(45301, 45302))],
+    # --- complex numbers -------------------------------------------------
+    "COMPLEX": [(3, 4), (3, 4, text("j")), (0, 1), (1, 0), (-3, -4)],
+    # The reference returns a bare real number unparsed from `IMREAL`, as the
+    # string it was given, so that case lives in the crate's own tests.
+    "IMREAL": [(text("3+4i"),)],
+    "IMAGINARY": [(text("3+4i"),), (text("5"),)],
+    "IMABS": [(text("3+4i"),), (text("-5i"),)],
+    "IMARGUMENT": [(text("3+4i"),), (text("1+i"),)],
+    "IMCONJUGATE": [(text("3+4i"),), (text("3+4j"),)],
+    "IMSQRT": [(text("3+4i"),), (text("1+i"),)],
+    "IMEXP": [(text("1+i"),)],
+    "IMLN": [(text("1+i"),)],
+    "IMLOG10": [(text("1+i"),)],
+    "IMLOG2": [(text("1+i"),)],
+    "IMSIN": [(text("1+i"),)],
+    "IMCOS": [(text("1+i"),)],
+    "IMTAN": [(text("1+i"),)],
+    "IMSINH": [(text("1+i"),)],
+    "IMCOSH": [(text("1+i"),)],
+    "IMCOT": [(text("1+i"),)],
+    "IMCSC": [(text("1+i"),)],
+    "IMCSCH": [(text("1+i"),)],
+    "IMSEC": [(text("1+i"),)],
+    "IMSECH": [(text("1+i"),)],
+    "IMSUM": [(text("3+4i"), text("1-2i"))],
+    "IMSUB": [(text("3+4i"), text("1-2i"))],
+    "IMPRODUCT": [(text("3+4i"), text("1-2i"))],
+    "IMDIV": [(text("3+4i"), text("1-2i"))],
+    "IMPOWER": [(text("3+4i"), 2)],
+    # --- financial -------------------------------------------------------
+    "FV": [(0.05, 10, -100), (0.05, 10, -100, -500), (0.05, 10, -100, -500, TRUE)],
+    "PV": [(0.05, 10, -100), (0.05, 10, -100, 500)],
+    "PMT": [(0.05, 10, 1000), (0.05, 10, 1000, 500)],
+    "NPER": [(0.05, -100, 1000), (0.05, -100, 1000, 500)],
+    "IPMT": [(0.05, 1, 10, 1000), (0.05, 2, 10, 1000), (0.05, 1, 10, 1000, 0, TRUE)],
+    "PPMT": [(0.05, 1, 10, 1000), (0.05, 2, 10, 1000)],
+    "CUMIPMT": [(0.05, 10, 1000, 1, 3, 0)],
+    "CUMPRINC": [(0.05, 10, 1000, 1, 3, 0)],
+    "ISPMT": [(0.05, 1, 10, 1000), (0.05, 5, 10, 1000)],
+    "NPV": [(0.1, -10000, 3000, 4200, 6800), (0.05, 100, 100)],
+    "IRR": [(RANGE(-1000, 100, 200, 300),), (RANGE(-1000, 100, 200, 300), 0.2)],
+    "MIRR": [(RANGE(-1000, 100, 200, 300), 0.1, 0.12)],
+    "SLN": [(1000, 100, 5)],
+    "SYD": [(1000, 100, 5, 1), (1000, 100, 5, 3)],
+    "DDB": [(1000, 100, 5, 1), (1000, 100, 5, 2), (1000, 100, 5, 1, 1.5)],
+    "EFFECT": [(0.05, 4)],
+    "NOMINAL": [(0.05, 4)],
+    "RRI": [(10, 100, 200)],
+    "PDURATION": [(0.05, 1000, 2000)],
+    "DOLLARDE": [(1.02, 16), (1.1, 32)],
+    "DOLLARFR": [(1.125, 16), (1.125, 32)],
+    "FVSCHEDULE": [(100, RANGE(0.05, 0.05, 0.05))],
+    "TBILLPRICE": [(45306, 45671, 0.05)],
+    "TBILLYIELD": [(45306, 45671, 94.93055555555556)],
+    "TBILLEQ": [(45306, 45671, 0.05)],
+    # --- lookup and reference --------------------------------------------
+    # The lookup family is exercised through formulas in the crate's own tests,
+    # because the gate's `RANGE` helper flattens a range without its shape.
+    "CHOOSE": [(2, 10, 20, 30), (1, text("a"), text("b"))],
+    "ROWS": [(RANGE(1, 2, 3),)],
+    "COLUMNS": [(RANGE(1, 2, 3),)],
+    "ARABIC": [(text("MMXXIV"),), (text("MCMXC"),), (text("iv"),)],
+    # --- information -----------------------------------------------------
+    "ISNUMBER": [(5.0,), (text("5"),)],
+    "ISTEXT": [(text("x"),), (5.0,)],
+    "ISNONTEXT": [(5.0,), (text("x"),)],
+    "ISLOGICAL": [(TRUE,), (5.0,)],
+    "ISEVEN": [(2.0,), (3.0,), (-2.0,)],
+    "ISODD": [(3.0,), (2.0,), (-3.0,)],
+    "TYPE": [(5.0,), (text("x"),), (TRUE,)],
+    "DELTA": [(1, 1), (1, 2), (5,)],
+    "GESTEP": [(5, 4), (4, 4), (5,)],
+    "XOR": [(TRUE, FALSE), (TRUE, TRUE)],
+    # --- text ------------------------------------------------------------
+    "REPLACE": [
+        (text("abcdef"), 2, 3, text("XY")),
+        (text("abcdef"), 1, 0, text("X")),
+    ],
+    "TEXTJOIN": [(text(","), TRUE, text("a"), text("b"))],
+    "DOLLAR": [(1234.5, 2), (1234.5, 0), (-1234.5, 2)],
+    "FIXED": [(1234.5, 1), (1234.567, 2, TRUE)],
+    "NUMBERVALUE": [(text("1.5"),), (text("1,5"), text(","))],
 }
 
 EXAMPLE = """//! Generated by research/tools/verify_spreadsheet.py. Do not edit.
 use spreadsheet_formula::{CellRef, Evaluator, Sheet, Value};
 
-struct Empty;
-impl Sheet for Empty {
-    fn value(&self, _cell: CellRef) -> Value {
+/// A sheet backed by a list of cells, used for the range cases.
+struct Grid(&'static [(u32, u32, f64)]);
+
+impl Sheet for Grid {
+    fn value(&self, cell: CellRef) -> Value {
+        for (column, row, value) in self.0 {
+            if *column == cell.column && *row == cell.row {
+                return Value::Number(*value);
+            }
+        }
         Value::Empty
     }
 }
 
 fn main() {
-    let mut evaluator = Evaluator::new(&Empty);
-    for formula in __FORMULAS__ {
+    let cases: &[(&str, &[(u32, u32, f64)])] = __CASES__;
+    for (formula, cells) in cases {
+        let grid = Grid(cells);
+        let mut evaluator = Evaluator::new(&grid);
         match evaluator.eval(formula) {
             Ok(Value::Number(n)) => println!("num\\t{n}"),
             Ok(Value::Text(t)) => println!("text\\t{t}"),
@@ -157,13 +370,32 @@ fn main() {
 
 
 def rust_formulas():
-    """The formula strings the Rust example evaluates, in case order."""
+    """Each case as (formula, sheet cells), in order.
+
+    A range becomes a column of the generated sheet, so a formula with two
+    ranges uses two columns. The cells are laid out in the order the ranges
+    appear in the case.
+    """
     out = []
     for name, arg_sets in CASES.items():
         for args in arg_sets:
-            rendered = ", ".join(render_rust(a) for a in args)
-            out.append(f"={name}({rendered})")
+            cells = []
+            rendered_args = []
+            for arg in args:
+                if isinstance(arg, Range):
+                    column = len({c for c, _, _ in cells})
+                    for row, value in enumerate(arg.values):
+                        cells.append((column, row, float(value)))
+                    rendered_args.append(
+                        f"{COLUMN_NAMES[column]}1:{COLUMN_NAMES[column]}{len(arg.values)}"
+                    )
+                else:
+                    rendered_args.append(render_rust(arg))
+            out.append((f"={name}({', '.join(rendered_args)})", cells))
     return out
+
+
+COLUMN_NAMES = [chr(ord("A") + i) for i in range(26)]
 
 
 def render_rust(arg):
@@ -185,12 +417,17 @@ def js_cases():
 def render_js(arg):
     if isinstance(arg, tuple) and len(arg) == 3 and isinstance(arg[1], str):
         return arg[1]
+    if isinstance(arg, Range):
+        return json.dumps(list(arg.values))
     if isinstance(arg, str):
         return json.dumps(arg)
     return repr(arg)
 
 
 JS_DRIVER = """const f = require('@formulajs/formulajs');
+// Dates are compared as serial numbers, which is what this crate returns; the
+// reference defaults to JS `Date` objects, which would compare as 'error'.
+f.utils.date.useSerial();
 const cases = __CASES__;
 for (const expr of cases) {
   let out;
@@ -210,11 +447,15 @@ for (const expr of cases) {
 """
 
 
-def run_rust(formulas):
+def run_rust(cases):
     example = CRATE / "examples" / "_oracle_formulas.rs"
     example.parent.mkdir(exist_ok=True)
-    listing = ",\n    ".join(json.dumps(f, ensure_ascii=False) for f in formulas)
-    example.write_text(EXAMPLE.replace("__FORMULAS__", f"[\n    {listing},\n]"))
+    lines = []
+    for formula, cells in cases:
+        rendered_cells = ", ".join(f"({c}, {r}, {v!r})" for c, r, v in cells)
+        lines.append(f'    ({json.dumps(formula, ensure_ascii=False)}, &[{rendered_cells}]),')
+    body = "\n".join(lines)
+    example.write_text(EXAMPLE.replace("__CASES__", f"&[\n{body}\n]"))
     try:
         r = subprocess.run(
             ["cargo", "run", "--quiet", "--example", "_oracle_formulas"],

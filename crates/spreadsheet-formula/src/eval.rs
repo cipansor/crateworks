@@ -61,6 +61,9 @@ pub struct Evaluator<'a, S: Sheet> {
     sheet: &'a S,
     /// Cells currently being evaluated, used to detect cycles.
     in_progress: Vec<CellRef>,
+    /// The cell whose formula is being evaluated, which `ROW` and `COLUMN`
+    /// report when they are given no argument.
+    origin: Option<CellRef>,
     max_range_cells: usize,
 }
 
@@ -71,6 +74,7 @@ impl<'a, S: Sheet> Evaluator<'a, S> {
         Self {
             sheet,
             in_progress: Vec::new(),
+            origin: None,
             max_range_cells: 1_000_000,
         }
     }
@@ -226,7 +230,8 @@ impl<'a, S: Sheet> Evaluator<'a, S> {
         for arg in args {
             flattened.push(self.flatten(arg)?);
         }
-        let result = functions::call(name, &flattened)?;
+        let result =
+            functions::call_from(name, &flattened, self.origin.map(|c| (c.row, c.column)))?;
         // A function that produced a NaN has no real answer - LN(0), SQRT(-1) -
         // and reports a number error, the same way the binary operators do
         // rather than letting a NaN escape into the result.
@@ -242,8 +247,12 @@ impl<'a, S: Sheet> Evaluator<'a, S> {
     /// Turns an argument into a flat list of values, expanding ranges.
     fn flatten(&mut self, expr: &Expr) -> Result<Arg, Error> {
         if let Expr::Range { start, end, sheet } = expr {
+            let (c0, r0) = cell_of(start)?;
+            let (c1, r1) = cell_of(end)?;
+            let width = (c0.max(c1) - c0.min(c1) + 1) as usize;
+            let origin = (r0.min(r1), c0.min(c1));
             let values = self.range_values(start, end, sheet.as_deref())?;
-            return Ok(Arg::reference(values));
+            return Ok(Arg::range(values, width, origin));
         }
         // A single cell is a reference too, so `SUM(A1)` ignores a text or
         // logical cell the way `SUM(A1:A1)` does.
@@ -253,7 +262,7 @@ impl<'a, S: Sheet> Evaluator<'a, S> {
                 Some(name) => self.sheet.value_in_sheet(name, cell),
                 None => self.sheet.value(cell),
             };
-            return Ok(Arg::reference(vec![value]));
+            return Ok(Arg::reference(vec![value]).with_origin((*row, *column)));
         }
         Ok(Arg::scalar(self.eval_expr(expr)?))
     }
@@ -303,12 +312,14 @@ impl<'a, S: Sheet> Evaluator<'a, S> {
             return Err(Error::CircularReference(cell));
         }
         self.in_progress.push(cell);
+        self.origin = Some(cell);
         Ok(())
     }
 
     /// Clears a cell from the in-progress set once it has been evaluated.
     pub fn leave(&mut self, cell: CellRef) {
         self.in_progress.retain(|c| *c != cell);
+        self.origin = self.in_progress.last().copied();
     }
 }
 
@@ -387,6 +398,82 @@ mod tests {
             .set("B2", Value::Number(20.0))
             .set("C1", Value::Text("hi".into()))
             .set("D1", Value::Empty)
+    }
+
+    /// A sheet shaped like a small lookup table, plus a formula cell so that
+    /// `ROW` and `COLUMN` have a caller to report.
+    fn table() -> Grid {
+        Grid::new()
+            .set("A1", Value::Number(1.0))
+            .set("B1", Value::Number(10.0))
+            .set("A2", Value::Number(2.0))
+            .set("B2", Value::Number(20.0))
+            .set("A3", Value::Number(3.0))
+            .set("B3", Value::Number(30.0))
+    }
+
+    #[test]
+    fn vertical_and_horizontal_lookups() {
+        let g = table();
+        let mut e = Evaluator::new(&g);
+        assert_eq!(
+            e.eval("=VLOOKUP(2,A1:B3,2,FALSE)").unwrap(),
+            Value::Number(20.0)
+        );
+        // The approximate form settles on the largest key at or below.
+        assert_eq!(
+            e.eval("=VLOOKUP(2.5,A1:B3,2)").unwrap(),
+            Value::Number(20.0)
+        );
+        // An index beyond the table has no value.
+        assert!(e.eval("=VLOOKUP(2,A1:B3,3,FALSE)").is_err());
+        // A missing key is an error, not an empty cell.
+        assert!(e.eval("=VLOOKUP(9,A1:B3,2,FALSE)").is_err());
+        // The same table read across instead of down: the first row is the key
+        // row, and the answer comes from the row below the matching column.
+        assert_eq!(
+            e.eval("=HLOOKUP(10,A1:B3,2,FALSE)").unwrap(),
+            Value::Number(20.0)
+        );
+        assert_eq!(
+            e.eval("=HLOOKUP(1,A1:B3,3,FALSE)").unwrap(),
+            Value::Number(3.0)
+        );
+    }
+
+    #[test]
+    fn match_index_choose_and_lookup() {
+        let g = table();
+        let mut e = Evaluator::new(&g);
+        assert_eq!(e.eval("=MATCH(2,A1:A3,0)").unwrap(), Value::Number(2.0));
+        assert_eq!(e.eval("=MATCH(3,A1:A3,0)").unwrap(), Value::Number(3.0));
+        assert_eq!(e.eval("=INDEX(A1:B3,2,2)").unwrap(), Value::Number(20.0));
+        assert_eq!(e.eval("=INDEX(A1:A3,2)").unwrap(), Value::Number(2.0));
+        assert_eq!(e.eval("=CHOOSE(2,10,20,30)").unwrap(), Value::Number(20.0));
+        // `LOOKUP` searches the first column and returns from the last.
+        assert_eq!(e.eval("=LOOKUP(2,A1:B3)").unwrap(), Value::Number(20.0));
+        // The three-argument form searches one range and returns from another.
+        assert_eq!(
+            e.eval("=LOOKUP(2,A1:A3,B1:B3)").unwrap(),
+            Value::Number(20.0)
+        );
+    }
+
+    #[test]
+    fn shape_functions_report_the_range_and_the_caller() {
+        let g = table();
+        let mut e = Evaluator::new(&g);
+        assert_eq!(e.eval("=ROWS(A1:B3)").unwrap(), Value::Number(3.0));
+        assert_eq!(e.eval("=COLUMNS(A1:B3)").unwrap(), Value::Number(2.0));
+        // `ROW` and `COLUMN` of a reference are its top-left corner.
+        assert_eq!(e.eval("=ROW(B2)").unwrap(), Value::Number(2.0));
+        assert_eq!(e.eval("=COLUMN(B2)").unwrap(), Value::Number(2.0));
+        // With no argument they report the cell being evaluated, which needs
+        // the evaluator to know its origin.
+        e.enter(CellRef::new(4, 6)).unwrap();
+        assert_eq!(e.eval("=ROW()").unwrap(), Value::Number(7.0));
+        assert_eq!(e.eval("=COLUMN()").unwrap(), Value::Number(5.0));
+        e.leave(CellRef::new(4, 6));
     }
 
     #[test]
