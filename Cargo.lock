@@ -4,125 +4,125 @@ version = 4
 
 [[package]]
 name = "address-parser"
-version = "0.1.6"
+version = "0.1.7"
 
 [[package]]
 name = "adhan"
-version = "0.1.6"
+version = "0.1.7"
 
 [[package]]
 name = "arabic"
-version = "0.1.6"
+version = "0.1.7"
 
 [[package]]
 name = "aviation-data"
-version = "0.1.6"
+version = "0.1.7"
 
 [[package]]
 name = "cssprint"
-version = "0.1.6"
+version = "0.1.7"
 
 [[package]]
 name = "ebics"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "xmlkit",
 ]
 
 [[package]]
 name = "eu-vat"
-version = "0.1.6"
+version = "0.1.7"
 
 [[package]]
 name = "factur-x"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "xmlkit",
 ]
 
 [[package]]
 name = "fuzzy-score"
-version = "0.1.6"
+version = "0.1.7"
 
 [[package]]
 name = "hijridate"
-version = "0.1.6"
+version = "0.1.7"
 
 [[package]]
 name = "holidays-rs"
-version = "0.1.6"
+version = "0.1.7"
 
 [[package]]
 name = "iso20022-rs"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "xmlkit",
 ]
 
 [[package]]
 name = "iso6346"
-version = "0.1.6"
+version = "0.1.7"
 
 [[package]]
 name = "iso8583-msg"
-version = "0.1.6"
+version = "0.1.7"
 
 [[package]]
 name = "javaproperties"
-version = "0.1.6"
+version = "0.1.7"
 
 [[package]]
 name = "mllp"
-version = "0.1.6"
+version = "0.1.7"
 
 [[package]]
 name = "object-hash"
-version = "0.1.6"
+version = "0.1.7"
 
 [[package]]
 name = "pades"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "pdfa",
 ]
 
 [[package]]
 name = "pdfa"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "xmlkit",
 ]
 
 [[package]]
 name = "pdfmake"
-version = "0.1.6"
+version = "0.1.7"
 
 [[package]]
 name = "runits"
-version = "0.1.6"
+version = "0.1.7"
 
 [[package]]
 name = "soap-client"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "xmlkit",
 ]
 
 [[package]]
 name = "spreadsheet-formula"
-version = "0.1.6"
+version = "0.1.7"
 
 [[package]]
 name = "stdnum-rs"
-version = "0.1.6"
+version = "0.1.7"
 
 [[package]]
 name = "wssec"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "xmlkit",
 ]
 
 [[package]]
 name = "xmlkit"
-version = "0.1.6"
+version = "0.1.7"
