@@ -22,8 +22,8 @@ Friday and the United Kingdom moves a weekend holiday forward to Monday.
 Covered: Indonesia, United States, United Kingdom, Germany, France,
 Netherlands, Spain, Italy, Portugal, Belgium, Austria, Poland, Sweden, Norway,
 Denmark, Finland, Ireland, Canada, New Zealand, Czechia, Slovakia, Croatia,
-Slovenia, Estonia, Lithuania, Luxembourg, Iceland, Cyprus, Malta, Greece and
-Romania. `Country::ALL` lists them.
+Slovenia, Estonia, Lithuania, Luxembourg, Iceland, Cyprus, Malta, Greece,
+Romania, Mexico and Latvia. `Country::ALL` lists them.
 
 Greece, Cyprus and Romania keep the Orthodox calendar, so their movable feasts
 are computed from Orthodox Easter with `Rule::OrthodoxEasterOffset` rather than
@@ -46,6 +46,13 @@ movable from 1977 to 2000), `Rule::ExceptYears` for years that are skipped
 (France's Whit Monday as a solidarity day 2005-2007), `Rule::Once` for a one-off
 (New Zealand's 2022 Queen Elizabeth II Memorial Day), `Rule::EveryNYears` for a
 recurring interval (the Netherlands' Liberation Day every five years),
+`Rule::EveryNYearsSince` for an interval anchored at a year rather than at a
+multiple (Mexico's sexennial transfer of federal power, which moved from 1
+December to 1 October in 2024), `Rule::NeverSubstituted` for a holiday the
+country does not move even though it moves its other ones (Latvia's New Year's
+Day), `Rule::Absorbed` for a date that stops being a holiday at all on a given
+weekday (Mexico's New Year's Day and Christmas, which are dropped when they
+fall on a Sunday),
 `Rule::ObservedFrom` for a holiday that gained a substitute day late (New
 Zealand's Mondayised Waitangi Day and Anzac Day from 2014),
 `Rule::ObservedOffWeekendAndOrthodoxEasterMonday` for a date moved off a weekend
@@ -66,7 +73,9 @@ difference that is not listed as deliberate. The deliberate differences are
 Indonesia (Islamic and Chinese observances are set by annual decree and are
 available through `Calendar::with_extra`), Spain (a national holiday that falls
 on a Sunday is kept rather than dropped), Ireland (Saint Stephen's Day is
-observed on the substitute Monday) and Canada (the federal-wide set is used).
+observed on the substitute Monday), Canada (the federal-wide set is used) and
+Latvia (the extra rest days the cabinet grants by annual decision, which
+`Calendar::with_extra` takes).
 Run it from the repository root:
 
 ```sh

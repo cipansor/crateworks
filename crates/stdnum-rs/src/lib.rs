@@ -214,6 +214,25 @@ pub(crate) mod checksum {
         Some(((10 - sum % 10) % 10) as u8)
     }
 
+    /// Rewrites Arabic-Indic and extended Arabic-Indic digits as ASCII.
+    ///
+    /// Egypt's tax number is published in Arabic-Indic digits as often as in
+    /// ASCII, and `python-stdnum` transliterates before validating, so a number
+    /// copied out of an Arabic document is accepted here too. Every other
+    /// character is passed through unchanged.
+    pub(crate) fn to_ascii_digits(s: &str) -> String {
+        s.chars()
+            .map(|c| match c {
+                // U+0660..U+0669 are the Arabic-Indic digits, U+06F0..U+06F9 the
+                // extended (Persian) ones. Each block is ten digits starting at
+                // its own base.
+                '\u{0660}'..='\u{0669}' => char::from(b'0' + (c as u32 - 0x0660) as u8),
+                '\u{06f0}'..='\u{06f9}' => char::from(b'0' + (c as u32 - 0x06f0) as u8),
+                _ => c,
+            })
+            .collect()
+    }
+
     /// Converts ASCII digits to their numeric values.
     ///
     /// # Errors

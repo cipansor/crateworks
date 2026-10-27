@@ -19,16 +19,23 @@ Checksum and structure only; nothing here contacts a registry.
 
 ## What is covered
 
-Fifty-seven national identifiers are covered, across Latin America (the
+Sixty-six national identifiers are covered, across Latin America (the
 Chilean RUT, the Colombian NIT, the Peruvian RUC, the Argentine CUIT and
 others), Europe (the Irish VAT and PPS numbers, the Croatian OIB, the Czech and
 Slovak birth numbers, the Swiss AHV/AVS and UID, the Russian ИНН and ОГРН, the
-Ukrainian ЄДРПОУ) and Asia, the Middle East and Africa (the Israeli identity
-number, the Thai PIN, the Singapore UEN, the Malaysian NRIC, the South African
-identity number and the Greek ΑΜΚΑ), alongside the first set that runs from the
-Indonesian NPWP and NIK and the Brazilian CPF and CNPJ to the Spanish DNI, the
-German tax ID, the Polish PESEL and the Indian Aadhaar;
-[`Country::ALL`](https://docs.rs/stdnum-rs) lists them all.
+Ukrainian ЄДРПОУ), Asia (the Israeli identity number, the Thai PIN, the
+Singapore UEN, the Malaysian NRIC, the Vietnamese MST) and Africa and the
+Middle East (the South African identity number, the Greek ΑΜΚΑ, and the tax and
+company numbers of Algeria, Egypt, Ghana, Kenya, Morocco, Mozambique, Senegal
+and Tunisia), alongside the first set that runs from the Indonesian NPWP and NIK
+and the Brazilian CPF and CNPJ to the Spanish DNI, the German tax ID, the Polish
+PESEL and the Indian Aadhaar; [`Country::ALL`](https://docs.rs/stdnum-rs) lists
+them all.
+
+The North African and Vietnamese numbers are shape checks whose separator sets
+differ per country, so each one cleans the raw input itself rather than sharing
+the crate's global normalisation. Egypt's tax number is also accepted in
+Arabic-Indic digits, which is how it is printed in an Arabic document.
 
 Thirteen international identifiers are covered in addition to those, each a type
 of its own:
@@ -66,7 +73,7 @@ contributors, which in turn follows each authority's published specification.
 This is an independent reimplementation and shares no code with it; see
 [`NOTICE`](https://github.com/cipansor/crateworks/blob/main/crates/stdnum-rs/NOTICE).
 
-`tests/fixtures/stdnum_vectors.tsv` holds 19,104 numbers labelled by that
+`tests/fixtures/stdnum_vectors.tsv` holds 24,533 numbers labelled by that
 reference: every number in its own documentation plus each single-digit
 substitution of a valid number, the last character dropped and a character
 appended. `tests/readme.rs` replays the file, so a change that makes this crate

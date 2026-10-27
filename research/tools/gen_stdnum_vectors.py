@@ -103,6 +103,16 @@ COUNTRIES: dict[str, str] = {
     "SwedenOrgnr": "se.orgnr",
     "SwedenVat": "se.vat",
     "CzechDic": "cz.dic",
+    # Added in 0.1.6: the African and further-Middle-Eastern set.
+    "AlgeriaNif": "dz.nif",
+    "EgyptTn": "eg.tn",
+    "GhanaTin": "gh.tin",
+    "KenyaPin": "ke.pin",
+    "MoroccoIce": "ma.ice",
+    "MozambiqueNuit": "mz.nuit",
+    "SenegalNinea": "sn.ninea",
+    "TunisiaMf": "tn.mf",
+    "VietnamMst": "vn.mst",
 }
 
 EXAMPLE_RE = re.compile(r">>> validate\('([^']*)'\)")

@@ -159,6 +159,21 @@ pub enum Rule {
         /// Day, 1-31.
         day: u8,
     },
+    /// A holiday that falls every *n* years from a given year.
+    ///
+    /// Mexico's sexennial transfer of federal power is on 1 December in 1970,
+    /// 1976 and so on, and on 1 October from 2024, so the series is anchored
+    /// at a year rather than being "every year divisible by six".
+    EveryNYearsSince {
+        /// The first year of the series.
+        first: i32,
+        /// The interval in years.
+        step: u32,
+        /// Month, 1-12.
+        month: u8,
+        /// Day, 1-31.
+        day: u8,
+    },
     /// A holiday whose dates are published as a table rather than computed.
     ///
     /// New Zealand's Matariki follows an official calendar that is set by
@@ -186,6 +201,32 @@ pub enum Rule {
         /// The rule for the date the holiday falls on.
         base: &'static Rule,
     },
+    /// A holiday that never gains a substitute day, even when the country
+    /// moves its other weekend holidays.
+    ///
+    /// Serbia substitutes the first day of each of its two-day holidays but
+    /// not the second, so 1 January 2022 moved to Monday the 3rd while 2
+    /// January stayed on the Sunday it fell on. The country style cannot say
+    /// that, so the exception is carried by the holiday.
+    NeverSubstituted {
+        /// The rule for the date the holiday falls on.
+        base: &'static Rule,
+    },
+    /// A fixed date that is not a holiday at all when it falls on a given
+    /// weekday.
+    ///
+    /// Mexico does not move a holiday off a Sunday: 1 January and 25 December
+    /// are ordinary days again when they land there. That is the opposite of a
+    /// substitute day, and it cannot be expressed by a country style, because
+    /// the country still observes its Monday-based holidays on a Sunday.
+    Absorbed {
+        /// Month, 1-12.
+        month: u8,
+        /// Day, 1-31.
+        day: u8,
+        /// The weekday on which the holiday is dropped, 0 is Sunday.
+        weekday: u8,
+    },
     /// A rule that applies only within an inclusive range of years.
     ///
     /// Italy's Republic Day was a movable first Sunday in June from 1977 to
@@ -212,6 +253,7 @@ impl Rule {
             | Self::Since { .. }
             | Self::Until { .. }
             | Self::EveryNYears { .. }
+            | Self::EveryNYearsSince { .. }
             | Self::Table { .. }
             | Self::Between { .. } => true,
             Self::Fixed { .. }
@@ -223,6 +265,8 @@ impl Rule {
             | Self::WeekdayOnOrAfter { .. }
             | Self::WeekdayOnOrBefore { .. }
             | Self::ObservedFrom { .. }
+            | Self::NeverSubstituted { .. }
+            | Self::Absorbed { .. }
             | Self::ObservedOffWeekendAndOrthodoxEasterMonday { .. } => false,
         }
     }
@@ -343,11 +387,31 @@ impl Rule {
                     None
                 }
             }
+            Self::EveryNYearsSince {
+                first,
+                step,
+                month,
+                day,
+            } => {
+                if step > 0 && year >= first && (year - first).rem_euclid(step as i32) == 0 {
+                    Date::new(year, month, day)
+                } else {
+                    None
+                }
+            }
             Self::Table { dates } => dates
                 .iter()
                 .find(|(y, _, _)| *y == year)
                 .and_then(|(y, m, d)| Date::new(*y, *m, *d)),
-            Self::ObservedFrom { base, .. } => base.resolve(year),
+            Self::Absorbed {
+                month,
+                day,
+                weekday,
+            } => {
+                let date = Date::new(year, month, day)?;
+                (date.weekday() != weekday).then_some(date)
+            }
+            Self::NeverSubstituted { base } | Self::ObservedFrom { base, .. } => base.resolve(year),
             Self::Between { from, to, base } => {
                 if (from..=to).contains(&year) {
                     base.resolve(year)
@@ -367,7 +431,27 @@ impl Rule {
     #[must_use]
     pub const fn substitutes_in(&self, year: i32) -> bool {
         match self {
+            // The year wrappers pass the question down, so a
+            // `NeverSubstituted` or an `ObservedFrom` nested inside a `Since`
+            // is still seen.
+            Self::NeverSubstituted { .. } => false,
             Self::ObservedFrom { year: first, .. } => year >= *first,
+            Self::Since { year: first, base } => year >= *first && base.substitutes_in(year),
+            Self::Until { year: last, base } => year <= *last && base.substitutes_in(year),
+            Self::Between { from, to, base } => {
+                *from <= year && year <= *to && base.substitutes_in(year)
+            }
+            // `slice::contains` is not a const fn, so the year list is walked
+            // by hand here.
+            Self::ExceptYears { base, years } => {
+                let mut excluded = false;
+                let mut i = 0;
+                while i < years.len() {
+                    excluded = excluded || years[i] == year;
+                    i += 1;
+                }
+                !excluded && base.substitutes_in(year)
+            }
             _ => true,
         }
     }
@@ -523,6 +607,65 @@ mod tests {
         };
         let d = crossing.resolve(2026).unwrap();
         assert_eq!((d.month, d.day), (4, 27));
+    }
+
+    #[test]
+    fn absorbed_drops_a_fixed_date_on_one_weekday() {
+        // Mexico's New Year's Day is not observed at all when it is a Sunday,
+        // which is the opposite of a substitute day.
+        const NEW_YEAR: Rule = Rule::Absorbed {
+            month: 1,
+            day: 1,
+            weekday: 0,
+        };
+        // 1 January 2023 was a Sunday.
+        assert!(NEW_YEAR.resolve(2023).is_none());
+        // 1 January 2024 was a Monday.
+        assert_eq!(NEW_YEAR.resolve(2024), Date::new(2024, 1, 1));
+        assert!(!NEW_YEAR.is_year_restricted());
+    }
+
+    #[test]
+    fn never_substituted_overrides_the_country_style() {
+        const DAY: Rule = Rule::NeverSubstituted {
+            base: &Rule::Fixed { month: 1, day: 1 },
+        };
+        assert!(DAY.resolve(2028).is_some());
+        assert!(!DAY.substitutes_in(2028));
+        // The wrapper is transparent to `resolve`.
+        assert_eq!(DAY.resolve(2028), Date::new(2028, 1, 1));
+    }
+
+    #[test]
+    fn every_n_years_since_is_anchored_at_a_year() {
+        // The sexennial transfer of federal power is 1970, 1976, ... rather
+        // than every year divisible by six.
+        const TRANSFER: Rule = Rule::EveryNYearsSince {
+            first: 1970,
+            step: 6,
+            month: 12,
+            day: 1,
+        };
+        assert!(TRANSFER.resolve(1969).is_none());
+        assert!(TRANSFER.resolve(1970).is_some());
+        assert!(TRANSFER.resolve(1971).is_none());
+        assert!(TRANSFER.resolve(1976).is_some());
+        assert!(TRANSFER.is_year_restricted());
+    }
+
+    #[test]
+    fn a_wrapper_passes_the_substitution_question_down() {
+        // `NeverSubstituted` nested inside a `Since` must still be seen, which
+        // is what `substitutes_in` recursing into the year wrappers buys.
+        const NESTED: Rule = Rule::Since {
+            year: 2007,
+            base: &Rule::NeverSubstituted {
+                base: &Rule::Fixed { month: 1, day: 7 },
+            },
+        };
+        assert!(!NESTED.substitutes_in(2010));
+        assert!(NESTED.resolve(2006).is_none());
+        assert!(NESTED.resolve(2010).is_some());
     }
 
     #[test]

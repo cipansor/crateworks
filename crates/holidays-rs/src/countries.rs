@@ -107,6 +107,10 @@ pub enum Country {
     Greece,
     /// Romania.
     Romania,
+    /// Mexico.
+    Mexico,
+    /// Latvia.
+    Latvia,
 }
 
 impl Country {
@@ -143,6 +147,8 @@ impl Country {
         Self::Malta,
         Self::Greece,
         Self::Romania,
+        Self::Mexico,
+        Self::Latvia,
     ];
 
     /// The holiday rules for this country, in no particular order.
@@ -180,6 +186,8 @@ impl Country {
             Self::Malta => MALTA,
             Self::Greece => GREECE,
             Self::Romania => ROMANIA_HOLIDAYS,
+            Self::Mexico => MEXICO,
+            Self::Latvia => LATVIA,
         }
     }
 
@@ -216,7 +224,11 @@ impl Country {
             | Self::Cyprus
             | Self::Malta
             | Self::Greece
-            | Self::Romania => SubstituteStyle::None,
+            | Self::Romania
+            | Self::Mexico => SubstituteStyle::None,
+            // Latvia moves a weekend holiday to the next Monday from 2007; the
+            // two holidays that do not are wrapped in `Rule::NeverSubstituted`.
+            Self::Latvia => SubstituteStyle::NextMonday,
         }
     }
 
@@ -255,8 +267,315 @@ impl Country {
             Self::Malta => "Malta",
             Self::Greece => "Greece",
             Self::Romania => "Romania",
+            Self::Mexico => "Mexico",
+            Self::Latvia => "Latvia",
         }
     }
+}
+
+/// Mexico.
+///
+/// The three Monday holidays come from the LFT reform of 2006; before it
+/// Constitution Day and Benito Juárez's birthday sat on their real dates. The
+/// two holidays that are never moved are dropped altogether when they fall on
+/// a Sunday, which is why they use [`Rule::Absorbed`] rather than the country
+/// style. The sexennial transfer of federal power moved from 1 December to 1
+/// October in 2024.
+static MEXICO: &[Holiday] = &[
+    h(
+        "Año Nuevo",
+        Rule::Absorbed {
+            month: 1,
+            day: 1,
+            weekday: 0,
+        },
+    ),
+    h(
+        "Día de la Constitución",
+        Rule::Until {
+            year: 2005,
+            base: &Rule::Fixed { month: 2, day: 5 },
+        },
+    ),
+    h(
+        "Día de la Constitución",
+        Rule::Since {
+            year: 2006,
+            base: &Rule::NthWeekday {
+                month: 2,
+                weekday: 1,
+                nth: 1,
+            },
+        },
+    ),
+    h(
+        "Natalicio de Benito Juárez",
+        Rule::Until {
+            year: 2006,
+            base: &Rule::Fixed { month: 3, day: 21 },
+        },
+    ),
+    h(
+        "Natalicio de Benito Juárez",
+        Rule::Since {
+            year: 2007,
+            base: &Rule::NthWeekday {
+                month: 3,
+                weekday: 1,
+                nth: 3,
+            },
+        },
+    ),
+    h(
+        "Día del Trabajo",
+        Rule::Since {
+            year: 1923,
+            base: &Rule::Fixed { month: 5, day: 1 },
+        },
+    ),
+    h("Día de la Independencia", Rule::Fixed { month: 9, day: 16 }),
+    h(
+        "Día de la Revolución",
+        Rule::Until {
+            year: 2005,
+            base: &Rule::Fixed { month: 11, day: 20 },
+        },
+    ),
+    h(
+        "Día de la Revolución",
+        Rule::Since {
+            year: 2006,
+            base: &Rule::NthWeekday {
+                month: 11,
+                weekday: 1,
+                nth: 3,
+            },
+        },
+    ),
+    h(
+        "Transmisión del Poder Ejecutivo Federal",
+        Rule::Until {
+            year: 2023,
+            base: &Rule::EveryNYearsSince {
+                first: 1970,
+                step: 6,
+                month: 12,
+                day: 1,
+            },
+        },
+    ),
+    h(
+        "Transmisión del Poder Ejecutivo Federal",
+        Rule::Since {
+            year: 2024,
+            base: &Rule::EveryNYearsSince {
+                first: 2024,
+                step: 6,
+                month: 10,
+                day: 1,
+            },
+        },
+    ),
+    h(
+        "Navidad",
+        Rule::Absorbed {
+            month: 12,
+            day: 25,
+            weekday: 0,
+        },
+    ),
+];
+
+/// Latvia.
+///
+/// Only 4 May and 18 November take a substitute day, and only from 2007; every
+/// other holiday is wrapped in [`Rule::NeverSubstituted`] to opt out of the
+/// country style. The ad-hoc rest days the cabinet grants each year, and the
+/// one-off observances such as the 2018 papal visit, are not formulaic and are
+/// out of scope; `Calendar::with_extra` takes them.
+static LATVIA: &[Holiday] = &[
+    h(
+        "Jaungada diena",
+        Rule::NeverSubstituted {
+            base: &Rule::Fixed { month: 1, day: 1 },
+        },
+    ),
+    h(
+        "Lielā Piektdiena",
+        Rule::NeverSubstituted {
+            base: &Rule::EasterOffset(-2),
+        },
+    ),
+    h(
+        "Pirmās Lieldienas",
+        Rule::NeverSubstituted {
+            base: &Rule::EasterOffset(0),
+        },
+    ),
+    h(
+        "Otrās Lieldienas",
+        Rule::Since {
+            year: 1997,
+            base: &Rule::NeverSubstituted {
+                base: &Rule::EasterOffset(1),
+            },
+        },
+    ),
+    h(
+        "Darba svētki",
+        Rule::NeverSubstituted {
+            base: &Rule::Fixed { month: 5, day: 1 },
+        },
+    ),
+    h(
+        "Latvijas Republikas Satversmes sapulces sasaukšanas diena",
+        Rule::NeverSubstituted {
+            base: &Rule::Fixed { month: 5, day: 1 },
+        },
+    ),
+    h(
+        "Latvijas Republikas Neatkarības atjaunošanas diena",
+        Rule::Since {
+            year: 2002,
+            base: &Rule::ObservedFrom {
+                year: 2007,
+                shared: false,
+                base: &Rule::Fixed { month: 5, day: 4 },
+            },
+        },
+    ),
+    h(
+        "Mātes diena",
+        Rule::NeverSubstituted {
+            base: &Rule::NthWeekday {
+                month: 5,
+                weekday: 0,
+                nth: 2,
+            },
+        },
+    ),
+    h(
+        "Vasarsvētki",
+        Rule::Since {
+            year: 1996,
+            base: &Rule::NeverSubstituted {
+                base: &Rule::EasterOffset(49),
+            },
+        },
+    ),
+    h(
+        "Līgo diena",
+        Rule::NeverSubstituted {
+            base: &Rule::Fixed { month: 6, day: 23 },
+        },
+    ),
+    h(
+        "Jāņu diena",
+        Rule::NeverSubstituted {
+            base: &Rule::Fixed { month: 6, day: 24 },
+        },
+    ),
+    h(
+        "Latvijas Republikas Proklamēšanas diena",
+        Rule::ObservedFrom {
+            year: 2007,
+            shared: false,
+            base: &Rule::Fixed { month: 11, day: 18 },
+        },
+    ),
+    h(
+        "Ziemassvētku vakars",
+        Rule::Since {
+            year: 2007,
+            base: &Rule::NeverSubstituted {
+                base: &Rule::Fixed { month: 12, day: 24 },
+            },
+        },
+    ),
+    h(
+        "Pirmie Ziemassvētki",
+        Rule::NeverSubstituted {
+            base: &Rule::Fixed { month: 12, day: 25 },
+        },
+    ),
+    h(
+        "Otrie Ziemassvētki",
+        Rule::NeverSubstituted {
+            base: &Rule::Fixed { month: 12, day: 26 },
+        },
+    ),
+    h(
+        "Vecgada diena",
+        Rule::NeverSubstituted {
+            base: &Rule::Fixed { month: 12, day: 31 },
+        },
+    ),
+];
+
+/// Places every holiday of `year`, resolving the collisions a substitution
+/// creates.
+///
+/// `movable_first` decides which group claims a contested date first; the
+/// caller tries both and keeps the better result. `falls` is
+/// `(date it falls on, name, substitutes, may share a substitute day)`.
+fn place_all(
+    year: i32,
+    style: SubstituteStyle,
+    falls: &[(Date, &'static str, bool, bool)],
+    movable_first: bool,
+) -> Vec<(Date, &'static str)> {
+    let mut fixed: Vec<(Date, &'static str)> = Vec::new();
+    let mut movable: Vec<(Date, &'static str, bool)> = Vec::new();
+    for &(date, name, substitutes, may_share) in falls {
+        if substitutes && date.is_weekend() {
+            movable.push((date, name, may_share));
+        } else {
+            fixed.push((date, name));
+        }
+    }
+
+    let mut taken: Vec<Date> = Vec::with_capacity(falls.len());
+    let mut out: Vec<(Date, &'static str)> = Vec::with_capacity(falls.len());
+
+    // A holiday that keeps its date is recorded where it falls.
+    let place_fixed = |fixed: &[(Date, &'static str)],
+                       taken: &mut Vec<Date>,
+                       out: &mut Vec<(Date, &'static str)>| {
+        for &(date, name) in fixed {
+            taken.push(date);
+            if date.year == year {
+                out.push((date, name));
+            }
+        }
+    };
+    // A movable holiday takes its substitute day, or the next free day when
+    // that slot is taken and it is not allowed to share.
+    let place_movable = |movable: &[(Date, &'static str, bool)],
+                         taken: &mut Vec<Date>,
+                         out: &mut Vec<(Date, &'static str)>| {
+        for &(date, name, may_share) in movable {
+            let mut observed = style.apply(date);
+            while !may_share && taken.contains(&observed) {
+                let Some(next) = observed.add_days(1) else {
+                    break;
+                };
+                observed = next;
+            }
+            taken.push(observed);
+            if observed.year == year {
+                out.push((observed, name));
+            }
+        }
+    };
+
+    if movable_first {
+        place_movable(&movable, &mut taken, &mut out);
+        place_fixed(&fixed, &mut taken, &mut out);
+    } else {
+        place_fixed(&fixed, &mut taken, &mut out);
+        place_movable(&movable, &mut taken, &mut out);
+    }
+    out
 }
 
 /// A country calendar, optionally extended with extra dates.
@@ -432,6 +751,18 @@ impl Calendar {
         Self::new(Country::Luxembourg)
     }
 
+    /// Builds the calendar for Mexico.
+    #[must_use]
+    pub const fn mexico() -> Self {
+        Self::new(Country::Mexico)
+    }
+
+    /// Builds the calendar for Latvia.
+    #[must_use]
+    pub const fn latvia() -> Self {
+        Self::new(Country::Latvia)
+    }
+
     /// Builds the calendar for Iceland.
     #[must_use]
     pub const fn cyprus() -> Self {
@@ -545,40 +876,17 @@ impl Calendar {
             return out;
         }
 
-        // A holiday that falls on a weekday keeps its date; only a weekend
-        // holiday moves, and it moves to the next free day. The weekday
-        // holidays must therefore be placed first: in the United Kingdom in
-        // 2022 Boxing Day fell on a Monday and kept the 26th, so Christmas Day
-        // (a Sunday) rolled past it to the 27th rather than taking the 26th.
-        let mut weekday: Vec<(Date, &'static str)> = Vec::new();
-        let mut weekend: Vec<(Date, &'static str, bool)> = Vec::new();
-        for (date, name, substitutes, may_share) in falls {
-            if substitutes && date.is_weekend() {
-                weekend.push((date, name, may_share));
-            } else {
-                weekday.push((date, name));
-            }
-        }
-        let mut taken: Vec<Date> = Vec::with_capacity(weekday.len() + weekend.len());
-        let mut out: Vec<(Date, &'static str)> = Vec::with_capacity(weekday.len() + weekend.len());
-        for (date, name) in weekday {
-            taken.push(date);
-            if date.year == year {
-                out.push((date, name));
-            }
-        }
-        for (date, name, may_share) in weekend {
-            let mut observed = style.apply(date);
-            while !may_share && taken.contains(&observed) {
-                let Some(next) = observed.add_days(1) else {
-                    break;
-                };
-                observed = next;
-            }
-            taken.push(observed);
-            if observed.year == year {
-                out.push((observed, name));
-            }
+        // The weekday holidays are placed first, so that a weekend holiday
+        // rolls past one that already holds the substitute day. That is what
+        // the United Kingdom needs: Boxing Day 2022 fell on a Monday and kept
+        // the 26th, so Christmas Day rolled on to the 27th. A country that
+        // moves the Sunday holiday before a Monday holiday needs the other
+        // order, so both are tried and the one that keeps more holidays inside
+        // the year wins.
+        let mut out = place_all(year, style, &falls, false);
+        let alternative = place_all(year, style, &falls, true);
+        if alternative.len() > out.len() {
+            out = alternative;
         }
         out.sort_unstable();
         out.dedup();

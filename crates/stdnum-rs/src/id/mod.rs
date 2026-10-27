@@ -14,6 +14,7 @@
 
 use crate::{Error, Result};
 
+mod africa;
 mod asia;
 mod asia_ext;
 mod balkans;
@@ -26,6 +27,7 @@ mod oceania;
 mod southeast_asia;
 mod vat;
 
+use africa::{algeria, egypt, ghana, kenya, morocco, mozambique, senegal, tunisia, vietnam};
 use asia::{china, india, korea, mexico, turkey};
 use asia_ext::{greece, israel, malaysia, singapore, south_africa, thailand};
 use balkans::{belarus, montenegro, north_macedonia, romania as romania_cf, serbia, slovenia};
@@ -189,6 +191,24 @@ pub enum Country {
     SwedenVat,
     /// Czechia: DIČ VAT number, 8 to 10 digits.
     CzechDic,
+    /// Algeria: NIF fiscal identification number, 15 or 20 digits.
+    AlgeriaNif,
+    /// Egypt: tax registration number, 9 digits.
+    EgyptTn,
+    /// Ghana: TIN taxpayer identification number, 11 characters.
+    GhanaTin,
+    /// Kenya: KRA PIN, 11 characters.
+    KenyaPin,
+    /// Morocco: ICE common enterprise identifier, 15 digits.
+    MoroccoIce,
+    /// Mozambique: NUIT tax number, 9 digits.
+    MozambiqueNuit,
+    /// Senegal: NINEA business and association number, 7 or 9 digits.
+    SenegalNinea,
+    /// Tunisia: MF matricule fiscal, 8 or 13 characters.
+    TunisiaMf,
+    /// Vietnam: MST tax code, 10 or 13 digits.
+    VietnamMst,
 }
 
 impl Country {
@@ -264,6 +284,15 @@ impl Country {
         Self::SwedenOrgnr,
         Self::SwedenVat,
         Self::CzechDic,
+        Self::AlgeriaNif,
+        Self::EgyptTn,
+        Self::GhanaTin,
+        Self::KenyaPin,
+        Self::MoroccoIce,
+        Self::MozambiqueNuit,
+        Self::SenegalNinea,
+        Self::TunisiaMf,
+        Self::VietnamMst,
     ];
 
     /// A short English description of the identifier.
@@ -340,6 +369,15 @@ impl Country {
             Self::SwedenOrgnr => "Sweden organisationsnummer",
             Self::SwedenVat => "Sweden VAT number",
             Self::CzechDic => "Czechia DIČ VAT number",
+            Self::AlgeriaNif => "Algeria NIF fiscal identification number",
+            Self::EgyptTn => "Egypt tax registration number",
+            Self::GhanaTin => "Ghana TIN taxpayer identification number",
+            Self::KenyaPin => "Kenya KRA PIN",
+            Self::MoroccoIce => "Morocco ICE enterprise identifier",
+            Self::MozambiqueNuit => "Mozambique NUIT tax number",
+            Self::SenegalNinea => "Senegal NINEA business number",
+            Self::TunisiaMf => "Tunisia matricule fiscal",
+            Self::VietnamMst => "Vietnam MST tax code",
         }
     }
 }
@@ -371,13 +409,26 @@ impl IdNumber {
             .filter(|c| !c.is_whitespace())
             .flat_map(char::to_uppercase)
             .collect::<String>();
-        let subject = match country {
+        // The African and Vietnamese numbers each define their own separator
+        // set, and two of them allow characters the global normalisation
+        // removes (a colon would be silently deleted here but rejected by the
+        // reference), so they clean the raw input themselves.
+        let subject: &str = match country {
             Country::FinlandHetu
             | Country::SwedenPersonnummer
             | Country::ItalyCodiceFiscale
             | Country::MexicoRfc
-            | Country::ChinaRic => &kept,
-            _ => &normalized,
+            | Country::ChinaRic => kept.as_str(),
+            Country::AlgeriaNif
+            | Country::EgyptTn
+            | Country::GhanaTin
+            | Country::KenyaPin
+            | Country::MoroccoIce
+            | Country::MozambiqueNuit
+            | Country::SenegalNinea
+            | Country::TunisiaMf
+            | Country::VietnamMst => input,
+            _ => normalized.as_str(),
         };
         match country {
             Country::IndonesiaNpwp => indonesia::validate_npwp(subject)?,
@@ -450,6 +501,15 @@ impl IdNumber {
             Country::SwedenOrgnr => sweden_vat::validate_org_number(subject)?,
             Country::SwedenVat => sweden_vat::validate_vat(subject)?,
             Country::CzechDic => czechia::validate_dic(subject)?,
+            Country::AlgeriaNif => algeria::validate_nif(subject)?,
+            Country::EgyptTn => egypt::validate_tn(subject)?,
+            Country::GhanaTin => ghana::validate_tin(subject)?,
+            Country::KenyaPin => kenya::validate_pin(subject)?,
+            Country::MoroccoIce => morocco::validate_ice(subject)?,
+            Country::MozambiqueNuit => mozambique::validate_nuit(subject)?,
+            Country::SenegalNinea => senegal::validate_ninea(subject)?,
+            Country::TunisiaMf => tunisia::validate_mf(subject)?,
+            Country::VietnamMst => vietnam::validate_mst(subject)?,
         }
         Ok(Self {
             country,
