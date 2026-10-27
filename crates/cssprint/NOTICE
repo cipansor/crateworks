@@ -1,0 +1,19 @@
+crateworks
+Copyright 2026 Yayasan Pesantren Cipansor and contributors
+
+This product includes software developed by Yayasan Pesantren Cipansor and
+contributors (https://github.com/cipansor/crateworks).
+
+Its behaviour is checked against [WeasyPrint](https://github.com/Kozea/WeasyPrint),
+which CourtBouillon publishes under the BSD 3-Clause licence:
+
+    Copyright (c) 2011-2021, Simon Sapin and contributors.
+    All rights reserved.
+
+`crates/cssprint/tests/fixtures/layout.tsv` and
+`crates/cssprint/tests/fixtures/cases.tsv` are generated from WeasyPrint by
+`research/tools/gen_weasyprint_layout.py`. They are data, not code: each row
+records the box tree WeasyPrint produces for a small HTML document, so that this
+crate's layout can be compared against it without WeasyPrint present.
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).

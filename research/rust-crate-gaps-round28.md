@@ -108,19 +108,59 @@ together rather than separately:
 
 1. **Demand is proven in two ecosystems** - WeasyPrint on PyPI, `pdfmake`
    (1,864,382/week) and `pdfkit` on npm.
-2. **The reference implementation is readable and permissively licensed.**
-   WeasyPrint is BSD-3-Clause and its test suite is the specification: it
-   carries a corpus of HTML/CSS inputs with expected PDF layout. That is a
-   differential gate of the kind `verify_spreadsheet.py` provides for
-   `spreadsheet-formula`.
+2. **The reference is readable, permissively licensed, and its oracle is
+   verified to work here.** WeasyPrint 70.0 is BSD-3-Clause and installs and
+   renders in this environment. Its test suite is 1,723 test functions, of which
+   **571 are layout** and 397 are drawing, backed by **2,908 assertions** and
+   **760 calls** to `render_pages`.
 3. **The incumbents are thin, not entrenched.** Six crates, all under 5,100
    recent, all one author, none with the layout engine complete enough to have
    won an audience. This is not a race with a funded entrant.
 
-The honest cost is that a CSS layout engine is large - box tree, cascade,
-line breaking, pagination - and it is the biggest thing proposed in any of the
-28 rounds. It is also the only candidate this round found where the demand is
-in the tens of millions and the supply is under six thousand.
+### The oracle is the box tree, not the PDF
+
+The plan of record was to diff PDF bytes. Reading the reference corrects that,
+and the correction makes the gate much better. WeasyPrint's layout tests do not
+inspect PDFs at all: `render_pages()` returns the laid-out `PageBox` tree, and
+the tests assert exact geometry on it.
+
+```python
+page, = render_pages('<style>@page{size:200px 200px;margin:0}body{margin:0}'
+                     'div{width:50px;height:20px}</style><div></div>'
+                     '<div style="width:80px"></div>')
+# PageBox w=200 h=200
+#   BlockBox <html> w=200 h=40
+#     BlockBox <body> w=200 h=40
+#       BlockBox <div> w=50 h=20 x=0 y=0
+#       BlockBox <div> w=80 h=20 x=0 y=20
+```
+
+Every number above is a float the reference computed. That is a far stronger
+oracle than a PDF diff: it is exact, it is stable across releases in a way that
+byte-level PDF output is not, it localises a failure to one box rather than to
+"the file differs", and it needs no PDF renderer on the Rust side to check.
+`PageBox` is reached through `page._page_box`; the entry point is confirmed
+working, not assumed.
+
+The cost is that the crate must expose its own box tree in a comparable form -
+which it needs internally anyway.
+
+### The first slice, restated
+
+Build the fixture extractor before any layout code. It walks WeasyPrint's box
+tree over a corpus and writes a table of `(input HTML, expected geometry)`. Then
+implement the smallest thing that can be checked against it: the CSS subset the
+corpus needs (`width`, `height`, `margin`, `padding`, `border`, `display`) and
+block layout. A failure then names one box and one number.
+
+This is the same discipline that turned `spreadsheet-formula` from a partial
+implementation into 525/525 agreement, and it is the reason the cron-descriptor
+gap was recorded as unproven in round 22: that round had no oracle.
+
+Name availability, checked 2026-10-21: `weasy-rs`, `weasyprint-rs`,
+`css-layout-rs`, `print-css`, `weasy`, `webprint` and `pageforge` are all free;
+`paginator-rs` is taken.
+
 
 ## What the other 252 candidates showed
 
@@ -152,10 +192,16 @@ with demand in the tens of millions of monthly downloads and a Rust leader
 under six thousand. Everything else in this scan is either served or already
 recorded as a narrower opening.
 
-The first slice should be the one that makes the differential gate possible:
-port WeasyPrint's own test corpus, run it against the layout engine, and treat
-any layout difference as a failure. That is the same discipline that turned
-`spreadsheet-formula` from a partial implementation into 525/525 agreement.
+The first slice should be the fixture extractor, not the layout engine. Walk
+WeasyPrint's box tree over a corpus and write `(input HTML, expected geometry)`
+fixtures, then implement the CSS subset they need and block layout against them.
+That is the same discipline that turned `spreadsheet-formula` from a partial
+implementation into 525/525 agreement.
+
+The honest cost is that a CSS layout engine is large - box tree, cascade, line
+breaking, pagination - and it is the biggest thing proposed in any of the 28
+rounds. It is also the only candidate this round found where the demand is in
+the tens of millions and the supply is under six thousand.
 
 ## Reproduce
 
@@ -166,3 +212,14 @@ python3 research/tools/verify_shortlist.py # name-level check of the flagged few
 
 Both use only public APIs and need no key. `npm_rust_gap.py` writes
 `gap_rows.json`; `verify_shortlist.py` writes `shortlist.json`.
+
+The oracle check needs WeasyPrint itself:
+
+```
+pip install weasyprint
+git clone --depth 1 https://github.com/Kozea/WeasyPrint.git
+```
+
+`tests/testing_utils.py` holds `render_pages()`; `tests/layout/` holds the 571
+layout tests.
+

@@ -64,3 +64,7 @@ marker = "hassansin/parse-address"
 [[upstream]]
 project = "OurAirports airport data by David Megginson"
 marker = "ourairports.com"
+
+[[upstream]]
+project = "WeasyPrint by CourtBouillon"
+marker = "Kozea/WeasyPrint"

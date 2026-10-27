@@ -1,0 +1,21 @@
+[package]
+name = "cssprint"
+description = "Lay out HTML and CSS for paged output, in pure Rust: the box model and block layout, checked against WeasyPrint's own box tree."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation = "https://docs.rs/cssprint"
+authors.workspace = true
+keywords = ["css", "layout", "html", "pdf", "print"]
+categories = ["web-programming", "rendering"]
+readme = "README.md"
+
+[dependencies]
+
+[dev-dependencies]
+
+[lints]
+workspace = true
