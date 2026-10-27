@@ -111,6 +111,28 @@ pub enum Country {
     Mexico,
     /// Latvia.
     Latvia,
+    /// Brazil.
+    Brazil,
+    /// El Salvador.
+    ElSalvador,
+    /// Nicaragua.
+    Nicaragua,
+    /// Peru.
+    Peru,
+    /// Andorra.
+    Andorra,
+    /// Cabo Verde.
+    CaboVerde,
+    /// Faroe Islands.
+    FaroeIslands,
+    /// Greenland.
+    Greenland,
+    /// Switzerland (national holidays only).
+    Switzerland,
+    /// Pitcairn Islands.
+    PitcairnIslands,
+    /// Tokelau.
+    Tokelau,
 }
 
 impl Country {
@@ -149,6 +171,17 @@ impl Country {
         Self::Romania,
         Self::Mexico,
         Self::Latvia,
+        Self::Brazil,
+        Self::ElSalvador,
+        Self::Nicaragua,
+        Self::Peru,
+        Self::Andorra,
+        Self::CaboVerde,
+        Self::FaroeIslands,
+        Self::Greenland,
+        Self::Switzerland,
+        Self::PitcairnIslands,
+        Self::Tokelau,
     ];
 
     /// The holiday rules for this country, in no particular order.
@@ -188,6 +221,17 @@ impl Country {
             Self::Romania => ROMANIA_HOLIDAYS,
             Self::Mexico => MEXICO,
             Self::Latvia => LATVIA,
+            Self::Brazil => BRAZIL,
+            Self::ElSalvador => EL_SALVADOR,
+            Self::Nicaragua => NICARAGUA,
+            Self::Peru => PERU,
+            Self::Andorra => ANDORRA,
+            Self::CaboVerde => CABO_VERDE,
+            Self::FaroeIslands => FAROE_ISLANDS,
+            Self::Greenland => GREENLAND,
+            Self::Switzerland => SWITZERLAND,
+            Self::PitcairnIslands => PITCAIRN_ISLANDS,
+            Self::Tokelau => TOKELAU,
         }
     }
 
@@ -225,7 +269,18 @@ impl Country {
             | Self::Malta
             | Self::Greece
             | Self::Romania
-            | Self::Mexico => SubstituteStyle::None,
+            | Self::Mexico
+            | Self::Brazil
+            | Self::ElSalvador
+            | Self::Nicaragua
+            | Self::Peru
+            | Self::Andorra
+            | Self::CaboVerde
+            | Self::FaroeIslands
+            | Self::Greenland
+            | Self::Switzerland
+            | Self::PitcairnIslands
+            | Self::Tokelau => SubstituteStyle::None,
             // Latvia moves a weekend holiday to the next Monday from 2007; the
             // two holidays that do not are wrapped in `Rule::NeverSubstituted`.
             Self::Latvia => SubstituteStyle::NextMonday,
@@ -269,6 +324,17 @@ impl Country {
             Self::Romania => "Romania",
             Self::Mexico => "Mexico",
             Self::Latvia => "Latvia",
+            Self::Brazil => "Brazil",
+            Self::ElSalvador => "El Salvador",
+            Self::Nicaragua => "Nicaragua",
+            Self::Peru => "Peru",
+            Self::Andorra => "Andorra",
+            Self::CaboVerde => "Cabo Verde",
+            Self::FaroeIslands => "Faroe Islands",
+            Self::Greenland => "Greenland",
+            Self::Switzerland => "Switzerland",
+            Self::PitcairnIslands => "Pitcairn Islands",
+            Self::Tokelau => "Tokelau",
         }
     }
 }
@@ -508,6 +574,432 @@ static LATVIA: &[Holiday] = &[
         "Vecgada diena",
         Rule::NeverSubstituted {
             base: &Rule::Fixed { month: 12, day: 31 },
+        },
+    ),
+];
+
+/// Brazil.
+///
+/// The public set is entirely formulaic, and Brazil does not move a holiday off
+/// a weekend, so every date is kept where it falls. The country has a long
+/// history: Tiradentes' Day was suspended for two years in the 1930s, Labour
+/// Day starts in 1925, Our Lady of Aparecida in 1980 and the National Day of
+/// Zumbi and Black Awareness only in 2024. Those bounds are part of the
+/// calendar, not decoration - before them the date is an ordinary working day.
+static BRAZIL: &[Holiday] = &[
+    h(
+        "Confraternização Universal",
+        Rule::Fixed { month: 1, day: 1 },
+    ),
+    h("Sexta-feira Santa", Rule::EasterOffset(-2)),
+    h(
+        "Tiradentes",
+        Rule::Until {
+            year: 1930,
+            base: &Rule::Fixed { month: 4, day: 21 },
+        },
+    ),
+    h(
+        "Tiradentes",
+        Rule::Since {
+            year: 1933,
+            base: &Rule::Fixed { month: 4, day: 21 },
+        },
+    ),
+    h(
+        "Dia do Trabalhador",
+        Rule::Since {
+            year: 1925,
+            base: &Rule::Fixed { month: 5, day: 1 },
+        },
+    ),
+    h("Independência do Brasil", Rule::Fixed { month: 9, day: 7 }),
+    h(
+        "Nossa Senhora Aparecida",
+        Rule::Since {
+            year: 1980,
+            base: &Rule::Fixed { month: 10, day: 12 },
+        },
+    ),
+    h("Finados", Rule::Fixed { month: 11, day: 2 }),
+    h(
+        "Proclamação da República",
+        Rule::Fixed { month: 11, day: 15 },
+    ),
+    h(
+        "Dia Nacional de Zumbi e da Consciência Negra",
+        Rule::Since {
+            year: 2024,
+            base: &Rule::Fixed { month: 11, day: 20 },
+        },
+    ),
+    h(
+        "Natal",
+        Rule::Since {
+            year: 1922,
+            base: &Rule::Fixed { month: 12, day: 25 },
+        },
+    ),
+];
+
+/// El Salvador.
+///
+/// The whole public set is fixed dates and three days around Easter, and the
+/// country does not substitute a weekend occurrence, so nothing moves. Mother's
+/// Day and Father's Day were added by decree in 2016 and 2013 respectively and
+/// did not exist before those years.
+static EL_SALVADOR: &[Holiday] = &[
+    h("Año Nuevo", Rule::Fixed { month: 1, day: 1 }),
+    h("Jueves Santo", Rule::EasterOffset(-3)),
+    h("Viernes Santo", Rule::EasterOffset(-2)),
+    h("Sábado Santo", Rule::EasterOffset(-1)),
+    h("Día del Trabajo", Rule::Fixed { month: 5, day: 1 }),
+    h(
+        "Día de la Madre",
+        Rule::Since {
+            year: 2016,
+            base: &Rule::Fixed { month: 5, day: 10 },
+        },
+    ),
+    h(
+        "Día del Padre",
+        Rule::Since {
+            year: 2013,
+            base: &Rule::Fixed { month: 6, day: 17 },
+        },
+    ),
+    h(
+        "Celebración del Divino Salvador del Mundo",
+        Rule::Fixed { month: 8, day: 6 },
+    ),
+    h("Día de la Independencia", Rule::Fixed { month: 9, day: 15 }),
+    h("Día de los Difuntos", Rule::Fixed { month: 11, day: 2 }),
+    h("Navidad", Rule::Fixed { month: 12, day: 25 }),
+];
+
+/// Nicaragua.
+///
+/// Fixed dates and Maundy Thursday and Good Friday, with no substitution, so
+/// every holiday stays on the date it falls. Revolution Day is tied to 1979 and
+/// Mother's Day to 2022; before those years the dates were ordinary working
+/// days.
+static NICARAGUA: &[Holiday] = &[
+    h("Año Nuevo", Rule::Fixed { month: 1, day: 1 }),
+    h("Jueves Santo", Rule::EasterOffset(-3)),
+    h("Viernes Santo", Rule::EasterOffset(-2)),
+    h("Día del Trabajo", Rule::Fixed { month: 5, day: 1 }),
+    h(
+        "Día de la Madre",
+        Rule::Since {
+            year: 2022,
+            base: &Rule::Fixed { month: 5, day: 30 },
+        },
+    ),
+    h(
+        "Día de la Revolución",
+        Rule::Since {
+            year: 1979,
+            base: &Rule::Fixed { month: 7, day: 19 },
+        },
+    ),
+    h("Batalla de San Jacinto", Rule::Fixed { month: 9, day: 14 }),
+    h("Día de la Independencia", Rule::Fixed { month: 9, day: 15 }),
+    h("Concepción de María", Rule::Fixed { month: 12, day: 8 }),
+    h("Navidad", Rule::Fixed { month: 12, day: 25 }),
+];
+
+/// Peru.
+///
+/// Fixed dates plus the four days around Easter, with no substitution. Four
+/// holidays were added by law in the 2020s - the Battle of Junín and the Battle
+/// of Ayacucho in 2022, Peruvian Air Force Day in 2023 and the Battle of Arica
+/// in 2024 - so each carries the year it started.
+static PERU: &[Holiday] = &[
+    h("Año Nuevo", Rule::Fixed { month: 1, day: 1 }),
+    h("Jueves Santo", Rule::EasterOffset(-3)),
+    h("Viernes Santo", Rule::EasterOffset(-2)),
+    h("Domingo de Resurrección", Rule::EasterOffset(0)),
+    h("Día del Trabajo", Rule::Fixed { month: 5, day: 1 }),
+    h(
+        "Batalla de Arica y Día de la Bandera",
+        Rule::Since {
+            year: 2024,
+            base: &Rule::Fixed { month: 6, day: 7 },
+        },
+    ),
+    h("San Pedro y San Pablo", Rule::Fixed { month: 6, day: 29 }),
+    h(
+        "Día de la Fuerza Aérea del Perú",
+        Rule::Since {
+            year: 2023,
+            base: &Rule::Fixed { month: 7, day: 23 },
+        },
+    ),
+    h("Día de la Independencia", Rule::Fixed { month: 7, day: 28 }),
+    h(
+        "Día de la Gran Parada Militar",
+        Rule::Fixed { month: 7, day: 29 },
+    ),
+    h(
+        "Batalla de Junín",
+        Rule::Since {
+            year: 2022,
+            base: &Rule::Fixed { month: 8, day: 6 },
+        },
+    ),
+    h("Santa Rosa de Lima", Rule::Fixed { month: 8, day: 30 }),
+    h("Combate de Angamos", Rule::Fixed { month: 10, day: 8 }),
+    h("Todos Los Santos", Rule::Fixed { month: 11, day: 1 }),
+    h("Inmaculada Concepción", Rule::Fixed { month: 12, day: 8 }),
+    h(
+        "Batalla de Ayacucho",
+        Rule::Since {
+            year: 2022,
+            base: &Rule::Fixed { month: 12, day: 9 },
+        },
+    ),
+    h("Navidad del Señor", Rule::Fixed { month: 12, day: 25 }),
+];
+
+/// Andorra.
+///
+/// The calendar is fixed dates plus six days relative to Easter, and the
+/// country does not substitute a weekend occurrence, so nothing moves. Carnival
+/// is the Monday before Ash Wednesday, 48 days before Easter, and Whit Monday
+/// is 50 days after.
+static ANDORRA: &[Holiday] = &[
+    h("Cap d'Any", Rule::Fixed { month: 1, day: 1 }),
+    h("Reis", Rule::Fixed { month: 1, day: 6 }),
+    h("Carnaval", Rule::EasterOffset(-48)),
+    h("Dia de la Constitució", Rule::Fixed { month: 3, day: 14 }),
+    h("Divendres Sant", Rule::EasterOffset(-2)),
+    h("Dilluns de Pasqua", Rule::EasterOffset(1)),
+    h("Festa del treball", Rule::Fixed { month: 5, day: 1 }),
+    h("Dilluns de Pentecosta", Rule::EasterOffset(50)),
+    h("Assumpció", Rule::Fixed { month: 8, day: 15 }),
+    h(
+        "Nostra Senyora de Meritxell",
+        Rule::Fixed { month: 9, day: 8 },
+    ),
+    h("Tots Sants", Rule::Fixed { month: 11, day: 1 }),
+    h("Immaculada Concepció", Rule::Fixed { month: 12, day: 8 }),
+    h("Nadal", Rule::Fixed { month: 12, day: 25 }),
+    h("Sant Esteve", Rule::Fixed { month: 12, day: 26 }),
+];
+
+/// Cabo Verde.
+///
+/// Fixed dates plus three days around Easter, with no substitution. Children's
+/// Day was added by Law 69/VI/2005, so it only applies from 2005 on.
+static CABO_VERDE: &[Holiday] = &[
+    h("Ano Novo", Rule::Fixed { month: 1, day: 1 }),
+    h(
+        "Dia da Liberdade e da Democracia",
+        Rule::Fixed { month: 1, day: 13 },
+    ),
+    h(
+        "Dia da Nacionalidade e dos Heróis Nacionais",
+        Rule::Fixed { month: 1, day: 20 },
+    ),
+    h("Quarta-feira de Cinzas", Rule::EasterOffset(-46)),
+    h("Sexta-feira Santa", Rule::EasterOffset(-2)),
+    h("Páscoa", Rule::EasterOffset(0)),
+    h("Dia do Trabalhador", Rule::Fixed { month: 5, day: 1 }),
+    h(
+        "Dia Mundial da Criança",
+        Rule::Since {
+            year: 2005,
+            base: &Rule::Fixed { month: 6, day: 1 },
+        },
+    ),
+    h(
+        "Dia da Independência Nacional",
+        Rule::Fixed { month: 7, day: 5 },
+    ),
+    h("Dia da Assunção", Rule::Fixed { month: 8, day: 15 }),
+    h("Dia de Todos os Santos", Rule::Fixed { month: 11, day: 1 }),
+    h("Dia do Natal", Rule::Fixed { month: 12, day: 25 }),
+];
+
+/// Faroe Islands.
+///
+/// The full set is fixed dates and nine days relative to Easter, with no
+/// substitution. Saint Olaf's Day, on 29 July, is the national holiday, and
+/// both Christmas Eve and New Year's Eve are holidays rather than half days.
+static FAROE_ISLANDS: &[Holiday] = &[
+    h("Nýggjársdagur", Rule::Fixed { month: 1, day: 1 }),
+    h("Skírhósdagur", Rule::EasterOffset(-3)),
+    h("Langifríggjadagur", Rule::EasterOffset(-2)),
+    h("Páskadagur", Rule::EasterOffset(0)),
+    h("Annar páskadagur", Rule::EasterOffset(1)),
+    h("Dýri biðidagur", Rule::EasterOffset(26)),
+    h("Kristi himmalsferðardagur", Rule::EasterOffset(39)),
+    h("Hvítusunnudagur", Rule::EasterOffset(49)),
+    h("Annar hvítusunnudagur", Rule::EasterOffset(50)),
+    h("Ólavsøkudagur", Rule::Fixed { month: 7, day: 29 }),
+    h("Jólaaftan", Rule::Fixed { month: 12, day: 24 }),
+    h("Jóladagur", Rule::Fixed { month: 12, day: 25 }),
+    h("Annar jóladagur", Rule::Fixed { month: 12, day: 26 }),
+    h("Nýggjársaftan", Rule::Fixed { month: 12, day: 31 }),
+];
+
+/// Greenland.
+///
+/// Fixed dates plus nine days relative to Easter, with no substitution. The
+/// movable feasts follow the Western Easter, so the offsets are shared with
+/// Denmark and Iceland.
+static GREENLAND: &[Holiday] = &[
+    h("Ukiortaaq", Rule::Fixed { month: 1, day: 1 }),
+    h("Sisamanngortoq illernartoq", Rule::EasterOffset(-3)),
+    h("Tallimanngorneq tannaartoq", Rule::EasterOffset(-2)),
+    h("Poorskip ullua", Rule::EasterOffset(0)),
+    h("Poorskip-aappaa", Rule::EasterOffset(1)),
+    h("Ulloq qinuffiusoq", Rule::EasterOffset(26)),
+    h("Qilaliarfik", Rule::EasterOffset(39)),
+    h("Piinsip ullua", Rule::EasterOffset(49)),
+    h("Piinsip-aappaa", Rule::EasterOffset(50)),
+    h("Juullip ullua", Rule::Fixed { month: 12, day: 25 }),
+    h("Juullip-aappaa", Rule::Fixed { month: 12, day: 26 }),
+];
+
+/// Switzerland.
+///
+/// This is the *national* set that the Swiss federal government fixes, which is
+/// only four days: the cantons add their own. The reference package models the
+/// cantonal days as subdivisions, and this crate does not, so the four shared
+/// dates are what it carries.
+static SWITZERLAND: &[Holiday] = &[
+    h("Neujahrstag", Rule::Fixed { month: 1, day: 1 }),
+    h("Auffahrt", Rule::EasterOffset(39)),
+    h("Nationalfeiertag", Rule::Fixed { month: 8, day: 1 }),
+    h("Weihnachten", Rule::Fixed { month: 12, day: 25 }),
+];
+
+/// Pitcairn Islands.
+///
+/// The public set only exists from 2016, when the island's holiday ordinance
+/// was written down, and the sovereign's birthday moved from the second Saturday
+/// in June to the first Monday in June in 2023, when King Charles III acceded.
+static PITCAIRN_ISLANDS: &[Holiday] = &[
+    h(
+        "New Year's Day",
+        Rule::Since {
+            year: 2016,
+            base: &Rule::Fixed { month: 1, day: 1 },
+        },
+    ),
+    h(
+        "Bounty Day",
+        Rule::Since {
+            year: 2016,
+            base: &Rule::Fixed { month: 1, day: 23 },
+        },
+    ),
+    h(
+        "Good Friday",
+        Rule::Since {
+            year: 2016,
+            base: &Rule::EasterOffset(-2),
+        },
+    ),
+    h(
+        "Easter Monday",
+        Rule::Since {
+            year: 2016,
+            base: &Rule::EasterOffset(1),
+        },
+    ),
+    h(
+        "Queen's Birthday",
+        Rule::Between {
+            from: 2016,
+            to: 2022,
+            base: &Rule::NthWeekday {
+                month: 6,
+                weekday: 6,
+                nth: 2,
+            },
+        },
+    ),
+    h(
+        "King's Birthday",
+        Rule::Since {
+            year: 2023,
+            base: &Rule::NthWeekday {
+                month: 6,
+                weekday: 1,
+                nth: 1,
+            },
+        },
+    ),
+    h(
+        "Pitcairn Day",
+        Rule::Since {
+            year: 2016,
+            base: &Rule::Fixed { month: 7, day: 2 },
+        },
+    ),
+    h(
+        "Christmas Day",
+        Rule::Since {
+            year: 2016,
+            base: &Rule::Fixed { month: 12, day: 25 },
+        },
+    ),
+    h(
+        "Boxing Day",
+        Rule::Since {
+            year: 2016,
+            base: &Rule::Fixed { month: 12, day: 26 },
+        },
+    ),
+];
+
+/// Tokelau.
+///
+/// Six holidays, all present only from 2003, when the atoll's public holidays
+/// were consolidated. There is no weekend substitution.
+static TOKELAU: &[Holiday] = &[
+    h(
+        "New Year's Day",
+        Rule::Since {
+            year: 2003,
+            base: &Rule::Fixed { month: 1, day: 1 },
+        },
+    ),
+    h(
+        "Good Friday",
+        Rule::Since {
+            year: 2003,
+            base: &Rule::EasterOffset(-2),
+        },
+    ),
+    h(
+        "Easter Monday",
+        Rule::Since {
+            year: 2003,
+            base: &Rule::EasterOffset(1),
+        },
+    ),
+    h(
+        "Tokehega Day",
+        Rule::Since {
+            year: 2003,
+            base: &Rule::Fixed { month: 9, day: 3 },
+        },
+    ),
+    h(
+        "Christmas Day",
+        Rule::Since {
+            year: 2003,
+            base: &Rule::Fixed { month: 12, day: 25 },
+        },
+    ),
+    h(
+        "Boxing Day",
+        Rule::Since {
+            year: 2003,
+            base: &Rule::Fixed { month: 12, day: 26 },
         },
     ),
 ];
@@ -763,7 +1255,73 @@ impl Calendar {
         Self::new(Country::Latvia)
     }
 
-    /// Builds the calendar for Iceland.
+    /// Builds the calendar for Brazil.
+    #[must_use]
+    pub const fn brazil() -> Self {
+        Self::new(Country::Brazil)
+    }
+
+    /// Builds the calendar for El Salvador.
+    #[must_use]
+    pub const fn el_salvador() -> Self {
+        Self::new(Country::ElSalvador)
+    }
+
+    /// Builds the calendar for Nicaragua.
+    #[must_use]
+    pub const fn nicaragua() -> Self {
+        Self::new(Country::Nicaragua)
+    }
+
+    /// Builds the calendar for Peru.
+    #[must_use]
+    pub const fn peru() -> Self {
+        Self::new(Country::Peru)
+    }
+
+    /// Builds the calendar for Andorra.
+    #[must_use]
+    pub const fn andorra() -> Self {
+        Self::new(Country::Andorra)
+    }
+
+    /// Builds the calendar for Cabo Verde.
+    #[must_use]
+    pub const fn cabo_verde() -> Self {
+        Self::new(Country::CaboVerde)
+    }
+
+    /// Builds the calendar for the Faroe Islands.
+    #[must_use]
+    pub const fn faroe_islands() -> Self {
+        Self::new(Country::FaroeIslands)
+    }
+
+    /// Builds the calendar for Greenland.
+    #[must_use]
+    pub const fn greenland() -> Self {
+        Self::new(Country::Greenland)
+    }
+
+    /// Builds the calendar for Switzerland (national holidays only).
+    #[must_use]
+    pub const fn switzerland() -> Self {
+        Self::new(Country::Switzerland)
+    }
+
+    /// Builds the calendar for the Pitcairn Islands.
+    #[must_use]
+    pub const fn pitcairn_islands() -> Self {
+        Self::new(Country::PitcairnIslands)
+    }
+
+    /// Builds the calendar for Tokelau.
+    #[must_use]
+    pub const fn tokelau() -> Self {
+        Self::new(Country::Tokelau)
+    }
+
+    /// Builds the calendar for Cyprus.
     #[must_use]
     pub const fn cyprus() -> Self {
         Self::new(Country::Cyprus)
@@ -3181,6 +3739,139 @@ mod tests {
             Country::UnitedStates.substitute_style(),
             SubstituteStyle::NearestWeekday
         );
+    }
+
+    #[test]
+    fn brazil_year_bounds_and_easter() {
+        let cal = Calendar::brazil();
+        // Tiradentes was suspended in 1931 and 1932 only.
+        assert!(cal.holiday_name(d(1931, 4, 21)).is_none());
+        assert_eq!(cal.holiday_name(d(1930, 4, 21)), Some("Tiradentes"));
+        assert_eq!(cal.holiday_name(d(1933, 4, 21)), Some("Tiradentes"));
+        // Our Lady of Aparecida became a public holiday in 1980.
+        assert!(cal.holiday_name(d(1979, 10, 12)).is_none());
+        assert_eq!(
+            cal.holiday_name(d(1980, 10, 12)),
+            Some("Nossa Senhora Aparecida")
+        );
+        // Zumbi Day only from 2024.
+        assert!(cal.holiday_name(d(2023, 11, 20)).is_none());
+        assert_eq!(
+            cal.holiday_name(d(2024, 11, 20)),
+            Some("Dia Nacional de Zumbi e da Consciência Negra")
+        );
+        // Easter 2026 is 5 April, so Good Friday is 3 April.
+        assert_eq!(cal.holiday_name(d(2026, 4, 3)), Some("Sexta-feira Santa"));
+    }
+
+    #[test]
+    fn brazil_keeps_weekend_holidays_on_the_day() {
+        let cal = Calendar::brazil();
+        // 1 May 2026 is a Friday; 2 November 2025 is a Sunday and stays there.
+        assert_eq!(cal.holiday_name(d(2025, 11, 2)), Some("Finados"));
+        assert!(cal.holiday_name(d(2025, 11, 3)).is_none());
+    }
+
+    #[test]
+    fn el_salvador_year_restricted_days() {
+        let cal = Calendar::el_salvador();
+        assert!(cal.holiday_name(d(2015, 5, 10)).is_none());
+        assert_eq!(cal.holiday_name(d(2016, 5, 10)), Some("Día de la Madre"));
+        assert!(cal.holiday_name(d(2012, 6, 17)).is_none());
+        assert_eq!(cal.holiday_name(d(2013, 6, 17)), Some("Día del Padre"));
+        // Holy Saturday is the day before Easter.
+        assert_eq!(cal.holiday_name(d(2026, 4, 4)), Some("Sábado Santo"));
+    }
+
+    #[test]
+    fn nicaragua_revolution_day_bound() {
+        let cal = Calendar::nicaragua();
+        assert!(cal.holiday_name(d(1978, 7, 19)).is_none());
+        assert_eq!(
+            cal.holiday_name(d(1979, 7, 19)),
+            Some("Día de la Revolución")
+        );
+        assert_eq!(
+            cal.holiday_name(d(2026, 12, 8)),
+            Some("Concepción de María")
+        );
+    }
+
+    #[test]
+    fn peru_recent_statutory_additions() {
+        let cal = Calendar::peru();
+        assert!(cal.holiday_name(d(2021, 8, 6)).is_none());
+        assert_eq!(cal.holiday_name(d(2022, 8, 6)), Some("Batalla de Junín"));
+        assert!(cal.holiday_name(d(2022, 7, 23)).is_none());
+        assert_eq!(
+            cal.holiday_name(d(2023, 7, 23)),
+            Some("Día de la Fuerza Aérea del Perú")
+        );
+        assert!(cal.holiday_name(d(2023, 6, 7)).is_none());
+        assert_eq!(
+            cal.holiday_name(d(2024, 6, 7)),
+            Some("Batalla de Arica y Día de la Bandera")
+        );
+    }
+
+    #[test]
+    fn andorra_and_cabo_verde_easter_offsets() {
+        let andorra = Calendar::andorra();
+        // Easter 2026 is 5 April, so Carnival Monday is 16 February.
+        assert_eq!(andorra.holiday_name(d(2026, 2, 16)), Some("Carnaval"));
+        assert_eq!(
+            andorra.holiday_name(d(2026, 5, 25)),
+            Some("Dilluns de Pentecosta")
+        );
+
+        let cabo_verde = Calendar::cabo_verde();
+        assert!(cabo_verde.holiday_name(d(2004, 6, 1)).is_none());
+        assert_eq!(
+            cabo_verde.holiday_name(d(2005, 6, 1)),
+            Some("Dia Mundial da Criança")
+        );
+    }
+
+    #[test]
+    fn nordic_calendars_share_the_movable_feasts() {
+        let faroe = Calendar::faroe_islands();
+        let greenland = Calendar::greenland();
+        // Easter 2026 is 5 April, so Ascension is 14 May.
+        assert_eq!(
+            faroe.holiday_name(d(2026, 5, 14)),
+            Some("Kristi himmalsferðardagur")
+        );
+        assert_eq!(greenland.holiday_name(d(2026, 5, 14)), Some("Qilaliarfik"));
+        // Both keep Christmas Eve or New Year's Eve as full holidays.
+        assert!(faroe.is_holiday(d(2026, 12, 24)));
+        assert!(faroe.is_holiday(d(2026, 12, 31)));
+    }
+
+    #[test]
+    fn switzerland_carries_only_the_national_set() {
+        let cal = Calendar::switzerland();
+        assert_eq!(cal.holiday_name(d(2026, 8, 1)), Some("Nationalfeiertag"));
+        assert_eq!(cal.holiday_name(d(2026, 5, 14)), Some("Auffahrt"));
+        // Cantonal holidays are not part of the national set.
+        assert!(cal.holiday_name(d(2026, 11, 1)).is_none());
+    }
+
+    #[test]
+    fn pitcairn_sovereign_birthday_moved_in_2023() {
+        let cal = Calendar::pitcairn_islands();
+        // Second Saturday of June 2022 is the 11th; the Queen's Birthday.
+        assert_eq!(cal.holiday_name(d(2022, 6, 11)), Some("Queen's Birthday"));
+        // First Monday of June 2026 is the 1st; the King's Birthday.
+        assert_eq!(cal.holiday_name(d(2026, 6, 1)), Some("King's Birthday"));
+        // Nothing before the 2016 ordinance.
+        assert!(cal.holiday_name(d(2015, 1, 1)).is_none());
+    }
+
+    #[test]
+    fn tokelau_starts_in_2003() {
+        let cal = Calendar::tokelau();
+        assert!(cal.holiday_name(d(2002, 9, 3)).is_none());
+        assert_eq!(cal.holiday_name(d(2003, 9, 3)), Some("Tokehega Day"));
     }
 
     #[test]
