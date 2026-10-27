@@ -7,6 +7,7 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+documentation = "https://docs.rs/factur-x"
 authors.workspace = true
 keywords = ["factur-x", "zugferd", "en16931", "e-invoice", "ubl"]
 categories = ["encoding", "finance", "parser-implementations"]

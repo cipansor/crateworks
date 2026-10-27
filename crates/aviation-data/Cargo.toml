@@ -7,6 +7,7 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+documentation = "https://docs.rs/aviation-data"
 authors.workspace = true
 keywords = ["aviation", "airport", "iata", "icao", "geography"]
 categories = ["data-structures", "science"]

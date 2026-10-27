@@ -7,6 +7,7 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+documentation = "https://docs.rs/pdfa"
 authors.workspace = true
 keywords = ["pdf", "pdfa", "xmp", "factur-x", "einvoice"]
 categories = ["parser-implementations", "encoding"]

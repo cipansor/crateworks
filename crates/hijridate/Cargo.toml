@@ -7,6 +7,7 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+documentation = "https://docs.rs/hijridate"
 authors.workspace = true
 keywords = ["hijri", "islamic", "calendar", "ummalqura", "date"]
 categories = ["date-and-time"]

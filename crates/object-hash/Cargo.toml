@@ -7,6 +7,7 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+documentation = "https://docs.rs/object-hash"
 authors.workspace = true
 keywords = ["hash", "hashing", "cache-key", "etag", "content-addressing"]
 categories = ["algorithms", "cryptography"]

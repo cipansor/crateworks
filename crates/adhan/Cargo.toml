@@ -7,6 +7,7 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+documentation = "https://docs.rs/adhan"
 authors.workspace = true
 keywords = ["adhan", "prayer-times", "salah", "islamic", "astronomy"]
 categories = ["date-and-time", "science"]

@@ -7,6 +7,7 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+documentation = "https://docs.rs/fuzzy-score"
 authors.workspace = true
 keywords = ["fuzzy", "fuzzywuzzy", "string-similarity", "matching", "dedupe"]
 categories = ["text-processing"]

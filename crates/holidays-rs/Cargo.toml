@@ -7,6 +7,7 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+documentation = "https://docs.rs/holidays-rs"
 authors.workspace = true
 keywords = ["holiday", "calendar", "business-day", "date", "regional"]
 categories = ["date-and-time"]

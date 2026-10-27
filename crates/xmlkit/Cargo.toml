@@ -7,6 +7,7 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+documentation = "https://docs.rs/xmlkit"
 authors.workspace = true
 keywords = ["xml", "parser", "writer", "soap", "wsdl"]
 categories = ["parser-implementations", "encoding"]

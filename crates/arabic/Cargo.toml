@@ -7,6 +7,7 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+documentation = "https://docs.rs/arabic"
 authors.workspace = true
 keywords = ["arabic", "shaping", "rtl", "ligature", "unicode"]
 categories = ["text-processing", "internationalization"]
