@@ -2,6 +2,18 @@
 
 use crate::{Error, Result, checksum};
 
+/// Removes the given separators, strips whitespace and upper-cases.
+///
+/// This is the reference's `clean()` plus `upper()`. The separator set differs
+/// per identifier, which is why it is a parameter.
+fn compact(input: &str, separators: &[char]) -> String {
+    input
+        .chars()
+        .filter(|c| !c.is_whitespace() && !separators.contains(c))
+        .flat_map(char::to_uppercase)
+        .collect()
+}
+
 /// Israel: ת.ז., the identity number.
 pub(super) mod israel {
     use super::*;
@@ -259,6 +271,105 @@ pub(super) mod greece {
     }
 }
 
+/// Japan: the corporate number and the My Number individual number.
+pub(super) mod japan {
+    use super::*;
+
+    /// Validates a Japanese corporate number (法人番号).
+    ///
+    /// Thirteen digits. The check digit is the first digit, derived from the
+    /// remaining twelve with weights that alternate 1 and 2 from the right;
+    /// the reference takes the sum modulo nine and subtracts it from nine.
+    pub(in crate::id) fn validate_cn(s: &str) -> Result<()> {
+        let digits = checksum::digits_only(&compact(s, &['-']))?;
+        checksum::expect_len(&digits, 13)?;
+        const WEIGHTS: [u32; 12] = [1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2];
+        let sum: u32 = WEIGHTS
+            .iter()
+            .zip(digits[1..].iter().rev())
+            .map(|(w, &d)| w * u32::from(d))
+            .sum::<u32>()
+            % 9;
+        if digits[0] != (9 - sum) as u8 {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
+
+    /// Validates a Japanese My Number (マイナンバー).
+    ///
+    /// Twelve digits. The check digit is the last, a weighted sum of the first
+    /// eleven with weights 6, 5, 4, 3, 2, 7, 6, 5, 4, 3, 2 taken modulo
+    /// eleven and then modulo ten.
+    pub(in crate::id) fn validate_in(s: &str) -> Result<()> {
+        let digits = checksum::digits_only(&compact(s, &['-']))?;
+        checksum::expect_len(&digits, 12)?;
+        const WEIGHTS: [u32; 11] = [6, 5, 4, 3, 2, 7, 6, 5, 4, 3, 2];
+        let sum: u32 = WEIGHTS
+            .iter()
+            .zip(&digits[..11])
+            .map(|(w, &d)| w * u32::from(d))
+            .sum();
+        let expected = ((-(sum as i64)) % 11).rem_euclid(11) % 10;
+        if u32::from(digits[11]) != expected as u32 {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
+}
+
+/// Pakistan: CNIC, the national identity card number.
+pub(super) mod pakistan {
+    use super::*;
+
+    /// Validates a Pakistani CNIC.
+    ///
+    /// Thirteen digits. There is no check digit: the last digit encodes gender
+    /// (odd for male, even for female) and the first encodes the province, so
+    /// both must be in range.
+    pub(in crate::id) fn validate_cnic(s: &str) -> Result<()> {
+        let digits = checksum::digits_only(&compact(s, &['-']))?;
+        checksum::expect_len(&digits, 13)?;
+        // 1..7 identify a province; 0, 8 and 9 do not.
+        if !(1..=7).contains(&digits[0]) {
+            return Err(Error::OutOfRange);
+        }
+        // A gender digit of 0 is unassigned.
+        if digits[12] == 0 {
+            return Err(Error::OutOfRange);
+        }
+        Ok(())
+    }
+}
+
+/// Taiwan: UBN, the unified business number.
+pub(super) mod taiwan {
+    use super::*;
+
+    /// Validates a Taiwanese unified business number.
+    ///
+    /// Eight digits. Each digit is multiplied by weights 1, 2, 1, 2, 1, 2, 4,
+    /// 1, the products' decimal digits summed, and the total must be a multiple
+    /// of ten. The reference also accepts a total ending in nine when the
+    /// seventh digit is seven, because that case is a known rounding quirk.
+    pub(in crate::id) fn validate_ubn(s: &str) -> Result<()> {
+        let digits = checksum::digits_only(&compact(s, &['-']))?;
+        checksum::expect_len(&digits, 8)?;
+        const WEIGHTS: [u32; 8] = [1, 2, 1, 2, 1, 2, 4, 1];
+        let sum: u32 = WEIGHTS
+            .iter()
+            .zip(&digits)
+            .map(|(w, &d)| w * u32::from(d))
+            .map(|product| product / 10 + product % 10)
+            .sum();
+        let checksum = sum % 10;
+        if checksum != 0 && !(checksum == 9 && digits[6] == 7) {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -317,6 +428,53 @@ mod tests {
         assert_eq!(
             greece::validate_amka("01013099998"),
             Err(Error::BadChecksum)
+        );
+    }
+
+    #[test]
+    fn japanese_examples() {
+        assert!(japan::validate_cn("5-8356-7825-6246").is_ok());
+        assert_eq!(
+            japan::validate_cn("2-8356-7825-6246"),
+            Err(Error::BadChecksum)
+        );
+        assert!(japan::validate_in("6214 9832 0257").is_ok());
+        assert_eq!(
+            japan::validate_in("6214 9832 0258"),
+            Err(Error::BadChecksum)
+        );
+        assert_eq!(
+            japan::validate_in("6214 9832 025X"),
+            Err(Error::InvalidCharacter('X'))
+        );
+    }
+
+    #[test]
+    fn pakistani_examples() {
+        for value in ["34201-0891231-8", "42201-0397640-8"] {
+            assert!(pakistan::validate_cnic(value).is_ok(), "{value}");
+        }
+        // Province 0 is unassigned, and gender digit 0 is unassigned.
+        assert_eq!(
+            pakistan::validate_cnic("04201-0397640-8"),
+            Err(Error::OutOfRange)
+        );
+        assert_eq!(
+            pakistan::validate_cnic("42201-0397640-0"),
+            Err(Error::OutOfRange)
+        );
+    }
+
+    #[test]
+    fn taiwanese_examples() {
+        assert!(taiwan::validate_ubn("00501503").is_ok());
+        assert_eq!(taiwan::validate_ubn("00501502"), Err(Error::BadChecksum));
+        assert_eq!(
+            taiwan::validate_ubn("12345"),
+            Err(Error::WrongLength {
+                expected: 8,
+                found: 5,
+            })
         );
     }
 }

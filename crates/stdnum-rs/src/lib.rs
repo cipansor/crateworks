@@ -214,6 +214,27 @@ pub(crate) mod checksum {
         Some(((10 - sum % 10) % 10) as u8)
     }
 
+    /// Returns the Luhn checksum of `digits`, in the reference's convention.
+    ///
+    /// This is `python-stdnum`'s `luhn.checksum`: digits are doubled from the
+    /// right, the decimal digits of each product are summed, and the total is
+    /// taken modulo ten. A valid number has a checksum of zero. Austria's UID
+    /// needs the raw value rather than the match, because it subtracts it from
+    /// six instead of comparing.
+    pub(crate) fn luhn_checksum(digits: &[u8]) -> u8 {
+        let len = digits.len();
+        let mut sum = 0u32;
+        for (i, &d) in digits.iter().enumerate() {
+            // Counting from the right, a digit is doubled when its distance is
+            // odd; the check digit is absent here, so the parity is reversed
+            // relative to `luhn_matches`.
+            let double = (len - i).is_multiple_of(2);
+            let v = u32::from(d) * if double { 2 } else { 1 };
+            sum += v / 10 + v % 10;
+        }
+        (sum % 10) as u8
+    }
+
     /// Rewrites Arabic-Indic and extended Arabic-Indic digits as ASCII.
     ///
     /// Egypt's tax number is published in Arabic-Indic digits as often as in

@@ -2,6 +2,18 @@
 
 use crate::{Error, Result, checksum};
 
+/// Removes the given separators, strips whitespace and upper-cases.
+///
+/// This is the reference's `clean()` plus `upper()`. The separator set differs
+/// per identifier, which is why it is a parameter.
+fn compact(input: &str, separators: &[char]) -> String {
+    input
+        .chars()
+        .filter(|c| !c.is_whitespace() && !separators.contains(c))
+        .flat_map(char::to_uppercase)
+        .collect()
+}
+
 /// Chile: RUT (Rol Único Tributario).
 pub(super) mod chile {
     use super::*;
@@ -215,6 +227,86 @@ pub(super) mod venezuela {
     }
 }
 
+/// Paraguay: RUC, the taxpayer registry number.
+pub(super) mod paraguay {
+    use super::*;
+
+    /// Validates a Paraguayan RUC.
+    ///
+    /// Up to nine digits whose last is a weighted sum of the preceding ones,
+    /// taken with weights increasing from two at the right, negated modulo
+    /// eleven and then modulo ten.
+    pub(in crate::id) fn validate_ruc(s: &str) -> Result<()> {
+        let digits = checksum::digits_only(&compact(s, &['-']))?;
+        if digits.is_empty() {
+            return Err(Error::Empty);
+        }
+        if digits.len() > 9 {
+            return Err(Error::WrongLength {
+                expected: 9,
+                found: digits.len(),
+            });
+        }
+        let sum: u32 = digits[..digits.len() - 1]
+            .iter()
+            .rev()
+            .enumerate()
+            .map(|(i, &d)| (i as u32 + 2) * u32::from(d))
+            .sum();
+        let expected = ((-(sum as i64)).rem_euclid(11)) % 10;
+        if u32::from(digits[digits.len() - 1]) != expected as u32 {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
+}
+
+/// El Salvador: NIT, the tax identification number.
+pub(super) mod el_salvador {
+    use super::*;
+
+    /// Validates an El Salvadoran NIT.
+    ///
+    /// Fourteen digits. Numbers whose last three digits are at most `100` use
+    /// the old weighting and take the sum modulo eleven then ten; newer numbers
+    /// use a different weighting and negate the sum before reducing. The first
+    /// digit is never 2 to 8.
+    pub(in crate::id) fn validate_nit(s: &str) -> Result<()> {
+        let s = compact(s, &['-']);
+        let s = s.strip_prefix("SV").unwrap_or(&s);
+        let digits = checksum::digits_only(s)?;
+        checksum::expect_len(&digits, 14)?;
+        if !matches!(digits[0], 0 | 1 | 9) {
+            return Err(Error::OutOfRange);
+        }
+        // The reference chooses the weighting from the *string* comparison of
+        // characters ten to thirteen, so the digits are rebuilt as a string
+        // rather than compared numerically.
+        let tail: String = digits[10..13]
+            .iter()
+            .map(|d| char::from(b'0' + d))
+            .collect();
+        let old = tail.as_str() <= "100";
+        const OLD: [u32; 14] = [14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 0];
+        const NEW: [u32; 14] = [2, 7, 6, 5, 4, 3, 2, 7, 6, 5, 4, 3, 2, 0];
+        let weights = if old { OLD } else { NEW };
+        let total: u32 = digits
+            .iter()
+            .zip(weights)
+            .map(|(&d, w)| u32::from(d) * w)
+            .sum();
+        let expected = if old {
+            (total % 11) % 10
+        } else {
+            (-(total as i64)).rem_euclid(11) as u32 % 10
+        };
+        if u32::from(digits[13]) != expected {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -284,5 +376,31 @@ mod tests {
             Err(Error::BadChecksum)
         );
         assert!(venezuela::validate_rif("X114702834").is_err());
+    }
+
+    #[test]
+    fn paraguayan_examples() {
+        for value in ["80028061-0", "2660-3", "9991603"] {
+            assert!(paraguay::validate_ruc(value).is_ok(), "{value}");
+        }
+        assert_eq!(paraguay::validate_ruc("800532492"), Err(Error::BadChecksum));
+        assert_eq!(
+            paraguay::validate_ruc("80123456789"),
+            Err(Error::WrongLength {
+                expected: 9,
+                found: 11,
+            })
+        );
+    }
+
+    #[test]
+    fn salvadoran_examples() {
+        for value in ["0614-050707-104-8", "SV 0614-050707-104-8"] {
+            assert!(el_salvador::validate_nit(value).is_ok(), "{value}");
+        }
+        assert_eq!(
+            el_salvador::validate_nit("0614-050707-104-0"),
+            Err(Error::BadChecksum)
+        );
     }
 }

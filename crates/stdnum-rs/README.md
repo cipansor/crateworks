@@ -19,23 +19,28 @@ Checksum and structure only; nothing here contacts a registry.
 
 ## What is covered
 
-Sixty-six national identifiers are covered, across Latin America (the
-Chilean RUT, the Colombian NIT, the Peruvian RUC, the Argentine CUIT and
-others), Europe (the Irish VAT and PPS numbers, the Croatian OIB, the Czech and
+One hundred and two national identifiers are covered. Europe accounts for the
+largest share: the Irish VAT and PPS numbers, the Croatian OIB, the Czech and
 Slovak birth numbers, the Swiss AHV/AVS and UID, the Russian ИНН and ОГРН, the
-Ukrainian ЄДРПОУ), Asia (the Israeli identity number, the Thai PIN, the
-Singapore UEN, the Malaysian NRIC, the Vietnamese MST) and Africa and the
-Middle East (the South African identity number, the Greek ΑΜΚΑ, and the tax and
-company numbers of Algeria, Egypt, Ghana, Kenya, Morocco, Mozambique, Senegal
-and Tunisia), alongside the first set that runs from the Indonesian NPWP and NIK
-and the Brazilian CPF and CNPJ to the Spanish DNI, the German tax ID, the Polish
-PESEL and the Indian Aadhaar; [`Country::ALL`](https://docs.rs/stdnum-rs) lists
-them all.
+Ukrainian ЄДРПОУ, the Austrian UID and TIN, the Latvian PVN, the Monégasque TVA,
+and the microstate numbers of Andorra, Liechtenstein, San Marino, Albania,
+Azerbaijan, Moldova and the Faroe Islands. The Americas bring the United States
+Social Security and taxpayer numbers, the Chilean RUT, the Colombian NIT, the
+Peruvian RUC, the Argentine CUIT, the Paraguayan RUC and the Salvadoran NIT.
+Asia and Oceania contribute the Japanese corporate and My Number identifiers,
+the Pakistani CNIC, the Taiwanese UBN, the Israeli identity number, the Thai
+PIN, the Singapore UEN, the Malaysian NRIC, the Vietnamese MST, the Indonesian
+NPWP and NIK, and the Chinese, Korean and Australian numbers. The United Kingdom
+is represented by the NHS number, the UTR, the VAT number and SEDOL, and Africa
+and the Middle East by the South African identity number, the Greek ΑΜΚΑ, and
+the tax and company numbers of Algeria, Egypt, Ghana, Kenya, Morocco,
+Mozambique, Senegal and Tunisia. [`Country::ALL`](https://docs.rs/stdnum-rs)
+lists them all.
 
-The North African and Vietnamese numbers are shape checks whose separator sets
-differ per country, so each one cleans the raw input itself rather than sharing
-the crate's global normalisation. Egypt's tax number is also accepted in
-Arabic-Indic digits, which is how it is printed in an Arabic document.
+The numbers whose separator sets differ per country are shape checks that clean
+the raw input themselves rather than sharing the crate's global normalisation.
+Egypt's tax number is also accepted in Arabic-Indic digits, which is how it is
+printed in an Arabic document.
 
 Thirteen international identifiers are covered in addition to those, each a type
 of its own:

@@ -228,6 +228,59 @@ pub(super) mod france {
         }
         validate_siren(&s[..9])
     }
+
+    /// Validates a French TVA number, which Monaco reuses with a fixed prefix.
+    ///
+    /// Eleven characters: two check characters, then nine digits. The check is
+    /// numeric when the whole number is numeric and alphanumeric otherwise, and
+    /// a number whose middle three characters are not `000` must also carry a
+    /// valid SIREN.
+    pub(in crate::id) fn validate_vat(s: &str) -> Result<()> {
+        const ALPHABET: &[u8] = b"0123456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+        let compacted: String = s
+            .chars()
+            .filter(|c| !matches!(c, '-' | '.' | ' '))
+            .flat_map(char::to_uppercase)
+            .collect();
+        let s = compacted.strip_prefix("FR").unwrap_or(&compacted);
+        if s.chars().count() != 11 {
+            return Err(Error::WrongLength {
+                expected: 11,
+                found: s.chars().count(),
+            });
+        }
+        let bytes = s.as_bytes();
+        for &c in &bytes[..2] {
+            if !ALPHABET.contains(&c) {
+                return Err(Error::InvalidCharacter(char::from(c)));
+            }
+        }
+        checksum::digits_only(&s[2..])?;
+        if &s[2..5] != "000" {
+            validate_siren(&s[2..])?;
+        }
+        if bytes.iter().all(u8::is_ascii_digit) {
+            let head: u32 = s[..2].parse().map_err(|_| Error::InvalidPrefix)?;
+            let body: u64 = format!("{}12", &s[2..])
+                .parse()
+                .map_err(|_| Error::InvalidPrefix)?;
+            if u64::from(head) != body % 97 {
+                return Err(Error::BadChecksum);
+            }
+        } else {
+            let index = |c: u8| ALPHABET.iter().position(|&a| a == c).unwrap_or(0) as i64;
+            let check = if bytes[0].is_ascii_digit() {
+                index(bytes[0]) * 24 + index(bytes[1]) - 10
+            } else {
+                index(bytes[0]) * 34 + index(bytes[1]) - 100
+            };
+            let body: i64 = s[2..].parse().map_err(|_| Error::InvalidPrefix)?;
+            if (body + 1 + check / 11) % 11 != check % 11 {
+                return Err(Error::BadChecksum);
+            }
+        }
+        Ok(())
+    }
 }
 
 /// Italy: codice fiscale.

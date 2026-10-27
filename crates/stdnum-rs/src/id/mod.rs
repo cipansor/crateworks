@@ -19,26 +19,37 @@ mod asia;
 mod asia_ext;
 mod balkans;
 mod brazil;
+mod british;
 mod europe;
 mod europe_ext;
 mod latin_america;
+mod more_europe;
 mod nordics;
+mod north_america;
 mod oceania;
 mod southeast_asia;
 mod vat;
 
 use africa::{algeria, egypt, ghana, kenya, morocco, mozambique, senegal, tunisia, vietnam};
 use asia::{china, india, korea, mexico, turkey};
-use asia_ext::{greece, israel, malaysia, singapore, south_africa, thailand};
+use asia_ext::{
+    greece, israel, japan, malaysia, pakistan, singapore, south_africa, taiwan, thailand,
+};
 use balkans::{belarus, montenegro, north_macedonia, romania as romania_cf, serbia, slovenia};
 use brazil::{cnpj, cpf};
+use british::united_kingdom;
 use europe::{belgium, france, germany, italy, netherlands, poland, portugal, romania, spain};
 use europe_ext::{
     bulgaria, croatia, czechoslovakia, estonia, hungary, ireland, lithuania, luxembourg, russia,
     switzerland, ukraine,
 };
-use latin_america::{argentina, chile, colombia, peru, uruguay, venezuela};
+use latin_america::{argentina, chile, colombia, el_salvador, paraguay, peru, uruguay, venezuela};
+use more_europe::{
+    albania, andorra, austria, azerbaijan, faroe_islands, latvia, liechtenstein, moldova, monaco,
+    san_marino,
+};
 use nordics::{denmark, finland, norway, sweden};
+use north_america::united_states;
 use oceania::{australia, canada, new_zealand};
 use southeast_asia::{indonesia, philippines};
 use vat::{
@@ -46,6 +57,11 @@ use vat::{
 };
 
 pub use asia::verhoeff_check_digit;
+
+/// Validates a French TVA number, reached through Monaco, which reuses it.
+pub(in crate::id) fn france_vat(s: &str) -> Result<()> {
+    france::validate_vat(s)
+}
 
 /// A country whose identifiers this crate can check.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -209,6 +225,52 @@ pub enum Country {
     TunisiaMf,
     /// Vietnam: MST tax code, 10 or 13 digits.
     VietnamMst,
+    /// United States: Social Security Number, 9 digits.
+    UnitedStatesSsn,
+    /// United States: Individual Taxpayer Identification Number, 9 digits.
+    UnitedStatesItin,
+    /// United Kingdom: NHS number, 10 digits.
+    UnitedKingdomNhs,
+    /// United Kingdom: Unique Taxpayer Reference, 10 digits.
+    UnitedKingdomUtr,
+    /// United Kingdom: VAT registration number.
+    UnitedKingdomVat,
+    /// United Kingdom: SEDOL securities identifier, 7 characters.
+    UnitedKingdomSedol,
+    /// Japan: corporate number, 13 digits.
+    JapanCorporateNumber,
+    /// Japan: My Number individual number, 12 digits.
+    JapanMyNumber,
+    /// Pakistan: CNIC national identity card number, 13 digits.
+    PakistanCnic,
+    /// Taiwan: unified business number, 8 digits.
+    TaiwanUbn,
+    /// Latvia: PVN VAT number, 11 digits.
+    LatviaPvn,
+    /// Liechtenstein: PEID business or person identifier.
+    LiechtensteinPeid,
+    /// Monaco: TVA VAT number, 11 characters.
+    MonacoTva,
+    /// Andorra: NRT taxpayer registry number, 8 characters.
+    AndorraNrt,
+    /// Albania: NIPT taxpayer identification number, 10 characters.
+    AlbaniaNipt,
+    /// Azerbaijan: VÖEN taxpayer identification number, 10 digits.
+    AzerbaijanVoen,
+    /// Faroe Islands: V-number, 6 digits.
+    FaroeIslandsVn,
+    /// Moldova: IDNO state identification number, 13 digits.
+    MoldovaIdno,
+    /// San Marino: COE economic operator code, up to 5 digits.
+    SanMarinoCoe,
+    /// Austria: UID VAT identification number, 9 characters.
+    AustriaUid,
+    /// Austria: TIN tax number, 9 digits.
+    AustriaTin,
+    /// Paraguay: RUC taxpayer registry number, up to 9 digits.
+    ParaguayRuc,
+    /// El Salvador: NIT tax identification number, 14 digits.
+    ElSalvadorNit,
 }
 
 impl Country {
@@ -293,6 +355,29 @@ impl Country {
         Self::SenegalNinea,
         Self::TunisiaMf,
         Self::VietnamMst,
+        Self::UnitedStatesSsn,
+        Self::UnitedStatesItin,
+        Self::UnitedKingdomNhs,
+        Self::UnitedKingdomUtr,
+        Self::UnitedKingdomVat,
+        Self::UnitedKingdomSedol,
+        Self::JapanCorporateNumber,
+        Self::JapanMyNumber,
+        Self::PakistanCnic,
+        Self::TaiwanUbn,
+        Self::LatviaPvn,
+        Self::LiechtensteinPeid,
+        Self::MonacoTva,
+        Self::AndorraNrt,
+        Self::AlbaniaNipt,
+        Self::AzerbaijanVoen,
+        Self::FaroeIslandsVn,
+        Self::MoldovaIdno,
+        Self::SanMarinoCoe,
+        Self::AustriaUid,
+        Self::AustriaTin,
+        Self::ParaguayRuc,
+        Self::ElSalvadorNit,
     ];
 
     /// A short English description of the identifier.
@@ -378,6 +463,29 @@ impl Country {
             Self::SenegalNinea => "Senegal NINEA business number",
             Self::TunisiaMf => "Tunisia matricule fiscal",
             Self::VietnamMst => "Vietnam MST tax code",
+            Self::UnitedStatesSsn => "United States Social Security Number",
+            Self::UnitedStatesItin => "United States Individual Taxpayer Identification Number",
+            Self::UnitedKingdomNhs => "United Kingdom NHS number",
+            Self::UnitedKingdomUtr => "United Kingdom Unique Taxpayer Reference",
+            Self::UnitedKingdomVat => "United Kingdom VAT number",
+            Self::UnitedKingdomSedol => "United Kingdom SEDOL",
+            Self::JapanCorporateNumber => "Japan corporate number",
+            Self::JapanMyNumber => "Japan My Number",
+            Self::PakistanCnic => "Pakistan CNIC",
+            Self::TaiwanUbn => "Taiwan unified business number",
+            Self::LatviaPvn => "Latvia PVN VAT number",
+            Self::LiechtensteinPeid => "Liechtenstein PEID",
+            Self::MonacoTva => "Monaco TVA VAT number",
+            Self::AndorraNrt => "Andorra NRT",
+            Self::AlbaniaNipt => "Albania NIPT",
+            Self::AzerbaijanVoen => "Azerbaijan VÖEN",
+            Self::FaroeIslandsVn => "Faroe Islands V-number",
+            Self::MoldovaIdno => "Moldova IDNO",
+            Self::SanMarinoCoe => "San Marino COE",
+            Self::AustriaUid => "Austria UID VAT number",
+            Self::AustriaTin => "Austria TIN tax number",
+            Self::ParaguayRuc => "Paraguay RUC",
+            Self::ElSalvadorNit => "El Salvador NIT",
         }
     }
 }
@@ -427,7 +535,30 @@ impl IdNumber {
             | Country::MozambiqueNuit
             | Country::SenegalNinea
             | Country::TunisiaMf
-            | Country::VietnamMst => input,
+            | Country::VietnamMst
+            | Country::UnitedStatesSsn
+            | Country::UnitedStatesItin
+            | Country::UnitedKingdomNhs
+            | Country::UnitedKingdomUtr
+            | Country::UnitedKingdomVat
+            | Country::UnitedKingdomSedol
+            | Country::JapanCorporateNumber
+            | Country::JapanMyNumber
+            | Country::PakistanCnic
+            | Country::TaiwanUbn
+            | Country::LatviaPvn
+            | Country::LiechtensteinPeid
+            | Country::MonacoTva
+            | Country::AndorraNrt
+            | Country::AlbaniaNipt
+            | Country::AzerbaijanVoen
+            | Country::FaroeIslandsVn
+            | Country::MoldovaIdno
+            | Country::SanMarinoCoe
+            | Country::AustriaUid
+            | Country::AustriaTin
+            | Country::ParaguayRuc
+            | Country::ElSalvadorNit => input,
             _ => normalized.as_str(),
         };
         match country {
@@ -510,6 +641,29 @@ impl IdNumber {
             Country::SenegalNinea => senegal::validate_ninea(subject)?,
             Country::TunisiaMf => tunisia::validate_mf(subject)?,
             Country::VietnamMst => vietnam::validate_mst(subject)?,
+            Country::UnitedStatesSsn => united_states::validate_ssn(subject)?,
+            Country::UnitedStatesItin => united_states::validate_itin(subject)?,
+            Country::UnitedKingdomNhs => united_kingdom::validate_nhs(subject)?,
+            Country::UnitedKingdomUtr => united_kingdom::validate_utr(subject)?,
+            Country::UnitedKingdomVat => united_kingdom::validate_vat(subject)?,
+            Country::UnitedKingdomSedol => united_kingdom::validate_sedol(subject)?,
+            Country::JapanCorporateNumber => japan::validate_cn(subject)?,
+            Country::JapanMyNumber => japan::validate_in(subject)?,
+            Country::PakistanCnic => pakistan::validate_cnic(subject)?,
+            Country::TaiwanUbn => taiwan::validate_ubn(subject)?,
+            Country::LatviaPvn => latvia::validate_pvn(subject)?,
+            Country::LiechtensteinPeid => liechtenstein::validate_peid(subject)?,
+            Country::MonacoTva => monaco::validate_tva(subject)?,
+            Country::AndorraNrt => andorra::validate_nrt(subject)?,
+            Country::AlbaniaNipt => albania::validate_nipt(subject)?,
+            Country::AzerbaijanVoen => azerbaijan::validate_voen(subject)?,
+            Country::FaroeIslandsVn => faroe_islands::validate_vn(subject)?,
+            Country::MoldovaIdno => moldova::validate_idno(subject)?,
+            Country::SanMarinoCoe => san_marino::validate_coe(subject)?,
+            Country::AustriaUid => austria::validate_uid(subject)?,
+            Country::AustriaTin => austria::validate_tin(subject)?,
+            Country::ParaguayRuc => paraguay::validate_ruc(subject)?,
+            Country::ElSalvadorNit => el_salvador::validate_nit(subject)?,
         }
         Ok(Self {
             country,
