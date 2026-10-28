@@ -223,6 +223,14 @@ fn country_named(name: &str) -> Option<Country> {
         "SlovakiaDph" => Country::SlovakiaDph,
         "PortugalCc" => Country::PortugalCc,
         "SouthAfricaTin" => Country::SouthAfricaTin,
+        "UnitedStatesRtn" => Country::UnitedStatesRtn,
+        "TurkeyVkn" => Country::TurkeyVkn,
+        "IndiaEpic" => Country::IndiaEpic,
+        "KoreaBrn" => Country::KoreaBrn,
+        "ItalyAic" => Country::ItalyAic,
+        "NetherlandsBtw" => Country::NetherlandsBtw,
+        "ThailandMoa" => Country::ThailandMoa,
+        "CanadaBcPhn" => Country::CanadaBcPhn,
         _ => return None,
     })
 }

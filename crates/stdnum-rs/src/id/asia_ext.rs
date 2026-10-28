@@ -70,6 +70,30 @@ pub(super) mod thailand {
         }
         Ok(())
     }
+
+    /// Validates a Thai MOA (memorandum of association) number.
+    ///
+    /// Thirteen digits like the PIN, always beginning with zero, and using the
+    /// same check digit: the weighted sum over the first twelve digits.
+    pub(in crate::id) fn validate_moa(s: &str) -> Result<()> {
+        let compacted: String = s.chars().filter(|c| !matches!(c, ' ' | '-')).collect();
+        let digits = checksum::digits_only(&compacted)?;
+        checksum::expect_len(&digits, 13)?;
+        if digits[0] != 0 {
+            return Err(Error::OutOfRange);
+        }
+        let sum: i64 = digits[..12]
+            .iter()
+            .enumerate()
+            .map(|(i, &d)| (2 - i as i64) * i64::from(d))
+            .sum::<i64>()
+            .rem_euclid(11);
+        let expected = (1 - sum).rem_euclid(10) as u8;
+        if digits[12] != expected {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
 }
 
 /// Singapore: UEN, the Unique Entity Number.
@@ -410,6 +434,16 @@ mod tests {
         assert!(thailand::validate_pin("3100600445635").is_ok());
         assert_eq!(
             thailand::validate_pin("3100600445634"),
+            Err(Error::BadChecksum)
+        );
+    }
+
+    #[test]
+    fn thai_moa_examples() {
+        assert!(thailand::validate_moa("0994000617721").is_ok());
+        assert!(thailand::validate_moa("0-99-4-000-61772-1").is_ok());
+        assert_eq!(
+            thailand::validate_moa("0-99-4-000-61772-3"),
             Err(Error::BadChecksum)
         );
     }

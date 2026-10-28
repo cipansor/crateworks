@@ -331,6 +331,22 @@ pub enum Country {
     PortugalCc,
     /// South Africa: tax reference number, 10 digits.
     SouthAfricaTin,
+    /// United States: ABA routing transit number, 9 digits.
+    UnitedStatesRtn,
+    /// Turkey: VKN (Vergi Kimlik Numarası) tax number, 10 digits.
+    TurkeyVkn,
+    /// India: EPIC (voter ID) number, 10 characters.
+    IndiaEpic,
+    /// South Korea: business registration number, 10 digits.
+    KoreaBrn,
+    /// Italy: AIC drug identification code, 9 digits or 6 BASE32 characters.
+    ItalyAic,
+    /// Netherlands: btw-identificatienummer, 12 characters.
+    NetherlandsBtw,
+    /// Thailand: MOA memorandum-of-association number, 13 digits.
+    ThailandMoa,
+    /// Canada: British Columbia Personal Health Number, 10 digits.
+    CanadaBcPhn,
 }
 
 impl Country {
@@ -465,6 +481,14 @@ impl Country {
         Self::SlovakiaDph,
         Self::PortugalCc,
         Self::SouthAfricaTin,
+        Self::UnitedStatesRtn,
+        Self::TurkeyVkn,
+        Self::IndiaEpic,
+        Self::KoreaBrn,
+        Self::ItalyAic,
+        Self::NetherlandsBtw,
+        Self::ThailandMoa,
+        Self::CanadaBcPhn,
     ];
 
     /// A short English description of the identifier.
@@ -600,6 +624,14 @@ impl Country {
             Self::SlovakiaDph => "Slovakia IČ DPH VAT number",
             Self::PortugalCc => "Portugal Cartão de Cidadão number",
             Self::SouthAfricaTin => "South Africa tax reference number",
+            Self::UnitedStatesRtn => "United States ABA routing transit number",
+            Self::TurkeyVkn => "Turkey VKN tax number",
+            Self::IndiaEpic => "India EPIC voter ID number",
+            Self::KoreaBrn => "South Korea business registration number",
+            Self::ItalyAic => "Italy AIC drug identification code",
+            Self::NetherlandsBtw => "Netherlands btw-identificatienummer",
+            Self::ThailandMoa => "Thailand MOA number",
+            Self::CanadaBcPhn => "Canada British Columbia Personal Health Number",
         }
     }
 }
@@ -699,7 +731,15 @@ impl IdNumber {
             | Country::LithuaniaPvm
             | Country::SlovakiaDph
             | Country::PortugalCc
-            | Country::SouthAfricaTin => input,
+            | Country::SouthAfricaTin
+            | Country::UnitedStatesRtn
+            | Country::TurkeyVkn
+            | Country::IndiaEpic
+            | Country::KoreaBrn
+            | Country::ItalyAic
+            | Country::NetherlandsBtw
+            | Country::ThailandMoa
+            | Country::CanadaBcPhn => input,
             _ => normalized.as_str(),
         };
         match country {
@@ -832,6 +872,14 @@ impl IdNumber {
             Country::SlovakiaDph => slovakia_vat::validate_dph(subject)?,
             Country::PortugalCc => portugal::validate_cc(subject)?,
             Country::SouthAfricaTin => south_africa::validate_tin(subject)?,
+            Country::UnitedStatesRtn => united_states::validate_rtn(subject)?,
+            Country::TurkeyVkn => turkey::validate_vkn(subject)?,
+            Country::IndiaEpic => india::validate_epic(subject)?,
+            Country::KoreaBrn => korea::validate_brn(subject)?,
+            Country::ItalyAic => italy::validate_aic(subject)?,
+            Country::NetherlandsBtw => netherlands::validate_btw(subject)?,
+            Country::ThailandMoa => thailand::validate_moa(subject)?,
+            Country::CanadaBcPhn => canada::validate_bc_phn(subject)?,
         }
         Ok(Self {
             country,
@@ -946,5 +994,42 @@ mod tests {
         no(Country::PortugalCc, "00000000 0 ZZ3");
         ok(Country::SouthAfricaTin, "0001339050");
         no(Country::SouthAfricaTin, "0001339051");
+    }
+
+    /// The identifiers added in 0.5.0, each pinned by a reference value and a
+    /// mutation that must be rejected. The fixture gate covers these over
+    /// thousands of inputs; this test states the shape the crate promises.
+    #[test]
+    fn newly_covered_identifiers_0_5() {
+        let ok = |country, value: &str| {
+            assert!(
+                IdNumber::parse(country, value).is_ok(),
+                "{country:?} rejected {value:?}"
+            );
+        };
+        let no = |country, value: &str| {
+            assert!(
+                IdNumber::parse(country, value).is_err(),
+                "{country:?} accepted {value:?}"
+            );
+        };
+        ok(Country::UnitedStatesRtn, "111000025");
+        no(Country::UnitedStatesRtn, "112000025");
+        ok(Country::TurkeyVkn, "4540536920");
+        no(Country::TurkeyVkn, "4540536921");
+        ok(Country::IndiaEpic, "WKH1186253");
+        no(Country::IndiaEpic, "WKH1186263");
+        ok(Country::KoreaBrn, "116-82-00276");
+        no(Country::KoreaBrn, "1168200000");
+        ok(Country::ItalyAic, "000307052");
+        ok(Country::ItalyAic, "009CVD");
+        no(Country::ItalyAic, "000307053");
+        ok(Country::NetherlandsBtw, "004495445B01");
+        ok(Country::NetherlandsBtw, "NL002455799B11");
+        no(Country::NetherlandsBtw, "123456789B90");
+        ok(Country::ThailandMoa, "0994000617721");
+        no(Country::ThailandMoa, "0-99-4-000-61772-3");
+        ok(Country::CanadaBcPhn, "9698 658 215");
+        no(Country::CanadaBcPhn, "9698648215");
     }
 }

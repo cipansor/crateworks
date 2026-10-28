@@ -19,7 +19,7 @@ Checksum and structure only; nothing here contacts a registry.
 
 ## What is covered
 
-One hundred and twenty-nine national identifiers are covered. Europe accounts
+One hundred and thirty-seven national identifiers are covered. Europe accounts
 for the largest share: the Irish VAT and PPS numbers, the Croatian OIB, the Czech
 and Slovak birth numbers, the Swiss AHV/AVS and UID, the Russian ИНН and ОГРН, the
 Ukrainian ЄДРПОУ, the Austrian UID and TIN, the Latvian PVN, the Monégasque TVA,
@@ -27,17 +27,20 @@ and the microstate numbers of Andorra, Liechtenstein, San Marino, Albania,
 Azerbaijan, Moldova and the Faroe Islands. The 0.4.0 round added the Polish NIP
 and REGON, the French NIF, the Norwegian bank account number and MVA, the Danish
 CVR, the Estonian registrikood and KMKR, the Lithuanian PVM, the Slovak IČ DPH
-and the Portuguese Cartão de Cidadão. The Americas bring the United States
-Social Security and taxpayer numbers, the Chilean RUT, the Colombian NIT, the
-Peruvian RUC, the Argentine CUIT, the Paraguayan RUC, the Salvadoran NIT, the
-Ecuadorian CI and RUC, the Guatemalan NIT, the Costa Rican CPJ, the Dominican
-RNC, the Cuban NI, the Mexican CURP and the Canadian Business Number. Iceland
+and the Portuguese Cartão de Cidadão, and the 0.5.0 round the Dutch
+btw-identificatienummer and the Italian AIC drug code. The Americas bring the
+United States Social Security, taxpayer and ABA routing numbers, the Chilean
+RUT, the Colombian NIT, the Peruvian RUC, the Argentine CUIT, the Paraguayan RUC,
+the Salvadoran NIT, the Ecuadorian CI and RUC, the Guatemalan NIT, the Costa
+Rican CPJ, the Dominican RNC, the Cuban NI, the Mexican CURP, the Canadian
+Business Number and the British Columbia Personal Health Number. Iceland
 contributes the kennitala and the VSK number, and Mauritius the NID.
 Asia and Oceania contribute the Japanese corporate and My Number identifiers,
 the Pakistani CNIC, the Taiwanese UBN, the Israeli identity number, the Thai
-PIN, the Singapore UEN, the Malaysian NRIC, the Vietnamese MST, the Indonesian
-NPWP and NIK, the Indian PAN and GSTIN, and the Chinese, Korean and Australian
-numbers (now including the ACN). The United Kingdom
+PIN and MOA numbers, the Singapore UEN, the Malaysian NRIC, the Vietnamese MST,
+the Indonesian NPWP and NIK, the Indian PAN, GSTIN and EPIC voter ID, and the
+Chinese, Korean (resident and business registration) and Australian numbers.
+The United Kingdom
 is represented by the NHS number, the UTR, the VAT number and SEDOL, and Africa
 and the Middle East by the South African identity and tax numbers, the Greek
 ΑΜΚΑ, and the tax and company numbers of Algeria, Egypt, Ghana, Kenya, Morocco,
@@ -106,7 +109,7 @@ contributors, which in turn follows each authority's published specification.
 This is an independent reimplementation and shares no code with it; see
 [`NOTICE`](https://github.com/cipansor/crateworks/blob/main/crates/stdnum-rs/NOTICE).
 
-`tests/fixtures/stdnum_vectors.tsv` holds 45,134 numbers labelled by that
+`tests/fixtures/stdnum_vectors.tsv` holds 51,094 numbers labelled by that
 reference: every number in its own documentation plus each single-digit
 substitution of a valid number, the last character dropped and a character
 appended. Damm and Verhoeff also carry a 1,500-number random corpus each, built

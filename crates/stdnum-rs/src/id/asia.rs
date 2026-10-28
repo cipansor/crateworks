@@ -117,6 +117,40 @@ pub(super) mod india {
         }
         Ok(())
     }
+
+    /// Validates an Indian EPIC (Electoral Photo Identity Card, voter ID).
+    ///
+    /// Ten characters: three letters naming the constituency, then seven
+    /// digits whose last is a Luhn check digit over the six before it.
+    pub(in crate::id) fn validate_epic(s: &str) -> Result<()> {
+        let s: String = s
+            .chars()
+            .filter(|c| !matches!(c, ' ' | '-'))
+            .flat_map(char::to_uppercase)
+            .collect();
+        let bytes = s.as_bytes();
+        if bytes.len() != 10 {
+            return Err(Error::WrongLength {
+                expected: 10,
+                found: bytes.len(),
+            });
+        }
+        if !bytes[..3].iter().all(u8::is_ascii_uppercase)
+            || !bytes[3..].iter().all(u8::is_ascii_digit)
+        {
+            let bad = bytes
+                .iter()
+                .find(|b| !b.is_ascii_alphanumeric())
+                .copied()
+                .unwrap_or(bytes[0]);
+            return Err(Error::InvalidCharacter(char::from(bad)));
+        }
+        let digits = checksum::digits_only(&s[3..])?;
+        if !checksum::luhn_matches(&digits[..6], digits[6]) {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
 }
 
 /// Turkey: T.C. Kimlik No.
@@ -140,6 +174,33 @@ pub(super) mod turkey {
         }
         let first_ten: u32 = digits[..10].iter().map(|&d| u32::from(d)).sum();
         if first_ten % 10 != u32::from(digits[10]) {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
+
+    /// Validates a Turkish VKN (Vergi Kimlik Numarası), the tax number for
+    /// businesses.
+    ///
+    /// Ten digits whose last is a check digit. The check is the reference's
+    /// `calc_check_digit`: each of the first nine digits, read from the right
+    /// with a one-based position, is raised to `2^position` modulo nine, and
+    /// the digit that closes the sum to a multiple of ten is appended.
+    pub(in crate::id) fn validate_vkn(s: &str) -> Result<()> {
+        let digits = checksum::digits_only(s.trim())?;
+        checksum::expect_len(&digits, 10)?;
+        let mut sum = 0u32;
+        for (position, &d) in digits[..9].iter().rev().enumerate() {
+            let position = position as u32 + 1;
+            let c1 = (u32::from(d) + position) % 10;
+            if c1 != 0 {
+                // A zero power-of-two result stands for nine, which is what the
+                // reference's `or 9` does.
+                let c2 = (c1 * 2u32.pow(position)) % 9;
+                sum += if c2 == 0 { 9 } else { c2 };
+            }
+        }
+        if (10 - sum % 10) % 10 != u32::from(digits[9]) {
             return Err(Error::BadChecksum);
         }
         Ok(())
@@ -232,6 +293,31 @@ pub(super) mod korea {
         let check = (11 - sum % 11) % 10;
         if check as u8 != digits[12] {
             return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
+
+    /// Validates a South Korean business registration number (사업자등록번호).
+    ///
+    /// Ten digits carrying no check digit, so only the component ranges are
+    /// checked: the first three digits (the tax office) are at least 101, the
+    /// two-digit business type is not zero, and the four-digit serial is not
+    /// all zero.
+    pub(in crate::id) fn validate_brn(s: &str) -> Result<()> {
+        let compacted: String = s.chars().filter(|c| !matches!(c, ' ' | '-')).collect();
+        if compacted.len() != 10 {
+            return Err(Error::WrongLength {
+                expected: 10,
+                found: compacted.len(),
+            });
+        }
+        let digits = checksum::digits_only(&compacted)?;
+        let office = u32::from(digits[0]) * 100 + u32::from(digits[1]) * 10 + u32::from(digits[2]);
+        if office < 101
+            || (digits[3] == 0 && digits[4] == 0)
+            || digits[5..9].iter().all(|d| *d == 0)
+        {
+            return Err(Error::OutOfRange);
         }
         Ok(())
     }
@@ -599,5 +685,27 @@ mod tests {
         }
         // The enye is only allowed in the name, not in the homoclave.
         assert!(mexico::validate_rfc("GODE561231GÑ8").is_err());
+    }
+
+    #[test]
+    fn turkish_vkn_examples() {
+        assert!(turkey::validate_vkn("4540536920").is_ok());
+        assert_eq!(turkey::validate_vkn("4540536921"), Err(Error::BadChecksum));
+        assert!(turkey::validate_vkn("454053692").is_err());
+    }
+
+    #[test]
+    fn indian_epic_examples() {
+        assert!(india::validate_epic("WKH1186253").is_ok());
+        assert!(india::validate_epic("1231186253").is_err());
+        assert_eq!(india::validate_epic("WKH1186263"), Err(Error::BadChecksum));
+    }
+
+    #[test]
+    fn korean_business_number_examples() {
+        assert!(korea::validate_brn("116-82-00276").is_ok());
+        assert!(korea::validate_brn("1168200276").is_ok());
+        // A serial of 0000 is never issued.
+        assert_eq!(korea::validate_brn("1168200000"), Err(Error::OutOfRange));
     }
 }

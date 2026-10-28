@@ -49,6 +49,34 @@ pub(super) mod canada {
         }
         Ok(())
     }
+
+    /// Validates a British Columbia Personal Health Number.
+    ///
+    /// Ten digits whose first is always nine and whose last is a MOD-11 check
+    /// digit over the middle eight, weighted 2, 4, 8, 5, 10, 9, 7, 3.
+    pub(in crate::id) fn validate_bc_phn(s: &str) -> Result<()> {
+        let compacted: String = s.chars().filter(|c| !matches!(c, '-' | ' ')).collect();
+        if compacted.len() != 10 {
+            return Err(Error::WrongLength {
+                expected: 10,
+                found: compacted.len(),
+            });
+        }
+        let digits = checksum::digits_only(&compacted)?;
+        if digits[0] != 9 {
+            return Err(Error::OutOfRange);
+        }
+        const WEIGHTS: [u32; 8] = [2, 4, 8, 5, 10, 9, 7, 3];
+        let sum: u32 = digits[1..9]
+            .iter()
+            .zip(WEIGHTS)
+            .map(|(&d, w)| (w * u32::from(d)) % 11)
+            .sum();
+        if ((11 - sum % 11) % 11) as u8 != digits[9] {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
 }
 
 /// Australia: ABN and TFN.
@@ -189,6 +217,20 @@ mod tests {
         assert!(canada::validate_sin("123456782").is_ok());
         assert_eq!(canada::validate_sin("823456785"), Err(Error::OutOfRange));
         assert_eq!(canada::validate_sin("046454286"), Err(Error::OutOfRange));
+    }
+
+    #[test]
+    fn british_columbia_health_number_examples() {
+        assert!(canada::validate_bc_phn("9698 658 215").is_ok());
+        assert_eq!(
+            canada::validate_bc_phn("9698648215"),
+            Err(Error::BadChecksum)
+        );
+        // The leading digit is always nine.
+        assert_eq!(
+            canada::validate_bc_phn("5736504210"),
+            Err(Error::OutOfRange)
+        );
     }
 
     #[test]

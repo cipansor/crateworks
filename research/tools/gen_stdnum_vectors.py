@@ -169,6 +169,18 @@ COUNTRIES: dict[str, str] = {
     "SlovakiaDph": "sk.dph",
     "PortugalCc": "pt.cc",
     "SouthAfricaTin": "za.tin",
+    # Added in 0.5.0: further identifiers python-stdnum covers - the US routing
+    # transit number, the Turkish business tax number, the Indian voter ID, the
+    # Korean business number, the Italian drug code, the Dutch VAT number, the
+    # Thai company number and the British Columbia health number.
+    "UnitedStatesRtn": "us.rtn",
+    "TurkeyVkn": "tr.vkn",
+    "IndiaEpic": "in_.epic",
+    "KoreaBrn": "kr.brn",
+    "ItalyAic": "it.aic",
+    "NetherlandsBtw": "nl.btw",
+    "ThailandMoa": "th.moa",
+    "CanadaBcPhn": "ca.bc_phn",
 }
 
 EXAMPLE_RE = re.compile(r">>> validate\('([^']*)'\)")

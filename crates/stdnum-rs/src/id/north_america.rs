@@ -5,7 +5,7 @@
 //! check is the range of the area and group fields, and both are cross-checked
 //! against `python-stdnum` by `tests/fixtures/stdnum_vectors.tsv`.
 
-use crate::{Error, Result};
+use crate::{Error, Result, checksum};
 
 /// Splits a nine-digit number written in the three-two-four grouping.
 ///
@@ -90,6 +90,25 @@ pub(super) mod united_states {
         }
         Ok(())
     }
+
+    /// Validates a United States ABA routing transit number.
+    ///
+    /// Nine digits whose last is a checksum over the first eight: the first,
+    /// fourth and seventh digits are weighted seven, the second, fifth and
+    /// eighth three, and the third and sixth nine. The reference deletes no
+    /// separators, so a dashed number is rejected rather than compacted.
+    pub(in crate::id) fn validate_rtn(input: &str) -> Result<()> {
+        let s = input.trim();
+        let digits = checksum::digits_only(s)?;
+        checksum::expect_len(&digits, 9)?;
+        let weighted = 7 * (u32::from(digits[0]) + u32::from(digits[3]) + u32::from(digits[6]))
+            + 3 * (u32::from(digits[1]) + u32::from(digits[4]) + u32::from(digits[7]))
+            + 9 * (u32::from(digits[2]) + u32::from(digits[5]));
+        if (weighted % 10) as u8 != digits[8] {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -137,6 +156,17 @@ mod tests {
         assert_eq!(
             united_states::validate_itin("912-93-4567"),
             Err(Error::OutOfRange)
+        );
+    }
+
+    #[test]
+    fn routing_transit_number_examples() {
+        assert!(united_states::validate_rtn("111000025").is_ok());
+        // Nine digits only: the reference strips no separators.
+        assert!(united_states::validate_rtn("11100002").is_err());
+        assert_eq!(
+            united_states::validate_rtn("112000025"),
+            Err(Error::BadChecksum)
         );
     }
 }

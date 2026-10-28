@@ -117,6 +117,64 @@ pub(super) mod netherlands {
         }
         Ok(())
     }
+
+    /// Validates a Dutch btw-identificatienummer (VAT number).
+    ///
+    /// Twelve characters: nine digits (an RSIN or BSN, left-padded to nine), a
+    /// literal `B` and two digits. The check is the BSN eleven-test over the
+    /// first nine digits, or, when the number begins with `NL`, the MOD 97-10
+    /// check over the whole string with the country prefix restored.
+    pub(in crate::id) fn validate_btw(input: &str) -> Result<()> {
+        let compacted: String = input
+            .chars()
+            .filter(|c| !matches!(c, ' ' | '-' | '.'))
+            .flat_map(char::to_uppercase)
+            .collect();
+        let body = compacted.strip_prefix("NL").unwrap_or(&compacted);
+        // The first nine digits are the RSIN/BSN and are left-padded, but only
+        // the ones actually written are judged: a shorter body that pads to a
+        // valid nine-digit number is accepted, as the reference does.
+        let (head, tail) = body.split_at(body.len().saturating_sub(3));
+        let head_padded = format!("{head:0>9}");
+        if head_padded.len() > 9 {
+            return Err(Error::WrongLength {
+                expected: 9,
+                found: head_padded.len(),
+            });
+        }
+        let number = format!("{head_padded}{tail}");
+        if number.len() != 12 {
+            return Err(Error::WrongLength {
+                expected: 12,
+                found: number.len(),
+            });
+        }
+        let bytes = number.as_bytes();
+        if !bytes[..9].iter().all(u8::is_ascii_digit)
+            || bytes[..9].iter().all(|b| *b == b'0')
+            || !bytes[10..].iter().all(u8::is_ascii_digit)
+            || bytes[10..].iter().all(|b| *b == b'0')
+            || bytes[9] != b'B'
+        {
+            return Err(Error::InvalidPrefix);
+        }
+        let head_digits = checksum::digits_only(&number[..9])?;
+        let bsn_ok = {
+            let weighted: i64 = head_digits[..8]
+                .iter()
+                .enumerate()
+                .map(|(i, &d)| i64::from(d) * (9 - i as i64))
+                .sum();
+            (weighted - i64::from(head_digits[8])) % 11 == 0
+        };
+        // The reference always offers the country-prefixed MOD 97-10 reading,
+        // whether or not the input carried the prefix.
+        let mod_97_ok = crate::iso7064::mod_97_10_checksum(&format!("NL{number}")) == Some(1);
+        if !bsn_ok && !mod_97_ok {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
 }
 
 /// Belgium: National Number.
@@ -450,6 +508,58 @@ pub(super) mod italy {
         Ok(())
     }
 
+    /// The alphabet an Italian AIC code uses in its BASE32 form.
+    const AIC_BASE32: &[u8] = b"0123456789BCDFGHJKLMNPQRSTUVWXYZ";
+
+    /// Validates an Italian AIC (drug identification code).
+    ///
+    /// The canonical form is nine digits whose first is zero and whose last is
+    /// a check digit: each of the first eight digits is doubled on alternate
+    /// positions and the decimal digits of the product are summed. A six-
+    /// character BASE32 form is accepted and converted first.
+    pub(in crate::id) fn validate_aic(s: &str) -> Result<()> {
+        let s: String = s
+            .chars()
+            .filter(|c| *c != ' ')
+            .flat_map(char::to_uppercase)
+            .collect();
+        let number = if s.len() == 6 {
+            aic_from_base32(&s)?
+        } else {
+            s
+        };
+        let digits = checksum::digits_only(&number)?;
+        checksum::expect_len(&digits, 9)?;
+        if digits[0] != 0 {
+            return Err(Error::OutOfRange);
+        }
+        // The weights alternate 1 and 2, so a digit at an even index is doubled.
+        let sum: u32 = digits[..8]
+            .iter()
+            .enumerate()
+            .map(|(i, &d)| {
+                let v = u32::from(d) * if i % 2 == 1 { 2 } else { 1 };
+                v / 10 + v % 10
+            })
+            .sum();
+        if (sum % 10) as u8 != digits[8] {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
+
+    /// Converts an AIC written in BASE32 to its nine-digit decimal form.
+    fn aic_from_base32(s: &str) -> Result<String> {
+        let mut value: u64 = 0;
+        for c in s.bytes() {
+            let Some(index) = AIC_BASE32.iter().position(|a| *a == c) else {
+                return Err(Error::InvalidCharacter(char::from(c)));
+            };
+            value = value * 32 + index as u64;
+        }
+        Ok(format!("{value:09}"))
+    }
+
     /// The digit an omocodia letter stands for, or `None` when the byte is not
     /// one of the substitution letters.
     ///
@@ -721,6 +831,22 @@ mod tests {
     }
 
     #[test]
+    fn dutch_btw_examples() {
+        for value in [
+            "004495445B01",
+            "NL4495445B01",
+            "NL002455799B11",
+            "NL 0044.95445 B01",
+        ] {
+            assert!(netherlands::validate_btw(value).is_ok(), "{value}");
+        }
+        assert_eq!(
+            netherlands::validate_btw("123456789B90"),
+            Err(Error::BadChecksum)
+        );
+    }
+
+    #[test]
     fn belgian_examples() {
         // A number issued before 2000, and one after.
         assert!(belgium::validate("85073003328").is_ok());
@@ -791,6 +917,16 @@ mod tests {
             italy::validate_codice_fiscale("RCCMNL83S18D969X"),
             Err(Error::BadChecksum)
         );
+    }
+
+    #[test]
+    fn italian_aic_examples() {
+        // The BASE10 form and the BASE32 form of the same code.
+        assert!(italy::validate_aic("000307052").is_ok());
+        assert!(italy::validate_aic("009CVD").is_ok());
+        assert_eq!(italy::validate_aic("000307053"), Err(Error::BadChecksum));
+        // The first digit of the BASE10 form is always zero.
+        assert_eq!(italy::validate_aic("100307052"), Err(Error::OutOfRange));
     }
 
     #[test]
