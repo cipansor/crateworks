@@ -58,13 +58,15 @@ KINDS = [
 # here rather than shipped.
 #
 # OurAirports is maintained continuously, so this number moves on its own: it
-# was 11,848 when the crate was first generated and 11,889 on 2026-10-21, the
-# difference being a South African cleanup (13 strips dropped, 54 added, 10
-# corrected). That is the point of the assertion. It is not a stable constant to
-# be relaxed when it fails - a failure means upstream has moved and the table
-# has to be regenerated and the change reviewed, because the crate ships a
-# snapshot and the gate is a freshness check rather than a reproducibility one.
-EXPECTED_ROWS = 11889
+# was 11,848 when the crate was first generated, 11,889 on 2026-10-21 after a
+# South African cleanup (13 strips dropped, 54 added, 10 corrected), and 11,888
+# on 2026-10-27 after a further South African correction (3 strips added, 4
+# closed, 14 corrected). That is the point of the assertion. It is not a
+# stable constant to be relaxed when it fails - a failure means upstream has
+# moved and the table has to be regenerated and the change reviewed, because the
+# crate ships a snapshot and the gate is a freshness check rather than a
+# reproducibility one.
+EXPECTED_ROWS = 11888
 
 
 def fetch() -> str:

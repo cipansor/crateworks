@@ -23,7 +23,7 @@ assert_eq!(find("egll").unwrap().ident(), "EGLL");
 ```
 
 The crate ships the [OurAirports](https://ourairports.com/data/) table compiled
-in: **11,889 airports**, every one that is not closed and carries an IATA or an
+in: **11,888 airports**, every one that is not closed and carries an IATA or an
 ICAO code. There is no network call, no file to load and no database to build -
 `find` is a lookup in a table that is already in the binary.
 
@@ -60,7 +60,7 @@ assert!(close.iter().any(|(a, _)| a.ident() == "EGLL"));
 ## Scope
 
 The data is a **snapshot**, not a live feed. It is regenerated from the upstream
-CSV by `research/tools/gen_aviation.py` and pinned at 11,889 rows, so a silent
+CSV by `research/tools/gen_aviation.py` and pinned at 11,888 rows, so a silent
 upstream change fails the generator rather than shrinking the crate quietly. A
 new airport is a new release.
 

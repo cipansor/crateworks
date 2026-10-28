@@ -274,8 +274,8 @@ fn code_eq(code: Option<&str>, query: &str) -> bool {
 /// every airport is checked for an IATA match, then an ICAO match, and so on,
 /// before any airport is checked for an `ident` match. The order matters because
 /// the spaces overlap. `ident` is an internal key that sometimes names a
-/// *different* airport's code - 15 rows are like this, and 14 of them resolve
-/// through ICAO - so an `ident`-first search would return the wrong airport for
+/// *different* airport's code (35 rows are like this, 15 of them through ICAO),
+/// so an `ident`-first search would return the wrong airport for
 /// codes such as `WABK`, where `ident` is on Karubaga Airport but the ICAO code
 /// `WABK` is on Biri Airstrip. `IMO` is the other shape: an IATA code on one
 /// airport and a local code on another, which is why IATA outranks local.

@@ -1,5 +1,8 @@
 # address-parser
 
+[![crates.io](https://img.shields.io/crates/v/address-parser.svg)](https://crates.io/crates/address-parser)
+[![docs.rs](https://docs.rs/address-parser/badge.svg)](https://docs.rs/address-parser)
+
 Parse a free-text US postal address into its components, in pure Rust, with no
 dependencies.
 

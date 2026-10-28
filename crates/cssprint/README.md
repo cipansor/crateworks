@@ -1,5 +1,8 @@
 # cssprint
 
+[![crates.io](https://img.shields.io/crates/v/cssprint.svg)](https://crates.io/crates/cssprint)
+[![docs.rs](https://docs.rs/cssprint/badge.svg)](https://docs.rs/cssprint)
+
 Lay out HTML and CSS for paged output, in pure Rust.
 
 Generating a PDF from HTML is normally done by driving a browser, which means

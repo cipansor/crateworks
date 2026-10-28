@@ -22,7 +22,7 @@ impl Sheet for Grid {
 assert_eq!(Evaluator::new(&Grid).eval("=SUM(A1:A2)*2").unwrap(), Value::Number(10.0));
 ```
 
-342 functions plus `IF` and `IFERROR`, which are evaluated lazily along with
+345 functions plus `IF` and `IFERROR`, which are evaluated lazily along with
 `SWITCH`. Cell and range references, absolute references, sheet qualifiers, text
 concatenation, and comparison operators. The library covers arithmetic and
 rounding, trigonometry and its hyperbolic and reciprocal forms, logarithms, the
@@ -62,7 +62,8 @@ string and a way to resolve cell references, so it can be used with `xlsx`,
   `LOGNORMDIST`, `LOGNORMINV`, `LOGINV`, `TDIST`, `TINV`, `CHIDIST`, `CHIINV`, `FDIST`,
   `FINV`, `BINOMDIST`, `CRITBINOM`, `POISSONDIST`, `EXPONDIST`, `WEIBULLDIST`,
   `GAMMADIST`, `GAMMAINV`, `BETADIST`, `BETAINV`, `HYPGEOMDIST`, `NEGBINOMDIST`,
-  `STANDARDIZE`, `GAUSS`, `PHI`, `FISHER`, `FISHERINV`.
+  `STANDARDIZE`, `GAUSS`, `PHI`, `FISHER`, `FISHERINV`, `CONFIDENCE`,
+  `CONFIDENCE.NORM`, `CONFIDENCE.T`.
 * Regression and hypothesis tests - `CORREL`, `PEARSON`, `RSQ`, `SLOPE`,
   `INTERCEPT`, `STEYX`, `FORECAST`, `COVAR`, `COVARIANCEP`, `COVARIANCES`,
   `ZTEST`, `TTEST`, `FTEST`, `CHITEST`.

@@ -2475,6 +2475,30 @@ pub(crate) fn call_from(
             }
             Ok(Value::Number(stats::normal_inv(p, 0.0, 1.0)))
         }
+        // The half-width of a confidence interval: the two-tailed critical
+        // value times the standard error. `CONFIDENCE` is the pre-2010 name of
+        // `CONFIDENCE.NORM`; both canonicalise to the same arm.
+        "CONFIDENCE" | "CONFIDENCENORM" | "CONFIDENCET" => {
+            require_arity(name, args, 3)?;
+            let alpha = first_number(name, &args[0])?;
+            let std = first_number(name, &args[1])?;
+            let size = first_number(name, &args[2])?;
+            // `CONFIDENCE.T` needs at least two observations, since it divides
+            // by `n - 1` degrees of freedom; the normal form needs one.
+            let least = if name == "CONFIDENCET" { 2.0 } else { 1.0 };
+            if !(alpha > 0.0 && alpha < 1.0) || std <= 0.0 || size < least {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            let critical = if name == "CONFIDENCET" {
+                // `T.INV.2T(alpha, n - 1)`, the two-tailed inverse. The crate's
+                // `studentt_inv` is the one-tailed form, so the lower tail is
+                // taken and made positive.
+                stats::studentt_inv(alpha / 2.0, size - 1.0).abs()
+            } else {
+                stats::normal_inv(1.0 - alpha / 2.0, 0.0, 1.0)
+            };
+            Ok(Value::Number(critical * std / size.sqrt()))
+        }
         "LOGNORMDIST" => {
             require_between(name, args, 3, 4)?;
             let x = first_number(name, &args[0])?;
@@ -4285,6 +4309,9 @@ pub const FUNCTION_NAMES: &[&str] = &[
     "COMPLEX",
     "CONCAT",
     "CONCATENATE",
+    "CONFIDENCE",
+    "CONFIDENCE.NORM",
+    "CONFIDENCE.T",
     "CONVERT",
     "CORREL",
     "COS",
@@ -4886,6 +4913,29 @@ mod tests {
         ));
         // A pole yields a NaN, which the evaluator turns into a number error.
         assert!(matches!(call("GAMMA", &[n(0.0)]), Ok(Value::Number(n)) if n.is_nan()));
+    }
+
+    #[test]
+    fn confidence_intervals_match_the_reference() {
+        // Values from `@formulajs/formulajs`; the dotted spelling and the flat
+        // one reach the same arm.
+        assert!(close(
+            call("CONFIDENCE", &[n(0.05), n(2.5), n(50.0)]).unwrap(),
+            0.692_951_912_174_839_1
+        ));
+        assert!(close(
+            call("CONFIDENCE.NORM", &[n(0.05), n(2.5), n(50.0)]).unwrap(),
+            0.692_951_912_174_839_1
+        ));
+        assert!(close(
+            call("CONFIDENCE.T", &[n(0.05), n(1.0), n(50.0)]).unwrap(),
+            0.284_196_850_152_904_6
+        ));
+        // An out-of-range alpha, a non-positive standard deviation and a
+        // sample smaller than two for the t form are all errors.
+        assert!(call("CONFIDENCE.NORM", &[n(0.0), n(1.0), n(10.0)]).is_err());
+        assert!(call("CONFIDENCE.NORM", &[n(0.05), n(0.0), n(10.0)]).is_err());
+        assert!(call("CONFIDENCE.T", &[n(0.05), n(1.0), n(1.0)]).is_err());
     }
 
     #[test]

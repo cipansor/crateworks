@@ -173,7 +173,7 @@ def main() -> int:
     # Code lookup: the crate must resolve every code the way the documented
     # precedence says - IATA, then ICAO, then GPS, then local, then `ident`,
     # with the first airport in ident order winning within a space. The order is
-    # not arbitrary: 15 rows carry an `ident` that is another row's code, so a
+    # not arbitrary: 35 rows carry an `ident` that is another row's code, so a
     # wrong precedence returns the wrong airport for codes like `WABK`.
     spaces = ["iata", "icao", "gps", "local", "ident"]
     want_lookup: dict[str, str] = {}
