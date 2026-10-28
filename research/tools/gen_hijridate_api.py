@@ -109,3 +109,31 @@ for y in (1, 2, 4, 1582, 1600, 1900, 1999, 2000, 2024, 2026, 9999):
 ordinal_out = crate / "tests" / "fixtures" / "hijridate_ordinal.tsv"
 ordinal_out.write_text("\n".join(ordinal_rows) + "\n")
 print(f"wrote {len(ordinal_rows) - 1} rows to {ordinal_out}")
+
+
+# The ISO week date and its inverse. The reference exposes both on the Gregorian
+# type only. A row is a date and its `isocalendar`; the inverse is checked by
+# feeding the same three numbers back to `fromisocalendar`, which the Rust test
+# does. The week-numbering year is not the calendar year at the year's ends, so
+# late December and early January are included deliberately.
+iso_rows = ["year\tmonth\tday\tiso_year\tiso_week\tiso_weekday"]
+iso_dates = set()
+for y in (1, 2, 4, 1582, 1600, 1900, 1999, 2000, 2004, 2015, 2019, 2020, 2021, 2022, 2024, 2025, 2026, 2027, 9999):
+    # The whole of the first and last ten days of the year, where the ISO year
+    # and the calendar year disagree.
+    for m, days in ((1, range(1, 11)), (12, range(22, 32))):
+        for d in days:
+            try:
+                iso_dates.add(Gregorian(y, m, d))
+            except ValueError:
+                pass
+    for m in range(1, 13):
+        iso_dates.add(Gregorian(y, m, 1))
+        iso_dates.add(Gregorian(y, m, 15))
+for g in sorted(iso_dates):
+    iy, iw, iwd = g.isocalendar()
+    iso_rows.append(f"{g.year}\t{g.month}\t{g.day}\t{iy}\t{iw}\t{iwd}")
+
+iso_out = crate / "tests" / "fixtures" / "hijridate_isocalendar.tsv"
+iso_out.write_text("\n".join(iso_rows) + "\n")
+print(f"wrote {len(iso_rows) - 1} rows to {iso_out}")

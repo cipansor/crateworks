@@ -34,6 +34,13 @@ pub enum Error {
     },
     /// The text was not a date in `YYYY-MM-DD` form.
     MalformedDate(String),
+    /// The ISO week is not one the year has, such as week 53 of a 52-week year.
+    IsoWeek {
+        /// The ISO week-numbering year as given.
+        year: i32,
+        /// The week that was rejected.
+        week: u8,
+    },
 }
 
 impl fmt::Display for Error {
@@ -52,6 +59,9 @@ impl fmt::Display for Error {
             }
             Self::MalformedDate(text) => {
                 write!(f, "{text:?} is not a date in YYYY-MM-DD form")
+            }
+            Self::IsoWeek { year, week } => {
+                write!(f, "ISO week {week} does not exist in year {year}")
             }
         }
     }
@@ -126,6 +136,22 @@ pub const HIJRI_NOTATION: &str = "AH";
 
 /// The era notation for a Gregorian year.
 pub const GREGORIAN_NOTATION: &str = "CE";
+
+/// An ISO 8601 calendar date: week-numbering year, week and weekday.
+///
+/// This is the reference's `isocalendar`, which comes from `datetime.date`.
+/// The week-numbering year is not the calendar year at the two ends of a year:
+/// the last days of December can belong to week 1 of the next year, and the
+/// first days of January to the last week of the previous one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct IsoCalendar {
+    /// The ISO week-numbering year.
+    pub year: i32,
+    /// The ISO week, 1 through 52 or 53.
+    pub week: u8,
+    /// The weekday, 1 for Monday through 7 for Sunday.
+    pub weekday: u8,
+}
 
 impl Hijri {
     /// Builds a Hijri date, checking the day against the month's real length.
@@ -602,6 +628,87 @@ impl Gregorian {
             month.unwrap_or(self.month),
             day.unwrap_or(self.day),
         )
+    }
+
+    /// The ISO 8601 week date of this Gregorian date.
+    ///
+    /// This is the reference's `isocalendar`, which comes from `datetime.date`.
+    /// The week-numbering year can differ from the calendar year: 1 January 2026
+    /// is a Thursday and so falls in week 1 of 2026, but 29 December 2025 (a
+    /// Monday) is in week 1 of 2026 as well.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use hijridate::Gregorian;
+    ///
+    /// let iso = Gregorian::new(2026, 1, 1).unwrap().isocalendar();
+    /// assert_eq!((iso.year, iso.week, iso.weekday), (2026, 1, 4));
+    /// // The previous Monday already belongs to that week.
+    /// let iso = Gregorian::new(2025, 12, 29).unwrap().isocalendar();
+    /// assert_eq!((iso.year, iso.week, iso.weekday), (2026, 1, 1));
+    /// ```
+    #[must_use]
+    pub fn isocalendar(self) -> IsoCalendar {
+        let ordinal = self.toordinal();
+        let weekday = self.isoweekday();
+        // The Thursday of the same ISO week fixes the week-numbering year.
+        let thursday = ordinal + (4 - i64::from(weekday));
+        let year = from_julian(thursday + 1_721_425).year;
+        // Week 1 holds 4 January; its Monday is on or before that date.
+        let jan4 = to_julian(year, 1, 4) - 1_721_425;
+        let week1_monday = jan4 - i64::from(from_julian(jan4 + 1_721_425).isoweekday()) + 1;
+        let week = (ordinal - week1_monday) / 7 + 1;
+        IsoCalendar {
+            year,
+            week: week as u8,
+            weekday,
+        }
+    }
+
+    /// Builds a Gregorian date from an ISO 8601 week date.
+    ///
+    /// This is the reference's `fromisocalendar`. `week` runs 1 through 52 or
+    /// 53, and `weekday` 1 for Monday through 7 for Sunday.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::IsoWeek`] for a week the year does not have, and
+    /// [`Error::GregorianDate`] for a weekday outside 1..=7 or a week outside
+    /// 1..=53.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use hijridate::Gregorian;
+    ///
+    /// let d = Gregorian::fromisocalendar(2026, 1, 4).unwrap();
+    /// assert_eq!(d.isoformat(), "2026-01-01");
+    /// // 2022 has only 52 weeks.
+    /// assert!(Gregorian::fromisocalendar(2022, 53, 1).is_err());
+    /// ```
+    pub fn fromisocalendar(year: i32, week: u8, weekday: u8) -> Result<Self> {
+        if !(1..=7).contains(&weekday) || !(1..=53).contains(&week) {
+            return Err(Error::GregorianDate {
+                year,
+                month: 1,
+                day: weekday,
+            });
+        }
+        // The Monday of week 1 is the Monday on or before 4 January.
+        let jan4 = to_julian(year, 1, 4) - 1_721_425;
+        let week1_monday = jan4 - i64::from(from_julian(jan4 + 1_721_425).isoweekday()) + 1;
+        let ordinal = week1_monday + (i64::from(week) - 1) * 7 + (i64::from(weekday) - 1);
+        let date = from_julian(ordinal + 1_721_425);
+        // The date is valid only if it is really in the week that was asked for;
+        // otherwise the year has no such week. A valid week date can fall in the
+        // next calendar year (week 52 or 53, the last days of December), so the
+        // calendar year is not the thing to compare.
+        let actual = date.isocalendar();
+        if actual.year != year || actual.week != week {
+            return Err(Error::IsoWeek { year, week });
+        }
+        Ok(date)
     }
 }
 

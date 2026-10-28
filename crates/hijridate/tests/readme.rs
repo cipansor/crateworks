@@ -25,4 +25,12 @@ fn readme_examples() {
     assert_eq!(g.month_name(), "February");
     assert_eq!(g.notation(), "CE");
     assert_eq!(g.isoweekday(), 3);
+
+    let iso = Gregorian::new(2026, 1, 1).unwrap().isocalendar();
+    assert_eq!((iso.year, iso.week, iso.weekday), (2026, 1, 4));
+    assert_eq!(
+        Gregorian::fromisocalendar(2026, 1, 4).unwrap().isoformat(),
+        "2026-01-01"
+    );
+    assert!(Gregorian::fromisocalendar(2022, 53, 1).is_err());
 }

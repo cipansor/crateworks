@@ -267,3 +267,54 @@ fn replace_rejects_a_date_that_does_not_exist() {
         "2024-02-29"
     );
 }
+
+#[test]
+fn every_iso_row_agrees_with_hijridate() {
+    let mut checked = 0;
+    for line in include_str!("fixtures/hijridate_isocalendar.tsv")
+        .lines()
+        .skip(1)
+    {
+        if line.is_empty() {
+            continue;
+        }
+        let f: Vec<&str> = line.split('\t').collect();
+        let (year, month, day): (i32, u8, u8) = (
+            f[0].parse().unwrap(),
+            f[1].parse().unwrap(),
+            f[2].parse().unwrap(),
+        );
+        let (iso_year, iso_week, iso_weekday): (i32, u8, u8) = (
+            f[3].parse().unwrap(),
+            f[4].parse().unwrap(),
+            f[5].parse().unwrap(),
+        );
+        let date = Gregorian::new(year, month, day).unwrap();
+        let iso = date.isocalendar();
+        assert_eq!(
+            (iso.year, iso.week, iso.weekday),
+            (iso_year, iso_week, iso_weekday),
+            "{year}-{month}-{day}"
+        );
+        // The inverse must land back on the same date.
+        assert_eq!(
+            Gregorian::fromisocalendar(iso_year, iso_week, iso_weekday).unwrap(),
+            date,
+            "{year}-{month}-{day}"
+        );
+        checked += 1;
+    }
+    assert!(checked > 700, "only {checked} ISO rows were checked");
+}
+
+#[test]
+fn a_week_the_year_does_not_have_is_reported() {
+    // 2022 has 52 weeks; 2020 and 2004 have 53.
+    assert!(Gregorian::fromisocalendar(2022, 53, 1).is_err());
+    assert!(Gregorian::fromisocalendar(2020, 53, 7).is_ok());
+    assert!(Gregorian::fromisocalendar(2004, 53, 6).is_ok());
+    // A weekday outside 1..=7 and a week outside 1..=53 are rejected too.
+    assert!(Gregorian::fromisocalendar(2026, 1, 0).is_err());
+    assert!(Gregorian::fromisocalendar(2026, 1, 8).is_err());
+    assert!(Gregorian::fromisocalendar(2026, 54, 1).is_err());
+}
