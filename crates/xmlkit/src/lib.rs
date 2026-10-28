@@ -86,6 +86,12 @@ impl Element {
         }
     }
 
+    /// The element's tag name, with any prefix it carries.
+    #[must_use]
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
     /// Looks up an attribute value.
     #[must_use]
     pub fn attr(&self, name: &str) -> Option<&str> {
@@ -205,6 +211,65 @@ pub fn escape_attr(s: &str) -> String {
             '>' => out.push_str("&gt;"),
             '"' => out.push_str("&quot;"),
             '\'' => out.push_str("&apos;"),
+            _ => out.push(c),
+        }
+    }
+    out
+}
+
+/// Applies XML 1.0 end-of-line handling to element content.
+///
+/// Section 2.11: a literal carriage return and a carriage-return/line-feed pair
+/// both become a single line feed before the document is parsed, so a value can
+/// only ever contain a line feed from the source. A `&#13;` reference is a real
+/// carriage return and is left alone, because it is produced after this step.
+fn normalize_newlines(s: &str) -> String {
+    if !s.contains('\r') {
+        return s.to_string();
+    }
+    let mut out = String::with_capacity(s.len());
+    let mut chars = s.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\r' {
+            if chars.peek() == Some(&'\n') {
+                chars.next();
+            }
+            out.push('\n');
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
+/// Applies XML 1.0 attribute-value normalization.
+///
+/// Section 3.3.3: after end-of-line handling, every literal whitespace character
+/// in an attribute value becomes a space. A character reference is again exempt,
+/// so `&#9;` stays a tab and `&#13;` stays a carriage return.
+fn normalize_attribute(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut chars = s.chars().peekable();
+    while let Some(c) = chars.next() {
+        match c {
+            '&' => {
+                // Copy a reference whole, so its body is not touched.
+                out.push('&');
+                for c in chars.by_ref() {
+                    out.push(c);
+                    if c == ';' {
+                        break;
+                    }
+                }
+            }
+            '\r' => {
+                // A CRLF pair is one line break, and so one space.
+                if chars.peek() == Some(&'\n') {
+                    chars.next();
+                }
+                out.push(' ');
+            }
+            '\n' | '\t' => out.push(' '),
             _ => out.push(c),
         }
     }
@@ -391,7 +456,7 @@ impl<'a> Parser<'a> {
             }
             let raw = &self.src[start..self.pos];
             self.pos += quote.len_utf8();
-            attrs.insert(name, unescape(raw));
+            attrs.insert(name, unescape(&normalize_attribute(raw)));
         }
     }
 
@@ -503,7 +568,7 @@ impl<'a> Parser<'a> {
                 }
                 self.pos += c.len_utf8();
             }
-            let text = unescape(&self.src[start..self.pos]);
+            let text = unescape(&normalize_newlines(&self.src[start..self.pos]));
             let children = self.children_mut(&mut stack);
             push_text(children, text);
         }
@@ -604,6 +669,26 @@ pub fn local_name(name: &str) -> &str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_carriage_return_in_text_becomes_a_line_feed() {
+        // XML 1.0 section 2.11: the parser normalises a literal CR and CRLF
+        // before anything else sees the text.
+        assert_eq!(parse("<a>x\ry</a>").unwrap().text(), "x\ny");
+        assert_eq!(parse("<a>x\r\ny</a>").unwrap().text(), "x\ny");
+        // A character reference is a real carriage return and survives.
+        assert_eq!(parse("<a>x&#13;y</a>").unwrap().text(), "x\ry");
+    }
+
+    #[test]
+    fn whitespace_in_an_attribute_becomes_a_space() {
+        // XML 1.0 section 3.3.3: tab, newline and carriage return in an
+        // attribute value normalise to a space; a character reference does not.
+        assert_eq!(parse("<a x=\"p\tq\"/>").unwrap().attr("x"), Some("p q"));
+        assert_eq!(parse("<a x=\"p\nq\"/>").unwrap().attr("x"), Some("p q"));
+        assert_eq!(parse("<a x=\"p\r\nq\"/>").unwrap().attr("x"), Some("p q"));
+        assert_eq!(parse("<a x=\"p&#9;q\"/>").unwrap().attr("x"), Some("p\tq"));
+    }
 
     #[test]
     fn parses_attributes_and_children() {

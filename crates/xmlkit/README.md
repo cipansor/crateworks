@@ -53,6 +53,19 @@ assert_eq!(attribute_namespaced(&doc, body, XML_NAMESPACE, "lang"), Some("en"));
 An unbound prefix names nothing rather than "no namespace", so a document cannot
 pass off `<evil:Body>` as an un-namespaced `Body` by leaving `evil` undeclared.
 
+## Whitespace and line endings
+
+Two normalisations happen before any text or attribute value is handed out, and
+both are easy to miss because they only show up on input a hand-written test does
+not use. XML 1.0 section 2.11 turns a literal carriage return, and a
+carriage-return/line-feed pair, into a single line feed in element content, so
+`<a>x\ry</a>` reads as `"x\ny"`. Section 3.3.3 then turns a tab, a newline or a
+carriage return inside an attribute value into a space, so `x="p\tq"` reads as
+`"p q"`. A numeric character reference is exempt from both, because it is
+resolved after them: `<a>x&#13;y</a>` really is `"x\ry"`, and `x="p&#9;q"` really
+is `"p\tq"`. `javaproperties`'s XML reader depends on this, which is where the
+rule was found.
+
 ## Scope
 
 * `parse` builds an `Element` tree from a string.
