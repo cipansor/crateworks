@@ -151,7 +151,15 @@ fn extract_without_order<S: AsRef<str>>(
     scorer: Scorer,
 ) -> Vec<(String, u8)> {
     let ascii = scorer.processor_force_ascii();
-    let processed_query = full_process(query, ascii);
+    // The reference runs the query through the default processor *and then* the
+    // scorer's pre-processor, so the query is processed twice while each choice
+    // is processed once (its `processor` is swapped for a no-op before the
+    // loop). With `force_ascii` the two passes are not the same as one: the
+    // first keeps Unicode letters and only the second folds them away, so
+    // `full_process(full_process(q, false), true)` differs from
+    // `full_process(q, true)`. The choice side is a single pass, which is why
+    // the two are not symmetric here.
+    let processed_query = full_process(&full_process(query, false), ascii);
 
     let mut results = Vec::new();
     for choice in choices {
@@ -194,7 +202,13 @@ pub fn dedupe<S: AsRef<str>>(choices: impl IntoIterator<Item = S>, threshold: u8
             .filter(|(_, score)| *score > threshold)
             .collect();
 
-        if filtered.len() == 1 {
+        if filtered.is_empty() {
+            // A choice that preprocesses to the empty string scores zero against
+            // everything, itself included, so nothing clears the threshold. The
+            // reference indexes into the empty list here and raises; the crate
+            // keeps the choice unchanged instead of panicking.
+            kept.push(item.clone());
+        } else if filtered.len() == 1 {
             kept.push(filtered[0].0.clone());
         } else {
             filtered.sort_by(|a, b| a.0.cmp(&b.0));

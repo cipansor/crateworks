@@ -171,7 +171,27 @@ means a divergence from the reference, not from someone's opinion.
 `tests/oracle.rs` replays 2,100 input pairs whose scores were produced by
 `fuzzywuzzy` itself. `research/tools/verify_fuzzy_score.py` is the regression
 gate: it runs the crate and the reference over a generated corpus and exits
-non-zero on any difference.
+non-zero on any difference. The gate covers the ten `fuzz` scorers *and* the
+three `process` functions (`extract`, `extract_one`, `dedupe`) over a second
+corpus of 2,000 query-and-choices cases.
+
+That second corpus found a divergence the scorer corpus could not: the
+reference runs the *query* through `full_process` twice - once as the default
+processor, then again as the scorer's pre-processor - but each *choice* only
+once, because its `processor` is swapped for a no-op before the loop. The two
+passes are not the same as one when `force_ascii` is on: the first pass keeps
+Unicode letters and only the second folds them away, so
+`full_process(full_process(q, false), true)` can differ from
+`full_process(q, true)`. The crate had processed both sides once, which scored
+`60` where the reference scored `44` on a query of mostly non-ASCII letters. It
+now processes the query twice and the choices once, matching the reference.
+
+The same corpus exposed a reference crash. `fuzzywuzzy.process.dedupe` indexes
+into an empty list, and raises `IndexError`, when a choice preprocesses to the
+empty string: it scores zero against everything including itself, so nothing
+clears the threshold. There is no reference answer for those cases, so the gate
+skips them for `dedupe` and counts them; the crate keeps such a choice unchanged
+rather than panicking.
 
 One caution about the reference. When the `Levenshtein` package is installed,
 `fuzzywuzzy` silently swaps in a `Levenshtein`-backed matcher that returns

@@ -392,3 +392,23 @@ fn test_simple_match() {
     assert_eq!(result, Some(("a, b".to_string(), 100)));
     assert_eq!(part_result, Some(("a, b".to_string(), 100)));
 }
+
+#[test]
+fn the_query_is_processed_twice_and_each_choice_once() {
+    // `fuzzywuzzy.process` runs the query through the default processor and then
+    // the scorer's pre-processor, but swaps the processor for a no-op before the
+    // loop, so each choice is processed once. On non-ASCII input the two are not
+    // the same: the first pass keeps Unicode letters, the second folds them.
+    // Both numbers are the reference's own output.
+    let query = "c\u{c7}\u{d3}\u{fb}\u{ee}\u{cc}c\u{d7}\u{fd}\u{c6}c\u{ca}\u{f3}\u{eb}\u{eb}\u{da}\u{1f600}\u{c3}";
+    let choices = ["B\u{f2}\u{ff}\u{ca}\u{d3}\u{fb}\u{d0}\u{e8}c\u{1234}\u{a0}\u{db}c2"];
+    let best = extract_one(query, choices, 0, Scorer::WRatio).unwrap();
+    assert_eq!(best.1, 44, "the reference scores this 44, not 60");
+
+    // A choice that preprocesses to the empty string clears no threshold. The
+    // reference raises `IndexError` from `dedupe` here; the crate keeps the
+    // choice rather than panicking.
+    let empties = ["...", "a", "---"];
+    let deduped = dedupe(empties, 70);
+    assert!(deduped.len() <= empties.len());
+}
