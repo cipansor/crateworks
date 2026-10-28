@@ -134,13 +134,20 @@ when a digest has to match a system that already speaks another one:
 | `Sha512` | 128 | Matching a system that already uses SHA-512 |
 | `Sha384` | 96 | Matching a system that already uses SHA-384 |
 | `Md5` | 32 | Matching an existing MD5 in the field |
+| `Passthrough` | - | The canonical bytes themselves, no digest |
 
-The canonical bytes are the same whatever the algorithm, so all six agree on
-which values are equal and differ only in the text they produce. SHA-256,
+The canonical bytes are the same whatever the algorithm, so the six digests agree
+on which values are equal and differ only in the text they produce. SHA-256,
 SHA-224, SHA-512, SHA-384 and MD5 are written out here like SHA-1, so the crate
 still has no dependencies. SHA-224 is SHA-256 and SHA-384 is SHA-512, each with a
 different initial state and a truncated output, so each pair shares its round
 code.
+
+`Passthrough` is the reference's seventh algorithm and the odd one out: it is not
+a digest at all but the byte stream the digests are taken over, so
+`hash_with(value, Algorithm::Passthrough)` returns the same string `canonical`
+does. It is here because the reference names it, and because seeing those bytes
+without a second function is occasionally what a caller wants.
 
 `hash_with_encoding` takes an `Encoding` as well, mirroring the reference's
 `encoding` option:
@@ -189,6 +196,10 @@ ordering; the curated cases had missed both. A second corpus of 2,000 plain
 objects pins the `object:` encoding and the `excludeValues` and `unorderedArrays`
 options. The generator that built both is in `scripts/fuzz/object-hash/`, so the
 corpora can be rebuilt and extended.
+
+`Passthrough` is checked against the same canonical column every other algorithm
+is taken over, so the reference's own bytes pin it in both the curated file and
+the random corpus rather than only in a hand-written example.
 
 The plain-object rows are hashed with `respectType: false`, because the
 reference's default prepends a Node prototype preamble that no other language can

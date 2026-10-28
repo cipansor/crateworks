@@ -19,7 +19,7 @@
 //! The descriptions are a small tagged JSON, parsed here rather than pulled in
 //! as a dependency, since this crate has none.
 
-use object_hash::{canonical, hash};
+use object_hash::{Algorithm, canonical, hash, hash_with};
 
 mod support;
 use support::Reader;
@@ -69,6 +69,15 @@ fn every_random_value_matches_the_reference() {
         if got_digest != *digest {
             failures.push(format!(
                 "{description}\n  digest\n    expected {digest}\n    got      {got_digest}"
+            ));
+        }
+        // The reference's `passthrough` algorithm, held to the same canonical
+        // form. It is the identity, so it agrees with the reference for free,
+        // but this keeps it from being forgotten if the encoding ever changes.
+        let got_passthrough = hash_with(&value, Algorithm::Passthrough);
+        if got_passthrough != *canonical_form {
+            failures.push(format!(
+                "{description}\n  passthrough\n    expected {canonical_form:?}\n    got      {got_passthrough:?}"
             ));
         }
     }

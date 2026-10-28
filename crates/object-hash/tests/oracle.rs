@@ -277,6 +277,15 @@ fn every_fixture_case_has_the_same_canonical_form_and_digest() {
                 case.name, case.base64
             ));
         }
+        // Passthrough returns the canonical form. The reference has this as an
+        // algorithm, not a separate function, so it belongs in the same loop.
+        let got_passthrough = hash_with(&value, Algorithm::Passthrough);
+        if got_passthrough != case.canonical {
+            failures.push(format!(
+                "{}: passthrough\n  expected {:?}\n  got      {:?}",
+                case.name, case.canonical, got_passthrough
+            ));
+        }
     }
 
     assert!(

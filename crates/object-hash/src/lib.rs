@@ -28,6 +28,13 @@ pub enum Algorithm {
     Sha384,
     /// MD5, 32 hexadecimal characters.
     Md5,
+    /// No digest: the canonical form is returned as it stands.
+    ///
+    /// This is the reference's `passthrough`, and it is what it uses internally
+    /// to write the byte stream it hashes. It is here so a caller can see those
+    /// bytes, which is the same string [`canonical`] returns; unlike the digests,
+    /// the text form is not a hex or base64 rendering of something else.
+    Passthrough,
 }
 
 /// How the digest is written out.
@@ -297,17 +304,21 @@ pub fn hash(value: &Value) -> String {
 ///
 /// The canonical bytes are the same whatever the algorithm, so two algorithms
 /// agree on which values are equal and differ only in the text they produce.
+/// [`Algorithm::Passthrough`] is the exception to the text form: it returns the
+/// canonical string itself, which is what the reference does.
 ///
 /// # Example
 ///
 /// ```
-/// use object_hash::{Algorithm, Value, hash_with};
+/// use object_hash::{Algorithm, Value, canonical, hash_with};
 ///
 /// let value = Value::string("cipansor");
 /// assert_eq!(hash_with(&value, Algorithm::Sha1).len(), 40);
 /// assert_eq!(hash_with(&value, Algorithm::Sha256).len(), 64);
 /// assert_eq!(hash_with(&value, Algorithm::Sha224).len(), 56);
 /// assert_eq!(hash_with(&value, Algorithm::Md5).len(), 32);
+/// // Passthrough is the canonical form, not a digest of it.
+/// assert_eq!(hash_with(&value, Algorithm::Passthrough), canonical(&value));
 /// ```
 #[must_use]
 pub fn hash_with(value: &Value, algorithm: Algorithm) -> String {
@@ -370,10 +381,7 @@ pub fn hash_with_options_encoding(
     algorithm: Algorithm,
     encoding: Encoding,
 ) -> String {
-    encode_digest(
-        &raw_digest(canonical_with(value, &options).as_bytes(), algorithm),
-        encoding,
-    )
+    apply(canonical_with(value, &options), algorithm, encoding)
 }
 
 /// The raw digest bytes of a value.
@@ -393,10 +401,24 @@ pub fn raw_hash_with_options(value: &Value, options: Options, algorithm: Algorit
 
 /// The digest of an already-canonical byte string, as lowercase hexadecimal.
 fn digest(canonical: &str, algorithm: Algorithm) -> String {
-    encode_digest(&raw_digest(canonical.as_bytes(), algorithm), Encoding::Hex)
+    apply(canonical.to_string(), algorithm, Encoding::Hex)
+}
+
+/// Applies the algorithm and encoding to an already-canonical form.
+///
+/// [`Algorithm::Passthrough`] has no digest to encode, so the canonical form is
+/// the answer whatever the encoding says, which is what the reference does.
+fn apply(canonical: String, algorithm: Algorithm, encoding: Encoding) -> String {
+    if matches!(algorithm, Algorithm::Passthrough) {
+        return canonical;
+    }
+    encode_digest(&raw_digest(canonical.as_bytes(), algorithm), encoding)
 }
 
 /// The raw digest bytes of `data` under `algorithm`.
+///
+/// [`Algorithm::Passthrough`] is the identity, which is what "no digest" means:
+/// the bytes handed in are the bytes handed back.
 fn raw_digest(data: &[u8], algorithm: Algorithm) -> Vec<u8> {
     match algorithm {
         Algorithm::Sha1 => sha1::digest(data).to_vec(),
@@ -405,6 +427,7 @@ fn raw_digest(data: &[u8], algorithm: Algorithm) -> Vec<u8> {
         Algorithm::Sha512 => sha512::digest(data).to_vec(),
         Algorithm::Sha384 => sha512::digest384(data).to_vec(),
         Algorithm::Md5 => md5::digest(data).to_vec(),
+        Algorithm::Passthrough => data.to_vec(),
     }
 }
 
