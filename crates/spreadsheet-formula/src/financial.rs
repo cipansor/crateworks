@@ -446,6 +446,68 @@ pub(crate) fn pduration(rate: f64, pv_value: f64, fv_value: f64) -> Option<f64> 
     Some((fv_value / pv_value).ln() / (1.0 + rate).ln())
 }
 
+/// `RATE`: the interest rate per period, found by Newton's method.
+///
+/// The reference uses a fixed 100 iterations and a 1e-10 tolerance, and returns
+/// an error when the estimate leaves the domain or the iteration does not
+/// converge. Reproducing that exactly is what makes a value agree with a
+/// workbook that already contains the formula.
+pub(crate) fn rate(
+    nper: f64,
+    pmt_value: f64,
+    pv_value: f64,
+    fv_value: f64,
+    kind: f64,
+    guess: f64,
+) -> Option<f64> {
+    const EPS_MAX: f64 = 1e-10;
+    const ITER_MAX: u32 = 100;
+
+    let kind = if kind != 0.0 { 1.0 } else { 0.0 };
+    let mut rate = guess;
+    for _ in 0..ITER_MAX {
+        if rate <= -1.0 {
+            return None;
+        }
+        let (y, dy);
+        if rate.abs() < EPS_MAX {
+            y = pv_value * (1.0 + nper * rate) + pmt_value * (1.0 + rate * kind) * nper + fv_value;
+            dy = pv_value * nper + pmt_value * kind * nper;
+        } else {
+            let f = (1.0 + rate).powf(nper);
+            y = pv_value * f + pmt_value * (1.0 / rate + kind) * (f - 1.0) + fv_value;
+            let df = nper * (1.0 + rate).powf(nper - 1.0);
+            dy = pv_value * df
+                + pmt_value * (1.0 / rate + kind) * df
+                + pmt_value * (-1.0 / (rate * rate)) * (f - 1.0);
+        }
+        if y.abs() < EPS_MAX {
+            return Some(rate);
+        }
+        rate -= y / dy;
+    }
+    None
+}
+
+/// `SUBTOTAL`: maps `function_num` to the aggregate it names.
+///
+/// The `100 +` forms mean "ignore hidden rows" in a real spreadsheet; nothing
+/// here is ever hidden, so they are the same aggregate as the plain form. A
+/// value that names no aggregate returns `None`, which the caller reports.
+pub(crate) fn subtotal_index(function_num: f64) -> Option<u32> {
+    if function_num.fract() != 0.0 {
+        return None;
+    }
+    let base = if (1.0..=11.0).contains(&function_num) {
+        function_num
+    } else if (101.0..=111.0).contains(&function_num) {
+        function_num - 100.0
+    } else {
+        return None;
+    };
+    Some(base as u32)
+}
+
 /// `DOLLARDE`: a fractional dollar price to a decimal one.
 pub(crate) fn dollarde(fractional: f64, fraction: f64) -> Option<f64> {
     if fraction < 0.0 {
@@ -557,6 +619,50 @@ fn year_days_between(settlement: f64, maturity: f64, basis: i64) -> Option<f64> 
     } else {
         Some(fraction)
     }
+}
+
+/// `COUPDAYS`: the days in the coupon period that contains `settlement`.
+///
+/// For every basis but actual/actual the answer is a fixed fraction of the
+/// year, `360 / frequency` or `365 / frequency`. Basis 1 measures the actual
+/// span between the coupon date before settlement and the next one.
+pub(crate) fn coupdays(settlement: f64, maturity: f64, frequency: i64, basis: i64) -> Option<f64> {
+    let start = crate::datetime::date_part(settlement);
+    let end = crate::datetime::date_part(maturity);
+    if start >= end {
+        return None;
+    }
+    match basis {
+        1 => {
+            let previous = last_coupon_before(start, end, frequency)?;
+            let months = 12 / frequency;
+            let next = crate::datetime::edate(previous, months);
+            Some((next - previous) as f64)
+        }
+        0 | 2 | 4 => Some(360.0 / frequency as f64),
+        3 => Some(365.0 / frequency as f64),
+        _ => None,
+    }
+}
+
+/// The last coupon date at or before `settlement`.
+///
+/// The coupon dates are the maturity date carried back by whole coupon periods,
+/// so the search starts from the maturity date's month and day and steps back.
+fn last_coupon_before(settlement: i64, maturity: i64, frequency: i64) -> Option<i64> {
+    if frequency != 1 && frequency != 2 && frequency != 4 {
+        return None;
+    }
+    let (_, month, day) = crate::datetime::ymd_from_serial(maturity);
+    let (year, _, _) = crate::datetime::ymd_from_serial(settlement);
+    let months = 12 / frequency;
+    // Try the coupon date in the settlement year, then step back one period at
+    // a time until it is at or before the settlement date.
+    let mut date = crate::datetime::date_serial(year as f64, month as f64, day as f64);
+    while date > settlement {
+        date = crate::datetime::edate(date, -months);
+    }
+    Some(date)
 }
 
 #[cfg(test)]

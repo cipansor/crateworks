@@ -4,4 +4,12 @@ Copyright 2026 Yayasan Pesantren Cipansor and contributors
 This product includes software developed by Yayasan Pesantren Cipansor and
 contributors (https://github.com/cipansor/crateworks).
 
+The statistical distributions, regression and hypothesis tests reproduce the
+results of formulajs by Sutoiku, Inc. and contributors
+(https://github.com/formulajs/formulajs) and the jStat library by Trevor Norris
+and contributors (https://github.com/jstat/jstat), both distributed under the
+MIT licence. The kernels were written from those projects' published algorithms
+and share no code with them; the cases in `tests/oracle.rs` were produced by
+running formulajs.
+
 Licensed under the Apache License, Version 2.0 (see LICENSE).

@@ -150,6 +150,22 @@ fn read_quoted_sheet(chars: &[char], start: usize) -> Result<(String, usize), Er
     })
 }
 
+/// Whether a dotted name starting at `from` is followed by a call.
+///
+/// A dot is legal in a function name and nowhere else in a cell reference, but
+/// the tokeniser only knows it is a name once it sees the `(`. Scanning ahead
+/// is what lets `NORM.S.DIST(1,0,1,TRUE)` be one identifier rather than the
+/// cell `NORM` followed by junk.
+fn has_call_after_name(chars: &[char], from: usize) -> bool {
+    let mut i = from;
+    while i < chars.len()
+        && (chars[i].is_ascii_alphanumeric() || chars[i] == '_' || chars[i] == '.')
+    {
+        i += 1;
+    }
+    chars.get(i) == Some(&'(')
+}
+
 /// Reads an identifier or cell reference.
 ///
 /// Decides between the two by looking for digits at the end: `A1` is a cell,
@@ -189,6 +205,24 @@ fn read_cell(chars: &[char], start: usize, sheet: Option<String>) -> Result<(Tok
     if !digits.is_empty() && i < chars.len() && (chars[i].is_ascii_alphabetic() || chars[i] == '_')
     {
         while i < chars.len() && (chars[i].is_ascii_alphanumeric() || chars[i] == '_') {
+            i += 1;
+        }
+        let name: String = chars[letters_start..i].iter().collect();
+        return Ok((Token::Ident(name), i));
+    }
+
+    // A modern function name is dotted - `NORM.S.DIST`, `CHISQ.INV.RT` - and a
+    // cell reference never is. So a `.` followed by a letter continues the name
+    // when a call eventually follows, which is the only place a dotted name is
+    // legal.
+    if i < chars.len()
+        && chars[i] == '.'
+        && chars.get(i + 1).is_some_and(|c| c.is_ascii_alphabetic())
+        && has_call_after_name(chars, i)
+    {
+        while i < chars.len()
+            && (chars[i].is_ascii_alphanumeric() || chars[i] == '_' || chars[i] == '.')
+        {
             i += 1;
         }
         let name: String = chars[letters_start..i].iter().collect();

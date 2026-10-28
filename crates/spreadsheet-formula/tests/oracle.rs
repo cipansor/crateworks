@@ -233,3 +233,309 @@ fn text_and_value_round_trip_numbers() {
     // Text that is not a number is a number error, not zero.
     assert!(eval("", "=VALUE(\"abc\")").is_err());
 }
+
+#[test]
+fn statistical_distributions_match_the_reference() {
+    // Every expectation below is the value `@formulajs/formulajs` returns,
+    // confirmed by `research/tools/verify_spreadsheet.py`.
+    assert!((num("", "=NORMDIST(1,0,1,TRUE)") - 0.8413447460685429).abs() < 1e-12);
+    assert!((num("", "=NORMDIST(1,0,1,FALSE)") - 0.24197072451914337).abs() < 1e-12);
+    assert!((num("", "=NORMSDIST(1.5)") - 0.9331927987311419).abs() < 1e-12);
+    assert!((num("", "=NORMSDIST(1.5,FALSE)") - 0.12951759566589174).abs() < 1e-12);
+    assert!((num("", "=NORMINV(0.975,0,1)") - 1.9599639845400545).abs() < 1e-9);
+    assert!((num("", "=NORMSINV(0.975)") - 1.9599639845400545).abs() < 1e-9);
+    assert!((num("", "=LOGNORMDIST(2,1,0.5,TRUE)") - 0.2697049307349095).abs() < 1e-12);
+    assert!((num("", "=LOGNORMDIST(2,1,0.5,FALSE)") - 0.3304645659834839).abs() < 1e-12);
+    assert!((num("", "=TDIST(2,5,1)") - 0.05096973941479).abs() < 1e-12);
+    assert!((num("", "=TDIST(2,5,2)") - 0.10193947882958).abs() < 1e-12);
+    assert!((num("", "=TINV(0.3,5)") - -0.55942964449409).abs() < 1e-9);
+    assert!((num("", "=CHIDIST(3,5,TRUE)") - 0.30001416412137294).abs() < 1e-12);
+    assert!((num("", "=CHIDIST(3,5,FALSE)") - 0.1541803298037694).abs() < 1e-12);
+    assert!((num("", "=CHIINV(0.3,5)") - 2.9999081327599035).abs() < 1e-9);
+    assert!((num("", "=FDIST(2,3,4,TRUE)") - 0.7436127978787577).abs() < 1e-12);
+    assert!((num("", "=FDIST(2,3,4,FALSE)") - 0.13942740046346708).abs() < 1e-12);
+    assert!((num("", "=FINV(0.3,3,4)") - 0.5038966866244746).abs() < 1e-9);
+    assert!((num("", "=BINOMDIST(3,10,0.5,TRUE)") - 0.171875).abs() < 1e-12);
+    assert!((num("", "=BINOMDIST(3,10,0.5,FALSE)") - 0.1171875).abs() < 1e-12);
+    assert!((num("", "=POISSONDIST(2,3,TRUE)") - 0.42319008112684353).abs() < 1e-12);
+    assert!((num("", "=EXPONDIST(1,2,TRUE)") - 0.8646647167633873).abs() < 1e-12);
+    assert!((num("", "=GAMMADIST(2,3,4,TRUE)") - 0.014387677966970706).abs() < 1e-12);
+    assert!((num("", "=BETADIST(0.4,2,3,TRUE)") - 0.5248000000000007).abs() < 1e-12);
+    assert!((num("", "=BETAINV(0.5,2,3)") - 0.3857275681323893).abs() < 1e-9);
+    assert!((num("", "=HYPGEOMDIST(2,5,3,20,FALSE)") - 0.13157894736842105).abs() < 1e-12);
+    assert!((num("", "=NEGBINOMDIST(3,4,0.5,FALSE)") - 0.15625).abs() < 1e-12);
+    assert!((num("", "=STANDARDIZE(5,3,2)") - 1.0).abs() < 1e-12);
+    assert!((num("", "=GAUSS(1.5)") - 0.4331927987311419).abs() < 1e-12);
+    assert!((num("", "=FISHER(0.5)") - 0.5493061443340548).abs() < 1e-12);
+    assert!((num("", "=FISHERINV(0.5)") - 0.46211715726000974).abs() < 1e-12);
+}
+
+#[test]
+fn the_dotted_names_reach_the_same_arm_as_the_flat_ones() {
+    // A spreadsheet writes `NORM.S.DIST`; the flat alias is what the reference
+    // exports, so the two spellings must agree.
+    assert_eq!(
+        num("", "=NORM.S.DIST(1.5,TRUE)"),
+        num("", "=NORMSDIST(1.5,TRUE)")
+    );
+    assert_eq!(num("", "=CHISQ.INV(0.3,5)"), num("", "=CHIINV(0.3,5)"));
+    assert_eq!(num("", "=T.INV(0.3,5)"), num("", "=TINV(0.3,5)"));
+    assert_eq!(num("", "=F.INV(0.3,3,4)"), num("", "=FINV(0.3,3,4)"));
+}
+
+#[test]
+fn regression_and_tests_agree_with_the_reference() {
+    assert!(
+        (num(
+            "A1=1;A2=2;A3=3;A4=4;B1=2;B2=4;B3=6;B4=8",
+            "=CORREL(A1:A4,B1:B4)"
+        ) - 1.0)
+            .abs()
+            < 1e-12
+    );
+    assert!(
+        (num(
+            "A1=1;A2=2;A3=3;A4=4;B1=2;B2=4;B3=6;B4=8",
+            "=SLOPE(B1:B4,A1:A4)"
+        ) - 2.0)
+            .abs()
+            < 1e-12
+    );
+    assert!(
+        (num(
+            "A1=1;A2=2;A3=3;A4=4;B1=3;B2=5;B3=7;B4=9",
+            "=INTERCEPT(B1:B4,A1:A4)"
+        ) - 1.0)
+            .abs()
+            < 1e-12
+    );
+    assert!(
+        (num(
+            "A1=1;A2=2;A3=3;A4=4;B1=3;B2=5;B3=7;B4=9",
+            "=FORECAST(5,B1:B4,A1:A4)"
+        ) - 11.0)
+            .abs()
+            < 1e-12
+    );
+    assert!(
+        (num(
+            "A1=1;A2=2;A3=3;A4=4;B1=3;B2=5;B3=7;B4=9",
+            "=STEYX(B1:B4,A1:A4)"
+        ) - 0.0)
+            .abs()
+            < 1e-12
+    );
+    assert!(
+        (num(
+            "A1=1;A2=2;A3=3;A4=4;B1=2;B2=4;B3=6;B4=8",
+            "=COVAR(A1:A4,B1:B4)"
+        ) - 2.5)
+            .abs()
+            < 1e-12
+    );
+    assert!(
+        (num(
+            "A1=1;A2=2;A3=3;A4=4;B1=2;B2=4;B3=6;B4=8",
+            "=COVARIANCE.S(A1:A4,B1:B4)"
+        ) - 3.3333333333333335)
+            .abs()
+            < 1e-12
+    );
+    assert!((num("A1=1;A2=2;A3=3;A4=4", "=ZTEST(A1:A4,2)") - 0.21928901304049997).abs() < 1e-12);
+    assert!(
+        (num(
+            "A1=1;A2=2;A3=3;A4=4;B1=2;B2=3;B3=4;B4=5",
+            "=TTEST(A1:A4,B1:B4)"
+        ) - 0.3153335962012298)
+            .abs()
+            < 1e-12
+    );
+    assert!(
+        (num(
+            "A1=1;A2=2;A3=3;A4=4;B1=2;B2=4;B3=6;B4=8",
+            "=FTEST(A1:A4,B1:B4)"
+        ) - 0.25)
+            .abs()
+            < 1e-12
+    );
+    assert!((num("A1=10;A2=20;B1=15;B2=15", "=CHITEST(A1:A2,B1:B2)") - 0.067889).abs() < 1e-12);
+    assert!(
+        (num(
+            "A1=1;A2=2;A3=3;B1=0.2;B2=0.3;B3=0.5",
+            "=PROB(A1:A3,B1:B3,2)"
+        ) - 0.3)
+            .abs()
+            < 1e-12
+    );
+}
+
+#[test]
+fn the_a_suffixed_statistics_count_logicals_and_text() {
+    // `AVERAGEA` counts a logical as one and text as zero, where `AVERAGE`
+    // would skip both.
+    assert_eq!(num("", "=AVERAGEA(1,2,3)"), 2.0);
+    assert_eq!(num("", "=VARA(1,2,3)"), 1.0);
+    assert_eq!(num("", "=VARPA(1,2,3)"), 2.0 / 3.0);
+    assert_eq!(num("", "=STDEVA(1,2,3)"), 1.0);
+    assert_eq!(num("", "=STDEVPA(1,2,3)"), (2.0f64 / 3.0).sqrt());
+}
+
+#[test]
+fn bessel_functions_match_the_reference() {
+    // Expectations taken from npm `@formulajs/formulajs`, which is the gate for
+    // this crate; the coefficients come from the SheetJS Bessel port. The
+    // tolerance is relative, because the asymptotic expansion above x = 8
+    // carries a few digits less than the polynomial branch.
+    fn close(formula: &str, expected: f64) {
+        let got = num("", formula);
+        assert!(
+            (got - expected).abs() <= 1e-9 * expected.abs(),
+            "{formula} gave {got}, expected {expected}"
+        );
+    }
+    close("=BESSELJ(1,0)", 0.7651976837548592);
+    close("=BESSELJ(2,1)", 0.5767248078962938);
+    close("=BESSELJ(10,2)", 0.2546303136523144);
+    close("=BESSELY(1,0)", 0.08825697139770806);
+    close("=BESSELI(1.5,2)", 0.3378346208744381);
+    close("=BESSELK(2,1)", 0.13986588);
+    // A negative order follows the parity rule for J and is an error for the
+    // others, and order zero at the origin is infinite for Y and K, which the
+    // reference also returns as a number rather than as an error.
+    assert!((num("", "=BESSELJ(1,-2)") - num("", "=BESSELJ(1,2)")).abs() < 1e-12);
+    assert!(eval("", "=BESSELI(1,-1)").is_err());
+    assert!(num("", "=BESSELY(0,0)").is_infinite() && num("", "=BESSELY(0,0)") < 0.0);
+    assert!(num("", "=BESSELK(0,0)").is_infinite() && num("", "=BESSELK(0,0)") > 0.0);
+}
+
+#[test]
+fn gammaln_precise_agrees_with_gammaln() {
+    assert!((num("", "=GAMMALN.PRECISE(2.5)") - 0.2846828704729183).abs() < 1e-12);
+    assert_eq!(num("", "=GAMMALN.PRECISE(2.5)"), num("", "=GAMMALN(2.5)"));
+}
+
+#[test]
+fn subtotal_dispatches_to_the_named_aggregate() {
+    let data = "A1=1;A2=2;A3=3;A4=4";
+    assert_eq!(num(data, "=SUBTOTAL(9,A1:A4)"), 10.0);
+    assert_eq!(num(data, "=SUBTOTAL(1,A1:A4)"), 2.5);
+    assert_eq!(num(data, "=SUBTOTAL(2,A1:A4)"), 4.0);
+    assert_eq!(num(data, "=SUBTOTAL(3,A1:A4)"), 4.0);
+    assert_eq!(num(data, "=SUBTOTAL(4,A1:A4)"), 4.0);
+    assert_eq!(num(data, "=SUBTOTAL(5,A1:A4)"), 1.0);
+    assert_eq!(num(data, "=SUBTOTAL(6,A1:A4)"), 24.0);
+    assert!((num(data, "=SUBTOTAL(7,A1:A4)") - 1.2909944487358056).abs() < 1e-12);
+    assert!((num(data, "=SUBTOTAL(10,A1:A4)") - 1.6666666666666667).abs() < 1e-12);
+    // The `100 +` forms mean the same thing here, since nothing is hidden.
+    assert_eq!(num(data, "=SUBTOTAL(109,A1:A4)"), 10.0);
+    assert_eq!(num(data, "=SUBTOTAL(103,A1:A4)"), 4.0);
+    // A selector that names no aggregate is an error.
+    assert!(eval(data, "=SUBTOTAL(12,A1:A4)").is_err());
+}
+
+#[test]
+fn rate_solves_the_annuity_equation() {
+    assert!((num("", "=RATE(60,-100,1000)") - 0.09966552520320725).abs() < 1e-12);
+    assert!((num("", "=RATE(12,-100,1000,0)") - 0.029228540769133268).abs() < 1e-12);
+    assert!((num("", "=RATE(24,-1000,10000)") - 0.08627804676388601).abs() < 1e-12);
+}
+
+#[test]
+fn switch_picks_the_first_matching_case_or_the_default() {
+    assert_eq!(text("", "=SWITCH(2,1,\"a\",2,\"b\",\"z\")"), "b");
+    assert_eq!(text("", "=SWITCH(3,1,\"a\",2,\"b\",\"z\")"), "z");
+    assert_eq!(text("", "=SWITCH(\"x\",\"y\",\"a\",\"x\",\"b\")"), "b");
+    // No case matched and there is no default, which is an error.
+    assert!(eval("", "=SWITCH(9,1,\"a\",2,\"b\")").is_err());
+}
+
+#[test]
+fn international_workday_functions_honour_the_weekend_argument() {
+    // 45292 is 2024-01-01, a Monday; the default weekend is Saturday/Sunday.
+    assert_eq!(num("", "=NETWORKDAYS.INTL(45292,45322)"), 23.0);
+    assert_eq!(num("", "=NETWORKDAYS.INTL(45292,45322,1)"), 23.0);
+    // Code 11 makes Sunday the only weekend day, so more days count.
+    assert_eq!(num("", "=NETWORKDAYS.INTL(45292,45322,11)"), 27.0);
+    // The mask `0000011` marks Saturday and Sunday, matching the default.
+    assert_eq!(num("", "=NETWORKDAYS.INTL(45292,45322,\"0000011\")"), 23.0);
+    // The same weekend as a code and as a mask must agree.
+    assert_eq!(
+        num("", "=NETWORKDAYS.INTL(45292,45322,2)"),
+        num("", "=NETWORKDAYS.INTL(45292,45322,\"1000001\")")
+    );
+    assert_eq!(num("", "=WORKDAY.INTL(45292,10,1)"), 45306.0);
+    assert_eq!(num("", "=WORKDAY.INTL(45292,10,11)"), 45303.0);
+}
+
+#[test]
+fn legacy_aliases_match_their_modern_spellings() {
+    // `LOGINV` is the pre-2010 name of `LOGNORMINV`.
+    assert_eq!(num("", "=LOGINV(0.5,0,1)"), num("", "=LOGNORMINV(0.5,0,1)"));
+    assert!((num("", "=LOGINV(0.9,0,1)") - 3.602224479279159).abs() < 1e-12);
+    // `ISERR` is `ISERROR` without the `#N/A` case, which this crate cannot
+    // distinguish, so the two agree everywhere.
+    assert_eq!(num("", "=IF(ISERR(1),1,0)"), num("", "=IF(ISERROR(1),1,0)"));
+    assert_eq!(num("", "=IF(ISERR(1),1,0)"), 0.0);
+}
+
+#[test]
+fn coupdays_measures_the_coupon_period() {
+    // 45292 is 2024-01-01 and 45839 is 2025-08-31.
+    assert_eq!(num("", "=COUPDAYS(45292,45839,2)"), 180.0);
+    assert_eq!(num("", "=COUPDAYS(45292,45839,4)"), 90.0);
+    assert_eq!(num("", "=COUPDAYS(45292,45839,1)"), 360.0);
+    // Basis 3 counts 365 days a year rather than 360.
+    assert!((num("", "=COUPDAYS(45292,45839,2,3)") - 182.5).abs() < 1e-12);
+    // Basis 1 measures the real span of the coupon period. The coupon date
+    // before settlement is 2024-02-29, the maturity's day carried back and
+    // clamped to the month, and the period runs to 2024-08-29.
+    assert_eq!(num("", "=COUPDAYS(45292,45839,2,1)"), 182.0);
+    // Settlement on or after maturity has no coupon period.
+    assert!(eval("", "=COUPDAYS(45839,45292,2)").is_err());
+}
+
+#[test]
+fn aggregate_runs_the_selected_aggregate() {
+    // The first eleven selectors are the `SUBTOTAL` set.
+    assert_eq!(num("A1=1;A2=2;A3=3", "=AGGREGATE(1,0,A1:A3)"), 2.0);
+    assert_eq!(num("A1=1;A2=2;A3=3", "=AGGREGATE(9,0,A1:A3)"), 6.0);
+    assert_eq!(num("A1=1;A2=2;A3=3", "=AGGREGATE(4,0,A1:A3)"), 3.0);
+    assert_eq!(num("A1=1;A2=2;A3=3", "=AGGREGATE(5,0,A1:A3)"), 1.0);
+    // `AGGREGATE` agrees with the function it names.
+    assert_eq!(
+        num("A1=1;A2=2;A3=3", "=AGGREGATE(9,0,A1:A3)"),
+        num("A1=1;A2=2;A3=3", "=SUM(A1:A3)")
+    );
+    assert_eq!(
+        num("A1=1;A2=2;A3=3", "=AGGREGATE(1,0,A1:A3)"),
+        num("A1=1;A2=2;A3=3", "=AVERAGE(A1:A3)")
+    );
+    // The selectors past eleven reach the order statistics and the reference
+    // again.
+    assert_eq!(
+        num("A1=1;A2=2;A3=3", "=AGGREGATE(12,0,A1:A3)"),
+        num("A1=1;A2=2;A3=3", "=MEDIAN(A1:A3)")
+    );
+    assert_eq!(
+        num("A1=1;A2=2;A3=3", "=AGGREGATE(14,0,A1:A3,1)"),
+        num("A1=1;A2=2;A3=3", "=LARGE(A1:A3,1)")
+    );
+    assert_eq!(
+        num("A1=1;A2=2;A3=3", "=AGGREGATE(15,0,A1:A3,1)"),
+        num("A1=1;A2=2;A3=3", "=SMALL(A1:A3,1)")
+    );
+    assert_eq!(
+        num("A1=1;A2=2;A3=3", "=AGGREGATE(16,0,A1:A3,0.5)"),
+        num("A1=1;A2=2;A3=3", "=PERCENTILE.INC(A1:A3,0.5)")
+    );
+    assert_eq!(
+        num("A1=1;A2=2;A3=3", "=AGGREGATE(17,0,A1:A3,2)"),
+        num("A1=1;A2=2;A3=3", "=QUARTILE.INC(A1:A3,2)")
+    );
+    // `AGGREGATE(13,...)` is `MODE.SNGL`, which needs a repeated value.
+    assert_eq!(num("A1=1;A2=2;A3=2", "=AGGREGATE(13,0,A1:A3)"), 2.0);
+    // The selector has to be a whole number in range.
+    assert!(eval("A1=1;A2=2;A3=3", "=AGGREGATE(0,0,A1:A3)").is_err());
+    assert!(eval("A1=1;A2=2;A3=3", "=AGGREGATE(20,0,A1:A3)").is_err());
+    assert!(eval("A1=1;A2=2;A3=3", "=AGGREGATE(1.5,0,A1:A3)").is_err());
+}

@@ -22,14 +22,15 @@ impl Sheet for Grid {
 assert_eq!(Evaluator::new(&Grid).eval("=SUM(A1:A2)*2").unwrap(), Value::Number(10.0));
 ```
 
-256 functions plus `IF` and `IFERROR`, which are evaluated lazily. Cell and range
-references, absolute references, sheet qualifiers, text concatenation, and
-comparison operators. The library covers arithmetic and rounding, trigonometry
-and its hyperbolic and reciprocal forms, logarithms, the gamma and error
-functions, integer number theory and combinatorics, descriptive statistics,
-base conversion and bitwise operations, roman numerals, text case, search and
-formatting, date and time, complex numbers, financial and depreciation
-calculations, lookup and reference, and the conditional aggregates.
+340 functions plus `IF` and `IFERROR`, which are evaluated lazily along with
+`SWITCH`. Cell and range references, absolute references, sheet qualifiers, text
+concatenation, and comparison operators. The library covers arithmetic and
+rounding, trigonometry and its hyperbolic and reciprocal forms, logarithms, the
+gamma and error functions, integer number theory and combinatorics, descriptive statistics and
+the statistical distributions, regression and correlation, base conversion and
+bitwise operations, roman numerals, text case, search and formatting, date and
+time, complex numbers, financial and depreciation calculations, lookup and
+reference, and the conditional aggregates.
 
 The crate is deliberately independent of any file format. It takes a formula
 string and a way to resolve cell references, so it can be used with `xlsx`,
@@ -39,39 +40,62 @@ string and a way to resolve cell references, so it can be used with `xlsx`,
 
 * Arithmetic and rounding - `SUM`, `PRODUCT`, `ABS`, `SIGN`, `MOD`, `QUOTIENT`,
   `INT`, `TRUNC`, `ROUND`, `ROUNDUP`, `ROUNDDOWN`, `MROUND`, `CEILING`, `FLOOR`,
+  `CEILING.MATH`, `FLOOR.MATH`, `CEILING.PRECISE`, `FLOOR.PRECISE`, `ISO.CEILING`,
   `EVEN`, `ODD`.
 * Trigonometry - `SIN`, `COS`, `TAN`, `ASIN`, `ACOS`, `ATAN`, `ATAN2`, `DEGREES`,
   `RADIANS`, `SQRTPI`, and the reciprocal and hyperbolic forms `CSC`, `SEC`,
   `COT`, `ACOT`, `SINH`, `COSH`, `TANH`, `ASINH`, `ACOSH`, `ATANH`, `CSCH`,
   `SECH`, `COTH`, `ACOTH`.
 * Logarithms, powers and special functions - `EXP`, `LN`, `LOG`, `LOG10`,
-  `POWER`, `SQRT`, `PI`, `GAMMA`, `GAMMALN`, `ERF`, `ERFC`.
+  `POWER`, `SQRT`, `PI`, `GAMMA`, `GAMMALN`, `GAMMALN.PRECISE`, `ERF`, `ERFC`,
+  `BESSELI`, `BESSELJ`, `BESSELK`, `BESSELY`.
 * Number theory and combinatorics - `GCD`, `LCM`, `FACT`, `FACTDOUBLE`, `COMBIN`,
   `COMBINA`, `PERMUT`, `PERMUTATIONA`, `MULTINOMIAL`.
 * Descriptive statistics - `AVERAGE`, `AVERAGEA`, `MEDIAN`, `MIN`, `MAX`, `MINA`,
   `MAXA`, `AVEDEV`, `DEVSQ`, `GEOMEAN`, `HARMEAN`, `VARS`, `VARP`, `STDEVS`,
-  `STDEVP`, `KURT`, `SKEW`, `SKEWP`, `LARGE`, `SMALL`, `MODESNGL`, `TRIMMEAN`,
-  `PERCENTILEINC`, `PERCENTILEEXC`, `QUARTILEINC`, `QUARTILEEXC`, `RANKEQ`,
-  `RANKAVG`, `SERIESSUM`, `SUMX2MY2`, `SUMX2PY2`, `SUMXMY2`.
-* Base conversion and bitwise - `BIN2DEC`, `HEX2DEC`, `OCT2DEC`, `DEC2BIN`,
-  `DEC2HEX`, `DEC2OCT`, `BASE`, `DECIMAL`, `BITAND`, `BITOR`, `BITXOR`,
-  `BITLSHIFT`, `BITRSHIFT`, `ROMAN`, `ARABIC`.
+  `STDEVP`, `STDEVA`, `STDEVPA`, `VARA`, `VARPA`, `KURT`, `SKEW`, `SKEWP`,
+  `LARGE`, `SMALL`, `MODE`, `MODESNGL`, `TRIMMEAN`, `PERCENTILE`, `PERCENTILEINC`,
+  `PERCENTILEEXC`, `QUARTILE`, `QUARTILEINC`, `QUARTILEEXC`, `RANK`, `RANKEQ`,
+  `RANKAVG`, `PERCENTRANKINC`, `PERCENTRANKEXC`, `SERIESSUM`, `SUMX2MY2`,
+  `SUMX2PY2`, `SUMXMY2`, `PROB`.
+* Statistical distributions - `NORMDIST`, `NORMSDIST`, `NORMINV`, `NORMSINV`,
+  `LOGNORMDIST`, `LOGNORMINV`, `LOGINV`, `TDIST`, `TINV`, `CHIDIST`, `CHIINV`, `FDIST`,
+  `FINV`, `BINOMDIST`, `CRITBINOM`, `POISSONDIST`, `EXPONDIST`, `WEIBULLDIST`,
+  `GAMMADIST`, `GAMMAINV`, `BETADIST`, `BETAINV`, `HYPGEOMDIST`, `NEGBINOMDIST`,
+  `STANDARDIZE`, `GAUSS`, `PHI`, `FISHER`, `FISHERINV`.
+* Regression and hypothesis tests - `CORREL`, `PEARSON`, `RSQ`, `SLOPE`,
+  `INTERCEPT`, `STEYX`, `FORECAST`, `COVAR`, `COVARIANCEP`, `COVARIANCES`,
+  `ZTEST`, `TTEST`, `FTEST`, `CHITEST`.
+* Base conversion and bitwise - `BIN2DEC`, `BIN2HEX`, `BIN2OCT`, `HEX2BIN`,
+  `HEX2DEC`, `HEX2OCT`, `OCT2BIN`, `OCT2DEC`, `OCT2HEX`, `DEC2BIN`, `DEC2HEX`,
+  `DEC2OCT`, `BASE`, `DECIMAL`, `BITAND`, `BITOR`, `BITXOR`, `BITLSHIFT`,
+  `BITRSHIFT`, `ROMAN`, `ARABIC`.
 * Information - `ISBLANK`, `ISNUMBER`, `ISTEXT`, `ISNONTEXT`, `ISLOGICAL`,
-  `ISEVEN`, `ISODD`, `TYPE`, `DELTA`, `GESTEP`, `N`, `T`, `XOR`.
+  `ISERROR`, `ISERR`, `ISEVEN`, `ISODD`, `TYPE`, `DELTA`, `GESTEP`, `N`, `T`,
+  `XOR`.
 * Date and time - `DATE`, `DATEVALUE`, `DAY`, `MONTH`, `YEAR`, `TIME`,
   `TIMEVALUE`, `HOUR`, `MINUTE`, `SECOND`, `EDATE`, `EOMONTH`, `DAYS`,
   `DAYS360`, `DATEDIF`, `YEARFRAC`, `WEEKDAY`, `WEEKNUM`, `ISOWEEKNUM`,
-  `NETWORKDAYS`, `WORKDAY`.
+  `NETWORKDAYS`, `WORKDAY`, `NETWORKDAYS.INTL`, `WORKDAY.INTL`.
 * Complex numbers - `COMPLEX`, `IMREAL`, `IMAGINARY`, `IMABS`, `IMARGUMENT`,
   `IMCONJUGATE`, `IMSUM`, `IMSUB`, `IMPRODUCT`, `IMDIV`, `IMPOWER`, `IMSQRT`,
   `IMEXP`, `IMLN`, `IMLOG10`, `IMLOG2`, `IMSIN`, `IMCOS`, `IMTAN`, `IMCOT`,
   `IMSEC`, `IMCSC`, `IMSINH`, `IMCOSH`, `IMSECH`, `IMCSCH`.
-* Financial - `FV`, `PV`, `PMT`, `NPER`, `IPMT`, `PPMT`, `CUMIPMT`, `CUMPRINC`,
+* Financial - `FV`, `PV`, `PMT`, `NPER`, `RATE`, `IPMT`, `PPMT`, `CUMIPMT`, `CUMPRINC`,
   `ISPMT`, `NPV`, `IRR`, `MIRR`, `XNPV`, `XIRR`, `SLN`, `SYD`, `DDB`, `DB`,
   `EFFECT`, `NOMINAL`, `RRI`, `PDURATION`, `DOLLARDE`, `DOLLARFR`, `DISC`,
-  `PRICEDISC`, `TBILLPRICE`, `TBILLYIELD`, `TBILLEQ`, `FVSCHEDULE`.
+  `PRICEDISC`, `TBILLPRICE`, `TBILLYIELD`, `TBILLEQ`, `FVSCHEDULE`, `COUPDAYS`.
 * Lookup and reference - `VLOOKUP`, `HLOOKUP`, `LOOKUP`, `MATCH`, `INDEX`,
   `CHOOSE`, `ROW`, `COLUMN`, `ROWS`, `COLUMNS`.
+* Database and aggregation - `SUBTOTAL`, which runs one of eleven aggregates
+  (`AVERAGE`, `COUNT`, `COUNTA`, `MAX`, `MIN`, `PRODUCT`, `STDEV.S`, `STDEV.P`,
+  `SUM`, `VAR.S`, `VAR.P`) selected by number, and accepts the `100 +` forms
+  that mean "ignore hidden rows" elsewhere. `AGGREGATE` is the larger version of
+  the same idea: nineteen aggregates - the eleven `SUBTOTAL` names plus `MEDIAN`,
+  `MODE.SNGL`, `LARGE`, `SMALL`, `PERCENTILE.INC`, `QUARTILE.INC`,
+  `PERCENTILE.EXC` and `QUARTILE.EXC` - selected by number, with an `options`
+  argument that says what to skip. Nothing in this evaluator is hidden or an
+  error value, so `options` is accepted rather than acted on.
 * Text - `CONCAT`, `CONCATENATE`, `LEFT`, `RIGHT`, `MID`, `LEN`, `LOWER`,
   `UPPER`, `PROPER`, `TRIM`, `REPT`, `SUBSTITUTE`, `REPLACE`, `FIND`, `SEARCH`,
   `EXACT`, `TEXTJOIN`, `CHAR`, `CODE`, `UNICHAR`, `UNICODE`, `CLEAN`, `TEXT`,
@@ -102,6 +126,24 @@ then criteria range and criterion pairs.
 `TEXT` supports the common number formats - a `%` suffix, a thousands separator
 and a fixed number of decimal places - and `VALUE` parses a number back out of
 text, including a thousands separator, currency symbol or trailing percent.
+
+### Statistical functions and dotted names
+
+A modern function name may be dotted - `NORM.S.DIST`, `CHISQ.INV.RT`,
+`T.INV.2T` - and the tokeniser accepts one wherever a call follows. Both the
+dotted spelling and the flat alias a spreadsheet also accepts (`NORMSDIST`,
+`CHIINV`) reach the same implementation, so a formula written either way
+evaluates the same.
+
+The distributions, the regression and correlation functions and the hypothesis
+tests were ported from the JavaScript `@formulajs/formulajs` library, which
+delegates the arithmetic to `jStat`. The kernels reproduce that reference
+algorithm for algorithm, including the continued fraction, the Newton iteration
+and the guard values, because a formula has to return the number the reference
+returns rather than a mathematically equivalent one. The cases in
+[`tests/oracle.rs`](https://github.com/cipansor/crateworks/blob/main/crates/spreadsheet-formula/tests/oracle.rs)
+are the values the reference produced, and
+`research/tools/verify_spreadsheet.py` re-derives them.
 
 ### Aggregation rules
 

@@ -173,6 +173,13 @@ CASES = {
     "ACOTH": [(2.0,), (-2.0,)],
     "GAMMA": [(5.0,), (0.5,), (1.0,)],
     "GAMMALN": [(5.0,), (0.5,), (1.0,)],
+    "GAMMALNPRECISE": [(5.0,), (0.5,), (1.0,)],
+    "LOGINV": [(0.5, 0, 1), (0.9, 0, 1), (0.1, 1, 0.5)],
+    # --- Bessel ----------------------------------------------------------
+    "BESSELJ": [(1, 0), (2, 1), (1, 2), (2, 3), (-2, 3), (10, 2)],
+    "BESSELY": [(1, 0), (2, 1), (5, 2), (10, 3)],
+    "BESSELI": [(1, 0), (1.5, 2), (5, 1), (-1, 1)],
+    "BESSELK": [(1, 0), (2, 1), (5, 2)],
     "ERF": [(1.0,), (0.5,), (-1.0,)],
     "ERFC": [(1.0,), (0.5,), (2.0,)],
     # --- combinatorics ---------------------------------------------------
@@ -218,8 +225,20 @@ CASES = {
     "DEC2BIN": [(10,), (5, 8), (-5,)],
     "DEC2HEX": [(255,), (255, 4), (-1,)],
     "DEC2OCT": [(8,), (-8,)],
+    "BIN2HEX": [(text("1010"),), (text("1010"), 4), (text("1111111111"),)],
+    "BIN2OCT": [(text("1010"),), (text("1111111111"),), (text("1010"), 6)],
+    "HEX2BIN": [(text("FF"),), (text("F"), 8), (text("FFFFFFFF"),)],
+    "HEX2OCT": [(text("FF"),), (text("1F"), 4), (text("FFFFFFFFFF"),)],
+    "OCT2BIN": [(text("17"),), (text("17"), 8), (text("7777777777"),)],
+    "OCT2HEX": [(text("17"),), (text("7777777777"),), (text("17"), 4)],
     "BASE": [(255, 16), (255, 2), (7, 2, 4)],
     "DECIMAL": [(text("FF"), 16), (text("zz"), 36)],
+    # --- rounding variants -----------------------------------------------
+    "CEILINGMATH": [(5.5,), (-5.5,), (5.5, 2), (-5.5, 2), (-5.5, 2, 1), (5.5, -2), (5.5, 0)],
+    "FLOORMATH": [(5.5,), (-5.5,), (5.5, 2), (-5.5, 2), (-5.5, 2, 1), (5.5, -2), (5.5, 0)],
+    "CEILINGPRECISE": [(5.5,), (-5.5,), (5.5, 2), (-5.5, 2), (5.5, -2)],
+    "FLOORPRECISE": [(5.5,), (-5.5,), (5.5, 2), (-5.5, 2), (5.5, -2)],
+    "ISOCEILING": [(5.5, 2), (-5.5, 2), (2.5, 1)],
     # --- bitwise ---------------------------------------------------------
     "BITAND": [(5, 3), (13, 25)],
     "BITOR": [(5, 3), (13, 25)],
@@ -251,6 +270,56 @@ CASES = {
     "ISOWEEKNUM": [(45306,), (44218,)],
     "DATEVALUE": [(text("2024-01-15"),), (text("1900-01-01"),)],
     "NETWORKDAYS": [(45292, 45322), (45292, 45322, RANGE(45301, 45302))],
+    "NETWORKDAYSINTL": [
+        (45292, 45322),
+        (45292, 45322, 1),
+        (45292, 45322, 2),
+        (45292, 45322, text("0000011")),
+        (45292, 45322, 11),
+        (45292, 45322, 7, RANGE(45301, 45302)),
+    ],
+    # `WORKDAY` returns a JS `Date` regardless of serial mode, so its cases
+    # live in the crate's own unit tests rather than here.
+    # --- database --------------------------------------------------------
+    "RATE": [(60, -100, 1000), (12, -100, 1000, 0), (24, -1000, 10000)],
+    # `ACCRINT` is not gated: the reference wraps its dates with `new Date()`,
+    # which reads a spreadsheet serial as milliseconds since the epoch, so it
+    # returns a wrong number for every serial input rather than a reference.
+    "COUPDAYS": [
+        (45292, 45839, 2),
+        (45292, 45839, 2, 0),
+        (45292, 45839, 2, 1),
+        (45292, 45839, 2, 3),
+        (45292, 45839, 4),
+        (45292, 45839, 1),
+    ],
+    "AGGREGATE": [
+        (1, 0, RANGE(1, 2, 3)),
+        (9, 0, RANGE(1, 2, 3)),
+        (4, 0, RANGE(1, 2, 3)),
+        (5, 0, RANGE(1, 2, 3)),
+        (12, 0, RANGE(1, 2, 3)),
+        (13, 0, RANGE(1, 2, 2, 3)),
+        (14, 0, RANGE(1, 2, 3), 1),
+        (15, 0, RANGE(1, 2, 3), 1),
+        (16, 0, RANGE(1, 2, 3), 0.5),
+        (17, 0, RANGE(1, 2, 3), 2),
+        (6, 0, RANGE(1, 2, 3)),
+        (7, 0, RANGE(1, 2, 3)),
+        (8, 0, RANGE(1, 2, 3)),
+        (10, 0, RANGE(1, 2, 3)),
+        (11, 0, RANGE(1, 2, 3)),
+    ],
+    "SUBTOTAL": [
+        (9, RANGE(1, 2, 3, 4)),
+        (1, RANGE(1, 2, 3, 4)),
+        (2, RANGE(1, 2, 3, 4)),
+        (4, RANGE(1, 2, 3, 4)),
+        (5, RANGE(1, 2, 3, 4)),
+        (6, RANGE(1, 2, 3, 4)),
+        (109, RANGE(1, 2, 3, 4)),
+        (103, RANGE(1, 2, 3, 4)),
+    ],
     # --- complex numbers -------------------------------------------------
     "COMPLEX": [(3, 4), (3, 4, text("j")), (0, 1), (1, 0), (-3, -4)],
     # The reference returns a bare real number unparsed from `IMREAL`, as the
@@ -333,6 +402,146 @@ CASES = {
     "DOLLAR": [(1234.5, 2), (1234.5, 0), (-1234.5, 2)],
     "FIXED": [(1234.5, 1), (1234.567, 2, TRUE)],
     "NUMBERVALUE": [(text("1.5"),), (text("1,5"), text(","))],
+    # --- statistical distributions ---------------------------------------
+    # These follow the flat legacy names, which is the only spelling the
+    # reference exports. The crate also accepts the dotted modern names, but
+    # the reference cannot be asked for those.
+    "NORMDIST": [
+        (1, 0, 1, TRUE),
+        (1, 0, 1, FALSE),
+        (0, 5, 2, TRUE),
+        (2.5, 1, 1.5, FALSE),
+        (1, 0, 0, TRUE),
+    ],
+    "NORMSDIST": [(1.5, TRUE), (1.5, FALSE), (0, TRUE), (-2, TRUE)],
+    "NORMINV": [(0.3, 5, 2), (0.975, 0, 1), (0.5, 0, 1)],
+    "NORMSINV": [(0.3,), (0.975,), (0.5,)],
+    "LOGNORMDIST": [
+        (2, 1, 0.5, TRUE),
+        (2, 1, 0.5, FALSE),
+        (1, 0, 1, TRUE),
+    ],
+    "LOGNORMINV": [(0.5, 1, 0.5), (0.3, 0, 1)],
+    "TDIST": [(2, 5, 1), (2, 5, 2), (1.5, 10, 1), (0.5, 3, 2)],
+    "TINV": [(0.3, 5), (0.05, 10), (0.5, 4)],
+    "CHIDIST": [
+        (3, 5, TRUE),
+        (3, 5, FALSE),
+        (7.5, 3, TRUE),
+        (2, 1, FALSE),
+    ],
+    "CHIINV": [(0.3, 5), (0.05, 10), (0.95, 3)],
+    "FDIST": [
+        (2, 3, 4, TRUE),
+        (2, 3, 4, FALSE),
+        (1.5, 5, 7, TRUE),
+        (0.5, 2, 3, FALSE),
+    ],
+    "FINV": [(0.3, 3, 4), (0.05, 5, 10), (0.9, 2, 3)],
+    "BINOMDIST": [
+        (3, 10, 0.5, TRUE),
+        (3, 10, 0.5, FALSE),
+        (2, 8, 0.25, TRUE),
+        (5, 20, 0.3, FALSE),
+    ],
+    "CRITBINOM": [(10, 0.5, 0.75), (20, 0.3, 0.9), (6, 0.5, 0.5)],
+    "POISSONDIST": [(2, 3, TRUE), (2, 3, FALSE), (5, 2.5, TRUE)],
+    "EXPONDIST": [(1, 2, TRUE), (1, 2, FALSE), (0.5, 0.5, TRUE)],
+    "WEIBULLDIST": [
+        (2, 3, 4, TRUE),
+        (2, 3, 4, FALSE),
+        (1, 2, 5, TRUE),
+    ],
+    "GAMMADIST": [
+        (2, 3, 4, TRUE),
+        (2, 3, 4, FALSE),
+        (1, 2, 2, TRUE),
+    ],
+    "GAMMAINV": [(0.5, 3, 4), (0.3, 2, 1), (0.9, 5, 2)],
+    "BETADIST": [
+        (0.4, 2, 3, TRUE),
+        (0.4, 2, 3, FALSE),
+        (0.25, 1, 1, TRUE),
+        (0.5, 2, 2, TRUE),
+    ],
+    "BETAINV": [(0.5, 2, 3), (0.3, 1, 1), (0.8, 3, 2)],
+    "HYPGEOMDIST": [
+        (2, 5, 3, 20, FALSE),
+        (2, 5, 3, 20, TRUE),
+        (1, 3, 5, 15, TRUE),
+    ],
+    "NEGBINOMDIST": [
+        (3, 4, 0.5, FALSE),
+        (3, 4, 0.5, TRUE),
+        (5, 2, 0.4, TRUE),
+    ],
+    "STANDARDIZE": [(5, 3, 2), (1, 0, 1), (10, 20, 4)],
+    "GAUSS": [(1.5,), (0,), (-1.5,)],
+    "PHI": [(1.5,), (0,), (-2,)],
+    "FISHER": [(0.5,), (0,), (-0.25,)],
+    "FISHERINV": [(0.5,), (0,), (-1,)],
+    "CORREL": [(RANGE(1, 2, 3, 4), RANGE(2, 4, 6, 8)), (RANGE(3, 1, 2), RANGE(5, 2, 9))],
+    "PEARSON": [(RANGE(1, 2, 3, 4), RANGE(2, 4, 6, 8)), (RANGE(3, 1, 2), RANGE(5, 2, 9))],
+    "RSQ": [(RANGE(1, 2, 3, 4), RANGE(2, 4, 6, 8)), (RANGE(3, 1, 2), RANGE(5, 2, 9))],
+    "SLOPE": [(RANGE(3, 5, 7, 9), RANGE(1, 2, 3, 4)), (RANGE(1, 2, 3), RANGE(2, 4, 6))],
+    "INTERCEPT": [(RANGE(3, 5, 7, 9), RANGE(1, 2, 3, 4)), (RANGE(1, 2, 3), RANGE(2, 4, 6))],
+    "STEYX": [(RANGE(3, 5, 7, 9), RANGE(1, 2, 3, 4)), (RANGE(1, 2, 4), RANGE(2, 4, 6))],
+    "FORECAST": [
+        (5, RANGE(3, 5, 7, 9), RANGE(1, 2, 3, 4)),
+        (0, RANGE(1, 2, 3), RANGE(2, 4, 6)),
+    ],
+    "COVAR": [(RANGE(1, 2, 3, 4), RANGE(2, 4, 6, 8)), (RANGE(3, 1, 2), RANGE(5, 2, 9))],
+    "COVARIANCES": [
+        (RANGE(1, 2, 3, 4), RANGE(2, 4, 6, 8)),
+        (RANGE(3, 1, 2), RANGE(5, 2, 9)),
+    ],
+    "PERCENTRANKINC": [
+        (RANGE(1, 2, 3, 4), 2),
+        (RANGE(1, 2, 3, 4), 2.5),
+        (RANGE(1, 2, 3, 4), 3),
+    ],
+    "PERCENTRANKEXC": [
+        (RANGE(1, 2, 3, 4), 2),
+        (RANGE(1, 2, 3, 4), 2.5),
+        (RANGE(1, 2, 3, 4), 3),
+    ],
+    "MODESNGL": [(RANGE(1, 2, 2, 3),), (RANGE(1, 1, 2, 2),), (RANGE(5, 5, 5),)],
+    "PERCENTILEINC": [(RANGE(1, 2, 3, 4), 0.5), (RANGE(1, 2, 3, 4), 0), (RANGE(1, 2, 3, 4), 1)],
+    # Only the interior quartiles are checked: the reference's `QUARTILE.INC`
+    # falls through to `#NUM!` for 0 and 4, which Excel accepts as the minimum
+    # and maximum. That is a reference oversight, not the documented behaviour,
+    # so the crate returns the minimum and maximum and the gate cannot ask for
+    # the extremes.
+    "QUARTILEINC": [(RANGE(1, 2, 3, 4), 1), (RANGE(1, 2, 3, 4), 2), (RANGE(1, 2, 3, 4), 3)],
+    "RANKEQ": [(2, RANGE(1, 2, 3, 4)), (4, RANGE(1, 2, 3, 4)), (1, RANGE(1, 2, 3, 4), 1)],
+    "AVERAGEA": [(1, 2, 3), (RANGE(1, 2, 3),), (TRUE, 2, 3)],
+    "VARA": [(1, 2, 3), (RANGE(1, 2, 3),), (1, 2, 3, 4)],
+    "VARPA": [(1, 2, 3), (RANGE(1, 2, 3),), (1, 2, 3, 4)],
+    "STDEVA": [(1, 2, 3), (RANGE(1, 2, 3),), (1, 2, 3, 4)],
+    "STDEVPA": [(1, 2, 3), (RANGE(1, 2, 3),), (1, 2, 3, 4)],
+    "ZTEST": [
+        (RANGE(1, 2, 3, 4), 2),
+        (RANGE(1, 2, 3, 4), 2, 1),
+        (RANGE(2, 4, 6, 8), 3),
+    ],
+    "TTEST": [
+        (RANGE(1, 2, 3, 4), RANGE(2, 3, 4, 5)),
+        (RANGE(1, 2, 3, 4), RANGE(5, 6, 7, 8)),
+        (RANGE(1, 2, 3, 4), RANGE(2, 4, 6, 8)),
+    ],
+    "FTEST": [
+        (RANGE(1, 2, 3, 4), RANGE(2, 4, 6, 8)),
+        (RANGE(1, 2, 3, 4), RANGE(1, 2, 3, 5)),
+    ],
+    "CHITEST": [
+        (RANGE(10, 20), RANGE(15, 15)),
+        (RANGE(5, 10, 15), RANGE(10, 10, 10)),
+    ],
+    "PROB": [
+        (RANGE(1, 2, 3), RANGE(0.2, 0.3, 0.5), 2),
+        (RANGE(1, 2, 3), RANGE(0.2, 0.3, 0.5), 1, 2),
+        (RANGE(1, 2, 3), RANGE(0.2, 0.3, 0.5), 0, 2),
+    ],
 }
 
 EXAMPLE = """//! Generated by research/tools/verify_spreadsheet.py. Do not edit.
@@ -410,7 +619,10 @@ def js_cases():
     for name, arg_sets in CASES.items():
         for args in arg_sets:
             rendered = ", ".join(render_js(a) for a in args)
-            out.append((name, f"f.{name}({rendered})"))
+            # `ISO.CEILING` is a nested namespace, so the flat name the CASES
+            # table uses has to be spelled the way the reference exposes it.
+            dotted = "ISO.CEILING" if name == "ISOCEILING" else name
+            out.append((name, f"f.{dotted}({rendered})"))
     return out
 
 

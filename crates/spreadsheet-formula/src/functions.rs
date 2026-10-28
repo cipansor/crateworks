@@ -11,10 +11,12 @@
 //! argument; the evaluator handles them directly.
 
 use crate::Error;
+use crate::bessel;
 use crate::complex::Complex;
 use crate::datetime;
 use crate::financial;
 use crate::lookup::{self, Axis, MatchMode};
+use crate::stats;
 use crate::value::{Error as ValueError, Value};
 
 /// A flattened argument, and whether it came from a cell or range reference.
@@ -127,6 +129,18 @@ impl Arg {
     }
 }
 
+/// Maps a function name to the single spelling the dispatcher matches on.
+///
+/// A spreadsheet writes the modern names with dots - `NORM.S.DIST`,
+/// `CHISQ.INV.RT` - and the older flat names without them - `NORMSDIST`,
+/// `CHIINVRT`. Both mean the same function, so the dots are removed and the
+/// result is the flat alias the arms below are written against. The reference
+/// library exposes only the flat spellings, so that is the one the oracle can
+/// check; the dotted spelling is accepted for the user's benefit.
+fn canonical_name(name: &str) -> String {
+    name.replace('.', "")
+}
+
 /// Collects the numbers from every argument of an aggregating function.
 fn numbers_of(name: &str, args: &[Arg]) -> Result<Vec<f64>, Error> {
     let mut out = Vec::new();
@@ -137,15 +151,17 @@ fn numbers_of(name: &str, args: &[Arg]) -> Result<Vec<f64>, Error> {
 }
 
 /// Calls a function by name.
-/// [`call`], with the cell whose formula is being evaluated.
 ///
-/// `ROW` and `COLUMN` report that cell when they are given no argument, so the
-/// evaluator has to pass it down.
+/// This is [`call`], with the cell whose formula is being evaluated: `ROW` and
+/// `COLUMN` report that cell when they are given no argument, so the evaluator
+/// has to pass it down.
 pub(crate) fn call_from(
     name: &str,
     args: &[Arg],
     origin: Option<(u32, u32)>,
 ) -> Result<Value, Error> {
+    let canonical = canonical_name(name);
+    let name = canonical.as_str();
     match name {
         "SUM" => {
             require_at_least(name, args, 1)?;
@@ -204,6 +220,162 @@ pub(crate) fn call_from(
                 .filter(|v| !v.is_empty())
                 .count();
             Ok(Value::Number(n as f64))
+        }
+        // `SUBTOTAL` runs one of eleven aggregates; the `100 +` forms mean the
+        // same thing here, because nothing in this evaluator is ever hidden.
+        "SUBTOTAL" => {
+            require_at_least(name, args, 2)?;
+            let selector = first_number(name, &args[0])?;
+            let rest = &args[1..];
+            match financial::subtotal_index(selector) {
+                Some(1) => {
+                    let values = numbers_of(name, rest)?;
+                    if values.is_empty() {
+                        return Err(Error::Arithmetic(ValueError::DivisionByZero));
+                    }
+                    Ok(Value::Number(stats::mean(&values)))
+                }
+                Some(2) => Ok(Value::Number(
+                    rest.iter().map(Arg::countable).sum::<usize>() as f64,
+                )),
+                Some(3) => Ok(Value::Number(
+                    rest.iter()
+                        .flat_map(|a| a.values.iter())
+                        .filter(|v| !v.is_empty())
+                        .count() as f64,
+                )),
+                Some(4) | Some(5) => min_max(name, rest, matches!(selector.trunc(), 5.0)),
+                Some(6) => Ok(Value::Number(
+                    numbers_of(name, rest)?.iter().product::<f64>(),
+                )),
+                Some(7) => {
+                    let values = numbers_of(name, rest)?;
+                    Ok(Value::Number(sample_variance(&values).sqrt()))
+                }
+                Some(8) => {
+                    let values = numbers_of(name, rest)?;
+                    Ok(Value::Number(population_variance(&values).sqrt()))
+                }
+                Some(9) => Ok(Value::Number(numbers_of(name, rest)?.iter().sum())),
+                Some(10) => {
+                    let values = numbers_of(name, rest)?;
+                    Ok(Value::Number(sample_variance(&values)))
+                }
+                Some(11) => {
+                    let values = numbers_of(name, rest)?;
+                    Ok(Value::Number(population_variance(&values)))
+                }
+                _ => Err(Error::Arithmetic(ValueError::NotANumber)),
+            }
+        }
+        // `AGGREGATE` runs one of nineteen aggregates; the `options` argument
+        // selects what to skip, but nothing in this evaluator is ever hidden or
+        // an error value, so it only has to be accepted.
+        "AGGREGATE" => {
+            require_between(name, args, 3, 4)?;
+            let selector = first_number(name, &args[0])?;
+            if selector.fract() != 0.0 {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            let selector = selector as u32;
+            let first = &args[2];
+            let second = args.get(3);
+            let values = sorted_values(first);
+            match selector {
+                1..=11 => {
+                    let rest = &args[2..];
+                    match selector {
+                        1 => {
+                            let values = numbers_of(name, rest)?;
+                            if values.is_empty() {
+                                return Err(Error::Arithmetic(ValueError::DivisionByZero));
+                            }
+                            Ok(Value::Number(stats::mean(&values)))
+                        }
+                        2 => Ok(Value::Number(
+                            rest.iter().map(Arg::countable).sum::<usize>() as f64,
+                        )),
+                        3 => Ok(Value::Number(
+                            rest.iter()
+                                .flat_map(|a| a.values.iter())
+                                .filter(|v| !v.is_empty())
+                                .count() as f64,
+                        )),
+                        4 => min_max(name, rest, false),
+                        5 => min_max(name, rest, true),
+                        6 => Ok(Value::Number(
+                            numbers_of(name, rest)?.iter().product::<f64>(),
+                        )),
+                        7 => {
+                            let values = numbers_of(name, rest)?;
+                            Ok(Value::Number(sample_variance(&values).sqrt()))
+                        }
+                        8 => {
+                            let values = numbers_of(name, rest)?;
+                            Ok(Value::Number(population_variance(&values).sqrt()))
+                        }
+                        9 => Ok(Value::Number(numbers_of(name, rest)?.iter().sum())),
+                        10 => {
+                            let values = numbers_of(name, rest)?;
+                            Ok(Value::Number(sample_variance(&values)))
+                        }
+                        _ => {
+                            let values = numbers_of(name, rest)?;
+                            Ok(Value::Number(population_variance(&values)))
+                        }
+                    }
+                }
+                12 => {
+                    if values.is_empty() {
+                        return Err(Error::Arithmetic(ValueError::NotANumber));
+                    }
+                    let mid = values.len() / 2;
+                    let median = if values.len().is_multiple_of(2) {
+                        f64::midpoint(values[mid - 1], values[mid])
+                    } else {
+                        values[mid]
+                    };
+                    Ok(Value::Number(median))
+                }
+                13 => {
+                    let values = numbers_of(name, &args[2..3])?;
+                    Ok(Value::Number(mode_single(&values)))
+                }
+                14 | 15 => {
+                    let k = first_number(
+                        name,
+                        second.ok_or(Error::WrongArity {
+                            name: name.to_string(),
+                            given: args.len(),
+                            expected: "4",
+                        })?,
+                    )?;
+                    Ok(Value::Number(rank_value(selector == 14, &values, k)?))
+                }
+                16 | 18 => {
+                    let k = first_number(
+                        name,
+                        second.ok_or(Error::WrongArity {
+                            name: name.to_string(),
+                            given: args.len(),
+                            expected: "4",
+                        })?,
+                    )?;
+                    Ok(Value::Number(percentile_value(selector == 18, &values, k)?))
+                }
+                17 | 19 => {
+                    let k = first_number(
+                        name,
+                        second.ok_or(Error::WrongArity {
+                            name: name.to_string(),
+                            given: args.len(),
+                            expected: "4",
+                        })?,
+                    )?;
+                    Ok(Value::Number(quartile_value(selector == 19, &values, k)?))
+                }
+                _ => Err(Error::Arithmetic(ValueError::NotANumber)),
+            }
         }
         "ABS" => unary_number(name, args, f64::abs),
         "SIGN" => unary_number(name, args, |n| {
@@ -284,7 +456,21 @@ pub(crate) fn call_from(
                 gamma_fn(n)
             }
         }),
-        "GAMMALN" => unary_number(name, args, gamma_ln),
+        "GAMMALN" | "GAMMALNPRECISE" => unary_number(name, args, gamma_ln),
+        // --- Bessel functions ------------------------------------------------
+        // The order argument is truncated, which the reference does inside each
+        // implementation; the wrapper here leaves it to `bessel`.
+        "BESSELI" | "BESSELJ" | "BESSELK" | "BESSELY" => {
+            require_arity(name, args, 2)?;
+            let x = first_number(name, &args[0])?;
+            let n = first_number(name, &args[1])?;
+            Ok(Value::Number(match name {
+                "BESSELI" => bessel::besseli(x, n),
+                "BESSELJ" => bessel::besselj(x, n),
+                "BESSELK" => bessel::besselk(x, n),
+                _ => bessel::bessely(x, n),
+            }))
+        }
         "ERF" => {
             require_between(name, args, 1, 2)?;
             Ok(Value::Number(erf(first_number(name, &args[0])?)))
@@ -322,7 +508,7 @@ pub(crate) fn call_from(
             // The integer part of the division, truncated towards zero.
             Ok(Value::Number((a / b).trunc()))
         }
-        "CEILING" | "CEILING.MATH" => {
+        "CEILING" => {
             require_arity(name, args, 2)?;
             let value = first_number(name, &args[0])?;
             let significance = first_number(name, &args[1])?;
@@ -337,7 +523,25 @@ pub(crate) fn call_from(
             }
             Ok(Value::Number((value / significance).ceil() * significance))
         }
-        "FLOOR" | "FLOOR.MATH" => {
+        "CEILINGMATH" | "CEILINGPRECISE" | "ISOCEILING" => {
+            require_between(name, args, 1, 3)?;
+            let value = first_number(name, &args[0])?;
+            let significance = match args.get(1) {
+                Some(arg) => first_number(name, arg)?,
+                None => 1.0,
+            };
+            let mode = match args.get(2) {
+                Some(arg) => first_number(name, arg)?,
+                None => 0.0,
+            };
+            Ok(Value::Number(round_multiple(
+                value,
+                significance,
+                mode,
+                true,
+            )))
+        }
+        "FLOOR" => {
             require_arity(name, args, 2)?;
             let value = first_number(name, &args[0])?;
             let significance = first_number(name, &args[1])?;
@@ -348,6 +552,24 @@ pub(crate) fn call_from(
                 return Err(Error::Arithmetic(crate::value::Error::NotANumber));
             }
             Ok(Value::Number((value / significance).floor() * significance))
+        }
+        "FLOORMATH" | "FLOORPRECISE" => {
+            require_between(name, args, 1, 3)?;
+            let value = first_number(name, &args[0])?;
+            let significance = match args.get(1) {
+                Some(arg) => first_number(name, arg)?,
+                None => 1.0,
+            };
+            let mode = match args.get(2) {
+                Some(arg) => first_number(name, arg)?,
+                None => 0.0,
+            };
+            Ok(Value::Number(round_multiple(
+                value,
+                significance,
+                mode,
+                false,
+            )))
         }
         "TRUNC" => {
             require_between(name, args, 1, 2)?;
@@ -600,25 +822,10 @@ pub(crate) fn call_from(
         "LARGE" | "SMALL" => {
             require_arity(name, args, 2)?;
             let k = first_number(name, &args[1])?;
-            let mut values = args[0]
-                .values
-                .iter()
-                .filter_map(|v| v.as_number().ok())
-                .collect::<Vec<f64>>();
-            // The reference returns an error for a rank below one or beyond the
-            // number of values, rather than a blank.
-            if k < 1.0 || k > values.len() as f64 {
-                return Err(Error::Arithmetic(ValueError::NotANumber));
-            }
-            values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-            let index = if name == "LARGE" {
-                values.len() - k as usize
-            } else {
-                k as usize - 1
-            };
-            Ok(Value::Number(values[index]))
+            let values = sorted_values(&args[0]);
+            Ok(Value::Number(rank_value(name == "LARGE", &values, k)?))
         }
-        "MODESNGL" => {
+        "MODE" | "MODESNGL" => {
             let values = numbers_of(name, args)?;
             Ok(Value::Number(mode_single(&values)))
         }
@@ -641,64 +848,27 @@ pub(crate) fn call_from(
             let mean = kept.iter().sum::<f64>() / kept.len() as f64;
             Ok(Value::Number(mean))
         }
-        "PERCENTILEINC" | "PERCENTILEEXC" => {
+        "PERCENTILE" | "PERCENTILEINC" | "PERCENTILEEXC" => {
             require_arity(name, args, 2)?;
             let k = first_number(name, &args[1])?;
-            let mut values = args[0]
-                .values
-                .iter()
-                .filter_map(|v| v.as_number().ok())
-                .collect::<Vec<f64>>();
-            if values.is_empty() {
-                return Err(Error::Arithmetic(ValueError::NotANumber));
-            }
-            values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-            let n = values.len() as f64;
-            let l = if name == "PERCENTILEEXC" {
-                // The exclusive form shrinks the range by one at each end, so
-                // the extreme percentiles have no answer.
-                if k < 1.0 / (n + 1.0) || k > 1.0 - 1.0 / (n + 1.0) {
-                    return Err(Error::Arithmetic(ValueError::NotANumber));
-                }
-                k * (n + 1.0) - 1.0
-            } else {
-                if !(0.0..=1.0).contains(&k) {
-                    return Err(Error::Arithmetic(ValueError::NotANumber));
-                }
-                k * (n - 1.0)
-            };
-            Ok(Value::Number(interpolate(&values, l)))
+            let values = sorted_values(&args[0]);
+            Ok(Value::Number(percentile_value(
+                name == "PERCENTILEEXC",
+                &values,
+                k,
+            )?))
         }
-        "QUARTILEINC" | "QUARTILEEXC" => {
+        "QUARTILE" | "QUARTILEINC" | "QUARTILEEXC" => {
             require_arity(name, args, 2)?;
             let quart = first_number(name, &args[1])?;
-            let fraction = match quart {
-                0.0 => 0.0,
-                1.0 => 0.25,
-                2.0 => 0.5,
-                3.0 => 0.75,
-                4.0 => 1.0,
-                _ => return Err(Error::Arithmetic(ValueError::NotANumber)),
-            };
-            // The exclusive form has no answer at the extremes.
-            if name == "QUARTILEEXC" && (quart == 0.0 || quart == 4.0) {
-                return Err(Error::Arithmetic(ValueError::NotANumber));
-            }
-            let mut values = args[0]
-                .values
-                .iter()
-                .filter_map(|v| v.as_number().ok())
-                .collect::<Vec<f64>>();
-            values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-            let n = values.len() as f64;
-            let l = if name == "QUARTILEEXC" {
-                fraction * (n + 1.0) - 1.0
-            } else {
-                fraction * (n - 1.0)
-            };
-            Ok(Value::Number(interpolate(&values, l)))
+            let values = sorted_values(&args[0]);
+            Ok(Value::Number(quartile_value(
+                name == "QUARTILEEXC",
+                &values,
+                quart,
+            )?))
         }
-        "RANKEQ" | "RANKAVG" => {
+        "RANK" | "RANKEQ" | "RANKAVG" => {
             require_between(name, args, 2, 3)?;
             let number = first_number(name, &args[0])?;
             let ascending = match args.get(2) {
@@ -915,6 +1085,11 @@ pub(crate) fn call_from(
             // With no matching cell the answer is 0, as in a spreadsheet.
             Ok(Value::Number(best.unwrap_or(0.0)))
         }
+        "SWITCH" => Err(Error::WrongArity {
+            name: name.to_string(),
+            given: args.len(),
+            expected: "at least 3",
+        }),
         "IFS" => {
             // Pairs of condition and result, then an optional final fallback.
             // Every condition is already evaluated by the caller, so this cannot
@@ -1183,6 +1358,12 @@ pub(crate) fn call_from(
             require_arity(name, args, 1)?;
             Ok(Value::Bool(matches!(first_value(&args[0]), Value::Empty)))
         }
+        "ISERR" => {
+            // The reference has no error value to inspect, so this mirrors
+            // `ISERROR`; both exist so a formula written with either parses.
+            require_arity(name, args, 1)?;
+            Ok(Value::Bool(matches!(first_value(&args[0]), Value::Empty)))
+        }
         "ISNA" => {
             require_arity(name, args, 1)?;
             Ok(Value::Bool(matches!(first_value(&args[0]), Value::Empty)))
@@ -1322,6 +1503,42 @@ pub(crate) fn call_from(
             datetime::parse_time(&text)
                 .map(|s| Value::Number(s / datetime::SECONDS_PER_DAY))
                 .ok_or(Error::Arithmetic(ValueError::NotANumber))
+        }
+        "NETWORKDAYSINTL" | "WORKDAYINTL" => {
+            require_between(name, args, 2, 4)?;
+            let first = datetime::date_part(first_number(name, &args[0])?);
+            let second = first_number(name, &args[1])?;
+            // The third argument is either a weekend code or a seven-character
+            // mask read as text, and the mask wins when it looks like one.
+            let weekend = match args.get(2) {
+                Some(arg) => match &arg.values[0] {
+                    Value::Text(mask) => datetime::weekend_mask(mask)
+                        .ok_or(Error::Arithmetic(ValueError::NotANumber))?,
+                    other => datetime::weekend_code(other.as_number()? as i64)
+                        .ok_or(Error::Arithmetic(ValueError::NotANumber))?,
+                },
+                None => datetime::weekend_code(1).expect("code 1 is a weekend"),
+            };
+            let holidays: Vec<i64> = match args.get(3) {
+                Some(arg) => arg
+                    .values
+                    .iter()
+                    .filter_map(|v| v.as_number().ok())
+                    .map(datetime::date_part)
+                    .collect(),
+                None => Vec::new(),
+            };
+            if name == "NETWORKDAYSINTL" {
+                let end = datetime::date_part(second);
+                Ok(Value::Number(
+                    datetime::networkdays_intl(first, end, &weekend, &holidays) as f64,
+                ))
+            } else {
+                let days = second.trunc() as i64;
+                Ok(Value::Number(
+                    datetime::workday_intl(first, days, &weekend, &holidays) as f64,
+                ))
+            }
         }
         "NETWORKDAYS" | "WORKDAY" => {
             require_between(name, args, 2, 3)?;
@@ -1829,6 +2046,27 @@ pub(crate) fn call_from(
                 .map(Value::Number)
                 .ok_or(Error::Arithmetic(ValueError::NotANumber))
         }
+        "RATE" => {
+            require_between(name, args, 3, 6)?;
+            let nper = first_number(name, &args[0])?;
+            let payment = first_number(name, &args[1])?;
+            let pv_value = first_number(name, &args[2])?;
+            let fv_value = match args.get(3) {
+                Some(arg) => first_number(name, arg)?,
+                None => 0.0,
+            };
+            let kind = match args.get(4) {
+                Some(arg) => first_number(name, arg)?,
+                None => 0.0,
+            };
+            let guess = match args.get(5) {
+                Some(arg) => first_number(name, arg)?,
+                None => 0.1,
+            };
+            financial::rate(nper, payment, pv_value, fv_value, kind, guess)
+                .map(Value::Number)
+                .ok_or(Error::Arithmetic(ValueError::NotANumber))
+        }
         "RRI" => {
             require_arity(name, args, 3)?;
             financial::rri(
@@ -1861,6 +2099,20 @@ pub(crate) fn call_from(
             result
                 .map(Value::Number)
                 .ok_or(Error::Arithmetic(ValueError::NotANumber))
+        }
+        "COUPDAYS" => {
+            require_between(name, args, 3, 4)?;
+            let basis = args
+                .get(3)
+                .map_or(0, |a| first_value(a).as_number().unwrap_or(0.0) as i64);
+            financial::coupdays(
+                first_number(name, &args[0])?,
+                first_number(name, &args[1])?,
+                first_number(name, &args[2])? as i64,
+                basis,
+            )
+            .map(Value::Number)
+            .ok_or(Error::Arithmetic(ValueError::NotANumber))
         }
         "DISC" => {
             require_between(name, args, 4, 5)?;
@@ -1931,6 +2183,15 @@ pub(crate) fn call_from(
         "DEC2BIN" => decimal_to_radix(name, args, 2, 512.0, 511.0),
         "DEC2OCT" => decimal_to_radix(name, args, 8, 536_870_912.0, 536_870_911.0),
         "DEC2HEX" => decimal_to_radix(name, args, 16, 549_755_813_888.0, 549_755_813_887.0),
+        // The cross-base conversions. A source field whose leading digit is at
+        // or above half its base is negative, and the two that land in binary or
+        // octal are bounded by that narrower field's range.
+        "BIN2HEX" => convert_radix_field(name, args, 2, 16, None),
+        "BIN2OCT" => convert_radix_field(name, args, 2, 8, None),
+        "HEX2BIN" => convert_radix_field(name, args, 16, 2, Some((-512.0, 511.0))),
+        "HEX2OCT" => convert_radix_field(name, args, 16, 8, Some((-536_870_912.0, 536_870_911.0))),
+        "OCT2BIN" => convert_radix_field(name, args, 8, 2, Some((-512.0, 511.0))),
+        "OCT2HEX" => convert_radix_field(name, args, 8, 16, None),
         "BASE" => {
             require_between(name, args, 2, 3)?;
             let number = first_number(name, &args[0])?;
@@ -2141,8 +2402,629 @@ pub(crate) fn call_from(
                 None => Err(Error::Arithmetic(ValueError::NotANumber)),
             }
         }
+        // --- Statistical distributions, ported from jStat through formulajs. ---
+        // The dispatch normalises a dotted name to its flat alias first, so
+        // `NORM.S.DIST` and `NORMSDIST` reach the same arm; the parser accepts
+        // dots in a function name for exactly this reason.
+        "NORMDIST" => {
+            require_arity(name, args, 4)?;
+            let x = first_number(name, &args[0])?;
+            let mean = first_number(name, &args[1])?;
+            let std = first_number(name, &args[2])?;
+            if std <= 0.0 {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            let cumulative = first_value(&args[3]).as_bool();
+            Ok(Value::Number(if cumulative {
+                stats::normal_cdf(x, mean, std)
+            } else {
+                stats::normal_pdf(x, mean, std)
+            }))
+        }
+        "NORMSDIST" => {
+            require_between(name, args, 1, 2)?;
+            let x = first_number(name, &args[0])?;
+            // The one-argument legacy form is cumulative; the modern
+            // `NORM.S.DIST` takes the flag explicitly.
+            let cumulative = args.get(1).is_none_or(|a| first_value(a).as_bool());
+            Ok(Value::Number(if cumulative {
+                stats::normal_cdf(x, 0.0, 1.0)
+            } else {
+                stats::normal_pdf(x, 0.0, 1.0)
+            }))
+        }
+        "NORMINV" => {
+            require_arity(name, args, 3)?;
+            let p = first_number(name, &args[0])?;
+            let mean = first_number(name, &args[1])?;
+            let std = first_number(name, &args[2])?;
+            if !(0.0..=1.0).contains(&p) || std <= 0.0 {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            Ok(Value::Number(stats::normal_inv(p, mean, std)))
+        }
+        "NORMSINV" => {
+            require_arity(name, args, 1)?;
+            let p = first_number(name, &args[0])?;
+            if !(0.0..=1.0).contains(&p) {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            Ok(Value::Number(stats::normal_inv(p, 0.0, 1.0)))
+        }
+        "LOGNORMDIST" => {
+            require_between(name, args, 3, 4)?;
+            let x = first_number(name, &args[0])?;
+            let mean = first_number(name, &args[1])?;
+            let std = first_number(name, &args[2])?;
+            if std <= 0.0 {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            // The three-argument legacy form is the cumulative one.
+            let cumulative = args.get(3).is_none_or(|a| first_value(a).as_bool());
+            Ok(Value::Number(if cumulative {
+                stats::lognormal_cdf(x, mean, std)
+            } else {
+                stats::lognormal_pdf(x, mean, std)
+            }))
+        }
+        "LOGINV" => {
+            // The pre-2010 spelling of `LOGNORMINV`, with the same arguments.
+            require_arity(name, args, 3)?;
+            let p = first_number(name, &args[0])?;
+            let mean = first_number(name, &args[1])?;
+            let std = first_number(name, &args[2])?;
+            if !(0.0..=1.0).contains(&p) || std <= 0.0 {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            Ok(Value::Number(stats::lognormal_inv(p, mean, std)))
+        }
+        "LOGNORMINV" => {
+            require_arity(name, args, 3)?;
+            let p = first_number(name, &args[0])?;
+            let mean = first_number(name, &args[1])?;
+            let std = first_number(name, &args[2])?;
+            if !(0.0..=1.0).contains(&p) || std <= 0.0 {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            Ok(Value::Number(stats::lognormal_inv(p, mean, std)))
+        }
+        "TDIST" => {
+            require_arity(name, args, 3)?;
+            let x = first_number(name, &args[0])?;
+            let dof = first_number(name, &args[1])?;
+            let tails = first_number(name, &args[2])?;
+            if x < 0.0 || dof < 1.0 {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            let cdf = stats::studentt_cdf(x, dof);
+            Ok(Value::Number(if tails == 1.0 {
+                1.0 - cdf
+            } else {
+                (1.0 - cdf) * 2.0
+            }))
+        }
+        "TDISTRT" => {
+            require_arity(name, args, 2)?;
+            let x = first_number(name, &args[0])?;
+            let dof = first_number(name, &args[1])?;
+            if x < 0.0 || dof < 1.0 {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            Ok(Value::Number(1.0 - stats::studentt_cdf(x, dof)))
+        }
+        "TINV" => {
+            require_arity(name, args, 2)?;
+            let p = first_number(name, &args[0])?;
+            let dof = first_number(name, &args[1])?;
+            if dof < 1.0 || p <= 0.0 || p >= 1.0 {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            // `T.INV` is the one-tailed inverse; `T.INV.2T` is the two-tailed
+            // one, which the reference does not export under a flat name.
+            Ok(Value::Number(stats::studentt_inv(p, dof)))
+        }
+        "CHIDIST" => {
+            require_between(name, args, 2, 3)?;
+            let x = first_number(name, &args[0])?;
+            let dof = first_number(name, &args[1])?;
+            // The modern form takes a cumulative flag; the legacy two-argument
+            // form is the right tail.
+            match args.get(2) {
+                Some(flag) if first_value(flag).as_bool() => {
+                    Ok(Value::Number(stats::chisq_cdf(x, dof)))
+                }
+                // A missing or false flag is the density, which is what the
+                // reference returns when `cumulative` is undefined.
+                _ => Ok(Value::Number(stats::chisq_pdf(x, dof))),
+            }
+        }
+        "CHIDISTRT" => {
+            require_arity(name, args, 2)?;
+            let x = first_number(name, &args[0])?;
+            let dof = first_number(name, &args[1])?;
+            Ok(Value::Number(1.0 - stats::chisq_cdf(x, dof)))
+        }
+        "CHIINV" => {
+            require_between(name, args, 2, 2)?;
+            let p = first_number(name, &args[0])?;
+            let dof = first_number(name, &args[1])?;
+            if !(0.0..=1.0).contains(&p) || dof < 1.0 {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            Ok(Value::Number(stats::chisq_inv(p, dof)))
+        }
+        "CHIINVRT" => {
+            require_arity(name, args, 2)?;
+            let p = first_number(name, &args[0])?;
+            let dof = first_number(name, &args[1])?;
+            if !(0.0..=1.0).contains(&p) || dof < 1.0 {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            Ok(Value::Number(stats::chisq_inv(1.0 - p, dof)))
+        }
+        "CHISQINV" => {
+            require_arity(name, args, 2)?;
+            let p = first_number(name, &args[0])?;
+            let dof = first_number(name, &args[1])?;
+            if !(0.0..=1.0).contains(&p) || dof < 1.0 {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            Ok(Value::Number(stats::chisq_inv(p, dof)))
+        }
+        "FDIST" => {
+            require_between(name, args, 3, 4)?;
+            let x = first_number(name, &args[0])?;
+            let df1 = first_number(name, &args[1])?;
+            let df2 = first_number(name, &args[2])?;
+            match args.get(3) {
+                Some(flag) if first_value(flag).as_bool() => {
+                    Ok(Value::Number(stats::f_cdf(x, df1, df2)))
+                }
+                _ => Ok(Value::Number(stats::f_pdf(x, df1, df2))),
+            }
+        }
+        "FDISTRT" => {
+            require_arity(name, args, 3)?;
+            let x = first_number(name, &args[0])?;
+            let df1 = first_number(name, &args[1])?;
+            let df2 = first_number(name, &args[2])?;
+            Ok(Value::Number(1.0 - stats::f_cdf(x, df1, df2)))
+        }
+        "FINV" => {
+            require_arity(name, args, 3)?;
+            let p = first_number(name, &args[0])?;
+            let df1 = first_number(name, &args[1])?;
+            let df2 = first_number(name, &args[2])?;
+            if p <= 0.0 || p > 1.0 || df1 < 1.0 || df2 < 1.0 {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            Ok(Value::Number(stats::f_inv(p, df1, df2)))
+        }
+        "FINVRT" => {
+            require_arity(name, args, 3)?;
+            let p = first_number(name, &args[0])?;
+            let df1 = first_number(name, &args[1])?;
+            let df2 = first_number(name, &args[2])?;
+            if !(0.0..=1.0).contains(&p) || df1 < 1.0 || df2 < 1.0 {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            Ok(Value::Number(stats::f_inv(1.0 - p, df1, df2)))
+        }
+        "BINOMDIST" => {
+            require_arity(name, args, 4)?;
+            let k = first_number(name, &args[0])?;
+            let n = first_number(name, &args[1])?;
+            let p = first_number(name, &args[2])?;
+            let cumulative = first_value(&args[3]).as_bool();
+            Ok(Value::Number(if cumulative {
+                stats::binomial_cdf(k, n, p)
+            } else {
+                stats::binomial_pdf(k, n, p)
+            }))
+        }
+        "CRITBINOM" => {
+            require_arity(name, args, 3)?;
+            let n = first_number(name, &args[0])?;
+            let p = first_number(name, &args[1])?;
+            let alpha = first_number(name, &args[2])?;
+            let mut x = 0.0;
+            while x <= n {
+                if stats::binomial_cdf(x, n, p) >= alpha {
+                    return Ok(Value::Number(x));
+                }
+                x += 1.0;
+            }
+            Ok(Value::Number(x))
+        }
+        "POISSONDIST" => {
+            require_arity(name, args, 3)?;
+            let x = first_number(name, &args[0])?;
+            let mean = first_number(name, &args[1])?;
+            let cumulative = first_value(&args[2]).as_bool();
+            Ok(Value::Number(if cumulative {
+                stats::poisson_cdf(x, mean)
+            } else {
+                stats::poisson_pdf(x, mean)
+            }))
+        }
+        "EXPONDIST" => {
+            require_arity(name, args, 3)?;
+            let x = first_number(name, &args[0])?;
+            let lambda = first_number(name, &args[1])?;
+            let cumulative = first_value(&args[2]).as_bool();
+            Ok(Value::Number(if cumulative {
+                stats::exponential_cdf(x, lambda)
+            } else {
+                stats::exponential_pdf(x, lambda)
+            }))
+        }
+        "WEIBULLDIST" => {
+            require_arity(name, args, 4)?;
+            let x = first_number(name, &args[0])?;
+            let alpha = first_number(name, &args[1])?;
+            let beta = first_number(name, &args[2])?;
+            let cumulative = first_value(&args[3]).as_bool();
+            Ok(Value::Number(if cumulative {
+                stats::weibull_cdf(x, beta, alpha)
+            } else {
+                stats::weibull_pdf(x, beta, alpha)
+            }))
+        }
+        "GAMMADIST" => {
+            require_arity(name, args, 4)?;
+            let x = first_number(name, &args[0])?;
+            let alpha = first_number(name, &args[1])?;
+            let beta = first_number(name, &args[2])?;
+            if x < 0.0 || alpha <= 0.0 || beta <= 0.0 {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            let cumulative = first_value(&args[3]).as_bool();
+            Ok(Value::Number(if cumulative {
+                stats::gamma_cdf(x, alpha, beta)
+            } else {
+                stats::gamma_pdf(x, alpha, beta)
+            }))
+        }
+        "GAMMAINV" => {
+            require_arity(name, args, 3)?;
+            let p = first_number(name, &args[0])?;
+            let alpha = first_number(name, &args[1])?;
+            let beta = first_number(name, &args[2])?;
+            if !(0.0..=1.0).contains(&p) || alpha <= 0.0 || beta <= 0.0 {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            Ok(Value::Number(stats::gamma_inv(p, alpha, beta)))
+        }
+        "BETADIST" => {
+            require_between(name, args, 3, 6)?;
+            let x = first_number(name, &args[0])?;
+            let alpha = first_number(name, &args[1])?;
+            let beta = first_number(name, &args[2])?;
+            // The reference order is `cumulative, a, b`; a three-argument call
+            // is the legacy cumulative form over the unit interval.
+            let (cumulative, a, b) = if args.len() >= 4 {
+                (
+                    first_value(&args[3]).as_bool(),
+                    args.get(4).map_or(Ok(0.0), |a| first_number(name, a))?,
+                    args.get(5).map_or(Ok(1.0), |a| first_number(name, a))?,
+                )
+            } else {
+                (true, 0.0, 1.0)
+            };
+            let scaled = (x - a) / (b - a);
+            Ok(Value::Number(if cumulative {
+                stats::beta_cdf(scaled, alpha, beta)
+            } else {
+                stats::beta_pdf(scaled, alpha, beta)
+            }))
+        }
+        "BETAINV" => {
+            require_between(name, args, 3, 5)?;
+            let p = first_number(name, &args[0])?;
+            let alpha = first_number(name, &args[1])?;
+            let beta = first_number(name, &args[2])?;
+            let a = args.get(3).map_or(Ok(0.0), |a| first_number(name, a))?;
+            let b = args.get(4).map_or(Ok(1.0), |a| first_number(name, a))?;
+            Ok(Value::Number(stats::beta_inv(p, alpha, beta) * (b - a) + a))
+        }
+        "HYPGEOMDIST" => {
+            require_between(name, args, 4, 5)?;
+            let k = first_number(name, &args[0])?;
+            let n = first_number(name, &args[1])?;
+            let m = first_number(name, &args[2])?;
+            let big_n = first_number(name, &args[3])?;
+            let cumulative = args.get(4).is_some_and(|a| first_value(a).as_bool());
+            Ok(Value::Number(if cumulative {
+                stats::hypgeom_cdf(k, n, m, big_n)
+            } else {
+                stats::hypgeom_pdf(k, n, m, big_n)
+            }))
+        }
+        "NEGBINOMDIST" => {
+            require_arity(name, args, 4)?;
+            let f = first_number(name, &args[0])?;
+            let s = first_number(name, &args[1])?;
+            let p = first_number(name, &args[2])?;
+            let cumulative = first_value(&args[3]).as_bool();
+            Ok(Value::Number(if cumulative {
+                stats::negbinom_cdf(f, s, p)
+            } else {
+                stats::negbinom_pdf(f, s, p)
+            }))
+        }
+        "STANDARDIZE" => {
+            require_arity(name, args, 3)?;
+            let x = first_number(name, &args[0])?;
+            let mean = first_number(name, &args[1])?;
+            let std = first_number(name, &args[2])?;
+            if std <= 0.0 {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            Ok(Value::Number((x - mean) / std))
+        }
+        "GAUSS" => {
+            require_arity(name, args, 1)?;
+            let z = first_number(name, &args[0])?;
+            Ok(Value::Number(stats::normal_cdf(z, 0.0, 1.0) - 0.5))
+        }
+        "PHI" => {
+            require_arity(name, args, 1)?;
+            let x = first_number(name, &args[0])?;
+            Ok(Value::Number(
+                (-0.5 * x * x).exp() / 2.506_628_274_631_000_2,
+            ))
+        }
+        "FISHER" => {
+            require_arity(name, args, 1)?;
+            let x = first_number(name, &args[0])?;
+            if x <= -1.0 || x >= 1.0 {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            Ok(Value::Number(((1.0 + x) / (1.0 - x)).ln() / 2.0))
+        }
+        "FISHERINV" => {
+            require_arity(name, args, 1)?;
+            let y = first_number(name, &args[0])?;
+            let e2y = (2.0 * y).exp();
+            Ok(Value::Number((e2y - 1.0) / (e2y + 1.0)))
+        }
+        "CORREL" => {
+            require_arity(name, args, 2)?;
+            let a = numbers_of_arg(name, &args[0])?;
+            let b = numbers_of_arg(name, &args[1])?;
+            Ok(Value::Number(stats::correl(&a, &b)))
+        }
+        "PEARSON" => {
+            require_arity(name, args, 2)?;
+            let a = numbers_of_arg(name, &args[0])?;
+            let b = numbers_of_arg(name, &args[1])?;
+            Ok(Value::Number(stats::pearson(&a, &b)))
+        }
+        "RSQ" => {
+            require_arity(name, args, 2)?;
+            let ys = numbers_of_arg(name, &args[0])?;
+            let xs = numbers_of_arg(name, &args[1])?;
+            Ok(Value::Number(stats::pearson(&ys, &xs).powi(2)))
+        }
+        "SLOPE" => {
+            require_arity(name, args, 2)?;
+            let ys = numbers_of_arg(name, &args[0])?;
+            let xs = numbers_of_arg(name, &args[1])?;
+            Ok(Value::Number(stats::slope(&ys, &xs)))
+        }
+        "INTERCEPT" => {
+            require_arity(name, args, 2)?;
+            let ys = numbers_of_arg(name, &args[0])?;
+            let xs = numbers_of_arg(name, &args[1])?;
+            Ok(Value::Number(stats::forecast(0.0, &ys, &xs)))
+        }
+        "STEYX" => {
+            require_arity(name, args, 2)?;
+            let ys = numbers_of_arg(name, &args[0])?;
+            let xs = numbers_of_arg(name, &args[1])?;
+            Ok(Value::Number(stats::steyx(&ys, &xs)))
+        }
+        "FORECAST" => {
+            require_arity(name, args, 3)?;
+            let x = first_number(name, &args[0])?;
+            let ys = numbers_of_arg(name, &args[1])?;
+            let xs = numbers_of_arg(name, &args[2])?;
+            Ok(Value::Number(stats::forecast(x, &ys, &xs)))
+        }
+        "COVAR" | "COVARIANCEP" => {
+            require_arity(name, args, 2)?;
+            let a = numbers_of_arg(name, &args[0])?;
+            let b = numbers_of_arg(name, &args[1])?;
+            Ok(Value::Number(stats::covariance_population(&a, &b)))
+        }
+        "COVARIANCES" => {
+            require_arity(name, args, 2)?;
+            let a = numbers_of_arg(name, &args[0])?;
+            let b = numbers_of_arg(name, &args[1])?;
+            Ok(Value::Number(stats::covariance_sample(&a, &b)))
+        }
+        "PERCENTRANKINC" | "PERCENTRANKEXC" => {
+            require_between(name, args, 2, 3)?;
+            let mut array = numbers_of_arg(name, &args[0])?;
+            let x = first_number(name, &args[1])?;
+            let significance = args.get(2).map_or(Ok(3.0), |a| first_number(name, a))?;
+            array.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+            let exclusive = name == "PERCENTRANKEXC";
+            Ok(Value::Number(percent_rank(
+                &array,
+                x,
+                significance,
+                exclusive,
+            )))
+        }
+        "VARA" | "VARPA" | "STDEVA" | "STDEVPA" => {
+            let values = values_of(args);
+            let defined: Vec<&Value> = values
+                .iter()
+                .filter(|v| !matches!(v, Value::Empty))
+                .collect();
+            if defined.is_empty() {
+                return Err(Error::Arithmetic(ValueError::DivisionByZero));
+            }
+            let mean =
+                defined.iter().map(|v| a_value_number(v)).sum::<f64>() / defined.len() as f64;
+            let sigma: f64 = defined
+                .iter()
+                .map(|v| (a_value_number(v) - mean).powi(2))
+                .sum();
+            let population = name == "VARPA" || name == "STDEVPA";
+            let variance = if population {
+                sigma / defined.len() as f64
+            } else {
+                sigma / (defined.len() as f64 - 1.0)
+            };
+            Ok(Value::Number(if name == "STDEVA" || name == "STDEVPA" {
+                variance.sqrt()
+            } else {
+                variance
+            }))
+        }
+        "ZTEST" => {
+            require_between(name, args, 2, 3)?;
+            let values = numbers_of_arg(name, &args[0])?;
+            let x = first_number(name, &args[1])?;
+            let sigma = match args.get(2) {
+                Some(arg) => Some(first_number(name, arg)?),
+                None => None,
+            };
+            Ok(Value::Number(stats::ztest(&values, x, sigma)))
+        }
+        "TTEST" => {
+            require_between(name, args, 2, 4)?;
+            let a = numbers_of_arg(name, &args[0])?;
+            let b = numbers_of_arg(name, &args[1])?;
+            // The tails and type arguments are accepted but not used: the
+            // reference ignores them, and this crate reproduces the reference.
+            Ok(Value::Number(stats::ttest(&a, &b)))
+        }
+        "FTEST" => {
+            require_arity(name, args, 2)?;
+            let a = numbers_of_arg(name, &args[0])?;
+            let b = numbers_of_arg(name, &args[1])?;
+            Ok(Value::Number(stats::ftest(&a, &b)))
+        }
+        "CHITEST" => {
+            require_arity(name, args, 2)?;
+            let a = numbers_of_arg(name, &args[0])?;
+            let b = numbers_of_arg(name, &args[1])?;
+            Ok(Value::Number(stats::chitest(&a, &b)))
+        }
+        "PROB" => {
+            require_between(name, args, 3, 4)?;
+            let xs = numbers_of_arg(name, &args[0])?;
+            let probs = numbers_of_arg(name, &args[1])?;
+            let lower = first_number(name, &args[2])?;
+            let upper = args.get(3).map_or(Ok(lower), |a| first_number(name, a))?;
+            Ok(Value::Number(stats::prob(&xs, &probs, lower, upper)))
+        }
         other => Err(Error::UnknownFunction(other.to_string())),
     }
+}
+
+/// Every value in every argument, flattened, for the `*A` functions.
+///
+/// Unlike `numbers_of`, this keeps text, logicals and blanks, because the
+/// `*A` family counts them: a logical `TRUE` contributes one and any other
+/// non-number contributes zero to the total.
+fn values_of(args: &[Arg]) -> Vec<Value> {
+    let mut out = Vec::new();
+    for arg in args {
+        out.extend(arg.values.iter().cloned());
+    }
+    out
+}
+
+/// One value's contribution to an `AVERAGEA` sum, where a logical is one and
+/// text is zero.
+fn a_value_number(value: &Value) -> f64 {
+    match value {
+        Value::Number(n) => *n,
+        Value::Bool(true) => 1.0,
+        _ => 0.0,
+    }
+}
+
+/// The numbers in one argument, for the regression and covariance functions.
+///
+/// A reference contributes its numeric cells; a scalar contributes itself.
+/// Text and empty cells are skipped, which is what the reference does when it
+/// flattens an array through `parseNumberArray`.
+fn numbers_of_arg(name: &str, arg: &Arg) -> Result<Vec<f64>, Error> {
+    let mut out = Vec::new();
+    for value in &arg.values {
+        match value {
+            Value::Number(n) => out.push(*n),
+            Value::Bool(b) => out.push(if *b { 1.0 } else { 0.0 }),
+            Value::Empty => {}
+            Value::Text(t) => {
+                if let Ok(n) = t.trim().parse::<f64>() {
+                    out.push(n);
+                }
+            }
+        }
+    }
+    if out.is_empty() {
+        return Err(Error::TypeError {
+            operation: name.to_string(),
+            found: Value::Empty,
+        });
+    }
+    Ok(out)
+}
+
+/// The inclusive or exclusive percentage rank, as `PERCENTRANK` reports it.
+///
+/// `array` is sorted ascending. The exclusive form ranks against `n + 1`
+/// positions so neither end reaches zero or one; the inclusive form uses
+/// `n - 1`. Both truncate toward zero at the requested significance.
+fn percent_rank(array: &[f64], x: f64, significance: f64, exclusive: bool) -> f64 {
+    let n = array.len();
+    let mut uniques: Vec<f64> = Vec::new();
+    for value in array {
+        if !uniques.contains(value) {
+            uniques.push(*value);
+        }
+    }
+    let m = uniques.len();
+    let power = 10f64.powf(significance);
+    let mut result = 0.0;
+    let mut i = 0;
+    while i < m {
+        if x == uniques[i] {
+            let index = array.iter().position(|v| *v == uniques[i]).unwrap();
+            result = if exclusive {
+                (index + 1) as f64 / (n + 1) as f64
+            } else {
+                index as f64 / (n - 1) as f64
+            };
+            break;
+        } else if x >= uniques[i] && (i + 1 >= m || x < uniques[i + 1]) {
+            let index = array.iter().position(|v| *v == uniques[i]).unwrap();
+            let next = if i + 1 < m {
+                uniques[i + 1]
+            } else {
+                uniques[i]
+            };
+            let fraction = (x - uniques[i]) / (next - uniques[i]);
+            result = if exclusive {
+                (index + 1) as f64 + fraction
+            } else {
+                index as f64 + fraction
+            } / if exclusive {
+                (n + 1) as f64
+            } else {
+                (n - 1) as f64
+            };
+            break;
+        }
+        i += 1;
+    }
+    (result * power).floor() / power
 }
 
 enum RoundMode {
@@ -2172,6 +3054,29 @@ fn round_to(value: f64, digits: i32, mode: RoundMode) -> f64 {
         }
     };
     rounded / factor
+}
+
+/// `CEILING.MATH` and `FLOOR.MATH`: round to a multiple of `significance`.
+///
+/// The sign of `significance` is ignored, so unlike the bare `CEILING`/`FLOOR`
+/// there is no "positive value with a negative significance" error. `mode`
+/// decides the direction for a negative value: zero rounds away from zero,
+/// anything else rounds toward zero. `up` selects which of the two functions
+/// this is.
+fn round_multiple(value: f64, significance: f64, mode: f64, up: bool) -> f64 {
+    if significance == 0.0 {
+        return 0.0;
+    }
+    let step = significance.abs();
+    let away = mode == 0.0;
+    let rounds_up = if value >= 0.0 || away { up } else { !up };
+    let quotient = value / step;
+    let n = if rounds_up {
+        quotient.ceil()
+    } else {
+        quotient.floor()
+    };
+    n * step
 }
 
 fn min_max(name: &str, args: &[Arg], want_min: bool) -> Result<Value, Error> {
@@ -2448,6 +3353,73 @@ fn mode_single(values: &[f64]) -> f64 {
     best
 }
 
+/// The numbers of one argument, sorted ascending.
+fn sorted_values(arg: &Arg) -> Vec<f64> {
+    let mut values = arg
+        .values
+        .iter()
+        .filter_map(|v| v.as_number().ok())
+        .collect::<Vec<f64>>();
+    values.sort_by(f64::total_cmp);
+    values
+}
+
+/// The `k`th value from the top (`LARGE`) or the bottom (`SMALL`) of a sorted
+/// list.
+///
+/// The reference returns an error for a rank below one or beyond the number of
+/// values, rather than a blank.
+fn rank_value(from_top: bool, sorted: &[f64], k: f64) -> Result<f64, Error> {
+    if k < 1.0 || k > sorted.len() as f64 {
+        return Err(Error::Arithmetic(ValueError::NotANumber));
+    }
+    let index = if from_top {
+        sorted.len() - k as usize
+    } else {
+        k as usize - 1
+    };
+    Ok(sorted[index])
+}
+
+/// `PERCENTILE`, with the inclusive and exclusive forms selected by `exclusive`.
+fn percentile_value(exclusive: bool, sorted: &[f64], k: f64) -> Result<f64, Error> {
+    if sorted.is_empty() {
+        return Err(Error::Arithmetic(ValueError::NotANumber));
+    }
+    let n = sorted.len() as f64;
+    let l = if exclusive {
+        // The exclusive form shrinks the range by one at each end, so the
+        // extreme percentiles have no answer.
+        if k < 1.0 / (n + 1.0) || k > 1.0 - 1.0 / (n + 1.0) {
+            return Err(Error::Arithmetic(ValueError::NotANumber));
+        }
+        k * (n + 1.0) - 1.0
+    } else {
+        if !(0.0..=1.0).contains(&k) {
+            return Err(Error::Arithmetic(ValueError::NotANumber));
+        }
+        k * (n - 1.0)
+    };
+    Ok(interpolate(sorted, l))
+}
+
+/// `QUARTILE`, with the inclusive and exclusive forms selected by `exclusive`.
+fn quartile_value(exclusive: bool, sorted: &[f64], quart: f64) -> Result<f64, Error> {
+    let fraction = match quart {
+        0.0 => 0.0,
+        1.0 => 0.25,
+        2.0 => 0.5,
+        3.0 => 0.75,
+        4.0 => 1.0,
+        _ => return Err(Error::Arithmetic(ValueError::NotANumber)),
+    };
+    // The exclusive form has no answer at the extremes.
+    if exclusive && (quart == 0.0 || quart == 4.0) {
+        return Err(Error::Arithmetic(ValueError::NotANumber));
+    }
+    percentile_value(exclusive, sorted, fraction)
+}
+
 /// The linear interpolation used by the percentile and quartile functions.
 fn interpolate(sorted: &[f64], l: f64) -> f64 {
     let floor = l.floor();
@@ -2561,7 +3533,7 @@ fn gamma_fn(x: f64) -> f64 {
 
 /// The natural logarithm of the gamma function, using the same series the
 /// reference's `jStat.gammaln` uses.
-fn gamma_ln(x: f64) -> f64 {
+pub(crate) fn gamma_ln(x: f64) -> f64 {
     const COF: [f64; 6] = [
         76.180_091_729_471_46,
         -86.505_320_329_416_77,
@@ -2584,7 +3556,7 @@ fn gamma_ln(x: f64) -> f64 {
 
 /// The error function, using the same Chebyshev expansion the reference's
 /// `jStat.erf` uses, so the two agree to the last digit.
-fn erf(x: f64) -> f64 {
+pub(crate) fn erf(x: f64) -> f64 {
     const COF: [f64; 28] = [
         -1.302_653_719_781_709_4,
         6.419_697_923_564_903e-1,
@@ -2761,6 +3733,64 @@ fn signed_field(value: u64, text: &str, radix: u32, width: usize) -> f64 {
     } else {
         value as f64
     }
+}
+
+/// Reads a fixed-width field in a base and returns it as a signed number.
+///
+/// The reference rejects a field that is empty, longer than ten characters or
+/// outside the base's alphabet, and the caller turns `None` into an error.
+fn parse_radix_field(text: &str, radix: u32) -> Option<f64> {
+    let trimmed = text.trim();
+    let length = trimmed.chars().count();
+    if length == 0 || length > 10 || !trimmed.chars().all(|c| c.is_digit(radix)) {
+        return None;
+    }
+    let unsigned = parse_radix(trimmed, radix)?;
+    Some(signed_field(unsigned, trimmed, radix, 10))
+}
+
+/// `BIN2HEX` and its siblings: the value of a source-base field, written out in
+/// a target base.
+///
+/// A negative result keeps the ten-character field shape, so its sign bit is
+/// still visible; the optional `places` argument only pads a non-negative
+/// result, and a field wider than `places` is an error rather than a truncation.
+/// `range` is the interval the target base can hold, which the reference checks
+/// for the conversions into binary and octal.
+fn convert_radix_field(
+    name: &str,
+    args: &[Arg],
+    source: u32,
+    target: u32,
+    range: Option<(f64, f64)>,
+) -> Result<Value, Error> {
+    require_between(name, args, 1, 2)?;
+    let text = first_text(&args[0]);
+    let value =
+        parse_radix_field(&text, source).ok_or(Error::Arithmetic(ValueError::NotANumber))?;
+    if let Some((low, high)) = range
+        && (value < low || value > high)
+    {
+        return Err(Error::Arithmetic(ValueError::NotANumber));
+    }
+    if value < 0.0 {
+        let modulus = f64::from(target).powi(10);
+        let digits = radix_digits(modulus + value, target);
+        return Ok(Value::Text(format!("{digits:0>10}")));
+    }
+    let digits = radix_digits(value, target);
+    let Some(arg) = args.get(1) else {
+        return Ok(Value::Text(digits));
+    };
+    let places = first_number(name, arg)?;
+    if places < 0.0 {
+        return Err(Error::Arithmetic(ValueError::NotANumber));
+    }
+    let places = places.trunc() as usize;
+    if places < digits.len() {
+        return Err(Error::Arithmetic(ValueError::NotANumber));
+    }
+    Ok(Value::Text(format!("{digits:0>places$}")))
 }
 
 /// `DEC2BIN` and its siblings: a decimal number in a target base, as a
@@ -3177,6 +4207,7 @@ fn require_at_least(name: &str, args: &[Arg], minimum: usize) -> Result<(), Erro
 /// against the supported set.
 pub const FUNCTION_NAMES: &[&str] = &[
     "ABS",
+    "AGGREGATE",
     "ACOS",
     "ACOSH",
     "ACOT",
@@ -3194,14 +4225,31 @@ pub const FUNCTION_NAMES: &[&str] = &[
     "AVERAGEIF",
     "AVERAGEIFS",
     "BASE",
+    "BESSELI",
+    "BESSELJ",
+    "BESSELK",
+    "BESSELY",
+    "BETADIST",
+    "BETAINV",
     "BIN2DEC",
+    "BIN2HEX",
+    "BIN2OCT",
+    "BINOMDIST",
     "BITAND",
     "BITLSHIFT",
     "BITOR",
     "BITRSHIFT",
     "BITXOR",
     "CEILING",
+    "CEILINGMATH",
+    "CEILINGPRECISE",
     "CHAR",
+    "CHIDIST",
+    "CHIDISTRT",
+    "CHIINV",
+    "CHIINVRT",
+    "CHISQINV",
+    "CHITEST",
     "CHOOSE",
     "CLEAN",
     "CODE",
@@ -3212,6 +4260,7 @@ pub const FUNCTION_NAMES: &[&str] = &[
     "COMPLEX",
     "CONCAT",
     "CONCATENATE",
+    "CORREL",
     "COS",
     "COSH",
     "COT",
@@ -3219,8 +4268,14 @@ pub const FUNCTION_NAMES: &[&str] = &[
     "COUNT",
     "COUNTA",
     "COUNTBLANK",
+    "SUBTOTAL",
     "COUNTIF",
     "COUNTIFS",
+    "COUPDAYS",
+    "COVAR",
+    "COVARIANCEP",
+    "COVARIANCES",
+    "CRITBINOM",
     "CSC",
     "CSCH",
     "CUMIPMT",
@@ -3252,23 +4307,41 @@ pub const FUNCTION_NAMES: &[&str] = &[
     "EVEN",
     "EXACT",
     "EXP",
+    "EXPONDIST",
     "FACT",
     "FACTDOUBLE",
     "FALSE",
+    "FDIST",
+    "FDISTRT",
     "FIND",
+    "FINV",
+    "FINVRT",
+    "FISHER",
+    "FISHERINV",
     "FIXED",
     "FLOOR",
+    "FLOORMATH",
+    "FLOORPRECISE",
+    "FORECAST",
+    "FTEST",
     "FV",
     "FVSCHEDULE",
     "GAMMA",
+    "GAMMADIST",
+    "GAMMAINV",
     "GAMMALN",
+    "GAMMALNPRECISE",
+    "GAUSS",
     "GCD",
     "GEOMEAN",
     "GESTEP",
     "HARMEAN",
+    "HEX2BIN",
     "HEX2DEC",
+    "HEX2OCT",
     "HLOOKUP",
     "HOUR",
+    "HYPGEOMDIST",
     "IFNA",
     "IFS",
     "IMABS",
@@ -3298,16 +4371,20 @@ pub const FUNCTION_NAMES: &[&str] = &[
     "IMTAN",
     "INDEX",
     "INT",
+    "INTERCEPT",
     "IPMT",
     "IRR",
     "ISBLANK",
     "ISERROR",
+    "ISERR",
     "ISEVEN",
     "ISLOGICAL",
     "ISNA",
     "ISNONTEXT",
     "ISNUMBER",
+    "ISOCEILING",
     "ISODD",
+    "ISOWEEKNUM",
     "ISPMT",
     "ISTEXT",
     "KURT",
@@ -3318,6 +4395,9 @@ pub const FUNCTION_NAMES: &[&str] = &[
     "LN",
     "LOG",
     "LOG10",
+    "LOGINV",
+    "LOGNORMDIST",
+    "LOGNORMINV",
     "LOOKUP",
     "LOWER",
     "MATCH",
@@ -3338,32 +4418,49 @@ pub const FUNCTION_NAMES: &[&str] = &[
     "MULTINOMIAL",
     "N",
     "NA",
+    "NEGBINOMDIST",
     "NETWORKDAYS",
+    "NETWORKDAYSINTL",
     "NOMINAL",
+    "NORMDIST",
+    "NORMINV",
+    "NORMSDIST",
+    "NORMSINV",
     "NOT",
     "NPER",
     "NPV",
     "NUMBERVALUE",
+    "OCT2BIN",
     "OCT2DEC",
+    "OCT2HEX",
     "ODD",
     "OR",
     "PDURATION",
+    "PEARSON",
+    "PERCENTILE",
     "PERCENTILEEXC",
     "PERCENTILEINC",
+    "PERCENTRANKEXC",
+    "PERCENTRANKINC",
     "PERMUT",
     "PERMUTATIONA",
+    "PHI",
     "PI",
     "PMT",
+    "POISSONDIST",
     "POWER",
     "PPMT",
     "PRICEDISC",
+    "PROB",
     "PRODUCT",
     "PROPER",
     "PV",
+    "QUARTILE",
     "QUARTILEEXC",
     "QUARTILEINC",
     "QUOTIENT",
     "RADIANS",
+    "RANK",
     "RANKAVG",
     "RANKEQ",
     "REPLACE",
@@ -3375,7 +4472,9 @@ pub const FUNCTION_NAMES: &[&str] = &[
     "ROUNDUP",
     "ROW",
     "ROWS",
+    "RATE",
     "RRI",
+    "RSQ",
     "SEARCH",
     "SEC",
     "SECH",
@@ -3387,16 +4486,22 @@ pub const FUNCTION_NAMES: &[&str] = &[
     "SKEW",
     "SKEWP",
     "SLN",
+    "SLOPE",
     "SMALL",
     "SQRT",
     "SQRTPI",
+    "STANDARDIZE",
+    "STDEVA",
     "STDEVP",
+    "STDEVPA",
     "STDEVS",
+    "STEYX",
     "SUBSTITUTE",
     "SUM",
     "SUMIF",
     "SUMIFS",
     "SUMPRODUCT",
+    "SWITCH",
     "SUMSQ",
     "SUMX2MY2",
     "SUMX2PY2",
@@ -3408,30 +4513,39 @@ pub const FUNCTION_NAMES: &[&str] = &[
     "TBILLEQ",
     "TBILLPRICE",
     "TBILLYIELD",
+    "TDIST",
+    "TDISTRT",
     "TEXT",
     "TEXTJOIN",
     "TIME",
     "TIMEVALUE",
+    "TINV",
     "TRIM",
     "TRIMMEAN",
     "TRUE",
     "TRUNC",
+    "TTEST",
     "TYPE",
     "UNICHAR",
     "UNICODE",
     "UPPER",
     "VALUE",
+    "VARA",
     "VARP",
+    "VARPA",
     "VARS",
     "VLOOKUP",
     "WEEKDAY",
     "WEEKNUM",
+    "WEIBULLDIST",
     "WORKDAY",
+    "WORKDAYINTL",
     "XIRR",
     "XNPV",
     "XOR",
     "YEAR",
     "YEARFRAC",
+    "ZTEST",
 ];
 
 #[cfg(test)]
@@ -3558,6 +4672,46 @@ mod tests {
             call("DECIMAL", &[t("zz"), n(36.0)]).unwrap(),
             Value::Number(1295.0)
         );
+        // Cross-base fields keep the ten-character shape when negative, and the
+        // optional places only pads a non-negative result.
+        assert_eq!(
+            call("BIN2HEX", &[t("1010")]).unwrap(),
+            Value::Text("a".into())
+        );
+        assert_eq!(
+            call("BIN2HEX", &[t("1111111111")]).unwrap(),
+            Value::Text("ffffffffff".into())
+        );
+        assert_eq!(
+            call("BIN2OCT", &[t("1010"), n(6.0)]).unwrap(),
+            Value::Text("000012".into())
+        );
+        assert_eq!(
+            call("HEX2BIN", &[t("F"), n(8.0)]).unwrap(),
+            Value::Text("00001111".into())
+        );
+        assert_eq!(
+            call("HEX2OCT", &[t("FF")]).unwrap(),
+            Value::Text("377".into())
+        );
+        assert_eq!(
+            call("OCT2BIN", &[t("17")]).unwrap(),
+            Value::Text("1111".into())
+        );
+        assert_eq!(
+            call("OCT2HEX", &[t("7777777777")]).unwrap(),
+            Value::Text("ffffffffff".into())
+        );
+        // `places` pads a short result but never truncates a long one, which is
+        // what the reference does too.
+        assert_eq!(
+            call("BIN2HEX", &[t("1010"), n(2.0)]).unwrap(),
+            Value::Text("0a".into())
+        );
+        // A value outside the binary field's range, and a digit the source base
+        // does not have, are errors rather than silent truncation.
+        assert!(call("HEX2BIN", &[t("FFFFFFFF")]).is_err());
+        assert!(call("BIN2HEX", &[t("1012")]).is_err());
     }
 
     #[test]

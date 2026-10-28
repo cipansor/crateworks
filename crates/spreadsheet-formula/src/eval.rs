@@ -224,6 +224,30 @@ impl<'a, S: Sheet> Evaluator<'a, S> {
                     Err(_) => self.eval_expr(&args[1]),
                 };
             }
+            "SWITCH" => {
+                if args.len() < 3 {
+                    return Err(Error::WrongArity {
+                        name: name.to_string(),
+                        given: args.len(),
+                        expected: "at least 3",
+                    });
+                }
+                let target = self.eval_expr(&args[0])?;
+                let pairs = args.len() - 1;
+                let switch_count = pairs / 2;
+                let has_default = !pairs.is_multiple_of(2);
+                for i in 0..switch_count {
+                    let candidate = self.eval_expr(&args[i * 2 + 1])?;
+                    if target == candidate {
+                        return self.eval_expr(&args[i * 2 + 2]);
+                    }
+                }
+                if has_default {
+                    return self.eval_expr(&args[args.len() - 1]);
+                }
+                // No case matched and there is no default, which is `#N/A`.
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
             _ => {}
         }
         let mut flattened = Vec::with_capacity(args.len());

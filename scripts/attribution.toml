@@ -68,3 +68,15 @@ marker = "ourairports.com"
 [[upstream]]
 project = "WeasyPrint by CourtBouillon"
 marker = "Kozea/WeasyPrint"
+
+[[upstream]]
+project = "formulajs by Sutoiku and contributors"
+marker = "formulajs/formulajs"
+
+[[upstream]]
+project = "jStat by Trevor Norris and contributors"
+marker = "jStat"
+
+[[upstream]]
+project = "bessel (npm) by SheetJS"
+marker = "SheetJS/bessel"

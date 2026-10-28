@@ -389,6 +389,72 @@ pub(crate) fn networkdays(start: i64, end: i64, holidays: &[i64]) -> i64 {
     count
 }
 
+/// Weekend days (0 is Sunday) named by a `weekend` code.
+///
+/// Codes 1 and 2 are Saturday/Sunday and Sunday/Monday; 3..7 shift the pair a
+/// day at a time, 11..17 make both days the same, and 0 selects no weekend at
+/// all. 8, 9 and 10 name nothing, so they are an error.
+pub(crate) fn weekend_code(code: i64) -> Option<Vec<i64>> {
+    Some(match code {
+        0 => Vec::new(),
+        1 => vec![6, 0],
+        2 => vec![0, 1],
+        3 => vec![1, 2],
+        4 => vec![2, 3],
+        5 => vec![3, 4],
+        6 => vec![4, 5],
+        7 => vec![5, 6],
+        11..=17 => vec![code - 11],
+        _ => return None,
+    })
+}
+
+/// Weekend days named by a seven-character mask of `0` and `1`.
+///
+/// The mask reads Monday first, so its last character is Sunday.
+pub(crate) fn weekend_mask(mask: &str) -> Option<Vec<i64>> {
+    let bytes = mask.as_bytes();
+    if bytes.len() != 7 || !bytes.iter().all(|b| *b == b'0' || *b == b'1') {
+        return None;
+    }
+    const ORDER: [i64; 7] = [1, 2, 3, 4, 5, 6, 0];
+    let mut days = Vec::new();
+    for (i, b) in bytes.iter().enumerate() {
+        if *b == b'1' {
+            days.push(ORDER[i]);
+        }
+    }
+    Some(days)
+}
+
+/// `NETWORKDAYS.INTL`: whole working days between two dates, for any weekend.
+pub(crate) fn networkdays_intl(start: i64, end: i64, weekend: &[i64], holidays: &[i64]) -> i64 {
+    let (lo, hi) = (start.min(end), start.max(end));
+    let mut count = 0;
+    let mut day = lo;
+    while day <= hi {
+        if !weekend.contains(&weekday_index(day)) && !holidays.contains(&day) {
+            count += 1;
+        }
+        day += 1;
+    }
+    count
+}
+
+/// `WORKDAY.INTL`: the date `days` working days from `start`, for any weekend.
+pub(crate) fn workday_intl(start: i64, days: i64, weekend: &[i64], holidays: &[i64]) -> i64 {
+    let step = if days < 0 { -1 } else { 1 };
+    let mut remaining = days.abs();
+    let mut day = start;
+    while remaining > 0 {
+        day += step;
+        if !weekend.contains(&weekday_index(day)) && !holidays.contains(&day) {
+            remaining -= 1;
+        }
+    }
+    day
+}
+
 /// `WORKDAY`: the date `days` working days after `start`.
 pub(crate) fn workday(start: i64, days: i64, holidays: &[i64]) -> i64 {
     let step = if days < 0 { -1 } else { 1 };

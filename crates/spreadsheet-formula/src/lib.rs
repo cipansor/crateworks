@@ -1,6 +1,7 @@
 #![doc = include_str!("../README.md")]
 #![forbid(unsafe_code)]
 
+mod bessel;
 mod complex;
 mod datetime;
 mod eval;
@@ -9,6 +10,7 @@ mod functions;
 mod lexer;
 mod lookup;
 mod parser;
+mod stats;
 mod value;
 
 pub use eval::{CellRef, Evaluator, Sheet};
