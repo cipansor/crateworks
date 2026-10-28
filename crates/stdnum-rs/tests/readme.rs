@@ -77,6 +77,10 @@ fn known_type(name: &str) -> Option<NumberType> {
         "Isni" => NumberType::Isni,
         "CasNumber" => NumberType::CasNumber,
         "CreditorReference" => NumberType::CreditorReference,
+        "Imo" => NumberType::Imo,
+        "Meid" => NumberType::Meid,
+        "Isan" => NumberType::Isan,
+        "BitcoinAddress" => NumberType::BitcoinAddress,
         _ => return None,
     })
 }

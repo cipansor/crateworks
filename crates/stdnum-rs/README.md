@@ -45,8 +45,8 @@ the raw input themselves rather than sharing the crate's global normalisation.
 Egypt's tax number is also accepted in Arabic-Indic digits, which is how it is
 printed in an Arabic document.
 
-Thirteen international identifiers are covered in addition to those, each a type
-of its own:
+Seventeen international identifiers are covered in addition to those, each a
+type of its own:
 
 | Type | Standard | What it identifies |
 |---|---|---|
@@ -63,10 +63,19 @@ of its own:
 | `Isni` | ISO 27729 | a contributor to media content |
 | `CasNumber` | CAS Registry | a chemical substance |
 | `CreditorReference` | ISO 11649 | a payment reference |
+| `Imo` | IMO | a ship's hull |
+| `Meid` | MEID | a piece of CDMA mobile equipment |
+| `Isan` | ISO 15706 | an audiovisual work |
+| `BitcoinAddress` | BIP-13 / BIP-173 | a Bitcoin payment destination |
 
 `Cusip::to_isin` and `Isin::from_national_id` move a national identifier to the
 international form. `Ismn` accepts both the current thirteen-digit form and the
 legacy `M` form. `Imei` accepts all three lengths and reports which one it is.
+`Imo` also exposes `check_digit_for`, `Meid` `check_digit` and `to_decimal`, and
+`Isan` a hyphenated `formatted` form that fills in a missing check character.
+`BitcoinAddress` accepts the Base58 (`1…`, `3…`) and Bech32 (`bc1…`) forms,
+checking the Base58 double-SHA-256 and the Bech32 BCH checksum; the SHA-256 it
+needs is a private implementation in the crate, not a dependency.
 
 The check-digit algorithms themselves are public, in
 [`iso7064`](https://docs.rs/stdnum-rs/latest/stdnum_rs/iso7064/index.html): MOD
@@ -81,7 +90,7 @@ contributors, which in turn follows each authority's published specification.
 This is an independent reimplementation and shares no code with it; see
 [`NOTICE`](https://github.com/cipansor/crateworks/blob/main/crates/stdnum-rs/NOTICE).
 
-`tests/fixtures/stdnum_vectors.tsv` holds 31,136 numbers labelled by that
+`tests/fixtures/stdnum_vectors.tsv` holds 33,064 numbers labelled by that
 reference: every number in its own documentation plus each single-digit
 substitution of a valid number, the last character dropped and a character
 appended. `tests/readme.rs` replays the file, so a change that makes this crate
@@ -94,7 +103,12 @@ Two behaviours were settled by that comparison rather than by the
 specification alone. `mod_37_36` replaces a zero intermediate value with the
 modulus, which changes the answer for inputs such as `0000`. `CasNumber`
 rejects a hyphen that is not where the specification puts it, rather than
-repairing it, because a misplaced hyphen is a transcription error.
+repairing it, because a misplaced hyphen is a transcription error. The
+identifier ports added later were built the same way: the ISAN check is taken
+over the whole concatenation rather than over the one character the reference
+computes, and a Base58 Bitcoin address is compared case-sensitively, because
+the fixture contains an address whose alphabet letter would otherwise be
+rejected.
 
 Each number type lives in its own module so that a program only pays for
 what it uses, and `validate` offers a uniform entry point when the type
@@ -116,6 +130,16 @@ assert_eq!(
     stdnum_rs::Isin::from_national_id("gb", "BYXJL75").unwrap().as_str(),
     "GB00BYXJL758",
 );
+
+// The registry-free identifiers: a ship, a CDMA handset, an audiovisual work
+// and a Bitcoin address.
+assert!(stdnum_rs::Imo::parse("IMO 9319466").is_ok());
+assert_eq!(
+    stdnum_rs::Meid::parse("AF 01 23 45 0A BC DE C").unwrap().as_str(),
+    "AF0123450ABCDE",
+);
+assert!(stdnum_rs::Isan::parse("0000-0001-8CFA-0000-I-0000-0000-K").is_ok());
+assert!(stdnum_rs::BitcoinAddress::parse("1NEDqZPvTWRaoho48qXuLLsrYomMXPABfD").is_ok());
 ```
 
 ## Scope

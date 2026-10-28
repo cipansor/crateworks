@@ -171,6 +171,11 @@ INTERNATIONAL: dict[str, str] = {
     "Isni": "isni",
     "CasNumber": "casrn",
     "CreditorReference": "iso11649",
+    # Added in 0.1.7: the identifiers that need no registry.
+    "Imo": "imo",
+    "Meid": "meid",
+    "Isan": "isan",
+    "BitcoinAddress": "bitcoin",
 }
 
 

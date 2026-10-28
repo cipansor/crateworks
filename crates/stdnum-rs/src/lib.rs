@@ -9,8 +9,10 @@ pub mod isbn;
 pub mod iso7064;
 pub mod luhn;
 pub mod securities;
+pub mod telecom;
 
 mod iso3166;
+mod sha256;
 
 pub use ean::Ean;
 pub use iban::Iban;
@@ -19,6 +21,7 @@ pub use identifiers::{CasNumber, CreditorReference, Imei, Ismn, Isni, Isrc, Issn
 pub use isbn::Isbn;
 pub use luhn::Luhn;
 pub use securities::{Bic, Cusip, Figi, Grid, Isin, Lei};
+pub use telecom::{BitcoinAddress, Imo, Isan, Meid};
 
 /// Why a number failed validation.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -124,6 +127,14 @@ pub enum NumberType {
     CasNumber,
     /// An ISO 11649 structured creditor reference.
     CreditorReference,
+    /// An IMO number, the identifier of a ship's hull.
+    Imo,
+    /// A MEID, the identifier of a piece of CDMA mobile equipment.
+    Meid,
+    /// An ISAN, the identifier of an audiovisual work.
+    Isan,
+    /// A Bitcoin address.
+    BitcoinAddress,
     /// A national identifier for a specific country.
     National(Country),
 }
@@ -162,6 +173,10 @@ pub fn validate(kind: NumberType, input: &str) -> Result<()> {
         NumberType::Isni => Isni::parse(input).map(|_| ()),
         NumberType::CasNumber => CasNumber::parse(input).map(|_| ()),
         NumberType::CreditorReference => CreditorReference::parse(input).map(|_| ()),
+        NumberType::Imo => Imo::parse(input).map(|_| ()),
+        NumberType::Meid => Meid::parse(input).map(|_| ()),
+        NumberType::Isan => Isan::parse(input).map(|_| ()),
+        NumberType::BitcoinAddress => BitcoinAddress::parse(input).map(|_| ()),
         NumberType::National(country) => IdNumber::parse(country, input).map(|_| ()),
     }
 }
@@ -233,6 +248,37 @@ pub(crate) mod checksum {
             sum += v / 10 + v % 10;
         }
         (sum % 10) as u8
+    }
+
+    /// The Luhn check over an alphabet of `radix` symbols, given as symbol
+    /// values.
+    ///
+    /// This is `python-stdnum`'s `luhn.checksum` with a custom alphabet: the
+    /// symbols are read from the right, every second one is doubled and the
+    /// digits of the product are summed in base `radix`, and a valid number is
+    /// congruent to zero. The decimal Luhn is the `radix == 10` case; a MEID
+    /// uses `radix == 16`.
+    pub(crate) fn luhn_mod_n_checksum(values: &[u8], radix: u32) -> u32 {
+        let mut sum = 0u32;
+        for (i, &v) in values.iter().rev().enumerate() {
+            let v = u32::from(v);
+            if i.is_multiple_of(2) {
+                sum += v;
+            } else {
+                let doubled = v * 2;
+                sum += doubled / radix + doubled % radix;
+            }
+        }
+        sum % radix
+    }
+
+    /// The check symbol that makes `values` satisfy the radix-`radix` Luhn
+    /// check, as an alphabet value.
+    pub(crate) fn luhn_mod_n_check_digit(values: &[u8], radix: u32) -> u8 {
+        let mut extended = values.to_vec();
+        extended.push(0);
+        let checksum = luhn_mod_n_checksum(&extended, radix);
+        ((radix - checksum) % radix) as u8
     }
 
     /// Rewrites Arabic-Indic and extended Arabic-Indic digits as ASCII.
