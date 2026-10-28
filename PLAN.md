@@ -58,11 +58,16 @@ Rust equivalent.
 
 **Covers today.** IBAN (78 countries, MOD-97, check-digit generation), ISBN-10
 and ISBN-13 with conversion, EAN-8/EAN-13/UPC-A with UPC-to-EAN conversion,
-Luhn with check-digit generation, thirteen international identifiers (ISIN,
+Luhn with check-digit generation, seventeen international identifiers (ISIN,
 CUSIP, FIGI, LEI, BIC, GRID, ISSN, ISRC, IMEI, ISMN, ISNI, CAS number, ISO
-11649 creditor reference), and **112 national identifiers across 90 countries**,
-reached through `Country::ALL`. Every one of `python-stdnum`'s 89 national
-modules now has a counterpart.
+11649 creditor reference, IMO number, MEID, ISAN and a Bitcoin address), and
+**112 national identifiers across 90 countries**, reached through
+`Country::ALL`. Every one of `python-stdnum`'s 89 national modules now has a
+counterpart. The four newest need no registry: the IMO number is a seven-digit
+hull identifier with a check digit, the MEID is a fourteen-digit hexadecimal
+one, the ISAN carries its own check character over a hyphenated block, and the
+Bitcoin address is verified by its Base58 double-SHA-256 or Bech32 checksum,
+with the SHA-256 implemented inside the crate rather than pulled in.
 
 **Not covered.** Anything that needs a registry lookup. A number that passes may
 still be unissued; this is a form filter, not proof of existence.
@@ -73,17 +78,26 @@ still be unissued; this is a form filter, not proof of existence.
 a file format. This crate takes a formula string and a cell resolver, so it
 works with `xlsx`, `ods`, or a database of cells.
 
-**Covers today.** Tokeniser with absolute references, sheet qualifiers and
-ranges; recursive-descent parser with spreadsheet operator precedence;
-evaluator with 256 functions plus `IF` and `IFERROR`, which are handled
-specially so they do not evaluate both branches. A range size limit bounds the
-work a hostile formula can request. The functions cover arithmetic and rounding,
-trigonometry and its hyperbolic and reciprocal forms, logarithms, the gamma and
-error functions, number theory and combinatorics, descriptive statistics, base
-conversion and bitwise operations, roman numerals, text case, search and
-formatting, date and time, complex numbers, financial and depreciation
-calculations, lookup and reference, position-by-position products, and the
-conditional aggregates (`SUMIFS`, `COUNTIFS`, `AVERAGEIFS`, `MAXIFS`, `MINIFS`).
+**Covers today.** Tokeniser with absolute references, sheet qualifiers, ranges
+and dotted modern names (`NORM.S.DIST`, `CHISQ.INV.RT`); recursive-descent
+parser with spreadsheet operator precedence; evaluator with 340 functions plus
+`IF` and `IFERROR`, which are handled specially so they do not evaluate both
+branches. A range size limit bounds the work a hostile formula can request. The
+functions cover arithmetic and rounding, trigonometry and its hyperbolic and
+reciprocal forms, logarithms, the gamma and error functions, number theory and
+combinatorics, descriptive statistics and the statistical distributions
+(normal, lognormal, Student's *t*, chi-square, *F*, binomial, Poisson,
+exponential, Weibull, gamma, beta, hypergeometric and negative binomial, with
+their inverses), regression and correlation, the hypothesis tests (`ZTEST`,
+`TTEST`, `FTEST`, `CHITEST`, `PROB`), base conversion and bitwise operations,
+roman numerals, text case, search and formatting, date and time (including the
+`NETWORKDAYS.INTL` and `WORKDAY.INTL` weekend forms), complex numbers, financial
+and depreciation calculations (including `RATE` and `COUPDAYS`), the
+`AGGREGATE` selector, lookup and reference, `SUBTOTAL`, position-by-position
+products, and the conditional aggregates (`SUMIFS`, `COUNTIFS`, `AVERAGEIFS`,
+`MAXIFS`, `MINIFS`). The distributions and the tests are ported from
+`@formulajs/formulajs`, which delegates to `jStat`, and
+`research/tools/verify_spreadsheet.py` compares every one of them against it.
 
 **Not covered.** Array formulas, volatile functions (`NOW`, `RAND`), and
 iterative recalculation. Cyclic references are detected and reported rather than
