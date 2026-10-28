@@ -180,6 +180,66 @@ pub(super) mod united_kingdom {
         }
         Ok(())
     }
+
+    /// The local-authority numbers a UPN may carry, sorted.
+    const LA_NUMBERS: &[u16] = &[
+        201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 301, 302, 303, 304, 305,
+        306, 307, 308, 309, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 330, 331, 332,
+        333, 334, 335, 336, 340, 341, 342, 343, 344, 350, 351, 352, 353, 354, 355, 356, 357, 358,
+        359, 370, 371, 372, 373, 380, 381, 382, 383, 384, 390, 391, 392, 393, 394, 420, 800, 801,
+        802, 803, 805, 806, 807, 808, 810, 811, 812, 813, 815, 816, 821, 822, 823, 825, 826, 830,
+        831, 835, 836, 837, 840, 841, 845, 846, 850, 851, 852, 855, 856, 857, 860, 861, 865, 866,
+        867, 868, 869, 870, 871, 872, 873, 874, 876, 877, 878, 879, 880, 881, 882, 883, 884, 885,
+        886, 887, 888, 889, 890, 891, 892, 893, 894, 895, 896, 908, 909, 916, 919, 921, 925, 926,
+        928, 929, 931, 933, 935, 936, 937, 938,
+    ];
+
+    /// The alphabet a UPN's check character and final character are drawn from.
+    const UPN_ALPHABET: &[u8] = b"ABCDEFGHJKLMNPQRTUVWXYZ0123456789";
+
+    /// Validates a United Kingdom UPN (Unique Pupil Number).
+    ///
+    /// Thirteen characters: a check letter, a three-digit local-authority
+    /// number, eight digits and a final character from the alphabet. The check
+    /// letter is a weighted sum over the twelve characters that follow it.
+    pub(in crate::id) fn validate_upn(s: &str) -> Result<()> {
+        checksum::expect_len_str(s, 13)?;
+        let bytes = s.as_bytes();
+        if !bytes[1..12].iter().all(u8::is_ascii_digit) || !UPN_ALPHABET.contains(&bytes[12]) {
+            let bad = bytes
+                .iter()
+                .find(|b| !b.is_ascii_digit() && !UPN_ALPHABET.contains(b))
+                .copied()
+                .unwrap_or(bytes[0]);
+            return Err(Error::InvalidCharacter(char::from(bad)));
+        }
+        let la = u32::from(bytes[1] - b'0') * 100
+            + u32::from(bytes[2] - b'0') * 10
+            + u32::from(bytes[3] - b'0');
+        if !LA_NUMBERS.contains(&(la as u16)) {
+            return Err(Error::OutOfRange);
+        }
+        // The check is over the twelve characters after the check letter, with
+        // the weights starting at two; the final character is read in the
+        // shared alphabet like any other.
+        let check = upn_check_digit(&s[1..])?;
+        if check != bytes[0] {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
+
+    /// The check letter for the twelve characters after the check letter.
+    fn upn_check_digit(payload: &str) -> Result<u8> {
+        let mut sum = 0u32;
+        for (i, c) in payload.bytes().enumerate() {
+            let Some(index) = UPN_ALPHABET.iter().position(|a| *a == c) else {
+                return Err(Error::InvalidCharacter(char::from(c)));
+            };
+            sum += (i as u32 + 2) * index as u32;
+        }
+        Ok(UPN_ALPHABET[(sum % 23) as usize])
+    }
 }
 
 #[cfg(test)]

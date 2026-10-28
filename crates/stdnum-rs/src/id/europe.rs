@@ -64,6 +64,276 @@ pub(super) mod spain {
         }
         letter_check(0, &s[..8])
     }
+
+    /// Validates a Spanish NIE, the foreigner identity number.
+    ///
+    /// Nine characters: an `X`, `Y` or `Z`, seven digits and the same
+    /// modulo-23 letter as a DNI. The leading letter stands for 0, 1 or 2, so
+    /// the number the letter is taken over is the seven digits with that digit
+    /// in front.
+    pub(in crate::id) fn validate_nie(s: &str) -> Result<()> {
+        let cleaned = crate::id::clean(s, &[' ', '-']);
+        if cleaned.len() != 9 {
+            return Err(Error::WrongLength {
+                expected: 9,
+                found: cleaned.len(),
+            });
+        }
+        let bytes = cleaned.as_bytes();
+        if !matches!(bytes[0], b'X' | b'Y' | b'Z') {
+            return Err(Error::InvalidCharacter(char::from(bytes[0])));
+        }
+        if let Some(&bad) = bytes[1..8].iter().find(|b| !b.is_ascii_digit()) {
+            return Err(Error::InvalidCharacter(char::from(bad)));
+        }
+        let mut value = u32::from(bytes[0] - b'X');
+        for &b in &bytes[1..8] {
+            value = value * 10 + u32::from(b - b'0');
+        }
+        if LETTERS[(value % 23) as usize] != bytes[8] {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
+
+    /// Validates a Spanish postal code.
+    ///
+    /// Five digits whose first two name a province, from `01` to `52`. The
+    /// reference compares those two characters as a string, which for a
+    /// two-digit prefix is the same as an inclusive range from one to
+    /// fifty-two.
+    pub(in crate::id) fn validate_postal_code(s: &str) -> Result<()> {
+        let cleaned = crate::id::clean(s, &[' ']);
+        if cleaned.len() != 5 {
+            return Err(Error::WrongLength {
+                expected: 5,
+                found: cleaned.len(),
+            });
+        }
+        let digits = checksum::digits_only(&cleaned)?;
+        let province = u32::from(digits[0]) * 10 + u32::from(digits[1]);
+        if !(1..=52).contains(&province) {
+            return Err(Error::OutOfRange);
+        }
+        Ok(())
+    }
+
+    /// Validates a Spanish NIF, the tax number, in any of its forms.
+    ///
+    /// The same shapes as a DNI, NIE or CIF, with an optional `ES` prefix,
+    /// which the reference strips before checking.
+    pub(in crate::id) fn validate_nif(s: &str) -> Result<()> {
+        let cleaned = crate::id::clean(s, &[' ', '-']);
+        let body = cleaned.strip_prefix("ES").unwrap_or(&cleaned);
+        validate_dni(body)
+    }
+
+    /// Validates a Spanish CIF, the number of a legal entity.
+    ///
+    /// Nine characters: a leading letter from the set the tax agency uses for
+    /// organisations, seven digits, and a check character that is the Luhn
+    /// check digit over the seven, written either as the digit or as the letter
+    /// that stands for it. The letters a CIF may begin with exclude the
+    /// personal-number prefixes `K`, `L`, `M`, `X`, `Y` and `Z`, so those are
+    /// rejected here even though [`validate_dni`] accepts them.
+    pub(in crate::id) fn validate_cif(s: &str) -> Result<()> {
+        let cleaned = crate::id::clean(s, &[' ', '-']);
+        if cleaned.len() != 9 {
+            return Err(Error::WrongLength {
+                expected: 9,
+                found: cleaned.len(),
+            });
+        }
+        let bytes = cleaned.as_bytes();
+        if !matches!(bytes[0], b'A'..=b'H' | b'J' | b'N' | b'P'..=b'S' | b'U'..=b'W') {
+            return Err(Error::InvalidCharacter(char::from(bytes[0])));
+        }
+        let digits = checksum::digits_only(&cleaned[1..8])?;
+        let Some(digit) = checksum::luhn_check_digit(&digits) else {
+            return Err(Error::InvalidCharacter(char::from(bytes[8])));
+        };
+        let check = bytes[8];
+        if check != b'0' + digit && check != b"JABCDEFGHI"[digit as usize] {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
+
+    /// Validates a Spanish CCC, the bank account code (Código Cuenta
+    /// Cliente).
+    ///
+    /// Twenty digits: four for the bank, four for the branch, then two check
+    /// digits and ten for the account. The first check digit covers the bank
+    /// and branch, the second the account, both by the same weights and both
+    /// written at positions eight and nine.
+    pub(in crate::id) fn validate_ccc(s: &str) -> Result<()> {
+        let cleaned = crate::id::clean(s, &[' ', '-']);
+        let digits = checksum::digits_only(&cleaned)?;
+        checksum::expect_len(&digits, 20)?;
+        let expected = ccc_check_digit(&digits[..8], &digits[10..]);
+        let found = [char::from(b'0' + digits[8]), char::from(b'0' + digits[9])];
+        if expected[0] != found[0] || expected[1] != found[1] {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
+
+    /// The two CCC check digits: one over `bank` (the bank and branch, with two
+    /// leading zeros) and one over `account`.
+    fn ccc_check_digit(bank: &[u8], account: &[u8]) -> [char; 2] {
+        fn digit(number: &[u8]) -> char {
+            // The reference reads each digit as a base-2 weight, so the weight
+            // doubles from the left.
+            let check: u32 = number
+                .iter()
+                .enumerate()
+                .map(|(i, &d)| u32::from(d) * 2u32.pow(i as u32))
+                .sum::<u32>()
+                % 11;
+            let value = if check < 2 { check } else { 11 - check };
+            char::from(b'0' + value as u8)
+        }
+        let mut bank_padded = [0u8; 10];
+        bank_padded[2..].copy_from_slice(bank);
+        [digit(&bank_padded), digit(account)]
+    }
+
+    /// Validates a Spanish CUPS, the supply-point code for gas and electricity.
+    ///
+    /// Twenty or twenty-two characters beginning `ES`, then sixteen digits,
+    /// then two check letters. The check is the sixteen-digit body read modulo
+    /// 529 and split into two values, each indexing the DNI letter table. A
+    /// twenty-two-character number carries a two-character suffix.
+    pub(in crate::id) fn validate_cups(s: &str) -> Result<()> {
+        let cleaned = crate::id::clean(s, &[' ', '-']);
+        if cleaned.len() != 20 && cleaned.len() != 22 {
+            return Err(Error::WrongLength {
+                expected: 20,
+                found: cleaned.len(),
+            });
+        }
+        let bytes = cleaned.as_bytes();
+        if &bytes[..2] != b"ES" {
+            return Err(Error::InvalidPrefix);
+        }
+        let body = checksum::digits_only(&cleaned[2..18])?;
+        if cleaned.len() == 22
+            && (!cleaned.as_bytes()[20].is_ascii_digit() || !b"FPRCXYZ".contains(&bytes[21]))
+        {
+            return Err(Error::InvalidCharacter(char::from(bytes[21])));
+        }
+        let value = body.iter().fold(0u64, |acc, &d| acc * 10 + u64::from(d));
+        let (high, low) = ((value % 529) / 23, (value % 529) % 23);
+        let expected = [
+            char::from(LETTERS[high as usize]),
+            char::from(LETTERS[low as usize]),
+        ];
+        if expected[0] != char::from(bytes[18]) || expected[1] != char::from(bytes[19]) {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
+
+    /// The tax offices a CAE may name in its sixth and seventh characters.
+    const CAE_OFFICES: &[&str] = &[
+        "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15",
+        "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30",
+        "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45",
+        "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56",
+    ];
+
+    /// The activity keys a CAE may carry in its eighth and ninth characters.
+    const CAE_ACTIVITIES: &[&str] = &[
+        "A0", "A1", "A2", "A6", "A7", "A9", "AC", "AF", "AT", "AV", "AW", "AX", "B0", "B1", "B6",
+        "B7", "B9", "BA", "BT", "C1", "C7", "DA", "DB", "DF", "DM", "DP", "E7", "EC", "F1", "H0",
+        "H1", "H2", "H4", "H6", "H7", "H8", "H9", "HA", "HB", "HC", "HD", "HE", "HF", "HH", "HI",
+        "HJ", "HK", "HL", "HM", "HN", "HP", "HQ", "HR", "HS", "HT", "HU", "HV", "HW", "HX", "HZ",
+        "L0", "L1", "L2", "L3", "L7", "M7", "OA", "OB", "OE", "OH", "OR", "OT", "OV", "PF", "RF",
+        "T1", "T7", "TT", "V1", "V7", "VD",
+    ];
+
+    /// Validates a Spanish CAE, the excise-duty activity and establishment
+    /// code.
+    ///
+    /// Thirteen characters: `ES`, three zeros, a two-digit office, a
+    /// two-character activity key, three digits and a final letter. The
+    /// reference checks only the shape and the two lookup tables.
+    pub(in crate::id) fn validate_cae(s: &str) -> Result<()> {
+        let cleaned = crate::id::clean(s, &[]);
+        checksum::expect_len_str(&cleaned, 13)?;
+        let bytes = cleaned.as_bytes();
+        if &bytes[..5] != b"ES000" {
+            return Err(Error::InvalidPrefix);
+        }
+        if !CAE_OFFICES.contains(&&cleaned[5..7]) {
+            return Err(Error::OutOfRange);
+        }
+        if !CAE_ACTIVITIES.contains(&&cleaned[7..9]) {
+            return Err(Error::OutOfRange);
+        }
+        if !bytes[9..12].iter().all(u8::is_ascii_digit) {
+            return Err(Error::InvalidCharacter(char::from(bytes[9])));
+        }
+        if !bytes[12].is_ascii_alphabetic() {
+            return Err(Error::InvalidCharacter(char::from(bytes[12])));
+        }
+        Ok(())
+    }
+
+    /// The alphabet a Spanish cadastral reference is written in, including the
+    /// letter `Ñ`, which occupies the fifteenth position.
+    const CADASTRAL_ALPHABET: [char; 37] = [
+        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'Ñ', 'O', 'P', 'Q',
+        'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '0', '1', '2', '3', '4', '5', '6', '7', '8',
+        '9',
+    ];
+
+    /// Validates a Spanish cadastral reference (Referencia Catastral).
+    ///
+    /// Twenty characters from an alphabet that includes `Ñ`. The last two are
+    /// check characters, each computed over eleven characters with a fixed
+    /// weight table and a lookup string.
+    pub(in crate::id) fn validate_cadastral(s: &str) -> Result<()> {
+        let cleaned = crate::id::clean(s, &[' ', '-']);
+        let chars: Vec<char> = cleaned.chars().collect();
+        if chars.len() != 20 {
+            return Err(Error::WrongLength {
+                expected: 20,
+                found: chars.len(),
+            });
+        }
+        if let Some(&bad) = chars
+            .iter()
+            .find(|c| !c.is_ascii_digit() && !CADASTRAL_ALPHABET.contains(c))
+        {
+            return Err(Error::InvalidCharacter(bad));
+        }
+        let expected = [
+            cadastral_check_digit(&chars[0..7], &chars[14..18]),
+            cadastral_check_digit(&chars[7..14], &chars[14..18]),
+        ];
+        if expected[0] != chars[18] || expected[1] != chars[19] {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
+
+    /// One cadastral check character over the two parts the reference joins.
+    fn cadastral_check_digit(head: &[char], tail: &[char]) -> char {
+        const WEIGHTS: [u32; 11] = [13, 15, 12, 5, 4, 17, 9, 21, 3, 7, 1];
+        const LOOKUP: &[u8] = b"MQWERTYUIOPASDFGHJKLBZX";
+        let mut sum = 0u32;
+        for (&c, w) in head.iter().chain(tail).zip(WEIGHTS) {
+            let value = if c.is_ascii_digit() {
+                c as u32 - '0' as u32
+            } else {
+                // A letter contributes its one-based position in the alphabet.
+                CADASTRAL_ALPHABET.iter().position(|&a| a == c).unwrap_or(0) as u32 + 1
+            };
+            sum += w * value;
+        }
+        char::from(LOOKUP[(sum % 23) as usize])
+    }
 }
 
 /// Germany: Steuerliche Identifikationsnummer.
@@ -94,6 +364,160 @@ pub(super) mod germany {
         }
         Ok(())
     }
+
+    /// The alphabet a WKN is written in: digits and capitals without `I` and
+    /// `O`, which are never issued.
+    const WKN_ALPHABET: &[u8] = b"0123456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+
+    /// Validates a German Wertpapierkennnummer (WKN), a securities code.
+    ///
+    /// Six characters from the alphabet, which excludes the easily confused
+    /// letters `I` and `O`. The code has no check digit and no structure left,
+    /// so only its shape is checked.
+    pub(in crate::id) fn validate_wkn(s: &str) -> Result<()> {
+        let cleaned = crate::id::clean(s, &[' ']);
+        checksum::expect_len_str(&cleaned, 6)?;
+        if let Some(&bad) = cleaned
+            .as_bytes()
+            .iter()
+            .find(|b| !WKN_ALPHABET.contains(b))
+        {
+            return Err(Error::InvalidCharacter(char::from(bad)));
+        }
+        Ok(())
+    }
+
+    /// The state and federal codes a Leitweg-ID may begin with.
+    const LEITWEG_STATES: &[&str] = &[
+        "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15",
+        "16", "99",
+    ];
+
+    /// Validates a German Leitweg-ID, the routing reference for an electronic
+    /// invoice to a public body.
+    ///
+    /// Two to twelve digits, an optional middle group of up to thirty capitals
+    /// or digits, then a hyphen and two check digits. The dashes are part of
+    /// the format rather than separators, so only surrounding whitespace is
+    /// removed. The check is ISO 7064 Mod 97, 10 over the digits alone.
+    pub(in crate::id) fn validate_leitweg(input: &str) -> Result<()> {
+        let s = input.trim().to_uppercase();
+        if s.len() < 5 || s.len() > 46 {
+            return Err(Error::WrongLength {
+                expected: 5,
+                found: s.len(),
+            });
+        }
+        let bytes = s.as_bytes();
+        // The number always ends with a hyphen and two digits.
+        if bytes[s.len() - 3] != b'-' || !bytes[s.len() - 2..].iter().all(u8::is_ascii_digit) {
+            return Err(Error::InvalidPrefix);
+        }
+        let head = &s[..s.len() - 3];
+        let (state, middle) = match head.find('-') {
+            Some(i) => (&head[..i], Some(&head[i + 1..])),
+            None => (head, None),
+        };
+        if !(2..=12).contains(&state.len()) || !state.bytes().all(|b| b.is_ascii_digit()) {
+            return Err(Error::InvalidPrefix);
+        }
+        if let Some(middle) = middle
+            && (middle.len() > 30 || !middle.bytes().all(|b| b.is_ascii_alphanumeric()))
+        {
+            return Err(Error::InvalidCharacter(' '));
+        }
+        // The reference tests the first two characters of the whole number, not
+        // the leading digit group, so a longer group still names a state.
+        if !LEITWEG_STATES.contains(&&s[..2]) {
+            return Err(Error::OutOfRange);
+        }
+        let digits: String = s.chars().filter(|c| *c != '-').collect();
+        if crate::iso7064::mod_97_10_checksum(&digits) != Some(1) {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
+
+    /// The country-wide Steuernummer shapes, one per region, as fixed-prefix
+    /// masks over thirteen digits. `x` is any digit, `0` a literal zero.
+    ///
+    /// The reference stores a regional form and a country-wide form per region;
+    /// the crate accepts either, exactly as the reference does when no region
+    /// is supplied.
+    const STEUERNUMMER_MASKS: &[&str] = &[
+        "10xx0xxxxxxxx",
+        "11xx0xxxxxxxx",
+        "21xx0xxxxxxxx",
+        "22xx0xxxxxxxx",
+        "23xx0xxxxxxxx",
+        "24xx0xxxxxxxx",
+        "26xx0xxxxxxxx",
+        "27xx0xxxxxxxx",
+        "28xx0xxxxxxxx",
+        "30xx0xxxxxxxx",
+        "31xx0xxxxxxxx",
+        "32xx0xxxxxxxx",
+        "40xx0xxxxxxxx",
+        "41xx0xxxxxxxx",
+        "5xxx0xxxxxxxx",
+        "9xxx0xxxxxxxx",
+    ];
+
+    /// Validates a German Steuernummer, the tax number a regional office
+    /// assigns.
+    ///
+    /// Ten, eleven or thirteen digits after the separators are removed. The
+    /// thirteen-digit form is nationally unique and its first digits encode the
+    /// office; the shorter forms are region-local. The reference keeps a table
+    /// of shapes per region; this checks the country-wide shapes, which is what
+    /// the reference does when no region is given.
+    pub(in crate::id) fn validate_steuernummer(s: &str) -> Result<()> {
+        let cleaned = crate::id::clean(s, &[' ', '-', '.', '/', ',']);
+        if let Some(bad) = cleaned.chars().find(|c| !c.is_ascii_digit()) {
+            return Err(Error::InvalidCharacter(bad));
+        }
+        if !matches!(cleaned.len(), 10 | 11 | 13) {
+            return Err(Error::WrongLength {
+                expected: 13,
+                found: cleaned.len(),
+            });
+        }
+        // Ten- and eleven-digit numbers are region-local and carry no
+        // country-wide prefix, so any is accepted; only the thirteen-digit form
+        // names its office in the leading digits.
+        if cleaned.len() != 13 {
+            return Ok(());
+        }
+        let matches_shape = |mask: &str| {
+            mask.bytes()
+                .zip(cleaned.bytes())
+                .all(|(m, d)| m == b'x' || m == d)
+        };
+        if STEUERNUMMER_MASKS.iter().any(|m| matches_shape(m)) {
+            Ok(())
+        } else {
+            Err(Error::OutOfRange)
+        }
+    }
+
+    /// Validates a German VAT number (Umsatzsteuer-Identifikationsnummer).
+    ///
+    /// Nine digits, the first not zero, whose ISO 7064 Mod 11, 10 check holds.
+    /// An optional `DE` prefix and the separators the reference deletes are
+    /// stripped first.
+    pub(in crate::id) fn validate_vat(s: &str) -> Result<()> {
+        let cleaned = crate::id::clean(s, &[' ', '-', '.', '/', ',']);
+        let body = cleaned.strip_prefix("DE").unwrap_or(&cleaned);
+        let digits = checksum::digits_only(body)?;
+        checksum::expect_len(&digits, 9)?;
+        if digits[0] == 0 {
+            return Err(Error::OutOfRange);
+        }
+        if crate::iso7064::mod_11_10_checksum(body) != Some(1) {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
 }
 
 /// Netherlands: Burgerservicenummer.
@@ -113,6 +537,31 @@ pub(super) mod netherlands {
             .map(|(i, &d)| i64::from(d) * (9 - i as i64))
             .sum();
         if (weighted - i64::from(digits[8])) % 11 != 0 {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
+
+    /// Validates a Dutch onderwijsnummer, the student identification number.
+    ///
+    /// The same eleven-test as a BSN but with a checksum of five rather than
+    /// zero, and the number must begin `10`. Written with dots as separators,
+    /// which are stripped first.
+    pub(in crate::id) fn validate_onderwijsnummer(s: &str) -> Result<()> {
+        let cleaned = crate::id::clean(s, &[' ', '-', '.']);
+        let digits = checksum::digits_only(&cleaned)?;
+        checksum::expect_len(&digits, 9)?;
+        if digits[0] != 1 || digits[1] != 0 {
+            return Err(Error::OutOfRange);
+        }
+        let weighted: i64 = digits[..8]
+            .iter()
+            .enumerate()
+            .map(|(i, &d)| i64::from(d) * (9 - i as i64))
+            .sum();
+        // The reference expects the eleven-test to leave a remainder of five
+        // here rather than zero.
+        if (weighted - i64::from(digits[8])).rem_euclid(11) != 5 {
             return Err(Error::BadChecksum);
         }
         Ok(())
@@ -175,21 +624,175 @@ pub(super) mod netherlands {
         }
         Ok(())
     }
+
+    /// Validates a Dutch postcode.
+    ///
+    /// Four digits, the first not zero, then two capitals. The reference also
+    /// refuses the letter pairs `SA`, `SD` and `SS`, which are reserved for
+    /// other uses. An optional `NL` prefix is stripped first.
+    pub(in crate::id) fn validate_postcode(input: &str) -> Result<()> {
+        let cleaned = crate::id::clean(input, &[' ', '-']);
+        let body = cleaned.strip_prefix("NL").unwrap_or(&cleaned);
+        if body.len() != 6 {
+            return Err(Error::WrongLength {
+                expected: 6,
+                found: body.len(),
+            });
+        }
+        let bytes = body.as_bytes();
+        if bytes[0] == b'0'
+            || !bytes[..4].iter().all(u8::is_ascii_digit)
+            || !bytes[4..].iter().all(u8::is_ascii_uppercase)
+        {
+            return Err(Error::InvalidCharacter(' '));
+        }
+        if matches!(&body[4..], "SA" | "SD" | "SS") {
+            return Err(Error::OutOfRange);
+        }
+        Ok(())
+    }
+
+    /// Validates a Dutch BRIN number, the school identification code.
+    ///
+    /// Four characters: two digits then two capitals, optionally followed by
+    /// two more digits that name the site within the school. The reference
+    /// checks only the shape.
+    pub(in crate::id) fn validate_brin(input: &str) -> Result<()> {
+        let cleaned = crate::id::clean(input, &[' ', '-', '.']);
+        if cleaned.len() != 4 && cleaned.len() != 6 {
+            return Err(Error::WrongLength {
+                expected: 4,
+                found: cleaned.len(),
+            });
+        }
+        let bytes = cleaned.as_bytes();
+        if !bytes[..2].iter().all(u8::is_ascii_digit)
+            || !bytes[2..4].iter().all(u8::is_ascii_uppercase)
+        {
+            let bad = bytes
+                .iter()
+                .find(|b| !b.is_ascii_digit() && !b.is_ascii_uppercase())
+                .copied()
+                .unwrap_or(bytes[0]);
+            return Err(Error::InvalidCharacter(char::from(bad)));
+        }
+        // A site suffix, when present, is numeric; the reference rejects a
+        // letter there.
+        if cleaned.len() == 6 && !bytes[4..].iter().all(u8::is_ascii_digit) {
+            return Err(Error::InvalidCharacter(char::from(bytes[4])));
+        }
+        Ok(())
+    }
+
+    /// Validates a Dutch identity-card number (identiteitskaartnummer).
+    ///
+    /// Nine characters: two capitals, six alphanumeric characters and a final
+    /// digit. The letter `O` is never issued, because it is too easily confused
+    /// with a zero.
+    pub(in crate::id) fn validate_identity_card(input: &str) -> Result<()> {
+        let cleaned = crate::id::clean(input, &[' ']);
+        checksum::expect_len_str(&cleaned, 9)?;
+        let bytes = cleaned.as_bytes();
+        if !bytes[..2].iter().all(u8::is_ascii_uppercase)
+            || !bytes[2..8].iter().all(u8::is_ascii_alphanumeric)
+            || !bytes[8].is_ascii_digit()
+        {
+            let bad = bytes
+                .iter()
+                .find(|b| !b.is_ascii_alphanumeric())
+                .copied()
+                .unwrap_or(bytes[0]);
+            return Err(Error::InvalidCharacter(char::from(bad)));
+        }
+        if bytes.contains(&b'O') {
+            return Err(Error::InvalidCharacter('O'));
+        }
+        Ok(())
+    }
+}
+
+/// France: NIR, the personal identification number.
+pub(super) mod france_nir {
+    use super::*;
+
+    /// The department two characters, which may be a Corsican `2A` or `2B`.
+    ///
+    /// The check digits are computed over the number with the Corsican marker
+    /// replaced by a two-digit stand-in, so the year of birth is masked out of
+    /// the arithmetic and the month is not consulted.
+    fn calc_check_digits(s: &str) -> Result<u32> {
+        let bytes = s.as_bytes();
+        let mut masked = String::with_capacity(15);
+        masked.push_str(&s[..5]);
+        match &s[5..7] {
+            "2A" => masked.push_str("19"),
+            "2B" => masked.push_str("18"),
+            other => masked.push_str(other),
+        }
+        masked.push_str(&s[7..13]);
+        // The first thirteen characters read as a number exceed 32 bits, so the
+        // arithmetic uses 64.
+        let value: u64 = masked
+            .parse()
+            .map_err(|_| Error::InvalidCharacter(char::from(bytes[0])))?;
+        Ok(97 - (value % 97) as u32)
+    }
+
+    /// Validates a French NIR.
+    ///
+    /// Fifteen characters: a gender digit, two digits of year, two of month, a
+    /// five-character place of birth (a Corsican place starts `2A` or `2B`),
+    /// three serial digits and two check digits, which are `97` minus the first
+    /// thirteen read as a number modulo 97.
+    pub(in crate::id) fn validate_nir(s: &str) -> Result<()> {
+        // The reference strips spaces and dots but not hyphens, so the raw
+        // input is cleaned here rather than the globally normalised one.
+        let cleaned = crate::id::clean(s, &[' ', '.']);
+        let s = cleaned.as_str();
+        if s.chars().count() != 15 {
+            return Err(Error::WrongLength {
+                expected: 15,
+                found: s.chars().count(),
+            });
+        }
+        let bytes = s.as_bytes();
+        // The first five characters and the last eight must be digits; the two
+        // in the middle are digits or one of the Corsican markers.
+        if !bytes[..5].iter().all(u8::is_ascii_digit) || !bytes[7..].iter().all(u8::is_ascii_digit)
+        {
+            let bad = bytes
+                .iter()
+                .find(|b| !b.is_ascii_digit())
+                .copied()
+                .unwrap_or(bytes[0]);
+            return Err(Error::InvalidCharacter(char::from(bad)));
+        }
+        if !bytes[5..7].iter().all(u8::is_ascii_digit)
+            && &bytes[5..7] != b"2A"
+            && &bytes[5..7] != b"2B"
+        {
+            return Err(Error::InvalidCharacter(char::from(bytes[5])));
+        }
+        let expected = calc_check_digits(s)?;
+        let found: u32 = s[13..].parse().map_err(|_| Error::BadChecksum)?;
+        if expected != found {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
 }
 
 /// Belgium: National Number.
 pub(super) mod belgium {
     use super::*;
 
-    /// Validates a Belgian national number.
+    /// The century a national number or BIS number encodes, from its check
+    /// digits: 1900 when the number as written checks out, 2000 when the same
+    /// number with a leading two does and that year has already arrived.
     ///
-    /// The check number is 97 minus the remainder, not the remainder itself.
-    /// Numbers issued from 2000 onwards prepend a 2 to the nine-digit base
-    /// first, but that reading is only considered once the implied year has
-    /// arrived. An unknown birth month or day is encoded as zero and allowed.
-    pub(in crate::id) fn validate(s: &str) -> Result<()> {
-        let digits = checksum::digits_only(s)?;
-        checksum::expect_len(&digits, 11)?;
+    /// This mirrors the reference's `_get_birth_date_parts`, which the BIS
+    /// validator calls only for the exceptions it raises.
+    fn birth_date_parts(digits: &[u8]) -> Result<()> {
         let base = digits[..9]
             .iter()
             .fold(0i64, |acc, &d| acc * 10 + i64::from(d));
@@ -202,27 +805,153 @@ pub(super) mod belgium {
         if !matches_1900s && !matches_2000s {
             return Err(Error::BadChecksum);
         }
-        // A number whose year, month and day are all zero marks an unknown
-        // birth date, so only the remaining forms are date-checked.
-        if digits[..6].iter().all(|d| *d == 0) {
+        // The dates 1900/00/01 and 2000/00/01 mark an unknown birth date, so
+        // the month is not consulted for them.
+        if matches!(
+            &digits[..6],
+            [0, 0, 0, 0, 0, 1] | [0, 0, 2, 0, 0, 1] | [0, 0, 4, 0, 0, 1]
+        ) {
             return Ok(());
         }
-        // The month field is 1 to 12, offset by 20 or 40 for later centuries,
-        // and a zero month means the month was unknown when the number was
+        // The month field is offset by twenty for one century and forty for the
+        // next; a zero offset means the month was unknown when the number was
         // issued.
-        let month = u32::from(digits[2]) * 10 + u32::from(digits[3]);
-        let month = month % 20;
+        let month = (u32::from(digits[2]) * 10 + u32::from(digits[3])) % 20;
         if month > 12 {
             return Err(Error::OutOfRange);
         }
-        if month == 0 {
-            return Ok(());
-        }
-        // The year is not known, so February always allows 29. A zero day is
-        // allowed for the same reason as a zero month.
-        let day = u32::from(digits[4]) * 10 + u32::from(digits[5]);
-        if day != 0 && !checksum::is_plausible_day_month(day, month) {
+        Ok(())
+    }
+
+    /// Validates a Belgian national number.
+    ///
+    /// The check number is 97 minus the remainder, not the remainder itself.
+    /// Numbers issued from 2000 onwards prepend a 2 to the nine-digit base
+    /// first, but that reading is only considered once the implied year has
+    /// arrived.
+    ///
+    /// The month field is not shifted here: the shifted months of 20 to 32 and
+    /// 40 to 52 belong to the separate BIS number, which the reference checks
+    /// in `stdnum.be.bis`, so this validator rejects a month above twelve just
+    /// as the reference's `stdnum.be.nn` does. The reference accepts a day that
+    /// does not exist for the month, because it never consults the day beyond
+    /// the year and month, so no calendar check is applied here either.
+    pub(in crate::id) fn validate(s: &str) -> Result<()> {
+        let digits = checksum::digits_only(s)?;
+        checksum::expect_len(&digits, 11)?;
+        if digits.iter().all(|d| *d == 0) {
             return Err(Error::OutOfRange);
+        }
+        birth_date_parts(&digits)?;
+        let month = u32::from(digits[2]) * 10 + u32::from(digits[3]);
+        if month > 12 {
+            return Err(Error::OutOfRange);
+        }
+        Ok(())
+    }
+
+    /// Validates a Belgian BIS number, the national number for a person whose
+    /// birth date is only partly known.
+    ///
+    /// The same shape and check digits as the national number, but the month
+    /// carries an offset of twenty or forty that places it in the range 20 to
+    /// 32 or 40 to 52.
+    pub(in crate::id) fn validate_bis(s: &str) -> Result<()> {
+        let cleaned = crate::id::clean(s, &[' ', '-', '.']);
+        let digits = checksum::digits_only(&cleaned)?;
+        checksum::expect_len(&digits, 11)?;
+        if digits.iter().all(|d| *d == 0) {
+            return Err(Error::OutOfRange);
+        }
+        birth_date_parts(&digits)?;
+        let month = u32::from(digits[2]) * 10 + u32::from(digits[3]);
+        if !(20..=32).contains(&month) && !(40..=52).contains(&month) {
+            return Err(Error::OutOfRange);
+        }
+        Ok(())
+    }
+
+    /// Validates a Belgian electronic identity card number.
+    ///
+    /// Twelve digits whose last two are the first ten read modulo 97, or 97
+    /// when that is zero.
+    pub(in crate::id) fn validate_eid(s: &str) -> Result<()> {
+        let cleaned = crate::id::clean(s, &[' ', '-', '.', '/']);
+        let digits = checksum::digits_only(&cleaned)?;
+        checksum::expect_len(&digits, 12)?;
+        if digits.iter().all(|d| *d == 0) {
+            return Err(Error::OutOfRange);
+        }
+        let head: u64 = digits[..10]
+            .iter()
+            .fold(0u64, |acc, &d| acc * 10 + u64::from(d));
+        let expected = match head % 97 {
+            0 => 97,
+            r => r as u32,
+        };
+        let found = u32::from(digits[10]) * 10 + u32::from(digits[11]);
+        if found != expected {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
+
+    /// Validates a Belgian VAT number.
+    ///
+    /// Ten digits whose first two are `00`, `01`, `02` or `03` and whose last
+    /// two are the first eight plus themselves, modulo 97. A nine-digit number
+    /// is an older form and gets a leading zero; a `(0)` prefix is normalised
+    /// the same way.
+    pub(in crate::id) fn validate_vat(s: &str) -> Result<()> {
+        let cleaned = crate::id::clean(s, &[' ', '-', '.', '/']);
+        let stripped = cleaned.strip_prefix("BE").unwrap_or(&cleaned).to_string();
+        let mut body = match stripped.strip_prefix("(0)") {
+            Some(rest) => format!("0{rest}"),
+            None => stripped,
+        };
+        if body.len() == 9 {
+            body = format!("0{body}");
+        }
+        let digits = checksum::digits_only(&body)?;
+        if digits.iter().all(|d| *d == 0) {
+            return Err(Error::OutOfRange);
+        }
+        checksum::expect_len(&digits, 10)?;
+        if !matches!(digits[0], 0 | 1) {
+            return Err(Error::OutOfRange);
+        }
+        let head: u64 = digits[..8]
+            .iter()
+            .fold(0u64, |acc, &d| acc * 10 + u64::from(d));
+        let tail = u64::from(digits[8]) * 10 + u64::from(digits[9]);
+        if !(head + tail).is_multiple_of(97) {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
+
+    /// Validates a Belgian OGM-VCS, the structured communication on a transfer.
+    ///
+    /// Twelve digits whose last two are `97` minus the first ten modulo 97, or
+    /// `97` when that would be zero. The number is written wrapped in `+++` and
+    /// separated by slashes, both of which are stripped first.
+    pub(in crate::id) fn validate_ogm(s: &str) -> Result<()> {
+        let cleaned = crate::id::clean(s, &[' ', '+', '/']);
+        let digits = checksum::digits_only(&cleaned)?;
+        checksum::expect_len(&digits, 12)?;
+        if digits.iter().all(|d| *d == 0) {
+            return Err(Error::OutOfRange);
+        }
+        let head: u64 = digits[..10]
+            .iter()
+            .fold(0, |acc, &d| acc * 10 + u64::from(d));
+        let expected = match head % 97 {
+            0 => 97,
+            r => r as u32,
+        };
+        let found = u32::from(digits[10]) * 10 + u32::from(digits[11]);
+        if found != expected {
+            return Err(Error::BadChecksum);
         }
         Ok(())
     }
@@ -393,6 +1122,35 @@ pub(super) mod france {
         Ok(())
     }
 
+    /// Validates a French accise number, the reference that identifies a
+    /// taxpayer of excise duty.
+    ///
+    /// Thirteen characters: `FR0`, two digits of year, three digits of customs
+    /// office, a letter naming the operator kind, then four ordering digits.
+    /// Only the letter is constrained, to `B`, `C`, `E` or `N`.
+    pub(in crate::id) fn validate_accise(s: &str) -> Result<()> {
+        let cleaned = crate::id::clean(s, &[' ']);
+        if cleaned.len() != 13 {
+            return Err(Error::WrongLength {
+                expected: 13,
+                found: cleaned.len(),
+            });
+        }
+        let bytes = cleaned.as_bytes();
+        if &cleaned[..3] != "FR0" {
+            return Err(Error::InvalidPrefix);
+        }
+        if !bytes[3..8].iter().all(u8::is_ascii_digit)
+            || !bytes[9..13].iter().all(u8::is_ascii_digit)
+        {
+            return Err(Error::InvalidCharacter(' '));
+        }
+        if !matches!(bytes[8], b'B' | b'C' | b'E' | b'N') {
+            return Err(Error::OutOfRange);
+        }
+        Ok(())
+    }
+
     /// Validates a French NIF, the thirteen-digit tax number (numéro
     /// d'identification fiscale).
     ///
@@ -420,6 +1178,110 @@ pub(super) mod france {
         }
         Ok(())
     }
+
+    /// Validates a French RCS number, the trade-register entry for a
+    /// commercial company.
+    ///
+    /// The text `RCS`, a city, a letter `A` or `B` for the kind of trader, then
+    /// a SIREN. The city must not be empty, and the SIREN carries the only
+    /// check. The reference first compacts the number (its first two
+    /// whitespace-separated tokens, then the first character of the remainder,
+    /// then the SIREN with spaces and dots removed) and then matches a pattern
+    /// that pins the tag, the city, the kind letter and a nine-digit SIREN.
+    pub(in crate::id) fn validate_rcs(s: &str) -> Result<()> {
+        let compacted = compact_rcs(s);
+        let rest = compacted
+            .strip_prefix("RCS")
+            .or_else(|| compacted.strip_prefix("rcs"))
+            .ok_or(Error::InvalidPrefix)?;
+        let (_, _, digits) = match_rcs_tail(rest).ok_or(Error::InvalidPrefix)?;
+        validate_siren(&digits)
+    }
+
+    /// The reference's `compact` for an RCS number: the first two
+    /// whitespace-separated tokens, then the first character of the remainder,
+    /// then the SIREN with spaces and dots removed, joined by single spaces.
+    fn compact_rcs(input: &str) -> String {
+        let tokens: Vec<&str> = input.split_whitespace().collect();
+        let mut parts: Vec<String> = tokens.iter().take(2).map(|s| (*s).to_string()).collect();
+        let rest: String = tokens.iter().skip(2).copied().collect();
+        let first = rest.chars().next().map(String::from).unwrap_or_default();
+        let siren: String = rest
+            .chars()
+            .skip(1)
+            .filter(|c| !matches!(c, ' ' | '.'))
+            .collect();
+        parts.push(first);
+        parts.push(siren);
+        parts.join(" ")
+    }
+
+    /// Matches the part of an RCS after the `RCS` tag: a city, a kind letter
+    /// `A` or `B`, and a nine-digit SIREN. The city is non-greedy, so the
+    /// shortest city that lets the rest match is the one the reference takes;
+    /// that is why `RCS 0ancy B 323159715` is valid even though the mutation
+    /// sits in the city. Returns the city, the kind letter and the SIREN.
+    fn match_rcs_tail(rest: &str) -> Option<(String, char, String)> {
+        // The reference pattern requires one or more spaces between the tag and
+        // the city; `compact` leaves exactly one.
+        let after_tag = rest.trim_start_matches(' ');
+        if after_tag.len() == rest.len() {
+            return None;
+        }
+        for end in 0..=after_tag.len() {
+            if !after_tag.is_char_boundary(end) {
+                continue;
+            }
+            let mut tail = &after_tag[end..];
+            let spaces = tail.len() - tail.trim_start_matches(' ').len();
+            if spaces == 0 {
+                continue;
+            }
+            tail = &tail[spaces..];
+            let mut chars = tail.chars();
+            let Some(kind) = chars.next() else {
+                continue;
+            };
+            if !matches!(kind, 'A' | 'B') {
+                continue;
+            }
+            tail = &tail[kind.len_utf8()..];
+            let spaces = tail.len() - tail.trim_start_matches(' ').len();
+            tail = &tail[spaces..];
+            let mut digits = String::with_capacity(9);
+            let mut matched = true;
+            for _ in 0..9 {
+                match tail.chars().next() {
+                    Some(c) if c.is_ascii_digit() => {
+                        digits.push(c);
+                        tail = &tail[1..];
+                    }
+                    _ => {
+                        matched = false;
+                        break;
+                    }
+                }
+                let spaces = tail.len() - tail.trim_start_matches(' ').len();
+                tail = &tail[spaces..];
+            }
+            if !matched {
+                continue;
+            }
+            // `\b` after the SIREN, then optional spaces to the end.
+            if tail
+                .chars()
+                .next()
+                .is_some_and(|c| c.is_alphanumeric() || c == '_')
+            {
+                continue;
+            }
+            if !tail.trim_start_matches(' ').is_empty() {
+                continue;
+            }
+            return Some((after_tag[..end].to_string(), kind, digits));
+        }
+        None
+    }
 }
 
 /// Italy: codice fiscale.
@@ -440,21 +1302,8 @@ pub(super) mod italy {
         if s.len() == 11 {
             // The VAT form is an eleven-digit number with an ordinary Luhn
             // check, plus a province code and a non-zero first seven digits.
-            let digits = checksum::digits_only(s)?;
-            if digits[..7].iter().all(|d| *d == 0) {
-                return Err(Error::OutOfRange);
-            }
-            let province =
-                u32::from(digits[7]) * 100 + u32::from(digits[8]) * 10 + u32::from(digits[9]);
-            let province_ok =
-                (1..=100).contains(&province) || matches!(province, 120 | 121 | 888 | 999);
-            if !province_ok {
-                return Err(Error::OutOfRange);
-            }
-            if !checksum::luhn_matches(&digits[..10], digits[10]) {
-                return Err(Error::BadChecksum);
-            }
-            return Ok(());
+            // That is the Partita IVA rule, so it is not written twice.
+            return validate_piva(s);
         }
         if s.len() != 16 {
             return Err(Error::WrongLength {
@@ -543,6 +1392,32 @@ pub(super) mod italy {
             })
             .sum();
         if (sum % 10) as u8 != digits[8] {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
+
+    /// Validates an Italian Partita IVA (VAT number).
+    ///
+    /// Eleven digits: seven of company identifier that may not be all zero, a
+    /// three-digit province code from 001 to 100 or one of the four special
+    /// codes, and a Luhn check digit.
+    pub(in crate::id) fn validate_piva(s: &str) -> Result<()> {
+        let cleaned = crate::id::clean(s, &[' ', '-', ':']);
+        let s = cleaned.strip_prefix("IT").unwrap_or(&cleaned);
+        let digits = checksum::digits_only(s)?;
+        checksum::expect_len(&digits, 11)?;
+        if digits[..7].iter().all(|d| *d == 0) {
+            return Err(Error::OutOfRange);
+        }
+        let province =
+            u32::from(digits[7]) * 100 + u32::from(digits[8]) * 10 + u32::from(digits[9]);
+        let province_ok =
+            (1..=100).contains(&province) || matches!(province, 120 | 121 | 888 | 999);
+        if !province_ok {
+            return Err(Error::OutOfRange);
+        }
+        if !checksum::luhn_matches(&digits[..10], digits[10]) {
             return Err(Error::BadChecksum);
         }
         Ok(())
@@ -768,6 +1643,53 @@ mod tests {
     use super::*;
 
     #[test]
+    fn belgian_examples() {
+        // A number issued before 2000, and one after.
+        assert!(belgium::validate("85073003328").is_ok());
+        assert!(belgium::validate("17073003384").is_ok());
+        assert_eq!(belgium::validate("12345678901"), Err(Error::BadChecksum));
+        // A month shifted by twenty or forty belongs to the separate BIS
+        // number, so the national number rejects it even when the check number
+        // is right. The reference's `stdnum.be.nn` does the same.
+        assert_eq!(belgium::validate("85273003371"), Err(Error::OutOfRange));
+        assert_eq!(belgium::validate("85473003317"), Err(Error::OutOfRange));
+        // The reference never consults the day, so a day that does not exist
+        // for the month is still accepted.
+        assert!(belgium::validate("85023103360").is_ok());
+    }
+
+    #[test]
+    fn belgian_bis_eid_and_vat_examples() {
+        // The BIS numbers from the reference docstring: the month is offset
+        // into 20..32 or 40..52, and the national number rejects the same
+        // values.
+        assert!(belgium::validate_bis("98472899765").is_ok());
+        assert!(belgium::validate_bis("01490700185").is_ok());
+        assert_eq!(
+            belgium::validate_bis("12345678901"),
+            Err(Error::BadChecksum)
+        );
+        assert_eq!(belgium::validate_bis("85073003328"), Err(Error::OutOfRange));
+
+        // Electronic identity card numbers: the last two digits are the first
+        // ten modulo 97.
+        assert!(belgium::validate_eid("000001103271").is_ok());
+        assert!(belgium::validate_eid("591191706458").is_ok());
+        assert_eq!(
+            belgium::validate_eid("000001103225"),
+            Err(Error::BadChecksum)
+        );
+
+        // VAT: the eight-digit head plus the two-digit tail is a multiple of
+        // 97, and the number starts with 0 or 1.
+        assert!(belgium::validate_vat("0123456749").is_ok());
+        assert!(belgium::validate_vat("BE0123456749").is_ok());
+        assert!(belgium::validate_vat("123456749").is_ok());
+        assert_eq!(belgium::validate_vat("0123456748"), Err(Error::BadChecksum));
+        assert_eq!(belgium::validate_vat("2123456749"), Err(Error::OutOfRange));
+    }
+
+    #[test]
     fn spanish_examples() {
         for value in ["54362315K", "12345678Z", "X2482300W", "Y1234567X"] {
             assert!(spain::validate_dni(value).is_ok(), "{value}");
@@ -844,14 +1766,6 @@ mod tests {
             netherlands::validate_btw("123456789B90"),
             Err(Error::BadChecksum)
         );
-    }
-
-    #[test]
-    fn belgian_examples() {
-        // A number issued before 2000, and one after.
-        assert!(belgium::validate("85073003328").is_ok());
-        assert!(belgium::validate("17073003384").is_ok());
-        assert_eq!(belgium::validate("12345678901"), Err(Error::BadChecksum));
     }
 
     #[test]

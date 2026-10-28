@@ -95,6 +95,60 @@ pub fn mod_97_10_check_digits(payload: &str) -> Result<String> {
     Ok(format!("{:02}", 98 - checksum))
 }
 
+/// MOD 11-10: a valid number is congruent to 1 mod 11.
+///
+/// The running value is doubled modulo eleven, a zero is replaced by the
+/// modulus, the digit is added, and the result is taken modulo ten. It is the
+/// check that the German tax identifier (IdNr) uses.
+pub fn mod_11_10_checksum(number: &str) -> Option<u32> {
+    let mut check = 5u32;
+    for c in number.chars() {
+        let digit = c.to_digit(10)?;
+        check = (((if check == 0 { 10 } else { check }) * 2) % 11 + digit) % 10;
+    }
+    Some(check)
+}
+
+/// The MOD 11-10 check digit for `payload`.
+///
+/// # Errors
+///
+/// Returns [`Error::InvalidCharacter`] if `payload` is not all digits.
+pub fn mod_11_10_check_digit(payload: &str) -> Result<char> {
+    let checksum = mod_11_10_checksum(payload)
+        .ok_or_else(|| Error::InvalidCharacter(first_invalid(payload)))?;
+    let base = if checksum == 0 { 10 } else { checksum };
+    Ok(char::from(b'0' + ((1 + 10 - (base * 2) % 11) % 10) as u8))
+}
+
+/// MOD 37-2: the alphabet is the digits, the letters and `*`, and a valid
+/// number is congruent to 1 mod 37.
+///
+/// A `*` counts as 36, the one symbol that makes the alphabet 37 long.
+pub fn mod_37_2_checksum(number: &str) -> Option<u32> {
+    const ALPHABET: &[u8] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ*";
+    let mut check = 0u32;
+    for c in number.chars() {
+        let value = ALPHABET.iter().position(|&a| a == c as u8)? as u32;
+        check = (2 * check + value) % 37;
+    }
+    Some(check)
+}
+
+/// The MOD 37-2 check character for `payload`.
+///
+/// # Errors
+///
+/// Returns [`Error::InvalidCharacter`] if `payload` carries a symbol outside
+/// the digit, letter and `*` alphabet.
+pub fn mod_37_2_check_digit(payload: &str) -> Result<char> {
+    const ALPHABET: &[u8] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ*";
+    let checksum = mod_37_2_checksum(payload)
+        .ok_or_else(|| Error::InvalidCharacter(first_invalid(payload)))?;
+    let index = ((1 + 37 - (2 * checksum) % 37) % 37) as usize;
+    Ok(char::from(ALPHABET[index]))
+}
+
 /// The Damm operation table, a totally anti-symmetric quasigroup of order ten.
 const DAMM_TABLE: [[u8; 10]; 10] = [
     [0, 3, 1, 7, 5, 9, 8, 6, 4, 2],
@@ -258,6 +312,23 @@ mod tests {
             Some(0),
             "a valid number is zero"
         );
+    }
+
+    #[test]
+    fn mod_11_10_matches_the_reference() {
+        // The worked examples in the python-stdnum module docstring.
+        assert_eq!(mod_11_10_checksum("794623"), Some(1));
+        assert_eq!(mod_11_10_check_digit("79462").unwrap(), '3');
+        assert_eq!(mod_11_10_check_digit("00200667308").unwrap(), '5');
+    }
+
+    #[test]
+    fn mod_37_2_matches_the_reference() {
+        // The worked examples in the python-stdnum module docstring, including
+        // the `*` that makes the alphabet 37 long.
+        assert_eq!(mod_37_2_checksum("G123489654321Y"), Some(1));
+        assert_eq!(mod_37_2_check_digit("G123489654321").unwrap(), 'Y');
+        assert_eq!(mod_37_2_check_digit("079").unwrap(), 'T');
     }
 
     #[test]

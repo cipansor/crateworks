@@ -181,6 +181,84 @@ COUNTRIES: dict[str, str] = {
     "NetherlandsBtw": "nl.btw",
     "ThailandMoa": "th.moa",
     "CanadaBcPhn": "ca.bc_phn",
+    # Added in 0.6.0: further identifiers python-stdnum covers - the French
+    # social security number, the Italian VAT number, the Romanian company
+    # identifier, the Belgian structured payment communication, the Finnish and
+    # Swiss business and payment references, the Chinese unified social credit
+    # code, the Slovenian and Austrian register numbers, the Peruvian and
+    # Argentine identity numbers, the Indian virtual ID, the British pupil
+    # number and the Dutch student number.
+    "FranceNir": "fr.nir",
+    "ItalyPiva": "it.iva",
+    "RomaniaCui": "ro.cui",
+    "BelgiumOgm": "be.ogm_vcs",
+    "FinlandYtunnus": "fi.ytunnus",
+    "SwitzerlandEsr": "ch.esr",
+    "ChinaUscc": "cn.uscc",
+    "SloveniaMaticna": "si.maticna",
+    "AustriaVnr": "at.vnr",
+    "AustriaFirmenbuch": "at.businessid",
+    "PeruCui": "pe.cui",
+    "ArgentinaDni": "ar.dni",
+    "IndiaVid": "in_.vid",
+    "UnitedKingdomUpn": "gb.upn",
+    "NetherlandsOnderwijsnummer": "nl.onderwijsnummer",
+    # Added in 0.6.0: the second national batch - the Spanish register and
+    # property numbers, the German securities and routing codes, the Dutch
+    # school and travel documents, the French trade register, the North
+    # American tax identifiers, the Israeli company number, the Ukrainian
+    # individual tax number, the Argentine bank account, the Costa Rican
+    # natural-person number, the Finnish association and tax numbers, the
+    # Slovenian citizen number and the Romanian trade register.
+    "SpainNif": "es.nif",
+    "SpainCif": "es.cif",
+    "SpainCcc": "es.ccc",
+    "SpainCups": "es.cups",
+    "SpainCae": "es.cae",
+    "SpainReferenciaCatastral": "es.referenciacatastral",
+    "GermanyWkn": "de.wkn",
+    "GermanyLeitweg": "de.leitweg",
+    "NetherlandsBrin": "nl.brin",
+    "NetherlandsIdentityCard": "nl.identiteitskaartnummer",
+    "FranceRcs": "fr.rcs",
+    "UnitedStatesEin": "us.ein",
+    "UnitedStatesPtin": "us.ptin",
+    "UnitedStatesAtin": "us.atin",
+    "IsraelCompanyNumber": "il.hp",
+    "UkraineRntrc": "ua.rntrc",
+    "ArgentinaCbu": "ar.cbu",
+    "CostaRicaCpf": "cr.cpf",
+    "FinlandAssociationId": "fi.associationid",
+    "FinlandVeronumero": "fi.veronumero",
+    "SloveniaEmso": "si.emso",
+    "RomaniaOnrc": "ro.onrc",
+    # Added in 0.7.0: the identifiers the 0.6.0 review left behind - the
+    # Spanish foreigner number and postal code, the Belgian BIS, identity-card
+    # and VAT numbers, the German, Swiss and Bulgarian VAT numbers, the French
+    # accise number, the Dutch and Swedish postal codes, the Costa Rican CR
+    # number, the Dominican cédula and tax receipt, and the two aggregating
+    # taxpayer numbers of the United States and Thailand.
+    "SpainNie": "es.nie",
+    "SpainPostalCode": "es.postal_code",
+    "BelgiumBis": "be.bis",
+    "BelgiumEid": "be.eid",
+    "BelgiumVat": "be.vat",
+    "GermanyVat": "de.vat",
+    "GermanySteuernummer": "de.stnr",
+    "FranceAccise": "fr.accise",
+    "NetherlandsPostcode": "nl.postcode",
+    "SwedenPostnummer": "se.postnummer",
+    "SwitzerlandVat": "ch.vat",
+    "BulgariaVat": "bg.vat",
+    "CostaRicaCr": "cr.cr",
+    "DominicanRepublicCedula": "do.cedula",
+    "DominicanRepublicNcf": "do.ncf",
+    "UnitedStatesTin": "us.tin",
+    "ThailandTin": "th.tin",
+    # The European Union and France VAT numbers added in 0.7.0.
+    "EuExcise": "eu.excise",
+    "EuOss": "eu.oss",
+    "FranceTva": "fr.tva",
 }
 
 EXAMPLE_RE = re.compile(r">>> validate\('([^']*)'\)")
@@ -378,12 +456,181 @@ def eic_corpus(mod, rng) -> list[str]:
             out.append(code)
     return out
 
+def rntrc_corpus(mod, rng) -> list[str]:
+    """Valid Ukrainian RNTRC numbers: a random nine-digit payload closed with
+    the reference's own check digit."""
+    out: list[str] = []
+    while len(out) < 15:
+        payload = "".join(rng.choice("0123456789") for _ in range(9))
+        out.append(payload + mod.calc_check_digit(payload))
+    return out
+
+
+def cbu_corpus(mod, rng) -> list[str]:
+    """Valid Argentine CBU numbers.
+
+    A CBU is three digits of bank, four of branch, one check digit over the
+    first seven, then a thirteen-digit account and a check digit over the last
+    thirteen. Both check digits come from the reference, so every row is
+    accepted by construction.
+    """
+    out: list[str] = []
+    while len(out) < 15:
+        head = "".join(rng.choice("0123456789") for _ in range(7))
+        head += mod.calc_check_digit(head)
+        account = "".join(rng.choice("0123456789") for _ in range(13))
+        account += mod.calc_check_digit(account)
+        out.append(head + account)
+    return out
+
+
+def emso_corpus(mod, rng) -> list[str]:
+    """Valid Slovenian EMŠO numbers: a seven-digit date block the reference
+    accepts, five more digits, then its check digit. The reference reads a
+    three-digit year by adding 2000 below 800 and 1000 above, so any 000-999
+    is a real year and only the day and month need to be plausible."""
+    out: list[str] = []
+    while len(out) < 15:
+        day = rng.randint(1, 28)
+        month = rng.randint(1, 12)
+        year = rng.randint(0, 999)
+        body = f"{day:02d}{month:02d}{year:03d}" + "".join(
+            rng.choice("0123456789") for _ in range(5)
+        )
+        out.append(body + mod.calc_check_digit(body))
+    return out
+
+
+def ccc_corpus(mod, rng) -> list[str]:
+    """Valid Spanish CCC bank account codes: eight digits of bank and branch,
+    then the reference's two check digits, then ten digits of account."""
+    out: list[str] = []
+    while len(out) < 15:
+        head = "".join(rng.choice("0123456789") for _ in range(8))
+        account = "".join(rng.choice("0123456789") for _ in range(10))
+        check = mod.calc_check_digits(head + "00" + account)
+        out.append(head + check + account)
+    return out
+
+
+def cups_corpus(mod, rng) -> list[str]:
+    """Valid Spanish CUPS supply-point codes: `ES`, sixteen digits, the
+    reference's two check letters, and sometimes the optional two-character
+    suffix the 22-character form carries."""
+    out: list[str] = []
+    while len(out) < 15:
+        body = "".join(rng.choice("0123456789") for _ in range(16))
+        code = "ES" + body + mod.calc_check_digits("ES" + body)
+        if len(out) % 2 == 1:
+            code += rng.choice("0123456789") + rng.choice("FPRCXYZ")
+        out.append(code)
+    return out
+
+
+def cadastral_corpus(mod, rng) -> list[str]:
+    """Valid Spanish cadastral references: eighteen characters from the
+    reference's alphabet (which includes Ñ), then its two check characters."""
+    out: list[str] = []
+    while len(out) < 15:
+        head = "".join(rng.choice(mod.alphabet) for _ in range(18))
+        code = head + mod.calc_check_digits(head)
+        if len(code) == 20 and mod.is_valid(code):
+            out.append(code)
+    return out
+
+
+def nif_corpus(mod, rng) -> list[str]:
+    """Valid Spanish NIF numbers.
+
+    Three shapes, each closed with the reference's own check digit: a DNI
+    (eight digits and the modulo-23 letter), an NIE (`X`, `Y` or `Z` and seven
+    digits), and a CIF (a leading organisation letter and seven digits, whose
+    check is the Luhn digit or the letter that stands for it).
+    """
+    from stdnum import luhn
+    from stdnum.es import dni
+
+    letters = "ABCDEFGHJNPQRSUVW"
+    out: list[str] = []
+    while len(out) < 15:
+        kind = len(out) % 3
+        if kind == 0:
+            body = "".join(rng.choice("0123456789") for _ in range(8))
+            out.append(body + dni.calc_check_digit(body))
+        elif kind == 1:
+            body = "".join(rng.choice("0123456789") for _ in range(7))
+            # The reference maps X, Y and Z to 0, 1 and 2 before the check.
+            prefix = rng.choice("XYZ")
+            value = str("XYZ".index(prefix)) + body
+            out.append(prefix + body + dni.calc_check_digit(value))
+        else:
+            body = "".join(rng.choice("0123456789") for _ in range(7))
+            check = luhn.calc_check_digit(body)
+            out.append(
+                rng.choice(letters) + body + rng.choice([check, "JABCDEFGHI"[int(check)]])
+            )
+    return out
+
+
+def rcs_corpus(mod, rng) -> list[str]:
+    """Valid French RCS numbers: `RCS`, a city, an `A` or `B`, and a SIREN
+    whose last digit is the reference's own Luhn check digit."""
+    from stdnum import luhn
+
+    cities = ["Nancy", "Paris", "Lyon", "Marseille", "Toulouse", "Nice"]
+    out: list[str] = []
+    while len(out) < 15:
+        body = "".join(rng.choice("0123456789") for _ in range(8))
+        siren = body + luhn.calc_check_digit(body)
+        out.append(f"RCS {rng.choice(cities)} {rng.choice('AB')} {siren}")
+    return out
+
+
+def leitweg_corpus(mod, rng) -> list[str]:
+    """Valid German Leitweg-IDs.
+
+    The number is a two-digit state code, an optional middle group and two
+    check digits, closed so that the whole thing is one modulo 97. The
+    reference's own `mod_97_10.calc_check_digits` supplies the closing pair.
+    """
+    from stdnum.iso7064 import mod_97_10
+
+    states = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11",
+              "12", "13", "14", "15", "16", "99"]
+    out: list[str] = []
+    while len(out) < 15:
+        state = rng.choice(states)
+        middle = "".join(rng.choice("0123456789") for _ in range(rng.randint(2, 10)))
+        # The reference pattern is digits, an optional dashed group, then a
+        # dashed two-digit check, so the corpus carries the second dash.
+        code = (
+            state
+            + "-"
+            + middle
+            + "-"
+            + mod_97_10.calc_check_digits(state + middle)
+        )
+        if mod.is_valid(code):
+            out.append(code)
+    return out
+
+
+
 
 CUSTOM_CORPUS: dict[str, object] = {
     "eu.ecnumber": ecnumber_corpus,
     "eu.banknote": banknote_corpus,
     "eu.at_02": sepa_creditor_corpus,
     "eu.eic": eic_corpus,
+    "ua.rntrc": rntrc_corpus,
+    "ar.cbu": cbu_corpus,
+    "si.emso": emso_corpus,
+    "es.ccc": ccc_corpus,
+    "es.cups": cups_corpus,
+    "es.referenciacatastral": cadastral_corpus,
+    "es.nif": nif_corpus,
+    "fr.rcs": rcs_corpus,
+    "de.leitweg": leitweg_corpus,
 }
 
 CORPUS_SIZE = 1500

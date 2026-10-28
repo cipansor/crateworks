@@ -355,6 +355,65 @@ pub(super) mod austria {
         }
         Ok(())
     }
+
+    /// Validates an Austrian Versicherungsnummer, the social security number.
+    ///
+    /// Ten digits: a three-digit serial, a check digit, then six digits that
+    /// usually encode the birth date. The check digit sits at position four and
+    /// is a weighted sum modulo eleven, with the fourth digit masked out of the
+    /// arithmetic. A leading zero is rejected.
+    pub(in crate::id) fn validate_vnr(s: &str) -> Result<()> {
+        let cleaned = compact(s, &[' ']);
+        let digits = checksum::digits_only(&cleaned)?;
+        checksum::expect_len(&digits, 10)?;
+        if digits[0] == 0 {
+            return Err(Error::InvalidCharacter('0'));
+        }
+        const WEIGHTS: [u32; 10] = [3, 7, 9, 0, 5, 8, 4, 2, 1, 6];
+        let sum: u32 = digits
+            .iter()
+            .zip(WEIGHTS)
+            .map(|(&d, w)| u32::from(d) * w)
+            .sum();
+        if u32::from(digits[3]) != sum % 11 {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
+
+    /// Validates an Austrian Firmenbuchnummer, the company register number.
+    ///
+    /// One or more digits followed by a single lower-case letter, optionally
+    /// preceded by `FN`. Only the shape is checked.
+    pub(in crate::id) fn validate_businessid(s: &str) -> Result<()> {
+        // The final letter must stay lower-case, so the upper-casing `compact`
+        // is not used here.
+        let cleaned: String = s
+            .chars()
+            .filter(|c| !c.is_whitespace() && !matches!(c, '-' | '.' | '/'))
+            .collect();
+        let stripped = cleaned
+            .strip_prefix("FN")
+            .or_else(|| cleaned.strip_prefix("fn"))
+            .unwrap_or(&cleaned);
+        let bytes = stripped.as_bytes();
+        // The final character is a lower-case letter and everything before it is
+        // at least one digit.
+        let Some((&last, head)) = bytes.split_last() else {
+            return Err(Error::Empty);
+        };
+        if !last.is_ascii_lowercase() {
+            return Err(Error::InvalidCharacter(char::from(last)));
+        }
+        if head.is_empty() || !head.iter().all(u8::is_ascii_digit) {
+            let bad = head.iter().find(|b| !b.is_ascii_digit()).copied();
+            return Err(match bad {
+                Some(b) => Error::InvalidCharacter(char::from(b)),
+                None => Error::OutOfRange,
+            });
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]

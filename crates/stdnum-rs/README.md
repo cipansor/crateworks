@@ -19,29 +19,52 @@ Checksum and structure only; nothing here contacts a registry.
 
 ## What is covered
 
-One hundred and thirty-seven national identifiers are covered. Europe accounts
+One hundred and ninety-four national and European identifiers are covered.
+Europe accounts
 for the largest share: the Irish VAT and PPS numbers, the Croatian OIB, the Czech
-and Slovak birth numbers, the Swiss AHV/AVS and UID, the Russian ИНН and ОГРН, the
-Ukrainian ЄДРПОУ, the Austrian UID and TIN, the Latvian PVN, the Monégasque TVA,
-and the microstate numbers of Andorra, Liechtenstein, San Marino, Albania,
-Azerbaijan, Moldova and the Faroe Islands. The 0.4.0 round added the Polish NIP
+and Slovak birth numbers, the Swiss AHV/AVS, UID and ESR payment reference, the
+Russian ИНН and ОГРН, the Ukrainian ЄДРПОУ and РНОКПП, the Austrian UID, TIN, VNR
+and Firmenbuchnummer, the Latvian PVN, the Monégasque TVA, and the microstate
+numbers of Andorra, Liechtenstein, San Marino, Albania, Azerbaijan, Moldova and
+the Faroe Islands. The 0.4.0 round added the Polish NIP
 and REGON, the French NIF, the Norwegian bank account number and MVA, the Danish
 CVR, the Estonian registrikood and KMKR, the Lithuanian PVM, the Slovak IČ DPH
-and the Portuguese Cartão de Cidadão, and the 0.5.0 round the Dutch
-btw-identificatienummer and the Italian AIC drug code. The Americas bring the
-United States Social Security, taxpayer and ABA routing numbers, the Chilean
-RUT, the Colombian NIT, the Peruvian RUC, the Argentine CUIT, the Paraguayan RUC,
+and the Portuguese Cartão de Cidadão; the 0.5.0 round the Dutch
+btw-identificatienummer and the Italian AIC drug code; and the 0.6.0 round the
+Belgian OGM-VCS structured communication, BIS number, electronic identity card
+number and VAT number, the French NIR social security number, RCS trade-register
+entry, accise number and TVA, the Italian Partita IVA, the Romanian CUI and ONRC
+trade-register number, the Finnish Y-tunnus, association identifier and
+Veronumero, the Slovenian matična številka and EMŠO, the Dutch onderwijsnummer,
+BRIN school code, identity-card number and postcode, the German WKN securities
+code, Leitweg-ID invoice routing reference, VAT number and Steuernummer, the
+Swiss and Bulgarian VAT numbers, the Swedish postnummer, the Spanish register -
+the NIF, CIF, CCC bank account, CUPS supply point, CAE excise-duty code,
+Referencia Catastral property identifier, NIE foreigner number and postal code -
+the Costa Rican CR number, the Dominican cédula and NCF tax receipt, the EU
+excise number and one-stop-shop VAT number, and the aggregating taxpayer numbers
+of the United States and Thailand, which accept any of the forms the reference
+accepts. The Americas bring the
+United States Social Security, taxpayer, ABA routing, Employer Identification,
+Preparer Tax Identification and Adoption Taxpayer Identification numbers, the
+Chilean
+RUT, the Colombian NIT, the Peruvian RUC and CUI, the Argentine CUIT, DNI and
+CBU, the Paraguayan RUC,
 the Salvadoran NIT, the Ecuadorian CI and RUC, the Guatemalan NIT, the Costa
-Rican CPJ, the Dominican RNC, the Cuban NI, the Mexican CURP, the Canadian
+Rican CPJ, CPF and CR, the Dominican RNC, cédula and NCF, the Cuban NI, the
+Mexican CURP, the Canadian
 Business Number and the British Columbia Personal Health Number. Iceland
 contributes the kennitala and the VSK number, and Mauritius the NID.
 Asia and Oceania contribute the Japanese corporate and My Number identifiers,
-the Pakistani CNIC, the Taiwanese UBN, the Israeli identity number, the Thai
-PIN and MOA numbers, the Singapore UEN, the Malaysian NRIC, the Vietnamese MST,
-the Indonesian NPWP and NIK, the Indian PAN, GSTIN and EPIC voter ID, and the
-Chinese, Korean (resident and business registration) and Australian numbers.
+the Pakistani CNIC, the Taiwanese UBN, the Israeli identity and company numbers,
+the Thai
+PIN and MOA numbers and the TIN, the Singapore UEN, the Malaysian NRIC, the Vietnamese MST,
+the Indonesian NPWP and NIK, the Indian PAN, GSTIN, EPIC voter ID and VID, and
+the Chinese resident card and Unified Social Credit Code, the Korean (resident
+and business registration) and Australian numbers.
 The United Kingdom
-is represented by the NHS number, the UTR, the VAT number and SEDOL, and Africa
+is represented by the NHS number, the UTR, the VAT number, SEDOL and the UPN
+pupil number, and Africa
 and the Middle East by the South African identity and tax numbers, the Greek
 ΑΜΚΑ, and the tax and company numbers of Algeria, Egypt, Ghana, Kenya, Morocco,
 Mozambique, Senegal, Tunisia and Guinea. [`Country::ALL`](https://docs.rs/stdnum-rs)
@@ -52,7 +75,7 @@ the raw input themselves rather than sharing the crate's global normalisation.
 Egypt's tax number is also accepted in Arabic-Indic digits, which is how it is
 printed in an Arabic document.
 
-Twenty-one international identifiers are covered in addition to those, each a
+Twenty-three international identifiers are covered in addition to those, each a
 type of its own:
 
 | Type | Standard | What it identifies |
@@ -82,7 +105,10 @@ type of its own:
 | `Eic` | EIC | an entity or object in the European energy market |
 
 `Cusip::to_isin` and `Isin::from_national_id` move a national identifier to the
-international form. `Ismn` accepts both the current thirteen-digit form and the
+international form. `Iban` covers every country in the SWIFT ISO 13616 registry,
+checking the country-specific length and the MOD-97-10 check; `Iban::check_digits_for`
+computes the two check digits for a country and national part, so an IBAN can be
+built as well as checked. `Ismn` accepts both the current thirteen-digit form and the
 legacy `M` form. `Imei` accepts all three lengths and reports which one it is.
 `Imo` also exposes `check_digit_for`, `Meid` `check_digit` and `to_decimal`, and
 `Isan` a hyphenated `formatted` form that fills in a missing check character.
@@ -109,14 +135,18 @@ contributors, which in turn follows each authority's published specification.
 This is an independent reimplementation and shares no code with it; see
 [`NOTICE`](https://github.com/cipansor/crateworks/blob/main/crates/stdnum-rs/NOTICE).
 
-`tests/fixtures/stdnum_vectors.tsv` holds 51,094 numbers labelled by that
+`tests/fixtures/stdnum_vectors.tsv` holds 85,713 numbers labelled by that
 reference: every number in its own documentation plus each single-digit
 substitution of a valid number, the last character dropped and a character
 appended. Damm and Verhoeff also carry a 1,500-number random corpus each, built
 by asking the reference for the check digit of a random payload, because their
 own documentation offers a single example; `EcNumber`, `EuropeanBanknote`,
 `SepaCreditorIdentifier` and `Eic` get a smaller corpus the same way, because
-their documentation offers one example too. `tests/readme.rs` replays the whole
+their documentation offers one example too, and the identifier ports whose
+documentation shows a single example get one as well: the Ukrainian РНОКПП, the
+Argentine CBU, the Slovenian EMŠO, the Spanish CCC, CUPS, NIF and Referencia
+Catastral, the French RCS and the German Leitweg-ID each build valid numbers
+from the reference's own check-digit routine. `tests/readme.rs` replays the whole
 file, so a change that makes this crate disagree with the reference fails the
 build. The check digit, the accepted shapes and the separator characters all
 came out of that comparison, and `research/tools/gen_stdnum_vectors.py`

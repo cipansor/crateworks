@@ -151,6 +151,26 @@ pub(super) mod india {
         }
         Ok(())
     }
+
+    /// Validates an Indian VID (Virtual ID).
+    ///
+    /// Sixteen digits that do not begin with 0 or 1, are not a palindrome, and
+    /// carry a Verhoeff check digit over the whole number.
+    pub(in crate::id) fn validate_vid(s: &str) -> Result<()> {
+        let digits = checksum::digits_only(s)?;
+        checksum::expect_len(&digits, 16)?;
+        if digits[0] < 2 {
+            return Err(Error::OutOfRange);
+        }
+        // A VID that reads the same in both directions is never issued.
+        if digits.iter().eq(digits.iter().rev()) {
+            return Err(Error::OutOfRange);
+        }
+        if !verhoeff_is_valid(&digits) {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
 }
 
 /// Turkey: T.C. Kimlik No.
@@ -253,6 +273,49 @@ pub(super) mod china {
         let day = u32::from(bytes[12] - b'0') * 10 + u32::from(bytes[13] - b'0');
         if !checksum::is_real_date(year, month, day) {
             return Err(Error::OutOfRange);
+        }
+        Ok(())
+    }
+
+    /// The alphabet a USCC is written in, excluding the letters I, O, Z, S and V.
+    const USCC_ALPHABET: &[u8] = b"0123456789ABCDEFGHJKLMNPQRTUWXY";
+
+    /// Validates a Chinese Unified Social Credit Code (统一社会信用代码).
+    ///
+    /// Eighteen characters: the first eight are digits, the rest come from a
+    /// 31-character alphabet without the easily confused letters, and the last
+    /// is a check character over the first seventeen with alternating weights.
+    pub(in crate::id) fn validate_uscc(s: &str) -> Result<()> {
+        checksum::expect_len_str(s, 18)?;
+        let bytes = s.as_bytes();
+        if !bytes[..8].iter().all(u8::is_ascii_digit) {
+            let bad = bytes
+                .iter()
+                .find(|b| !b.is_ascii_digit())
+                .copied()
+                .unwrap_or(bytes[0]);
+            return Err(Error::InvalidCharacter(char::from(bad)));
+        }
+        if let Some(&bad) = bytes[8..].iter().find(|b| !USCC_ALPHABET.contains(b)) {
+            return Err(Error::InvalidCharacter(char::from(bad)));
+        }
+        const WEIGHTS: [u32; 17] = [
+            1, 3, 9, 27, 19, 26, 16, 17, 20, 29, 25, 13, 8, 24, 10, 30, 28,
+        ];
+        let total: u32 = bytes[..17]
+            .iter()
+            .zip(WEIGHTS)
+            .map(|(&b, w)| {
+                let index = USCC_ALPHABET
+                    .iter()
+                    .position(|a| *a == b)
+                    .expect("checked above") as u32;
+                index * w
+            })
+            .sum();
+        let expected = USCC_ALPHABET[((31 - total % 31) % 31) as usize];
+        if expected != bytes[17] {
+            return Err(Error::BadChecksum);
         }
         Ok(())
     }

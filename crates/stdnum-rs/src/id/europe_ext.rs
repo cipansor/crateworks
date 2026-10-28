@@ -216,6 +216,73 @@ pub(super) mod bulgaria {
         }
         Ok(())
     }
+
+    /// Validates a Bulgarian VAT number.
+    ///
+    /// Nine digits for a legal entity, ten for a natural person, a foreigner or
+    /// another body. The nine-digit check digit is a weighted sum modulo
+    /// eleven, retried with a different offset when it reaches ten. A ten-digit
+    /// number is valid when it is a well-formed EGN or PNF, or when its last
+    /// digit is the ten-digit weighted check over the first nine.
+    pub(in crate::id) fn validate_vat(s: &str) -> Result<()> {
+        let cleaned = crate::id::clean(s, &[' ', '-', '.']);
+        let body = cleaned.strip_prefix("BG").unwrap_or(&cleaned);
+        let digits = checksum::digits_only(body)?;
+        match digits.len() {
+            9 => {
+                if digits[8] != legal_check_digit(&digits[..8]) {
+                    return Err(Error::BadChecksum);
+                }
+            }
+            10 => {
+                if validate_egn(body).is_err()
+                    && validate_pnf(body).is_err()
+                    && digits[9] != other_check_digit(&digits[..9])
+                {
+                    return Err(Error::BadChecksum);
+                }
+            }
+            other => {
+                return Err(Error::WrongLength {
+                    expected: 9,
+                    found: other,
+                });
+            }
+        }
+        Ok(())
+    }
+
+    /// The check digit of a Bulgarian legal-entity VAT number.
+    fn legal_check_digit(digits: &[u8]) -> u8 {
+        let first: u32 = digits
+            .iter()
+            .enumerate()
+            .map(|(i, &d)| (i as u32 + 1) * u32::from(d))
+            .sum::<u32>()
+            % 11;
+        if first == 10 {
+            let second: u32 = digits
+                .iter()
+                .enumerate()
+                .map(|(i, &d)| (i as u32 + 3) * u32::from(d))
+                .sum::<u32>()
+                % 11;
+            (second % 10) as u8
+        } else {
+            first as u8
+        }
+    }
+
+    /// The check digit of a Bulgarian ten-digit VAT number for a person.
+    fn other_check_digit(digits: &[u8]) -> u8 {
+        const WEIGHTS: [u32; 9] = [4, 3, 2, 7, 6, 5, 4, 3, 2];
+        let sum: u32 = digits
+            .iter()
+            .zip(WEIGHTS)
+            .map(|(&d, w)| u32::from(d) * w)
+            .sum();
+        ((11 - sum % 11) % 11) as u8
+    }
 }
 
 /// Czech Republic and Slovakia: RČ (rodné číslo), the birth number.
@@ -514,6 +581,57 @@ pub(super) mod switzerland {
         }
         Ok(())
     }
+
+    /// Validates a Swiss ESR/ISR reference number.
+    ///
+    /// Up to 27 digits: the payload followed by a recursive modulo-10 check
+    /// digit, computed by folding each digit through a fixed substitution table.
+    /// Leading zeros are dropped and may be omitted, so the number is only
+    /// rejected when it exceeds 27 digits.
+    pub(in crate::id) fn validate_esr(s: &str) -> Result<()> {
+        let cleaned = crate::id::clean(s, &[' ']);
+        let body = cleaned.trim_start_matches('0');
+        let digits = checksum::digits_only(body)?;
+        if digits.len() > 27 {
+            return Err(Error::WrongLength {
+                expected: 27,
+                found: digits.len(),
+            });
+        }
+        if digits.is_empty() {
+            return Err(Error::Empty);
+        }
+        const TABLE: [u8; 10] = [0, 9, 4, 6, 8, 2, 7, 1, 3, 5];
+        let mut carry = 0u8;
+        for &d in &digits[..digits.len() - 1] {
+            carry = TABLE[((d + carry) % 10) as usize];
+        }
+        let expected = (10 - carry) % 10;
+        if digits[digits.len() - 1] != expected {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
+
+    /// Validates a Swiss VAT number.
+    ///
+    /// A Swiss UID of twelve characters followed by one of the VAT suffixes
+    /// `MWST`, `TVA`, `IVA` or `TPV`, so fifteen or sixteen characters in all.
+    /// The check is the UID's own.
+    pub(in crate::id) fn validate_vat(s: &str) -> Result<()> {
+        let cleaned = crate::id::clean(s, &[' ', '-', '.']);
+        if cleaned.len() != 15 && cleaned.len() != 16 {
+            return Err(Error::WrongLength {
+                expected: 15,
+                found: cleaned.len(),
+            });
+        }
+        validate_uid(&cleaned[..12])?;
+        if !matches!(&cleaned[12..], "MWST" | "TVA" | "IVA" | "TPV") {
+            return Err(Error::OutOfRange);
+        }
+        Ok(())
+    }
 }
 
 /// Russia: ИНН and ОГРН.
@@ -634,6 +752,30 @@ pub(super) mod ukraine {
             total % 11 % 10
         };
         if digits[7] != check as u8 {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
+
+    /// Validates a Ukrainian RNTRC (РНОКПП), the tax identification number of
+    /// an individual.
+    ///
+    /// Ten digits whose last is a check digit: a weighted sum over the first
+    /// nine, modulo eleven, then modulo ten.
+    pub(in crate::id) fn validate_rntrc(s: &str) -> Result<()> {
+        let cleaned = crate::id::clean(s, &[' ']);
+        let digits = checksum::digits_only(&cleaned)?;
+        checksum::expect_len(&digits, 10)?;
+        // The first weight is negative in the reference, so the sum must be
+        // signed: a naive unsigned accumulation would wrap.
+        const WEIGHTS: [i32; 9] = [-1, 5, 7, 9, 4, 6, 10, 5, 7];
+        let total: i32 = digits[..9]
+            .iter()
+            .zip(WEIGHTS)
+            .map(|(&d, w)| i32::from(d) * w)
+            .sum();
+        let expected = (total.rem_euclid(11) % 10) as u8;
+        if digits[9] != expected {
             return Err(Error::BadChecksum);
         }
         Ok(())

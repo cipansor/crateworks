@@ -117,6 +117,45 @@ pub(super) mod peru {
         }
         Ok(())
     }
+
+    /// Validates a Peruvian CUI, the identity number on the DNI.
+    ///
+    /// Eight digits with an optional ninth check character, which may be a
+    /// digit or one of the letters the reference's two lookup strings provide.
+    pub(in crate::id) fn validate_cui(s: &str) -> Result<()> {
+        let cleaned = crate::id::clean(s, &[' ', '-']);
+        let chars: Vec<char> = cleaned.chars().collect();
+        if !matches!(chars.len(), 8 | 9) {
+            return Err(Error::WrongLength {
+                expected: 8,
+                found: chars.len(),
+            });
+        }
+        let mut digits = Vec::with_capacity(8);
+        for &c in &chars[..8] {
+            digits.push(
+                c.to_digit(10)
+                    .map(|d| d as u8)
+                    .ok_or(Error::InvalidCharacter(c))?,
+            );
+        }
+        if chars.len() == 9 {
+            let extra = chars[8];
+            const WEIGHTS: [u32; 8] = [3, 2, 7, 6, 5, 4, 3, 2];
+            let sum: u32 = digits
+                .iter()
+                .zip(WEIGHTS)
+                .map(|(&d, w)| u32::from(d) * w)
+                .sum();
+            let index = (sum % 11) as usize;
+            const DIGITS: &[u8] = b"65432110987";
+            const LETTERS: &[u8] = b"KJIHGFEDCBA";
+            if extra != char::from(DIGITS[index]) && extra != char::from(LETTERS[index]) {
+                return Err(Error::BadChecksum);
+            }
+        }
+        Ok(())
+    }
 }
 
 /// Uruguay: RUT (Registro Único Tributario).
@@ -185,6 +224,55 @@ pub(super) mod argentina {
             return Err(Error::BadChecksum);
         }
         Ok(())
+    }
+
+    /// Validates an Argentine DNI, the national identity number.
+    ///
+    /// Seven or eight digits, with no check digit: the reference checks only
+    /// the length and the character class.
+    pub(in crate::id) fn validate_dni(s: &str) -> Result<()> {
+        let cleaned = crate::id::clean(s, &[' ', '.']);
+        let digits = checksum::digits_only(&cleaned)?;
+        if !matches!(digits.len(), 7 | 8) {
+            return Err(Error::WrongLength {
+                expected: 8,
+                found: digits.len(),
+            });
+        }
+        Ok(())
+    }
+
+    /// Validates an Argentine CBU, the bank account number (Clave Bancaria
+    /// Uniforme).
+    ///
+    /// Twenty-two digits in two blocks, each ending in a check digit. The bank
+    /// and branch block is seven digits plus a check, then a single-digit
+    /// separator, then the thirteen-digit account plus a check. Each check is a
+    /// weighted sum with the weights 3, 1, 7, 9 cycling from the right.
+    pub(in crate::id) fn validate_cbu(s: &str) -> Result<()> {
+        let cleaned = compact(s, &[' ', '-']);
+        let digits = checksum::digits_only(&cleaned)?;
+        checksum::expect_len(&digits, 22)?;
+        if cbu_check_digit(&digits[..7]) != digits[7] {
+            return Err(Error::BadChecksum);
+        }
+        if cbu_check_digit(&digits[8..21]) != digits[21] {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
+
+    /// The CBU check digit over `payload`: the digits are weighted 3, 1, 7, 9
+    /// from the right and the total subtracted from ten, modulo ten.
+    fn cbu_check_digit(payload: &[u8]) -> u8 {
+        const WEIGHTS: [u32; 4] = [3, 1, 7, 9];
+        let total: u32 = payload
+            .iter()
+            .rev()
+            .enumerate()
+            .map(|(i, &d)| u32::from(d) * WEIGHTS[i % 4])
+            .sum();
+        ((10 - total % 10) % 10) as u8
     }
 }
 

@@ -109,6 +109,104 @@ pub(super) mod united_states {
         }
         Ok(())
     }
+
+    /// The area numbers an EIN prefix may carry, taken from the IRS list the
+    /// reference ships. An area outside it was never assigned.
+    const EIN_AREAS: &[&str] = &[
+        "01", "02", "03", "04", "05", "06", "10", "11", "12", "13", "14", "15", "16", "20", "21",
+        "22", "23", "24", "25", "26", "27", "30", "31", "32", "33", "34", "35", "36", "37", "38",
+        "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "50", "51", "52", "53", "54",
+        "55", "56", "57", "58", "59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "71",
+        "72", "73", "74", "75", "76", "77", "80", "81", "82", "83", "84", "85", "86", "87", "88",
+        "90", "91", "92", "93", "94", "95", "98", "99",
+    ];
+
+    /// Validates a United States Employer Identification Number.
+    ///
+    /// Nine digits in the two-seven grouping, optionally written with the
+    /// hyphen after the area. There is no check digit; the only test is that
+    /// the two-digit area is one the IRS has assigned.
+    pub(in crate::id) fn validate_ein(input: &str) -> Result<()> {
+        let s = input.trim();
+        let area: String = match s.len() {
+            9 if s.bytes().all(|b| b.is_ascii_digit()) => s[..2].to_string(),
+            10 if s.as_bytes()[2] == b'-'
+                && s.bytes()
+                    .enumerate()
+                    .all(|(i, b)| i == 2 || b.is_ascii_digit()) =>
+            {
+                s[..2].to_string()
+            }
+            other => {
+                return Err(Error::WrongLength {
+                    expected: 9,
+                    found: other,
+                });
+            }
+        };
+        if !EIN_AREAS.contains(&area.as_str()) {
+            return Err(Error::OutOfRange);
+        }
+        Ok(())
+    }
+
+    /// Validates a United States Preparer Tax Identification Number.
+    ///
+    /// A capital `P` followed by eight digits, optionally written with a
+    /// hyphen after the `P`. There is no check digit.
+    pub(in crate::id) fn validate_ptin(input: &str) -> Result<()> {
+        let s = input.trim();
+        let cleaned = s.replace('-', "");
+        let bytes = cleaned.as_bytes();
+        if bytes.len() != 9 || bytes[0] != b'P' || !bytes[1..].iter().all(u8::is_ascii_digit) {
+            return Err(Error::InvalidPrefix);
+        }
+        Ok(())
+    }
+
+    /// Validates a United States Adoption Taxpayer Identification Number.
+    ///
+    /// The same nine-digit shape as a Social Security number. The reference
+    /// accepts the hyphen after the third and after the fifth digit
+    /// independently, so `123456789`, `123-45-6789` and `123-456789` are all
+    /// well formed, while a hyphen anywhere else is not. There is no check
+    /// digit and no other rule.
+    pub(in crate::id) fn validate_atin(input: &str) -> Result<()> {
+        let s = input.trim();
+        let mut digits = 0;
+        for (i, c) in s.chars().enumerate() {
+            if c.is_ascii_digit() {
+                digits += 1;
+            } else if c != '-' || (i != 3 && i != 6) {
+                return Err(Error::InvalidPrefix);
+            }
+        }
+        if digits != 9 {
+            return Err(Error::WrongLength {
+                expected: 9,
+                found: digits,
+            });
+        }
+        Ok(())
+    }
+
+    /// Validates a United States Taxpayer Identification Number in any of its
+    /// five forms.
+    ///
+    /// The reference tries the Social Security, Individual Taxpayer, Employer
+    /// Identification, Preparer Tax Identification and Adoption Taxpayer
+    /// numbers in turn and accepts the number when any of them does. The order
+    /// matters only for the error reported, not the verdict, so this returns
+    /// the first success and reports the last failure otherwise.
+    pub(in crate::id) fn validate_tin(input: &str) -> Result<()> {
+        let s = input.trim();
+        validate_ssn(s)
+            .or_else(|_| validate_itin(s))
+            .or_else(|_| validate_ein(s))
+            .or_else(|_| validate_ptin(s))
+            .or_else(|_| validate_atin(s))
+            .map_err(|_| Error::InvalidPrefix)
+    }
 }
 
 #[cfg(test)]

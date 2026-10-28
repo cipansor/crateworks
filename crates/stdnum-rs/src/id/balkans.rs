@@ -98,7 +98,7 @@ pub(super) mod north_macedonia {
     }
 }
 
-/// Slovenia: DDV, the VAT number.
+/// Slovenia: DDV, the VAT number, and the matična številka company register.
 pub(super) mod slovenia {
     use super::*;
 
@@ -127,6 +127,96 @@ pub(super) mod slovenia {
         }
         Ok(())
     }
+
+    /// Validates a Slovenian matična številka, the business register number.
+    ///
+    /// Seven digits whose last is a check digit, optionally followed by a
+    /// three-character unit suffix. A ten-character number that ends in `000`
+    /// is the main unit and is treated as the seven-digit form; any other
+    /// suffix must be one alphanumeric character and two digits. The check
+    /// digit is eleven minus the weighted sum modulo eleven, and a remainder of
+    /// zero leaves no digit, so such a number cannot be valid.
+    pub(in crate::id) fn validate_maticna(s: &str) -> Result<()> {
+        let s: String = s
+            .chars()
+            .filter(|c| !matches!(c, '.' | ' '))
+            .flat_map(char::to_uppercase)
+            .collect();
+        let s = if s.len() == 10 && s.ends_with("000") {
+            &s[..7]
+        } else {
+            &s[..]
+        };
+        if !matches!(s.len(), 7 | 10) {
+            return Err(Error::WrongLength {
+                expected: 7,
+                found: s.len(),
+            });
+        }
+        let bytes = s.as_bytes();
+        if !bytes[..6].iter().all(u8::is_ascii_digit) {
+            let bad = bytes
+                .iter()
+                .find(|b| !b.is_ascii_digit())
+                .copied()
+                .unwrap_or(bytes[0]);
+            return Err(Error::InvalidCharacter(char::from(bad)));
+        }
+        // A ten-character number carries a unit suffix after the check digit.
+        if s.len() == 10 {
+            let tail = &bytes[7..];
+            if !tail[0].is_ascii_alphanumeric()
+                || !tail[1].is_ascii_digit()
+                || !tail[2].is_ascii_digit()
+            {
+                return Err(Error::InvalidCharacter(char::from(tail[0])));
+            }
+        }
+        const WEIGHTS: [u32; 6] = [7, 6, 5, 4, 3, 2];
+        let sum: u32 = bytes[..6]
+            .iter()
+            .zip(WEIGHTS)
+            .map(|(&b, w)| u32::from(b - b'0') * w)
+            .sum();
+        let remainder = (11 - sum % 11) % 11;
+        // A remainder of zero has no single-digit form; a check position that
+        // is not a digit also fails the comparison rather than the shape.
+        if remainder == 0 || Some(remainder % 10) != bytes[6].checked_sub(b'0').map(u32::from) {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
+
+    /// Validates a Slovenian EMŠO (enotna matična številka občana), the unique
+    /// master citizen number.
+    ///
+    /// Thirteen digits: seven encode the date of birth, three the region and
+    /// serial, one the sex, and the last is a check digit. The date's year is
+    /// completed by the same 800 rule the reference uses, and the check digit
+    /// is a weighted sum negated modulo eleven, then modulo ten.
+    pub(in crate::id) fn validate_emso(s: &str) -> Result<()> {
+        let cleaned = crate::id::clean(s, &[' ']);
+        let digits = checksum::digits_only(&cleaned)?;
+        checksum::expect_len(&digits, 13)?;
+        let day = u32::from(digits[0]) * 10 + u32::from(digits[1]);
+        let month = u32::from(digits[2]) * 10 + u32::from(digits[3]);
+        let year = u32::from(digits[4]) * 100 + u32::from(digits[5]) * 10 + u32::from(digits[6]);
+        let year = if year < 800 { year + 2000 } else { year + 1000 };
+        if !checksum::is_real_date(year, month, day) {
+            return Err(Error::OutOfRange);
+        }
+        const WEIGHTS: [u32; 12] = [7, 6, 5, 4, 3, 2, 7, 6, 5, 4, 3, 2];
+        let total: u32 = digits[..12]
+            .iter()
+            .zip(WEIGHTS)
+            .map(|(&d, w)| u32::from(d) * w)
+            .sum();
+        let expected = (-(i64::from(total))).rem_euclid(11) % 10;
+        if u32::from(digits[12]) != expected as u32 {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
 }
 
 /// Romania: CF, the VAT number, which may also be a CNP.
@@ -145,6 +235,24 @@ pub(super) mod romania {
         if digits.len() == 13 {
             return crate::id::europe::romania::validate_cnp(s);
         }
+        validate_cui_digits(&digits)
+    }
+
+    /// Validates a Romanian CUI/CIF, the company identifier.
+    ///
+    /// The same rule as the VAT form without the `RO` prefix.
+    pub(in crate::id) fn validate_cui(s: &str) -> Result<()> {
+        let cleaned = crate::id::clean(s, &[' ', '-']);
+        let s = cleaned.strip_prefix("RO").unwrap_or(&cleaned);
+        let digits = checksum::digits_only(s)?;
+        validate_cui_digits(&digits)
+    }
+
+    /// Validates the digits of a Romanian CUI/CIF, the company identifier.
+    ///
+    /// Two to ten digits with a weighted check digit, shared by the VAT form
+    /// and the plain company identifier.
+    pub(in crate::id) fn validate_cui_digits(digits: &[u8]) -> Result<()> {
         if !(2..=10).contains(&digits.len()) {
             return Err(Error::WrongLength {
                 expected: 10,
@@ -167,6 +275,183 @@ pub(super) mod romania {
             .sum();
         let expected = sum * 10 % 11 % 10;
         if u32::from(digits[digits.len() - 1]) != expected {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
+
+    /// The counties a Romanian trade-register number may name, as the reference
+    /// lists them.
+    const ONRC_COUNTIES: &[u32] = &[
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
+        26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 51, 52,
+    ];
+
+    /// Validates a Romanian ONRC number, the trade-register identifier.
+    ///
+    /// Two forms share the leading letter `J`, `F` or `C` for the kind of
+    /// company. The old form is `YNN/XXXX/AAAA`: a county, a serial and a year,
+    /// with the year between 1990 and 2024. The new form is fourteen digits
+    /// `YAAAAXXXXXXJJC`, where the year decides which counties are allowed and
+    /// the last digit is a check over the rest. The reference chooses the form
+    /// by the presence of a slash.
+    pub(in crate::id) fn validate_onrc(input: &str) -> Result<()> {
+        let compacted = compact_onrc(input);
+        let Some(&kind) = compacted.as_bytes().first() else {
+            return Err(Error::Empty);
+        };
+        if !matches!(kind, b'J' | b'F' | b'C') {
+            return Err(Error::InvalidCharacter(char::from(kind)));
+        }
+        if compacted.contains('/') {
+            return validate_onrc_old(&compacted);
+        }
+        validate_onrc_new(&compacted)
+    }
+
+    /// Reduces an ONRC to the reference's canonical form: separators become
+    /// slashes, the slash after the leading letter and the one after a
+    /// single-digit county are removed, and a trailing full date is cut back to
+    /// its year.
+    fn compact_onrc(input: &str) -> String {
+        let mut out = String::with_capacity(input.len());
+        for c in input.chars() {
+            let c = match c {
+                '\u{2010}'..='\u{2015}' | '\u{2212}' | '\u{fe58}' | '\u{fe63}' | '\u{ff0d}' => '-',
+                '\u{2000}'..='\u{200b}' | '\u{202f}' | '\u{205f}' | '\u{3000}' | '\u{a0}' => ' ',
+                _ => c,
+            };
+            if matches!(c, ' ' | '/' | '\\' | '-') {
+                // A run of separators collapses to a single slash.
+                if !out.ends_with('/') {
+                    out.push('/');
+                }
+            } else {
+                out.extend(c.to_uppercase());
+            }
+        }
+        // Strip a slash left at either end, which came from surrounding space.
+        let trimmed = out.trim_matches('/').to_string();
+        let mut number = trimmed;
+        // Remove the slash between the leading letter and the county digits.
+        if number.as_bytes().get(1) == Some(&b'/') {
+            number.remove(1);
+        }
+        // Normalise a single-digit county to two digits.
+        if number.as_bytes().get(2) == Some(&b'/') {
+            number.insert(1, '0');
+        }
+        // A trailing day and month before the year are dropped.
+        if let Some(year_only) = strip_onrc_full_date(&number) {
+            number = year_only;
+        }
+        number
+    }
+
+    /// If `number` ends `.../DD.MM.YYYY`, returns it with the day and month
+    /// removed, as the reference does for the old form.
+    fn strip_onrc_full_date(number: &str) -> Option<String> {
+        let (head, tail) = number.rsplit_once('/')?;
+        let mut parts = tail.split('.');
+        let day = parts.next()?;
+        let month = parts.next()?;
+        let year = parts.next()?;
+        if parts.next().is_some()
+            || day.len() != 2
+            || month.len() != 2
+            || year.len() != 4
+            || !day.bytes().all(|b| b.is_ascii_digit())
+            || !month.bytes().all(|b| b.is_ascii_digit())
+            || !year.bytes().all(|b| b.is_ascii_digit())
+        {
+            return None;
+        }
+        // The head must itself look like `LETTER digits / digits`.
+        let (letter, rest) = head.split_at(1);
+        let (num1, num2) = rest.split_once('/')?;
+        if !letter.bytes().all(|b| b.is_ascii_uppercase())
+            || num1.is_empty()
+            || num2.is_empty()
+            || !num1.bytes().all(|b| b.is_ascii_digit())
+            || !num2.bytes().all(|b| b.is_ascii_digit())
+        {
+            return None;
+        }
+        Some(format!("{head}/{year}"))
+    }
+
+    /// Validates the old `YNN/XXXX/AAAA` ONRC form.
+    fn validate_onrc_old(number: &str) -> Result<()> {
+        let mut parts = number[1..].split('/');
+        let (Some(county), Some(serial), Some(year)) = (parts.next(), parts.next(), parts.next())
+        else {
+            return Err(Error::InvalidPrefix);
+        };
+        if parts.next().is_some() || serial.is_empty() || county.is_empty() {
+            return Err(Error::InvalidPrefix);
+        }
+        if !county.bytes().all(|b| b.is_ascii_digit())
+            || !serial.bytes().all(|b| b.is_ascii_digit())
+            || !year.bytes().all(|b| b.is_ascii_digit())
+        {
+            return Err(Error::InvalidPrefix);
+        }
+        if serial.len() > 5 || year.len() != 4 {
+            return Err(Error::WrongLength {
+                expected: 4,
+                found: year.len(),
+            });
+        }
+        if !(1..=2).contains(&county.len()) {
+            return Err(Error::OutOfRange);
+        }
+        let county: u32 = county.parse().map_err(|_| Error::OutOfRange)?;
+        if !ONRC_COUNTIES.contains(&county) {
+            return Err(Error::OutOfRange);
+        }
+        let year: u32 = year.parse().map_err(|_| Error::OutOfRange)?;
+        // The old form stopped being issued after 2024.
+        if !(1990..=2024).contains(&year) {
+            return Err(Error::OutOfRange);
+        }
+        Ok(())
+    }
+
+    /// Validates the new fourteen-digit `YAAAAXXXXXXJJC` ONRC form.
+    fn validate_onrc_new(number: &str) -> Result<()> {
+        if number.len() != 14 {
+            return Err(Error::WrongLength {
+                expected: 14,
+                found: number.len(),
+            });
+        }
+        if !number.as_bytes()[1..].iter().all(u8::is_ascii_digit) {
+            return Err(Error::InvalidPrefix);
+        }
+        let year: u32 = number[1..5].parse().map_err(|_| Error::OutOfRange)?;
+        if !(1990..=checksum::current_year()).contains(&year) {
+            return Err(Error::OutOfRange);
+        }
+        // The registration year decides which county codes are allowed: any
+        // county before 2024, a county or `00` in 2024, and only `00` after.
+        let county: u32 = number[11..13].parse().map_err(|_| Error::OutOfRange)?;
+        let county_ok = if year < 2024 {
+            ONRC_COUNTIES.contains(&county)
+        } else if year == 2024 {
+            county == 0 || ONRC_COUNTIES.contains(&county)
+        } else {
+            county == 0
+        };
+        if !county_ok {
+            return Err(Error::OutOfRange);
+        }
+        // The check digit replaces the leading letter with its code point
+        // modulo ten, then sums every digit but the last.
+        let code = u32::from(number.as_bytes()[0]) % 10;
+        let sum: u32 = std::iter::once(code)
+            .chain(number[1..13].bytes().map(|b| u32::from(b - b'0')))
+            .sum();
+        if u32::from(number.as_bytes()[13] - b'0') != sum % 10 {
             return Err(Error::BadChecksum);
         }
         Ok(())

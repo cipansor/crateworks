@@ -81,6 +81,22 @@ pub(super) mod sweden {
         }
         Ok(())
     }
+
+    /// Validates a Swedish postnummer (postal code).
+    ///
+    /// Five digits whose first is not zero. An optional `SE` prefix is stripped
+    /// first. The reference only checks the shape, not whether the code names a
+    /// real address.
+    pub(in crate::id) fn validate_postnummer(s: &str) -> Result<()> {
+        let cleaned = crate::id::clean(s, &[' ', '-']);
+        let body = cleaned.strip_prefix("SE").unwrap_or(&cleaned);
+        let digits = checksum::digits_only(body)?;
+        checksum::expect_len(&digits, 5)?;
+        if digits[0] == 0 {
+            return Err(Error::OutOfRange);
+        }
+        Ok(())
+    }
 }
 
 /// Norway: fødselsnummer and organisasjonsnummer.
@@ -315,6 +331,67 @@ pub(super) mod finland {
         if expected != bytes[10] {
             return Err(Error::BadChecksum);
         }
+        Ok(())
+    }
+
+    /// Validates a Finnish Y-tunnus, the business identifier.
+    ///
+    /// Eight digits with a weighted check over all eight, the same rule as the
+    /// ALV VAT number, optionally written with a hyphen before the last digit.
+    pub(in crate::id) fn validate_ytunnus(s: &str) -> Result<()> {
+        let cleaned = crate::id::clean(s, &[' ', '-']);
+        let s = cleaned.strip_prefix("FI").unwrap_or(&cleaned);
+        let digits = checksum::digits_only(s)?;
+        checksum::expect_len(&digits, 8)?;
+        const WEIGHTS: [u32; 8] = [7, 9, 10, 5, 8, 4, 2, 1];
+        let sum: u32 = digits
+            .iter()
+            .zip(WEIGHTS)
+            .map(|(&d, w)| u32::from(d) * w)
+            .sum();
+        if !sum.is_multiple_of(11) {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
+
+    /// Validates a Finnish association identifier (yhdistyksen tunnus).
+    ///
+    /// One to six digits, normally grouped by a dot. A number shorter than
+    /// three digits must be one of the low numbers the register has assigned.
+    pub(in crate::id) fn validate_association_id(s: &str) -> Result<()> {
+        let cleaned = crate::id::clean(s, &[' ', '-', '.', '_', '+']);
+        let digits = checksum::digits_only(&cleaned)?;
+        if digits.is_empty() || digits.len() > 6 {
+            return Err(Error::WrongLength {
+                expected: 6,
+                found: digits.len(),
+            });
+        }
+        if digits.len() < 3 {
+            let value = digits.iter().fold(0u32, |acc, &d| acc * 10 + u32::from(d));
+            if !LOW_ASSOCIATION_NUMBERS.contains(&value) {
+                return Err(Error::OutOfRange);
+            }
+        }
+        Ok(())
+    }
+
+    /// The one- and two-digit association numbers the register has issued.
+    const LOW_ASSOCIATION_NUMBERS: &[u32] = &[
+        1, 6, 7, 9, 12, 14, 15, 16, 18, 22, 23, 24, 27, 28, 29, 35, 36, 38, 40, 41, 42, 43, 45, 46,
+        50, 52, 55, 58, 60, 64, 65, 68, 72, 75, 76, 77, 78, 83, 84, 85, 89, 92,
+    ];
+
+    /// Validates a Finnish Veronumero, the individual tax number for
+    /// construction workers.
+    ///
+    /// Twelve digits carrying no embedded information and, per the reference,
+    /// no check digit. Only the length and the character class are checked.
+    pub(in crate::id) fn validate_veronumero(s: &str) -> Result<()> {
+        let cleaned = crate::id::clean(s, &[' ']);
+        let digits = checksum::digits_only(&cleaned)?;
+        checksum::expect_len(&digits, 12)?;
         Ok(())
     }
 }

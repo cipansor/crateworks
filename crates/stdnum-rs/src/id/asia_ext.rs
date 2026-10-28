@@ -39,6 +39,24 @@ pub(super) mod israel {
         }
         Ok(())
     }
+
+    /// Validates an Israeli company number (מספר חברה).
+    ///
+    /// Nine digits whose first is a `5` and whose last is a Luhn check digit.
+    /// The reference requires the whole number to be positive, so an all-zero
+    /// number is rejected.
+    pub(in crate::id) fn validate_company_number(s: &str) -> Result<()> {
+        let cleaned = compact(s, &[' ', '-']);
+        let digits = checksum::digits_only(&cleaned)?;
+        checksum::expect_len(&digits, 9)?;
+        if digits[0] != 5 || digits.iter().all(|&d| d == 0) {
+            return Err(Error::OutOfRange);
+        }
+        if !checksum::luhn_matches(&digits[..8], digits[8]) {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
 }
 
 /// Thailand: เลขประจำตัวประชาชน, the personal identification number.
@@ -93,6 +111,20 @@ pub(super) mod thailand {
             return Err(Error::BadChecksum);
         }
         Ok(())
+    }
+
+    /// Validates a Thai Taxpayer Identification Number in either of its two
+    /// forms.
+    ///
+    /// The reference tries the personal number and the company number in turn,
+    /// so a thirteen-digit number is valid when it satisfies either check. The
+    /// two disagree on the leading digit and on the weight sequence, so the
+    /// distinction is real and not cosmetic.
+    pub(in crate::id) fn validate_tin(s: &str) -> Result<()> {
+        let cleaned = crate::id::clean(s, &[' ', '-']);
+        validate_pin(&cleaned)
+            .or_else(|_| validate_moa(&cleaned))
+            .map_err(|_| Error::BadChecksum)
     }
 }
 

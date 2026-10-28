@@ -21,6 +21,7 @@ mod asia_ext;
 mod balkans;
 mod brazil;
 mod british;
+mod eu;
 mod europe;
 mod europe_ext;
 mod latin_america;
@@ -42,7 +43,9 @@ use asia_ext::{
 use balkans::{belarus, montenegro, north_macedonia, romania as romania_cf, serbia, slovenia};
 use brazil::{cnpj, cpf};
 use british::united_kingdom;
-use europe::{belgium, france, germany, italy, netherlands, poland, portugal, romania, spain};
+use europe::{
+    belgium, france, france_nir, germany, italy, netherlands, poland, portugal, romania, spain,
+};
 use europe_ext::{
     bulgaria, croatia, czechoslovakia, estonia, hungary, ireland, lithuania, luxembourg, russia,
     switzerland, ukraine,
@@ -67,6 +70,20 @@ pub use asia::verhoeff_check_digit;
 /// Validates a French TVA number, reached through Monaco, which reuses it.
 pub(in crate::id) fn france_vat(s: &str) -> Result<()> {
     france::validate_vat(s)
+}
+
+/// Removes whitespace and the given separators from `input`, upper-casing the
+/// remainder.
+///
+/// This mirrors the reference's `clean()` plus its `upper()`, for the
+/// identifiers whose separator set differs from the crate-wide
+/// [`crate::normalize`], which also strips hyphens, dots and colons.
+pub(in crate::id) fn clean(input: &str, separators: &[char]) -> String {
+    input
+        .chars()
+        .filter(|c| !c.is_whitespace() && !separators.contains(c))
+        .flat_map(char::to_uppercase)
+        .collect()
 }
 
 /// A country whose identifiers this crate can check.
@@ -347,6 +364,147 @@ pub enum Country {
     ThailandMoa,
     /// Canada: British Columbia Personal Health Number, 10 digits.
     CanadaBcPhn,
+    /// France: NIR, the social security number, 15 characters with a modulo-97
+    /// check over the first thirteen.
+    FranceNir,
+    /// Italy: Partita IVA, the VAT number, 11 digits with a Luhn check digit.
+    ItalyPiva,
+    /// Romania: CUI/CIF, the company identifier, 2 to 10 digits with a weighted
+    /// check digit.
+    RomaniaCui,
+    /// Belgium: OGM-VCS, the structured payment communication, 12 digits with a
+    /// modulo-97 check.
+    BelgiumOgm,
+    /// Finland: Y-tunnus, the business identifier, 8 digits with a weighted
+    /// check.
+    FinlandYtunnus,
+    /// Switzerland: ESR, the payment slip reference number, up to 27 digits with
+    /// a recursive modulo-10 check.
+    SwitzerlandEsr,
+    /// China: USCC, the unified social credit code, 18 characters with a
+    /// base-31 check character.
+    ChinaUscc,
+    /// Slovenia: matična številka, the business register number, 7 digits with a
+    /// weighted check digit.
+    SloveniaMaticna,
+    /// Austria: VNR, the social security number, 10 digits with a weighted
+    /// check digit.
+    AustriaVnr,
+    /// Austria: Firmenbuchnummer, the company register number, digits followed
+    /// by a letter.
+    AustriaFirmenbuch,
+    /// Peru: CUI, the identity number on the DNI, 8 digits with an optional
+    /// check character.
+    PeruCui,
+    /// Argentina: DNI, the national identity number, 7 or 8 digits.
+    ArgentinaDni,
+    /// India: VID, the Aadhaar virtual identity number, 16 digits with a
+    /// Verhoeff check digit.
+    IndiaVid,
+    /// United Kingdom: UPN, the unique pupil number, 13 characters with a
+    /// weighted check digit.
+    UnitedKingdomUpn,
+    /// Netherlands: onderwijsnummer, the student number, 9 digits with a
+    /// modified BSN check.
+    NetherlandsOnderwijsnummer,
+    /// Spain: NIF, the tax number, in its DNI, NIE, K/L/M or CIF form.
+    SpainNif,
+    /// Spain: CIF, the number of a legal entity, 9 characters.
+    SpainCif,
+    /// Spain: CCC, the bank account code, 20 digits with two check digits.
+    SpainCcc,
+    /// Spain: CUPS, the gas and electricity supply-point code, 20 or 22
+    /// characters with two check letters.
+    SpainCups,
+    /// Spain: CAE, the excise-duty activity and establishment code, 13
+    /// characters.
+    SpainCae,
+    /// Spain: Referencia Catastral, the real-estate property identifier, 20
+    /// characters with two check characters.
+    SpainReferenciaCatastral,
+    /// Germany: WKN, the securities identification code, 6 characters.
+    GermanyWkn,
+    /// Germany: Leitweg-ID, the electronic-invoice routing reference, with a
+    /// MOD 97-10 check.
+    GermanyLeitweg,
+    /// Netherlands: BRIN, the school identification code, 4 or 6 characters.
+    NetherlandsBrin,
+    /// Netherlands: identity-card and passport number, 9 characters.
+    NetherlandsIdentityCard,
+    /// France: RCS, the trade-register entry, a city, a kind letter and a SIREN.
+    FranceRcs,
+    /// United States: EIN, the employer identification number, 9 digits.
+    UnitedStatesEin,
+    /// United States: PTIN, the tax-return preparer number, `P` and 8 digits.
+    UnitedStatesPtin,
+    /// United States: ATIN, the adoption taxpayer identification number, 9
+    /// digits.
+    UnitedStatesAtin,
+    /// Israel: company number, 9 digits beginning with 5 and a Luhn check.
+    IsraelCompanyNumber,
+    /// Ukraine: RNTRC, the individual tax number, 10 digits with a weighted
+    /// check digit.
+    UkraineRntrc,
+    /// Argentina: CBU, the bank account number, 22 digits with two check
+    /// digits.
+    ArgentinaCbu,
+    /// Costa Rica: CPF, the natural-person identity number, 10 digits beginning
+    /// with zero.
+    CostaRicaCpf,
+    /// Finland: association identifier, 1 to 6 digits.
+    FinlandAssociationId,
+    /// Finland: Veronumero, the construction worker's tax number, 12 digits.
+    FinlandVeronumero,
+    /// Slovenia: EMŠO, the unique master citizen number, 13 digits with a
+    /// weighted check digit.
+    SloveniaEmso,
+    /// Romania: ONRC, the trade-register number, in its old or new form.
+    RomaniaOnrc,
+    /// Spain: NIE, the foreigner identity number, `X`, `Y` or `Z` and eight
+    /// characters.
+    SpainNie,
+    /// Spain: postal code, five digits naming a province.
+    SpainPostalCode,
+    /// Belgium: BIS number, the national number for a partly known birth date,
+    /// with the month offset into 20-32 or 40-52.
+    BelgiumBis,
+    /// Belgium: electronic identity card number, 12 digits with a mod-97 check.
+    BelgiumEid,
+    /// Belgium: VAT number, 10 digits with a mod-97 check.
+    BelgiumVat,
+    /// Germany: VAT number (Umsatzsteuer-Identifikationsnummer), 9 digits with
+    /// an ISO 7064 Mod 11, 10 check.
+    GermanyVat,
+    /// Germany: Steuernummer, the tax number a regional office assigns, 10, 11
+    /// or 13 digits.
+    GermanySteuernummer,
+    /// France: accise number, the excise-duty taxpayer reference, 13 characters.
+    FranceAccise,
+    /// Netherlands: postcode, four digits and two capitals.
+    NetherlandsPostcode,
+    /// Sweden: postnummer, the postal code, five digits.
+    SwedenPostnummer,
+    /// Switzerland: VAT number, a UID followed by a VAT suffix.
+    SwitzerlandVat,
+    /// Bulgaria: VAT number, 9 or 10 digits.
+    BulgariaVat,
+    /// Costa Rica: CR number, the older juridical-person identity number, 11 or
+    /// 12 digits.
+    CostaRicaCr,
+    /// Dominican Republic: cédula, the national identity number, 11 digits.
+    DominicanRepublicCedula,
+    /// Dominican Republic: NCF, the tax receipt number.
+    DominicanRepublicNcf,
+    /// United States: TIN, the taxpayer number in any of its five forms.
+    UnitedStatesTin,
+    /// Thailand: TIN, the taxpayer number as a personal or company number.
+    ThailandTin,
+    /// European Union: excise number, a member state's excise reference.
+    EuExcise,
+    /// European Union: OSS number, the VAT reference for e-commerce.
+    EuOss,
+    /// France: n° TVA, the VAT number, a SIREN prefixed by two digits.
+    FranceTva,
 }
 
 impl Country {
@@ -489,6 +647,63 @@ impl Country {
         Self::NetherlandsBtw,
         Self::ThailandMoa,
         Self::CanadaBcPhn,
+        Self::FranceNir,
+        Self::ItalyPiva,
+        Self::RomaniaCui,
+        Self::BelgiumOgm,
+        Self::FinlandYtunnus,
+        Self::SwitzerlandEsr,
+        Self::ChinaUscc,
+        Self::SloveniaMaticna,
+        Self::AustriaVnr,
+        Self::AustriaFirmenbuch,
+        Self::PeruCui,
+        Self::ArgentinaDni,
+        Self::IndiaVid,
+        Self::UnitedKingdomUpn,
+        Self::NetherlandsOnderwijsnummer,
+        Self::SpainNif,
+        Self::SpainCif,
+        Self::SpainCcc,
+        Self::SpainCups,
+        Self::SpainCae,
+        Self::SpainReferenciaCatastral,
+        Self::GermanyWkn,
+        Self::GermanyLeitweg,
+        Self::NetherlandsBrin,
+        Self::NetherlandsIdentityCard,
+        Self::FranceRcs,
+        Self::UnitedStatesEin,
+        Self::UnitedStatesPtin,
+        Self::UnitedStatesAtin,
+        Self::IsraelCompanyNumber,
+        Self::UkraineRntrc,
+        Self::ArgentinaCbu,
+        Self::CostaRicaCpf,
+        Self::FinlandAssociationId,
+        Self::FinlandVeronumero,
+        Self::SloveniaEmso,
+        Self::RomaniaOnrc,
+        Self::SpainNie,
+        Self::SpainPostalCode,
+        Self::BelgiumBis,
+        Self::BelgiumEid,
+        Self::BelgiumVat,
+        Self::GermanyVat,
+        Self::GermanySteuernummer,
+        Self::FranceAccise,
+        Self::NetherlandsPostcode,
+        Self::SwedenPostnummer,
+        Self::SwitzerlandVat,
+        Self::BulgariaVat,
+        Self::CostaRicaCr,
+        Self::DominicanRepublicCedula,
+        Self::DominicanRepublicNcf,
+        Self::UnitedStatesTin,
+        Self::ThailandTin,
+        Self::EuExcise,
+        Self::EuOss,
+        Self::FranceTva,
     ];
 
     /// A short English description of the identifier.
@@ -632,6 +847,63 @@ impl Country {
             Self::NetherlandsBtw => "Netherlands btw-identificatienummer",
             Self::ThailandMoa => "Thailand MOA number",
             Self::CanadaBcPhn => "Canada British Columbia Personal Health Number",
+            Self::FranceNir => "France NIR social security number",
+            Self::ItalyPiva => "Italy Partita IVA VAT number",
+            Self::RomaniaCui => "Romania CUI/CIF company identifier",
+            Self::BelgiumOgm => "Belgium OGM-VCS structured communication",
+            Self::FinlandYtunnus => "Finland Y-tunnus business identifier",
+            Self::SwitzerlandEsr => "Switzerland ESR payment reference number",
+            Self::ChinaUscc => "China Unified Social Credit Code",
+            Self::SloveniaMaticna => "Slovenia matična številka register number",
+            Self::AustriaVnr => "Austria VNR social security number",
+            Self::AustriaFirmenbuch => "Austria Firmenbuchnummer company number",
+            Self::PeruCui => "Peru CUI identity number",
+            Self::ArgentinaDni => "Argentina DNI national identity number",
+            Self::IndiaVid => "India VID virtual identity number",
+            Self::UnitedKingdomUpn => "United Kingdom Unique Pupil Number",
+            Self::NetherlandsOnderwijsnummer => "Netherlands onderwijsnummer student number",
+            Self::SpainNif => "Spain NIF tax number",
+            Self::SpainCif => "Spain CIF legal-entity number",
+            Self::SpainCcc => "Spain CCC bank account code",
+            Self::SpainCups => "Spain CUPS supply-point code",
+            Self::SpainCae => "Spain CAE excise-duty activity code",
+            Self::SpainReferenciaCatastral => "Spain Referencia Catastral property identifier",
+            Self::GermanyWkn => "Germany WKN securities code",
+            Self::GermanyLeitweg => "Germany Leitweg-ID invoice routing reference",
+            Self::NetherlandsBrin => "Netherlands BRIN school code",
+            Self::NetherlandsIdentityCard => "Netherlands identity-card number",
+            Self::FranceRcs => "France RCS trade-register number",
+            Self::UnitedStatesEin => "United States Employer Identification Number",
+            Self::UnitedStatesPtin => "United States Preparer Tax Identification Number",
+            Self::UnitedStatesAtin => "United States Adoption Taxpayer Identification Number",
+            Self::IsraelCompanyNumber => "Israel company number",
+            Self::UkraineRntrc => "Ukraine RNTRC individual tax number",
+            Self::ArgentinaCbu => "Argentina CBU bank account number",
+            Self::CostaRicaCpf => "Costa Rica CPF natural-person number",
+            Self::FinlandAssociationId => "Finland association identifier",
+            Self::FinlandVeronumero => "Finland Veronumero individual tax number",
+            Self::SloveniaEmso => "Slovenia EMŠO citizen number",
+            Self::RomaniaOnrc => "Romania ONRC trade-register number",
+            Self::SpainNie => "Spain NIE foreigner identity number",
+            Self::SpainPostalCode => "Spain postal code",
+            Self::BelgiumBis => "Belgium BIS number",
+            Self::BelgiumEid => "Belgium electronic identity card number",
+            Self::BelgiumVat => "Belgium VAT number",
+            Self::GermanyVat => "Germany VAT number",
+            Self::GermanySteuernummer => "Germany Steuernummer tax number",
+            Self::FranceAccise => "France accise number",
+            Self::NetherlandsPostcode => "Netherlands postcode",
+            Self::SwedenPostnummer => "Sweden postnummer",
+            Self::SwitzerlandVat => "Switzerland VAT number",
+            Self::BulgariaVat => "Bulgaria VAT number",
+            Self::CostaRicaCr => "Costa Rica CR number",
+            Self::DominicanRepublicCedula => "Dominican Republic cédula",
+            Self::DominicanRepublicNcf => "Dominican Republic NCF",
+            Self::UnitedStatesTin => "United States TIN",
+            Self::ThailandTin => "Thailand TIN",
+            Self::EuExcise => "European Union excise number",
+            Self::EuOss => "European Union OSS VAT number",
+            Self::FranceTva => "France TVA VAT number",
         }
     }
 }
@@ -739,7 +1011,49 @@ impl IdNumber {
             | Country::ItalyAic
             | Country::NetherlandsBtw
             | Country::ThailandMoa
-            | Country::CanadaBcPhn => input,
+            | Country::CanadaBcPhn
+            | Country::FranceNir
+            | Country::ItalyPiva
+            | Country::RomaniaCui
+            | Country::BelgiumOgm
+            | Country::FinlandYtunnus
+            | Country::SwitzerlandEsr
+            | Country::ChinaUscc
+            | Country::SloveniaMaticna
+            | Country::AustriaVnr
+            | Country::AustriaFirmenbuch
+            | Country::PeruCui
+            | Country::ArgentinaDni
+            | Country::IndiaVid
+            | Country::UnitedKingdomUpn
+            | Country::NetherlandsOnderwijsnummer
+            | Country::GermanyLeitweg
+            | Country::FranceRcs
+            | Country::UnitedStatesEin
+            | Country::UnitedStatesPtin
+            | Country::UnitedStatesAtin
+            | Country::RomaniaOnrc
+            | Country::CostaRicaCpf
+            | Country::SpainNie
+            | Country::SpainPostalCode
+            | Country::BelgiumBis
+            | Country::BelgiumEid
+            | Country::BelgiumVat
+            | Country::GermanyVat
+            | Country::GermanySteuernummer
+            | Country::FranceAccise
+            | Country::NetherlandsPostcode
+            | Country::SwedenPostnummer
+            | Country::SwitzerlandVat
+            | Country::BulgariaVat
+            | Country::CostaRicaCr
+            | Country::DominicanRepublicCedula
+            | Country::DominicanRepublicNcf
+            | Country::UnitedStatesTin
+            | Country::ThailandTin
+            | Country::EuExcise
+            | Country::EuOss
+            | Country::FranceTva => input,
             _ => normalized.as_str(),
         };
         match country {
@@ -880,6 +1194,63 @@ impl IdNumber {
             Country::NetherlandsBtw => netherlands::validate_btw(subject)?,
             Country::ThailandMoa => thailand::validate_moa(subject)?,
             Country::CanadaBcPhn => canada::validate_bc_phn(subject)?,
+            Country::FranceNir => france_nir::validate_nir(subject)?,
+            Country::ItalyPiva => italy::validate_piva(subject)?,
+            Country::RomaniaCui => romania_cf::validate_cui(subject)?,
+            Country::BelgiumOgm => belgium::validate_ogm(subject)?,
+            Country::FinlandYtunnus => finland::validate_ytunnus(subject)?,
+            Country::SwitzerlandEsr => switzerland::validate_esr(subject)?,
+            Country::ChinaUscc => china::validate_uscc(subject)?,
+            Country::SloveniaMaticna => slovenia::validate_maticna(subject)?,
+            Country::AustriaVnr => austria::validate_vnr(subject)?,
+            Country::AustriaFirmenbuch => austria::validate_businessid(subject)?,
+            Country::PeruCui => peru::validate_cui(subject)?,
+            Country::ArgentinaDni => argentina::validate_dni(subject)?,
+            Country::IndiaVid => india::validate_vid(subject)?,
+            Country::UnitedKingdomUpn => united_kingdom::validate_upn(subject)?,
+            Country::NetherlandsOnderwijsnummer => netherlands::validate_onderwijsnummer(subject)?,
+            Country::SpainNif => spain::validate_nif(subject)?,
+            Country::SpainCif => spain::validate_cif(subject)?,
+            Country::SpainCcc => spain::validate_ccc(subject)?,
+            Country::SpainCups => spain::validate_cups(subject)?,
+            Country::SpainCae => spain::validate_cae(subject)?,
+            Country::SpainReferenciaCatastral => spain::validate_cadastral(subject)?,
+            Country::GermanyWkn => germany::validate_wkn(subject)?,
+            Country::GermanyLeitweg => germany::validate_leitweg(subject)?,
+            Country::NetherlandsBrin => netherlands::validate_brin(subject)?,
+            Country::NetherlandsIdentityCard => netherlands::validate_identity_card(subject)?,
+            Country::FranceRcs => france::validate_rcs(subject)?,
+            Country::UnitedStatesEin => united_states::validate_ein(subject)?,
+            Country::UnitedStatesPtin => united_states::validate_ptin(subject)?,
+            Country::UnitedStatesAtin => united_states::validate_atin(subject)?,
+            Country::IsraelCompanyNumber => israel::validate_company_number(subject)?,
+            Country::UkraineRntrc => ukraine::validate_rntrc(subject)?,
+            Country::ArgentinaCbu => argentina::validate_cbu(subject)?,
+            Country::CostaRicaCpf => costa_rica::validate_cpf(subject)?,
+            Country::FinlandAssociationId => finland::validate_association_id(subject)?,
+            Country::FinlandVeronumero => finland::validate_veronumero(subject)?,
+            Country::SloveniaEmso => slovenia::validate_emso(subject)?,
+            Country::RomaniaOnrc => romania_cf::validate_onrc(subject)?,
+            Country::SpainNie => spain::validate_nie(subject)?,
+            Country::SpainPostalCode => spain::validate_postal_code(subject)?,
+            Country::BelgiumBis => belgium::validate_bis(subject)?,
+            Country::BelgiumEid => belgium::validate_eid(subject)?,
+            Country::BelgiumVat => belgium::validate_vat(subject)?,
+            Country::GermanyVat => germany::validate_vat(subject)?,
+            Country::GermanySteuernummer => germany::validate_steuernummer(subject)?,
+            Country::FranceAccise => france::validate_accise(subject)?,
+            Country::NetherlandsPostcode => netherlands::validate_postcode(subject)?,
+            Country::SwedenPostnummer => sweden::validate_postnummer(subject)?,
+            Country::SwitzerlandVat => switzerland::validate_vat(subject)?,
+            Country::BulgariaVat => bulgaria::validate_vat(subject)?,
+            Country::CostaRicaCr => costa_rica::validate_cr(subject)?,
+            Country::DominicanRepublicCedula => dominican_republic::validate_cedula(subject)?,
+            Country::DominicanRepublicNcf => dominican_republic::validate_ncf(subject)?,
+            Country::UnitedStatesTin => united_states::validate_tin(subject)?,
+            Country::ThailandTin => thailand::validate_tin(subject)?,
+            Country::EuExcise => eu::excise::validate(subject)?,
+            Country::EuOss => eu::oss::validate(subject)?,
+            Country::FranceTva => france::validate_vat(subject)?,
         }
         Ok(Self {
             country,
@@ -925,7 +1296,14 @@ mod tests {
     #[test]
     fn a_one_character_input_is_never_valid() {
         // Catches a validator that returns early without checking length.
+        // The Finnish association identifier is the one exception: the
+        // reference itself accepts a one-digit number when the register has
+        // issued it, so the invariant does not hold for that scheme.
         for &country in Country::ALL {
+            if country == Country::FinlandAssociationId {
+                assert!(IdNumber::parse(country, "1").is_ok());
+                continue;
+            }
             assert!(
                 IdNumber::parse(country, "1").is_err(),
                 "{country:?} accepted a one-character input"
@@ -1031,5 +1409,117 @@ mod tests {
         no(Country::ThailandMoa, "0-99-4-000-61772-3");
         ok(Country::CanadaBcPhn, "9698 658 215");
         no(Country::CanadaBcPhn, "9698648215");
+    }
+
+    /// The identifiers added in 0.6.0, each pinned by a reference value and a
+    /// mutation that must be rejected.
+    #[test]
+    fn newly_covered_identifiers_0_6() {
+        let ok = |country, value: &str| {
+            assert!(
+                IdNumber::parse(country, value).is_ok(),
+                "{country:?} rejected {value:?}"
+            );
+        };
+        let no = |country, value: &str| {
+            assert!(
+                IdNumber::parse(country, value).is_err(),
+                "{country:?} accepted {value:?}"
+            );
+        };
+        ok(Country::FranceNir, "2 95 10 99 126 111 93");
+        no(Country::FranceNir, "295109912611190");
+        ok(Country::FranceNir, "253072B07300470");
+        ok(Country::ItalyPiva, "IT 00743110157");
+        no(Country::ItalyPiva, "00743110150");
+        ok(Country::RomaniaCui, "RO 185 472 90");
+        no(Country::RomaniaCui, "18547291");
+        ok(Country::BelgiumOgm, "+++010/8068/17183+++");
+        no(Country::BelgiumOgm, "010/8068/17180");
+        ok(Country::FinlandYtunnus, "2077474-0");
+        no(Country::FinlandYtunnus, "2077474-1");
+        ok(Country::SwitzerlandEsr, "21 00000 00003 13947 14300 09017");
+        no(Country::SwitzerlandEsr, "210000000003139471430009016");
+        ok(Country::ChinaUscc, "91110000600037341L");
+        no(Country::ChinaUscc, "A1110000600037341L");
+        ok(Country::SloveniaMaticna, "9331310000");
+        no(Country::SloveniaMaticna, "9331311");
+        ok(Country::AustriaVnr, "1237 010180");
+        no(Country::AustriaVnr, "2237 010180");
+        ok(Country::AustriaFirmenbuch, "FN 122119m");
+        no(Country::AustriaFirmenbuch, "122119M");
+        ok(Country::PeruCui, "10117410-2");
+        no(Country::PeruCui, "10117410-3");
+        ok(Country::ArgentinaDni, "20.123.456");
+        no(Country::ArgentinaDni, "2012345A");
+        ok(Country::IndiaVid, "2341234123412341");
+        no(Country::IndiaVid, "2222222222222222");
+        ok(Country::UnitedKingdomUpn, "M20112345678A");
+        no(Country::UnitedKingdomUpn, "A20112345678A");
+        ok(Country::NetherlandsOnderwijsnummer, "1012.22.331");
+        no(Country::NetherlandsOnderwijsnummer, "100252333");
+    }
+
+    /// The identifiers added in 0.7.0, each pinned by a reference value and a
+    /// mutation that must be rejected. The fixture gate covers these over
+    /// thousands of inputs; this test states the shape the crate promises.
+    #[test]
+    fn newly_covered_identifiers_0_7() {
+        let ok = |country, value: &str| {
+            assert!(
+                IdNumber::parse(country, value).is_ok(),
+                "{country:?} rejected {value:?}"
+            );
+        };
+        let no = |country, value: &str| {
+            assert!(
+                IdNumber::parse(country, value).is_err(),
+                "{country:?} accepted {value:?}"
+            );
+        };
+        ok(Country::SpainNie, "X2482300W");
+        ok(Country::SpainNie, "Y1234567X");
+        no(Country::SpainNie, "X2482300A");
+        no(Country::SpainNie, "X2482300");
+        ok(Country::SpainPostalCode, "01000");
+        no(Country::SpainPostalCode, "0100");
+        ok(Country::BelgiumBis, "98 47 28 997 65");
+        no(Country::BelgiumBis, "98 47 28 997 64");
+        ok(Country::BelgiumEid, "000-0011032-71");
+        no(Country::BelgiumEid, "000-0011032-25");
+        ok(Country::BelgiumVat, "BE0123456749");
+        no(Country::BelgiumVat, "BE0123456748");
+        ok(Country::GermanyVat, "DE 136,695 976");
+        no(Country::GermanyVat, "DE 136,695 977");
+        ok(Country::FranceAccise, "FR023004N9448");
+        no(Country::FranceAccise, "FR023004A9448");
+        ok(Country::NetherlandsPostcode, "2611 ET");
+        no(Country::NetherlandsPostcode, "2611 E");
+        ok(Country::SwedenPostnummer, "114 18");
+        no(Country::SwedenPostnummer, "1141");
+        ok(Country::SwitzerlandVat, "CHE-107.787.577 IVA");
+        no(Country::SwitzerlandVat, "CHE-107.787.578 IVA");
+        ok(Country::BulgariaVat, "BG 175 074 752");
+        no(Country::BulgariaVat, "BG 175 074 753");
+        ok(Country::CostaRicaCr, "155812994816");
+        no(Country::CostaRicaCr, "255812994816");
+        ok(Country::DominicanRepublicCedula, "00113918205");
+        no(Country::DominicanRepublicCedula, "00113918204");
+        ok(Country::DominicanRepublicCedula, "00000021249");
+        ok(Country::DominicanRepublicNcf, "B0100000001");
+        no(Country::DominicanRepublicNcf, "B0000000001");
+        ok(Country::UnitedStatesTin, "042103594");
+        // A taxpayer number has no check digit, so the rejection is structural:
+        // the nine-digit shape is required.
+        no(Country::UnitedStatesTin, "04210359");
+        no(Country::UnitedStatesTin, "04210359A");
+        ok(Country::ThailandTin, "1-2345-45678-78-1");
+        no(Country::ThailandTin, "1-2345-45678-78-2");
+        ok(Country::FranceTva, "FR 40 303 265 045");
+        no(Country::FranceTva, "84 323 140 391");
+        ok(Country::EuExcise, "LU 987ABC");
+        no(Country::EuExcise, "XX00000987ABC");
+        ok(Country::EuOss, "EU 372022452");
+        no(Country::EuOss, "EU999022452");
     }
 }
