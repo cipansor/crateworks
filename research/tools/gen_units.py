@@ -439,8 +439,15 @@ def supported(unit: Quantity, offset: float | None, dims) -> bool:
 
 
 def rust_float(value: float) -> str:
+    # `repr` prints an exponent the way Python does (`7.7e-08`, `1.1e+18`),
+    # but clippy 1.88 reads that as excessive precision: it wants the
+    # canonical Rust spelling, a bare `e` with no `+` and no leading zero.
+    # The two forms are the same `f64`, so only the spelling changes.
     text = repr(float(value))
-    if "e" in text or "E" in text or "." in text or "inf" in text:
+    if "e" in text:
+        mantissa, _, exponent = text.partition("e")
+        return f"{mantissa}e{int(exponent)}"
+    if "." in text or "inf" in text:
         return text
     return text + ".0"
 
@@ -512,9 +519,10 @@ def main() -> int:
     for name, value in usable_prefixes:
         lines.append(f'    ({name!r}, {rust_float(value)}),'.replace("'", '"'))
     lines.append("];")
-    lines.append("")
 
     (crate / "src").mkdir(parents=True, exist_ok=True)
+    # No trailing blank line: `cargo fmt` strips one, so emitting it would
+    # leave the tree dirty after every regeneration.
     (crate / "src" / "table.rs").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     print(f"definitions   {len(rows)}")

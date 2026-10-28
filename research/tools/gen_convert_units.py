@@ -57,6 +57,19 @@ def rust_string(text: str) -> str:
     return "".join(out)
 
 
+def rust_float(value: float) -> str:
+    """A Rust float literal: `repr`'s digits with a canonical exponent.
+
+    `repr` prints `e-08`/`e+18`; Rust and clippy 1.88 want `e-8`/`e18`. The
+    value is unchanged, only the spelling.
+    """
+    text = repr(float(value))
+    if "e" in text:
+        mantissa, _, exponent = text.partition("e")
+        return f"{mantissa}e{int(exponent)}"
+    return text
+
+
 def main() -> int:
     raw = subprocess.run(
         ["node", "-e", EXTRACT], cwd=ROOT, capture_output=True, text=True, check=True
@@ -86,8 +99,11 @@ def main() -> int:
         lines.append(f"        symbol: {rust_string(symbol)},")
         lines.append(f"        aliases: &[{alias_text}],")
         lines.append(f"        category: {rust_string(category)},")
-        # `repr` round-trips a float exactly, which the factor must.
-        lines.append(f"        factor: {repr(float(factor))},")
+        # `repr` round-trips a float exactly, which the factor must; the
+        # exponent is then respelled the way Rust writes it (`e-8`, not
+        # Python's `e-08`), because clippy 1.88 reads the latter as
+        # excessive precision.
+        lines.append(f"        factor: {rust_float(float(factor))},")
         lines.append("    },")
     lines.append("];")
     lines.append("")

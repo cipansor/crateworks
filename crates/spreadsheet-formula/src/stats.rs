@@ -491,7 +491,9 @@ pub(crate) fn f_inv(p: f64, df1: f64, df2: f64) -> f64 {
 // --- Beta and gamma ---
 
 pub(crate) fn beta_pdf(x: f64, alpha: f64, beta: f64) -> f64 {
-    if x > 1.0 || x < 0.0 {
+    // NaN falls through, as it does in the reference; only a real value
+    // outside [0, 1] is zero.
+    if !(0.0..=1.0).contains(&x) && !x.is_nan() {
         return 0.0;
     }
     if alpha == 1.0 && beta == 1.0 {
@@ -586,7 +588,9 @@ pub(crate) fn binomial_cdf(x: f64, n: f64, p: f64) -> f64 {
     if x >= n {
         return 1.0;
     }
-    if p < 0.0 || p > 1.0 || n <= 0.0 {
+    // NaN falls through, as it does in the reference; only a real value
+    // outside [0, 1], or a non-positive trial count, is an error.
+    if (!(0.0..=1.0).contains(&p) && !p.is_nan()) || n <= 0.0 {
         return f64::NAN;
     }
     let x = x.floor();

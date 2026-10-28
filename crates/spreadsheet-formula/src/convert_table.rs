@@ -155,7 +155,7 @@ pub(crate) static UNITS: &[Unit] = &[
         symbol: "in3",
         aliases: &["in^3"],
         category: "volume",
-        factor: 1.6387064e-05,
+        factor: 1.6387064e-5,
     },
     Unit {
         symbol: "ly3",
@@ -185,7 +185,7 @@ pub(crate) static UNITS: &[Unit] = &[
         symbol: "Pica3",
         aliases: &["Picapt3", "Pica^3", "Picapt^3"],
         category: "volume",
-        factor: 7.58660370370369e-08,
+        factor: 7.58660370370369e-8,
     },
     Unit {
         symbol: "yd3",
@@ -227,7 +227,7 @@ pub(crate) static UNITS: &[Unit] = &[
         symbol: "dyn",
         aliases: &["dy"],
         category: "force",
-        factor: 1e-05,
+        factor: 1e-5,
     },
     Unit {
         symbol: "eV",
@@ -245,7 +245,7 @@ pub(crate) static UNITS: &[Unit] = &[
         symbol: "erg",
         aliases: &["e"],
         category: "energy",
-        factor: 1e-07,
+        factor: 1e-7,
     },
     Unit {
         symbol: "F",
@@ -257,7 +257,7 @@ pub(crate) static UNITS: &[Unit] = &[
         symbol: "oz",
         aliases: &[],
         category: "volume",
-        factor: 2.95735295625e-05,
+        factor: 2.95735295625e-5,
     },
     Unit {
         symbol: "ft",
@@ -293,7 +293,7 @@ pub(crate) static UNITS: &[Unit] = &[
         symbol: "grain",
         aliases: &[],
         category: "mass",
-        factor: 6.47989e-05,
+        factor: 6.47989e-5,
     },
     Unit {
         symbol: "g",
@@ -479,7 +479,7 @@ pub(crate) static UNITS: &[Unit] = &[
         symbol: "pc",
         aliases: &["parsec"],
         category: "length",
-        factor: 3.08567758146719e+16,
+        factor: 3.08567758146719e16,
     },
     Unit {
         symbol: "m?/s",
@@ -521,7 +521,7 @@ pub(crate) static UNITS: &[Unit] = &[
         symbol: "tspm",
         aliases: &[],
         category: "volume",
-        factor: 5e-06,
+        factor: 5e-6,
     },
     Unit {
         symbol: "mol",
@@ -665,7 +665,7 @@ pub(crate) static UNITS: &[Unit] = &[
         symbol: "?",
         aliases: &[],
         category: "angle",
-        factor: 4.84813681109536e-06,
+        factor: 4.84813681109536e-6,
     },
     Unit {
         symbol: "s",
@@ -719,7 +719,7 @@ pub(crate) static UNITS: &[Unit] = &[
         symbol: "ly2",
         aliases: &["ly^2"],
         category: "area",
-        factor: 8.95054210748189e+31,
+        factor: 8.95054210748189e31,
     },
     Unit {
         symbol: "m?",
@@ -743,7 +743,7 @@ pub(crate) static UNITS: &[Unit] = &[
         symbol: "Pica2",
         aliases: &["Picapt2", "Pica^2", "Picapt^2"],
         category: "area",
-        factor: 1.792111111111e-05,
+        factor: 1.792111111111e-5,
     },
     Unit {
         symbol: "yd2",
@@ -785,13 +785,13 @@ pub(crate) static UNITS: &[Unit] = &[
         symbol: "tbs",
         aliases: &[],
         category: "volume",
-        factor: 1.47868e-05,
+        factor: 1.47868e-5,
     },
     Unit {
         symbol: "tsp",
         aliases: &[],
         category: "volume",
-        factor: 4.92892e-06,
+        factor: 4.92892e-6,
     },
     Unit {
         symbol: "T",
