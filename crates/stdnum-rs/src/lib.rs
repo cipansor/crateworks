@@ -1,6 +1,7 @@
 #![doc = include_str!("../README.md")]
 #![forbid(unsafe_code)]
 
+pub mod damm;
 pub mod ean;
 pub mod iban;
 pub mod id;
@@ -12,10 +13,12 @@ pub mod luhn;
 pub mod network;
 pub mod securities;
 pub mod telecom;
+pub mod verhoeff;
 
 mod iso3166;
 mod sha256;
 
+pub use damm::Damm;
 pub use ean::Ean;
 pub use iban::Iban;
 pub use id::{Country, IdNumber};
@@ -26,6 +29,7 @@ pub use luhn::Luhn;
 pub use network::Mac;
 pub use securities::{Bic, Cusip, Figi, Grid, Isin, Lei};
 pub use telecom::{BitcoinAddress, Imo, Isan, Meid};
+pub use verhoeff::Verhoeff;
 
 /// Why a number failed validation.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -105,6 +109,10 @@ pub enum NumberType {
     Ean,
     /// A number that only uses the Luhn check, such as a payment card.
     Luhn,
+    /// A number that satisfies the Damm check.
+    Damm,
+    /// A number that satisfies the Verhoeff check.
+    Verhoeff,
     /// An ISIN, the identifier for a security.
     Isin,
     /// A CUSIP, the North American security identifier.
@@ -168,6 +176,8 @@ pub fn validate(kind: NumberType, input: &str) -> Result<()> {
         NumberType::Isbn => Isbn::parse(input).map(|_| ()),
         NumberType::Ean => Ean::parse(input).map(|_| ()),
         NumberType::Luhn => Luhn::parse(input).map(|_| ()),
+        NumberType::Damm => Damm::parse(input).map(|_| ()),
+        NumberType::Verhoeff => Verhoeff::parse(input).map(|_| ()),
         NumberType::Isin => Isin::parse(input).map(|_| ()),
         NumberType::Cusip => Cusip::parse(input).map(|_| ()),
         NumberType::Figi => Figi::parse(input).map(|_| ()),
@@ -289,6 +299,63 @@ pub(crate) mod checksum {
         extended.push(0);
         let checksum = luhn_mod_n_checksum(&extended, radix);
         ((radix - checksum) % radix) as u8
+    }
+
+    /// The Damm checksum of a run of digits, which is zero when they are valid.
+    ///
+    /// The operation table is the anti-symmetric quasigroup of order ten; the
+    /// running value starts at zero and each digit selects a new one.
+    pub(crate) fn damm(digits: &[u8]) -> u8 {
+        const TABLE: [[u8; 10]; 10] = [
+            [0, 3, 1, 7, 5, 9, 8, 6, 4, 2],
+            [7, 0, 9, 2, 1, 5, 4, 8, 6, 3],
+            [4, 2, 0, 6, 8, 7, 1, 3, 5, 9],
+            [1, 7, 5, 0, 9, 8, 3, 4, 2, 6],
+            [6, 1, 2, 3, 0, 4, 5, 9, 7, 8],
+            [3, 6, 7, 4, 2, 0, 9, 5, 8, 1],
+            [5, 8, 6, 9, 7, 2, 0, 1, 3, 4],
+            [8, 9, 4, 5, 3, 6, 2, 0, 1, 7],
+            [9, 4, 3, 8, 6, 1, 7, 2, 0, 5],
+            [2, 5, 8, 1, 4, 3, 6, 7, 9, 0],
+        ];
+        let mut value = 0usize;
+        for &d in digits {
+            value = TABLE[value][d as usize] as usize;
+        }
+        value as u8
+    }
+
+    /// The Verhoeff checksum of a run of digits, which is zero when they are
+    /// valid. Positions count from the right, so the check digit is position
+    /// zero.
+    pub(crate) fn verhoeff(digits: &[u8]) -> u8 {
+        const MULTIPLICATION: [[u8; 10]; 10] = [
+            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+            [1, 2, 3, 4, 0, 6, 7, 8, 9, 5],
+            [2, 3, 4, 0, 1, 7, 8, 9, 5, 6],
+            [3, 4, 0, 1, 2, 8, 9, 5, 6, 7],
+            [4, 0, 1, 2, 3, 9, 5, 6, 7, 8],
+            [5, 9, 8, 7, 6, 0, 4, 3, 2, 1],
+            [6, 5, 9, 8, 7, 1, 0, 4, 3, 2],
+            [7, 6, 5, 9, 8, 2, 1, 0, 4, 3],
+            [8, 7, 6, 5, 9, 3, 2, 1, 0, 4],
+            [9, 8, 7, 6, 5, 4, 3, 2, 1, 0],
+        ];
+        const PERMUTATION: [[u8; 10]; 8] = [
+            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+            [1, 5, 7, 6, 2, 8, 3, 0, 9, 4],
+            [5, 8, 0, 3, 7, 9, 6, 1, 4, 2],
+            [8, 9, 1, 6, 0, 4, 3, 5, 2, 7],
+            [9, 4, 5, 3, 1, 2, 6, 8, 7, 0],
+            [4, 2, 8, 6, 5, 7, 3, 9, 0, 1],
+            [2, 7, 9, 3, 8, 0, 6, 4, 1, 5],
+            [7, 0, 4, 6, 9, 1, 3, 2, 5, 8],
+        ];
+        let mut check = 0usize;
+        for (i, &d) in digits.iter().rev().enumerate() {
+            check = MULTIPLICATION[check][PERMUTATION[i % 8][d as usize] as usize] as usize;
+        }
+        check as u8
     }
 
     /// Rewrites Arabic-Indic and extended Arabic-Indic digits as ASCII.

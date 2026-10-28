@@ -23,6 +23,7 @@ It rewrites the fixture in place and prints a per-country summary.
 
 from __future__ import annotations
 
+import random
 import re
 import sys
 from pathlib import Path
@@ -181,6 +182,10 @@ INTERNATIONAL: dict[str, str] = {
     # OUI registry the crate deliberately does not ship.
     "Mac": "mac",
     "Isil": "isil",
+    # Added in 0.1.9: the two table-driven check-digit algorithms, alongside
+    # Luhn and the ISO 7064 family the crate already carried.
+    "Damm": "damm",
+    "Verhoeff": "verhoeff",
 }
 
 
@@ -247,6 +252,44 @@ def verdict(mod, value: str, **kwargs) -> bool:
     return True
 
 
+# The check-digit algorithms have a one-line doctest each, so their generic
+# corpus is thin. `calc_check_digit` lets the reference build valid numbers from
+# random payloads, which is what turns "the two examples agree" into "the table
+# agrees over thousands of inputs". A valid number and its single-digit
+# mutations are both recorded, so the gate covers acceptance and rejection.
+CHECK_DIGIT_ALGORITHMS: dict[str, str] = {
+    "Damm": "damm",
+    "Verhoeff": "verhoeff",
+}
+
+CORPUS_SIZE = 1500
+
+
+def algorithm_corpus(rust_name: str, py_name: str, rng) -> list[str]:
+    """Rows for a check-digit algorithm: valid numbers plus mutations."""
+    mod = module(py_name)
+    lines: list[str] = []
+    seen: set[str] = set()
+    while len(seen) < CORPUS_SIZE:
+        length = rng.randint(1, 18)
+        payload = "".join(rng.choice("0123456789") for _ in range(length))
+        valid = payload + mod.calc_check_digit(payload)
+        if valid in seen:
+            continue
+        seen.add(valid)
+        lines.append(f"{rust_name}\t{valid}\t1")
+        # One mutation per valid number: replace a random position with a random
+        # digit. The reference decides the verdict, which is usually rejection
+        # but need not be.
+        i = rng.randrange(len(valid))
+        d = rng.choice("0123456789")
+        mutant = valid[:i] + d + valid[i + 1 :]
+        if mutant not in seen:
+            seen.add(mutant)
+            lines.append(f"{rust_name}\t{mutant}\t{1 if verdict(mod, mutant) else 0}")
+    return lines
+
+
 def main() -> int:
     root = Path(__file__).resolve().parents[2]
     dest = root / "crates/stdnum-rs/tests/fixtures/stdnum_vectors.tsv"
@@ -265,9 +308,18 @@ def main() -> int:
 
     lines: list[str] = []
     summary: list[str] = []
+    rng = random.Random(20261027)
     for rust_name, py_name in {**COUNTRIES, **INTERNATIONAL}.items():
         if rust_name in have:
             summary.append(f"{rust_name:22s} kept from the existing fixture")
+            continue
+        if py_name in CHECK_DIGIT_ALGORITHMS.values():
+            corpus = algorithm_corpus(rust_name, py_name, rng)
+            lines.extend(corpus)
+            accepted = sum(1 for row in corpus if row.endswith("\t1"))
+            summary.append(
+                f"{rust_name:22s} {len(corpus):5d} vectors, {accepted:5d} accepted"
+            )
             continue
         try:
             mod = module(py_name)

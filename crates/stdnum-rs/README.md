@@ -45,7 +45,7 @@ the raw input themselves rather than sharing the crate's global normalisation.
 Egypt's tax number is also accepted in Arabic-Indic digits, which is how it is
 printed in an Arabic document.
 
-Seventeen international identifiers are covered in addition to those, each a
+Nineteen international identifiers are covered in addition to those, each a
 type of its own:
 
 | Type | Standard | What it identifies |
@@ -80,9 +80,15 @@ checking the Base58 double-SHA-256 and the Bech32 BCH checksum; the SHA-256 it
 needs is a private implementation in the crate, not a dependency.
 
 The check-digit algorithms themselves are public, in
-[`iso7064`](https://docs.rs/stdnum-rs/latest/stdnum_rs/iso7064/index.html): MOD
-11-2, MOD 37-36, MOD 97-10, Damm and Verhoeff. Each has a `checksum` and a
-`check_digit` function, so a caller can generate a number as well as check one.
+[`iso7064`](https://docs.rs/stdnum-rs/latest/stdnum_rs/iso7064/index.html) (MOD
+11-2, MOD 37-36 and MOD 97-10), [`damm`](https://docs.rs/stdnum-rs/latest/stdnum_rs/damm/index.html),
+[`verhoeff`](https://docs.rs/stdnum-rs/latest/stdnum_rs/verhoeff/index.html) and
+[`luhn`](https://docs.rs/stdnum-rs/latest/stdnum_rs/luhn/index.html). The ISO
+7064 functions are free functions; the other three are number types (`Damm`,
+`Verhoeff`, `Luhn`) whose `check_digit_for` computes the digit for a payload, so
+a caller can generate a number as well as check one. Damm and Verhoeff catch
+every single-digit error and every adjacent transposition, including the
+`09`/`90` swap that Luhn lets through.
 
 ## Data provenance
 
@@ -92,14 +98,16 @@ contributors, which in turn follows each authority's published specification.
 This is an independent reimplementation and shares no code with it; see
 [`NOTICE`](https://github.com/cipansor/crateworks/blob/main/crates/stdnum-rs/NOTICE).
 
-`tests/fixtures/stdnum_vectors.tsv` holds 33,489 numbers labelled by that
+`tests/fixtures/stdnum_vectors.tsv` holds 36,489 numbers labelled by that
 reference: every number in its own documentation plus each single-digit
 substitution of a valid number, the last character dropped and a character
-appended. `tests/readme.rs` replays the file, so a change that makes this crate
-disagree with the reference fails the build. The check digit, the accepted
-shapes and the separator characters all came out of that comparison, and
-`research/tools/gen_stdnum_vectors.py` regenerates the file when a type is
-added.
+appended. Damm and Verhoeff also carry a 1,500-number random corpus each, built
+by asking the reference for the check digit of a random payload, because their
+own documentation offers a single example. `tests/readme.rs` replays the whole
+file, so a change that makes this crate disagree with the reference fails the
+build. The check digit, the accepted shapes and the separator characters all
+came out of that comparison, and `research/tools/gen_stdnum_vectors.py`
+regenerates the file when a type is added.
 
 Two behaviours were settled by that comparison rather than by the
 specification alone. `mod_37_36` replaces a zero intermediate value with the
@@ -142,6 +150,13 @@ assert_eq!(
 );
 assert!(stdnum_rs::Isan::parse("0000-0001-8CFA-0000-I-0000-0000-K").is_ok());
 assert!(stdnum_rs::BitcoinAddress::parse("1NEDqZPvTWRaoho48qXuLLsrYomMXPABfD").is_ok());
+
+// The stronger check digits: Damm and Verhoeff catch the `09`/`90`
+// transposition that Luhn misses. Each can generate the digit for a payload.
+assert_eq!(stdnum_rs::Damm::check_digit_for("572").unwrap(), 4);
+assert!(stdnum_rs::Damm::parse("5724").is_ok());
+assert_eq!(stdnum_rs::Verhoeff::check_digit_for("1234").unwrap(), 0);
+assert!(stdnum_rs::Verhoeff::parse("12340").is_ok());
 ```
 
 ## Scope

@@ -64,6 +64,8 @@ fn every_labelled_number_agrees_with_python_stdnum() {
 /// not tied to a country.
 fn known_type(name: &str) -> Option<NumberType> {
     Some(match name {
+        "Damm" => NumberType::Damm,
+        "Verhoeff" => NumberType::Verhoeff,
         "Isin" => NumberType::Isin,
         "Cusip" => NumberType::Cusip,
         "Figi" => NumberType::Figi,
