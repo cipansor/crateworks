@@ -590,6 +590,50 @@ pub(crate) fn tbilleq(settlement: f64, maturity: f64, discount: f64) -> Option<f
     Some(365.0 * discount / (360.0 - discount * days))
 }
 
+/// `ACCRINT`: the accrued interest on a security that pays periodic interest.
+///
+/// The term runs from the issue date to the settlement date, and the interest
+/// is the par value times the annual rate times that term as a fraction of a
+/// year under the day-count basis. The first interest date does not enter the
+/// formula - the reference accepts it and ignores it - but the argument is kept
+/// so the call has the shape a spreadsheet gives it.
+///
+/// The basis is restricted to 0 through 4 and the frequency to 1, 2 or 4, which
+/// is what the reference does, so an out-of-range value is an error rather than
+/// a silently different day count. The reference also checks that the first
+/// interest date parses, even though the value is unused, so a malformed one is
+/// rejected here too.
+pub(crate) fn accrint(
+    issue: f64,
+    first_interest: f64,
+    settlement: f64,
+    rate: f64,
+    par: f64,
+    frequency: f64,
+    basis: f64,
+) -> Option<f64> {
+    if !issue.is_finite() || !first_interest.is_finite() || !settlement.is_finite() {
+        return None;
+    }
+    if rate <= 0.0 || par <= 0.0 {
+        return None;
+    }
+    if !matches!(frequency, 1.0 | 2.0 | 4.0) {
+        return None;
+    }
+    if !(0.0..=4.0).contains(&basis) || basis.fract() != 0.0 {
+        return None;
+    }
+    let (start, end) = (
+        crate::datetime::date_part(issue),
+        crate::datetime::date_part(settlement),
+    );
+    if end <= start {
+        return None;
+    }
+    Some(par * rate * crate::datetime::yearfrac(start, end, basis as i64))
+}
+
 /// The 30/360 term of a treasury bill, rejecting a bill that runs longer than a
 /// year or a non-positive rate.
 fn tbill_term(settlement: f64, maturity: f64, rate: f64) -> Option<f64> {
@@ -778,6 +822,43 @@ mod tests {
         // A fraction of zero leaves the price untouched.
         assert_eq!(dollarde(1.5, 0.0), Some(1.5));
         assert_eq!(dollarfr(1.5, 0.0), Some(1.5));
+    }
+
+    #[test]
+    fn accrued_interest_matches_the_reference() {
+        // 2020-01-15 to 2021-01-15 is exactly one year under 30/360, so the
+        // interest is par times the rate. 43845 and 44211 are those serials.
+        let (issue, first, settlement) = (43_845.0, 44_027.0, 44_211.0);
+        assert!(close(
+            accrint(issue, first, settlement, 0.05, 1000.0, 2.0, 0.0).unwrap(),
+            50.0
+        ));
+        // Actual/360 over 366 days gives a little more than a year's interest.
+        assert!(close(
+            accrint(issue, first, settlement, 0.05, 1000.0, 2.0, 2.0).unwrap(),
+            50.833_333_333_333_33
+        ));
+        // A rate, a par, a frequency or a basis out of range is refused, as is a
+        // settlement that is not after the issue date.
+        assert_eq!(
+            accrint(issue, first, settlement, 0.0, 1000.0, 2.0, 0.0),
+            None
+        );
+        assert_eq!(accrint(issue, first, settlement, 0.05, 0.0, 2.0, 0.0), None);
+        assert_eq!(
+            accrint(issue, first, settlement, 0.05, 1000.0, 3.0, 0.0),
+            None
+        );
+        assert_eq!(
+            accrint(issue, first, settlement, 0.05, 1000.0, 2.0, 5.0),
+            None
+        );
+        assert_eq!(accrint(issue, first, issue, 0.05, 1000.0, 2.0, 0.0), None);
+        // The first interest date is unused but still has to be a date.
+        assert_eq!(
+            accrint(issue, f64::NAN, settlement, 0.05, 1000.0, 2.0, 0.0),
+            None
+        );
     }
 
     #[test]

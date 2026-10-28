@@ -22,7 +22,7 @@ impl Sheet for Grid {
 assert_eq!(Evaluator::new(&Grid).eval("=SUM(A1:A2)*2").unwrap(), Value::Number(10.0));
 ```
 
-341 functions plus `IF` and `IFERROR`, which are evaluated lazily along with
+342 functions plus `IF` and `IFERROR`, which are evaluated lazily along with
 `SWITCH`. Cell and range references, absolute references, sheet qualifiers, text
 concatenation, and comparison operators. The library covers arithmetic and
 rounding, trigonometry and its hyperbolic and reciprocal forms, logarithms, the
@@ -87,7 +87,7 @@ string and a way to resolve cell references, so it can be used with `xlsx`,
 * Financial - `FV`, `PV`, `PMT`, `NPER`, `RATE`, `IPMT`, `PPMT`, `CUMIPMT`, `CUMPRINC`,
   `ISPMT`, `NPV`, `IRR`, `MIRR`, `XNPV`, `XIRR`, `SLN`, `SYD`, `DDB`, `DB`,
   `EFFECT`, `NOMINAL`, `RRI`, `PDURATION`, `DOLLARDE`, `DOLLARFR`, `DISC`,
-  `PRICEDISC`, `TBILLPRICE`, `TBILLYIELD`, `TBILLEQ`, `FVSCHEDULE`, `COUPDAYS`.
+  `PRICEDISC`, `TBILLPRICE`, `TBILLYIELD`, `TBILLEQ`, `ACCRINT`, `FVSCHEDULE`, `COUPDAYS`.
 * Lookup and reference - `VLOOKUP`, `HLOOKUP`, `LOOKUP`, `MATCH`, `INDEX`,
   `CHOOSE`, `ROW`, `COLUMN`, `ROWS`, `COLUMNS`.
 * Database and aggregation - `SUBTOTAL`, which runs one of eleven aggregates

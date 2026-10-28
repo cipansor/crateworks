@@ -2165,6 +2165,23 @@ pub(crate) fn call_from(
                 .map(Value::Number)
                 .ok_or(Error::Arithmetic(ValueError::NotANumber))
         }
+        "ACCRINT" => {
+            require_between(name, args, 6, 7)?;
+            let basis = args
+                .get(6)
+                .map_or(0.0, |a| first_value(a).as_number().unwrap_or(0.0));
+            financial::accrint(
+                first_number(name, &args[0])?,
+                first_number(name, &args[1])?,
+                first_number(name, &args[2])?,
+                first_number(name, &args[3])?,
+                first_number(name, &args[4])?,
+                first_number(name, &args[5])?,
+                basis,
+            )
+            .map(Value::Number)
+            .ok_or(Error::Arithmetic(ValueError::NotANumber))
+        }
         // --- base conversion -------------------------------------------------
         // Every base function works on a fixed ten-digit field: a leading digit
         // above the base's half is a negative number, which is how a spreadsheet
@@ -4214,6 +4231,7 @@ fn require_at_least(name: &str, args: &[Arg], minimum: usize) -> Result<(), Erro
 /// against the supported set.
 pub const FUNCTION_NAMES: &[&str] = &[
     "ABS",
+    "ACCRINT",
     "AGGREGATE",
     "ACOS",
     "ACOSH",

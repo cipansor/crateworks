@@ -20,6 +20,7 @@ import os
 import pathlib
 import subprocess
 import sys
+from datetime import date
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 CRATE = ROOT / "crates" / "spreadsheet-formula"
@@ -60,6 +61,24 @@ class Range:
 def RANGE(*values):
     """A cell range on the Rust side and an array on the JS side."""
     return Range(*values)
+
+
+class JsDate:
+    """A calendar date that both sides must see as a date.
+
+    The Rust side works in spreadsheet serial numbers, so it gets the serial.
+    The reference's date functions call `new Date(value)`, and a serial number
+    is read as milliseconds since the epoch, which is the wrong day by decades.
+    So the JS side is handed a real `Date`, built by the driver. Only `ACCRINT`
+    needs this, and it is why `ACCRINT` can be gated at all when the reference
+    otherwise refuses serial dates.
+    """
+
+    def __init__(self, year, month, day):
+        self.year = year
+        self.month = month
+        self.day = day
+        self.serial = (date(year, month, day) - date(1899, 12, 30)).days
 
 # function name -> list of argument tuples.
 CASES = {
@@ -299,9 +318,21 @@ CASES = {
     # live in the crate's own unit tests rather than here.
     # --- database --------------------------------------------------------
     "RATE": [(60, -100, 1000), (12, -100, 1000, 0), (24, -1000, 10000)],
-    # `ACCRINT` is not gated: the reference wraps its dates with `new Date()`,
-    # which reads a spreadsheet serial as milliseconds since the epoch, so it
-    # returns a wrong number for every serial input rather than a reference.
+    # `ACCRINT` takes dates, so it is gated with `JsDate` values: the reference
+    # needs a real `Date` where this crate takes a serial. See the class.
+    "ACCRINT": [
+        (JsDate(2020, 1, 15), JsDate(2020, 7, 15), JsDate(2021, 1, 15), 0.05, 1000, 2),
+        (JsDate(2020, 1, 15), JsDate(2020, 7, 15), JsDate(2021, 1, 15), 0.05, 1000, 1),
+        (JsDate(2020, 1, 15), JsDate(2020, 7, 15), JsDate(2021, 1, 15), 0.05, 1000, 4),
+        (JsDate(2020, 1, 15), JsDate(2020, 7, 15), JsDate(2021, 1, 15), 0.05, 1000, 2, 1),
+        (JsDate(2020, 1, 15), JsDate(2020, 7, 15), JsDate(2021, 1, 15), 0.05, 1000, 2, 2),
+        (JsDate(2020, 1, 15), JsDate(2020, 7, 15), JsDate(2021, 1, 15), 0.05, 1000, 2, 3),
+        (JsDate(2020, 1, 15), JsDate(2020, 7, 15), JsDate(2021, 1, 15), 0.05, 1000, 2, 4),
+        # A partial first year: the term is under twelve months.
+        (JsDate(2020, 3, 1), JsDate(2020, 9, 1), JsDate(2020, 9, 1), 0.06, 5000, 2),
+        # A rate that produces a round number under 30/360.
+        (JsDate(2019, 2, 15), JsDate(2019, 8, 15), JsDate(2020, 2, 15), 0.04, 1000, 2),
+    ],
     "COUPDAYS": [
         (45292, 45839, 2),
         (45292, 45839, 2, 0),
@@ -625,6 +656,8 @@ COLUMN_NAMES = [chr(ord("A") + i) for i in range(26)]
 
 
 def render_rust(arg):
+    if isinstance(arg, JsDate):
+        return repr(arg.serial)
     if isinstance(arg, tuple) and len(arg) == 3 and isinstance(arg[1], str):
         return arg[0]
     return repr(arg)
@@ -644,6 +677,9 @@ def js_cases():
 
 
 def render_js(arg):
+    if isinstance(arg, JsDate):
+        # Local time, which is the month the crate's serial also names.
+        return f"new Date({arg.year}, {arg.month - 1}, {arg.day})"
     if isinstance(arg, tuple) and len(arg) == 3 and isinstance(arg[1], str):
         return arg[1]
     if isinstance(arg, Range):
