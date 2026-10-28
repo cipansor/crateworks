@@ -186,6 +186,9 @@ INTERNATIONAL: dict[str, str] = {
     # Luhn and the ISO 7064 family the crate already carried.
     "Damm": "damm",
     "Verhoeff": "verhoeff",
+    # Added in 0.1.10: the two EU-domain identifiers.
+    "EcNumber": "eu.ecnumber",
+    "EuropeanBanknote": "eu.banknote",
 }
 
 
@@ -262,6 +265,51 @@ CHECK_DIGIT_ALGORITHMS: dict[str, str] = {
     "Verhoeff": "verhoeff",
 }
 
+
+def ecnumber_corpus(mod, rng) -> list[str]:
+    """Valid EC Numbers: a random six-digit payload plus the reference's own
+    check digit, so the corpus is the reference's answer and not a hand-written
+    guess."""
+    out: list[str] = []
+    for _ in range(15):
+        payload = "".join(rng.choice("0123456789") for _ in range(6))
+        out.append(payload + mod.calc_check_digit(payload))
+    return out
+
+
+def banknote_corpus(mod, rng) -> list[str]:
+    """Valid euro banknote serials.
+
+    Half use the older one-letter head (a country letter, ten digits, a check
+    digit); half use the newer two-letter series, whose first two characters may
+    both be letters. The last digit closes the reference's checksum to a multiple
+    of nine, so the reference accepts every row.
+    """
+    letters = "BCDEFGHJLMNPRSTUVWXYZ"
+    out: list[str] = []
+    while len(out) < 15:
+        if len(out) % 2 == 0:
+            head = rng.choice(letters)
+            digits = "".join(rng.choice("0123456789") for _ in range(10))
+        else:
+            # Two-letter series: the second letter is not restricted to the
+            # issuing set, only the first is.
+            head = rng.choice(letters) + rng.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+            digits = "".join(rng.choice("0123456789") for _ in range(9))
+        fixed = sum(ord(c) if c.isalpha() else int(c) for c in head + digits)
+        last = (9 - fixed % 9) % 9
+        out.append(f"{head}{digits}{last}")
+    return out
+
+
+# Identifiers whose doctest is a single example, so their generic corpus would
+# be too thin to catch a divergence. Each builder returns valid numbers, which
+# the caller then mutates exactly like a doctest example.
+CUSTOM_CORPUS: dict[str, object] = {
+    "eu.ecnumber": ecnumber_corpus,
+    "eu.banknote": banknote_corpus,
+}
+
 CORPUS_SIZE = 1500
 
 
@@ -328,6 +376,8 @@ def main() -> int:
             return 1
         accepted, rejected = examples(mod)
         accepted.extend(SEEDS.get(py_name, ()))
+        if py_name in CUSTOM_CORPUS:
+            accepted.extend(CUSTOM_CORPUS[py_name](mod, rng))
         if not accepted:
             print(f"!! {rust_name}: no accepted doctest example in stdnum.{py_name}")
             return 1

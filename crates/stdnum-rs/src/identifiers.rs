@@ -650,6 +650,185 @@ impl std::fmt::Display for CreditorReference {
     }
 }
 
+/// An EC Number, the seven-digit identifier the European Commission assigns to
+/// a chemical substance.
+///
+/// It is written as three groups of three, two and one digits, for example
+/// `200-001-8`, and the last digit is a check digit over the other six. The
+/// bare seven digits are accepted and hyphenated; hyphens anywhere else are
+/// rejected rather than repaired.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct EcNumber(String);
+
+impl EcNumber {
+    /// Validates `input` and returns the normalised form, with hyphens.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Empty`], [`Error::WrongLength`],
+    /// [`Error::InvalidCharacter`] or [`Error::BadChecksum`].
+    pub fn parse(input: &str) -> Result<Self> {
+        let stripped: String = input.chars().filter(|c| !c.is_whitespace()).collect();
+        if stripped.is_empty() {
+            return Err(Error::Empty);
+        }
+        let normalized = if stripped.contains('-') {
+            stripped
+        } else {
+            if stripped.len() != 7 {
+                return Err(Error::WrongLength {
+                    expected: 7,
+                    found: stripped.len(),
+                });
+            }
+            format!("{}-{}-{}", &stripped[..3], &stripped[3..6], &stripped[6..])
+        };
+        if normalized.len() != 9 {
+            return Err(Error::WrongLength {
+                expected: 9,
+                found: normalized.len(),
+            });
+        }
+        let bytes = normalized.as_bytes();
+        if bytes[3] != b'-' || bytes[7] != b'-' {
+            return Err(Error::InvalidCharacter('-'));
+        }
+        for (i, byte) in bytes.iter().enumerate() {
+            if i == 3 || i == 7 {
+                continue;
+            }
+            if !byte.is_ascii_digit() {
+                return Err(Error::InvalidCharacter(char::from(*byte)));
+            }
+        }
+        let digits: String = normalized.chars().filter(char::is_ascii_digit).collect();
+        let payload = &digits[..digits.len() - 1];
+        if ec_check_digit(payload) != digits.as_bytes()[digits.len() - 1] - b'0' {
+            return Err(Error::BadChecksum);
+        }
+        Ok(Self(normalized))
+    }
+
+    /// The normalised number, with hyphens.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    /// The digits without the hyphens.
+    #[must_use]
+    pub fn digits(&self) -> String {
+        self.0.chars().filter(char::is_ascii_digit).collect()
+    }
+}
+
+/// The EC Number check digit: each of the six payload digits is weighted by its
+/// 1-based position, and the sum modulo eleven is taken.
+///
+/// The reference writes `str(sum % 11)[0]`, so a two-digit remainder (ten) is
+/// truncated to its first character, `'1'`; that is reproduced here rather than
+/// "corrected", because the reference is the definition of the check digit.
+fn ec_check_digit(payload: &str) -> u8 {
+    let sum: u32 = payload
+        .bytes()
+        .enumerate()
+        .map(|(i, b)| (i as u32 + 1) * u32::from(b - b'0'))
+        .sum();
+    (sum % 11).to_string().as_bytes()[0] - b'0'
+}
+
+impl std::fmt::Display for EcNumber {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+/// The serial number printed on a euro banknote.
+///
+/// It is twelve characters: a letter, optionally followed by a second letter
+/// for the newer series, then digits. The first letter is restricted to the
+/// issuing countries, and the characters sum to a multiple of nine.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct EuropeanBanknote(String);
+
+/// The letters a euro banknote's first character may take: the issuing
+/// countries, with `O`, `Q` and `Z` absent because they are easily mistaken for
+/// digits.
+const BANKNOTE_COUNTRIES: &[u8] = b"BCDEFGHJLMNPRSTUVWXYZ";
+
+impl EuropeanBanknote {
+    /// Validates `input` and returns the normalised form, without spaces.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Empty`], [`Error::WrongLength`],
+    /// [`Error::InvalidCharacter`], [`Error::InvalidPrefix`] or
+    /// [`Error::BadChecksum`].
+    pub fn parse(input: &str) -> Result<Self> {
+        let stripped: String = input
+            .chars()
+            .filter(|c| !c.is_whitespace())
+            .collect::<String>()
+            .to_uppercase();
+        if stripped.is_empty() {
+            return Err(Error::Empty);
+        }
+        if stripped.len() != 12 {
+            return Err(Error::WrongLength {
+                expected: 12,
+                found: stripped.len(),
+            });
+        }
+        let bytes = stripped.as_bytes();
+        for (i, byte) in bytes.iter().enumerate() {
+            // The first two characters may be letters, the rest must be digits.
+            let allowed = if i < 2 {
+                byte.is_ascii_alphanumeric()
+            } else {
+                byte.is_ascii_digit()
+            };
+            if !allowed {
+                return Err(Error::InvalidCharacter(char::from(*byte)));
+            }
+        }
+        if !BANKNOTE_COUNTRIES.contains(&bytes[0]) {
+            return Err(Error::InvalidPrefix);
+        }
+        if banknote_checksum(&stripped) != 0 {
+            return Err(Error::BadChecksum);
+        }
+        Ok(Self(stripped))
+    }
+
+    /// The normalised serial number.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+/// The euro banknote checksum: each character contributes its digit value, or
+/// its ASCII code when it is a letter, and the total modulo nine must be zero.
+fn banknote_checksum(number: &str) -> u32 {
+    number
+        .bytes()
+        .map(|b| {
+            if b.is_ascii_digit() {
+                u32::from(b - b'0')
+            } else {
+                u32::from(b)
+            }
+        })
+        .sum::<u32>()
+        % 9
+}
+
+impl std::fmt::Display for EuropeanBanknote {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -803,6 +982,57 @@ mod tests {
         );
         assert_eq!(
             CreditorReference::parse("GB18539007547034"),
+            Err(Error::InvalidPrefix)
+        );
+    }
+
+    #[test]
+    fn accepts_a_published_ec_number() {
+        assert_eq!(EcNumber::parse("200-001-8").unwrap().as_str(), "200-001-8");
+        assert_eq!(EcNumber::parse("2000018").unwrap().as_str(), "200-001-8");
+        assert_eq!(EcNumber::parse("200-001-8").unwrap().digits(), "2000018");
+    }
+
+    #[test]
+    fn rejects_an_ec_number_with_a_bad_check_digit() {
+        assert_eq!(EcNumber::parse("200-001-9"), Err(Error::BadChecksum));
+        assert_eq!(EcNumber::parse("2000019"), Err(Error::BadChecksum));
+    }
+
+    #[test]
+    fn rejects_an_ec_number_whose_hyphens_are_misplaced() {
+        assert_eq!(
+            EcNumber::parse("20-0001-8"),
+            Err(Error::InvalidCharacter('-'))
+        );
+    }
+
+    #[test]
+    fn accepts_a_published_euro_banknote_serial() {
+        assert_eq!(
+            EuropeanBanknote::parse("P36007033744").unwrap().as_str(),
+            "P36007033744"
+        );
+        // Spaces are stripped, and the letters are upper-cased.
+        assert_eq!(
+            EuropeanBanknote::parse("p 3600 7033 744").unwrap().as_str(),
+            "P36007033744"
+        );
+    }
+
+    #[test]
+    fn rejects_a_euro_banknote_serial_with_a_bad_checksum() {
+        assert_eq!(
+            EuropeanBanknote::parse("P36007033743"),
+            Err(Error::BadChecksum)
+        );
+    }
+
+    #[test]
+    fn rejects_a_euro_banknote_serial_from_an_unknown_country() {
+        // `O` is not an issuing letter, even with a checksum that would pass.
+        assert_eq!(
+            EuropeanBanknote::parse("O00000000000"),
             Err(Error::InvalidPrefix)
         );
     }

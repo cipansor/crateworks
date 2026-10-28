@@ -45,7 +45,7 @@ the raw input themselves rather than sharing the crate's global normalisation.
 Egypt's tax number is also accepted in Arabic-Indic digits, which is how it is
 printed in an Arabic document.
 
-Nineteen international identifiers are covered in addition to those, each a
+Twenty-one international identifiers are covered in addition to those, each a
 type of its own:
 
 | Type | Standard | What it identifies |
@@ -69,6 +69,8 @@ type of its own:
 | `BitcoinAddress` | BIP-13 / BIP-173 | a Bitcoin payment destination |
 | `Mac` | IEEE 802 | the hardware address of a network interface |
 | `Isil` | ISO 15511 | a library or a related organisation |
+| `EcNumber` | EC Number | a chemical substance in the EU |
+| `EuropeanBanknote` | — | the serial number on a euro banknote |
 
 `Cusip::to_isin` and `Isin::from_national_id` move a national identifier to the
 international form. `Ismn` accepts both the current thirteen-digit form and the
@@ -98,16 +100,18 @@ contributors, which in turn follows each authority's published specification.
 This is an independent reimplementation and shares no code with it; see
 [`NOTICE`](https://github.com/cipansor/crateworks/blob/main/crates/stdnum-rs/NOTICE).
 
-`tests/fixtures/stdnum_vectors.tsv` holds 36,489 numbers labelled by that
+`tests/fixtures/stdnum_vectors.tsv` holds 39,365 numbers labelled by that
 reference: every number in its own documentation plus each single-digit
 substitution of a valid number, the last character dropped and a character
 appended. Damm and Verhoeff also carry a 1,500-number random corpus each, built
 by asking the reference for the check digit of a random payload, because their
-own documentation offers a single example. `tests/readme.rs` replays the whole
-file, so a change that makes this crate disagree with the reference fails the
-build. The check digit, the accepted shapes and the separator characters all
-came out of that comparison, and `research/tools/gen_stdnum_vectors.py`
-regenerates the file when a type is added.
+own documentation offers a single example; `EcNumber` and `EuropeanBanknote`
+get a smaller corpus the same way, because their documentation offers one
+example too. `tests/readme.rs` replays the whole file, so a change that makes
+this crate disagree with the reference fails the build. The check digit, the
+accepted shapes and the separator characters all came out of that comparison,
+and `research/tools/gen_stdnum_vectors.py` regenerates the file when a type is
+added.
 
 Two behaviours were settled by that comparison rather than by the
 specification alone. `mod_37_36` replaces a zero intermediate value with the
@@ -157,6 +161,14 @@ assert_eq!(stdnum_rs::Damm::check_digit_for("572").unwrap(), 4);
 assert!(stdnum_rs::Damm::parse("5724").is_ok());
 assert_eq!(stdnum_rs::Verhoeff::check_digit_for("1234").unwrap(), 0);
 assert!(stdnum_rs::Verhoeff::parse("12340").is_ok());
+
+// The EU-domain identifiers: a substance's EC Number and a banknote serial.
+assert_eq!(
+    stdnum_rs::EcNumber::parse("200-001-8").unwrap().digits(),
+    "2000018",
+);
+assert_eq!(stdnum_rs::EcNumber::parse("2000018").unwrap().as_str(), "200-001-8");
+assert!(stdnum_rs::EuropeanBanknote::parse("P36007033744").is_ok());
 ```
 
 ## Scope

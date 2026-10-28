@@ -85,6 +85,8 @@ fn known_type(name: &str) -> Option<NumberType> {
         "BitcoinAddress" => NumberType::BitcoinAddress,
         "Mac" => NumberType::Mac,
         "Isil" => NumberType::Isil,
+        "EcNumber" => NumberType::EcNumber,
+        "EuropeanBanknote" => NumberType::EuropeanBanknote,
         _ => return None,
     })
 }

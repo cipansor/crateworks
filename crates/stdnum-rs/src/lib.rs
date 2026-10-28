@@ -22,7 +22,9 @@ pub use damm::Damm;
 pub use ean::Ean;
 pub use iban::Iban;
 pub use id::{Country, IdNumber};
-pub use identifiers::{CasNumber, CreditorReference, Imei, Ismn, Isni, Isrc, Issn};
+pub use identifiers::{
+    CasNumber, CreditorReference, EcNumber, EuropeanBanknote, Imei, Ismn, Isni, Isrc, Issn,
+};
 pub use isbn::Isbn;
 pub use library::Isil;
 pub use luhn::Luhn;
@@ -151,6 +153,11 @@ pub enum NumberType {
     Mac,
     /// An ISIL, the identifier of a library or a related organisation.
     Isil,
+    /// An EC Number, the European Commission's identifier for a chemical
+    /// substance.
+    EcNumber,
+    /// A euro banknote serial number.
+    EuropeanBanknote,
     /// A national identifier for a specific country.
     National(Country),
 }
@@ -197,6 +204,8 @@ pub fn validate(kind: NumberType, input: &str) -> Result<()> {
         NumberType::BitcoinAddress => BitcoinAddress::parse(input).map(|_| ()),
         NumberType::Mac => Mac::parse(input).map(|_| ()),
         NumberType::Isil => Isil::parse(input).map(|_| ()),
+        NumberType::EcNumber => EcNumber::parse(input).map(|_| ()),
+        NumberType::EuropeanBanknote => EuropeanBanknote::parse(input).map(|_| ()),
         NumberType::National(country) => IdNumber::parse(country, input).map(|_| ()),
     }
 }
