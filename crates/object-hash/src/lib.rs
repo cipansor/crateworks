@@ -22,6 +22,8 @@ pub enum Algorithm {
     Sha256,
     /// SHA-512, 128 hexadecimal characters.
     Sha512,
+    /// SHA-384, 96 hexadecimal characters.
+    Sha384,
     /// MD5, 32 hexadecimal characters.
     Md5,
 }
@@ -397,6 +399,7 @@ fn raw_digest(data: &[u8], algorithm: Algorithm) -> Vec<u8> {
         Algorithm::Sha1 => sha1::digest(data).to_vec(),
         Algorithm::Sha256 => sha256::digest(data).to_vec(),
         Algorithm::Sha512 => sha512::digest(data).to_vec(),
+        Algorithm::Sha384 => sha512::digest384(data).to_vec(),
         Algorithm::Md5 => md5::digest(data).to_vec(),
     }
 }

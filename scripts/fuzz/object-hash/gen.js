@@ -222,6 +222,24 @@ function extended512(path) {
   console.log('extended512', out.length - 1, 'rows in', path);
 }
 
+// Adds the SHA-384 digest to each row, so the Rust side is held to the fifth
+// algorithm the reference offers. SHA-384 is SHA-512 with a different initial
+// state and a truncated output, so it is the one most likely to be transcribed
+// wrong and worth pinning against the reference rather than only against the
+// FIPS vectors.
+function extended384(path) {
+  const crypto = require('crypto');
+  const lines = require('fs').readFileSync(path, 'utf8').split('\n').filter((l) => l.length);
+  const out = [lines[0] + '\tsha384'];
+  for (const line of lines.slice(1)) {
+    const canonical = line.split('\t')[1];
+    const buf = Buffer.from(canonical, 'utf8');
+    out.push(line + '\t' + crypto.createHash('sha384').update(buf).digest('hex'));
+  }
+  require('fs').writeFileSync(path, out.join('\n') + '\n');
+  console.log('extended384', out.length - 1, 'rows in', path);
+}
+
 const target = process.argv[2];
 if (!target) {
   console.error('usage: node gen.js <fuzz.tsv> <objects.tsv> [oracle.tsv to extend] [oracle.tsv to append object cases to]');
@@ -237,3 +255,4 @@ if (objectTarget) {
 if (process.argv[4]) extended(process.argv[4]);
 if (process.argv[5]) appendObjectOracle(process.argv[5]);
 if (process.argv[6]) extended512(process.argv[6]);
+if (process.argv[7]) extended384(process.argv[7]);

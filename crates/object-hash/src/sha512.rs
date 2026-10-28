@@ -1,16 +1,58 @@
-//! SHA-512, for callers whose other system already speaks it.
+//! SHA-512 and SHA-384, for callers whose other system already speaks them.
 //!
 //! Written out for the same reason as SHA-1 and SHA-256: the crate has no
 //! dependencies, and the function is short. Like the other two it names a value
-//! rather than protects it. The reference package offers `sha512` through the
-//! `algorithm` option, and this reproduces its digest for the same canonical
-//! bytes.
+//! rather than protects it. The reference package offers `sha512` and `sha384`
+//! through the `algorithm` option, and this reproduces their digests for the
+//! same canonical bytes.
 //!
 //! SHA-512 works on 64-bit words and processes 128-byte blocks, so it shares no
-//! code with [`crate::sha256`] even though the two have the same shape.
+//! code with [`crate::sha256`] even though the two have the same shape. SHA-384
+//! is the same function with a different initial state and a truncated output,
+//! so both go through [`digest_with`].
 
 /// The SHA-512 digest of `data`.
 pub(crate) fn digest(data: &[u8]) -> [u8; 64] {
+    digest_with(INIT_512, data)
+}
+
+/// The SHA-384 digest of `data`: SHA-512 with a different initial state, cut to
+/// its first 48 bytes.
+pub(crate) fn digest384(data: &[u8]) -> [u8; 48] {
+    let full = digest_with(INIT_384, data);
+    let mut out = [0u8; 48];
+    out.copy_from_slice(&full[..48]);
+    out
+}
+
+/// The initial hash value for SHA-512: the fractional parts of the square roots
+/// of the first eight primes, from FIPS 180-4.
+const INIT_512: [u64; 8] = [
+    0x6a09_e667_f3bc_c908,
+    0xbb67_ae85_84ca_a73b,
+    0x3c6e_f372_fe94_f82b,
+    0xa54f_f53a_5f1d_36f1,
+    0x510e_527f_ade6_82d1,
+    0x9b05_688c_2b3e_6c1f,
+    0x1f83_d9ab_fb41_bd6b,
+    0x5be0_cd19_137e_2179,
+];
+
+/// The initial hash value for SHA-384: the fractional parts of the square roots
+/// of the ninth through sixteenth primes, from FIPS 180-4.
+const INIT_384: [u64; 8] = [
+    0xcbbb_9d5d_c105_9ed8,
+    0x629a_292a_367c_d507,
+    0x9159_015a_3070_dd17,
+    0x152f_ecd8_f70e_5939,
+    0x6733_2667_ffc0_0b31,
+    0x8eb4_4a87_6858_1511,
+    0xdb0c_2e0d_64f9_8fa7,
+    0x47b5_481d_befa_4fa4,
+];
+
+/// The full 64-byte digest of `data` under a SHA-512-family initial state.
+fn digest_with(initial: [u64; 8], data: &[u8]) -> [u8; 64] {
     /// The first 64 bits of the fractional part of the cube root of the first
     /// eighty primes, the round constants from FIPS 180-4.
     const K: [u64; 80] = [
@@ -96,18 +138,7 @@ pub(crate) fn digest(data: &[u8]) -> [u8; 64] {
         0x6c44_198c_4a47_5817,
     ];
 
-    // The first 64 bits of the fractional part of the square root of the first
-    // eight primes, the initial hash value from FIPS 180-4.
-    let mut state: [u64; 8] = [
-        0x6a09_e667_f3bc_c908,
-        0xbb67_ae85_84ca_a73b,
-        0x3c6e_f372_fe94_f82b,
-        0xa54f_f53a_5f1d_36f1,
-        0x510e_527f_ade6_82d1,
-        0x9b05_688c_2b3e_6c1f,
-        0x1f83_d9ab_fb41_bd6b,
-        0x5be0_cd19_137e_2179,
-    ];
+    let mut state: [u64; 8] = initial;
 
     let bit_length = (data.len() as u128).wrapping_mul(8);
 
@@ -213,6 +244,38 @@ mod tests {
                   hijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu"),
             "8e959b75dae313da8cf4f72814fc143f8f7779c6eb9f7fa17299aeadb6889018\
              501d289e4900f7e4331b99dec4b5433ac7d329eeb6dd26545e96e55b874be909"
+        );
+    }
+
+    #[test]
+    fn the_sha384_vectors_match() {
+        // FIPS 180-4 SHA-384 vectors, which differ from SHA-512 in the initial
+        // state and in being cut to 48 bytes.
+        fn hex384(data: &[u8]) -> String {
+            let mut out = String::with_capacity(96);
+            for byte in digest384(data) {
+                out.push(char::from_digit(u32::from(byte >> 4), 16).expect("nibble"));
+                out.push(char::from_digit(u32::from(byte & 0x0f), 16).expect("nibble"));
+            }
+            out
+        }
+        assert_eq!(
+            hex384(b""),
+            "38b060a751ac96384cd9327eb1b1e36a21fdb71114be07434c0cc7bf63f6e1da\
+             274edebfe76f65fbd51ad2f14898b95b"
+        );
+        assert_eq!(
+            hex384(b"abc"),
+            "cb00753f45a35e8bb5a03d699ac65007272c32ab0eded1631a8b605a43ff5bed\
+             8086072ba1e7cc2358baeca134c825a7"
+        );
+        assert_eq!(
+            hex384(
+                b"abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmn\
+                       hijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu"
+            ),
+            "09330c33f71147e83d192fc782cd1b4753111b173b3b05d22fa08086e3b0f712\
+             fcc7c71a557e2db966c3e9fa91746039"
         );
     }
 
