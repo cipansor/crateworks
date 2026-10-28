@@ -65,7 +65,29 @@ impl std::error::Error for Error {}
 /// The result is built as code points rather than characters, because Java
 /// writes anything above the basic multilingual plane as a surrogate pair and a
 /// lone surrogate is not a `char`. The pair is rejoined at the end.
-pub(crate) fn unescape(field: &str) -> Result<String, Error> {
+///
+/// The reader applies this to every key and value, so a caller normally does not
+/// need it. It is public to mirror the reference, whose `unescape` is a
+/// documented function of its own, and it is the only way to decode a single
+/// field without parsing a whole document.
+///
+/// # Errors
+///
+/// Returns [`Error::BadEscape`] when a `\u` is not followed by four hexadecimal
+/// digits, which is the same case the reference raises `InvalidUEscapeError`
+/// for.
+///
+/// # Example
+///
+/// ```
+/// use javaproperties::unescape;
+///
+/// assert_eq!(unescape(r"caf\u00e9").unwrap(), "café");
+/// assert_eq!(unescape(r"a\tb\n").unwrap(), "a\tb\n");
+/// assert_eq!(unescape(r"a\qb").unwrap(), "aqb");
+/// assert!(unescape(r"\u12").is_err());
+/// ```
+pub fn unescape(field: &str) -> Result<String, Error> {
     let mut code_points: Vec<u32> = Vec::with_capacity(field.len());
     let mut chars = field.chars().peekable();
 
@@ -75,9 +97,21 @@ pub(crate) fn unescape(field: &str) -> Result<String, Error> {
             continue;
         }
         let Some(&next) = chars.peek() else {
-            // A lone trailing backslash is dropped, as Java does.
+            // A backslash with nothing after it has no escape to introduce, so
+            // it stands for itself, which is what the reference does. Java's own
+            // reader never reaches this: a lone trailing backslash is a line
+            // continuation and is consumed before any field is unescaped.
+            code_points.push('\\' as u32);
             break;
         };
+        if next == '\n' {
+            // The reference's escape pattern cannot match a newline, so a
+            // backslash immediately before an LF stays literal and the LF is
+            // kept. The reader never reaches this either: a backslash before a
+            // line break is the continuation it already joined away.
+            code_points.push('\\' as u32);
+            continue;
+        }
         chars.next();
         match next {
             't' => code_points.push('\t' as u32),
@@ -202,7 +236,11 @@ mod tests {
     }
 
     #[test]
-    fn a_trailing_backslash_is_dropped() {
-        assert_eq!(unescape(r"abc\").unwrap(), "abc");
+    fn a_trailing_backslash_stands_for_itself() {
+        // The reference keeps it: with nothing to escape, the backslash is
+        // literal. The reader never sees this, because a lone trailing backslash
+        // is a line continuation and is joined away first, but the standalone
+        // function has to agree with the reference's standalone function.
+        assert_eq!(unescape(r"abc\").unwrap(), "abc\\");
     }
 }

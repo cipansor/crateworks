@@ -5,7 +5,7 @@ mod time;
 mod writer;
 mod xml;
 
-pub use escape::Error;
+pub use escape::{Error, unescape};
 pub use reader::{Properties, load, parse, parse_str};
 pub use time::java_timestamp_utc;
 pub use writer::{

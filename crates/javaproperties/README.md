@@ -99,6 +99,34 @@ it in the local timezone, reading the host's; this crate has no timezone databas
 and takes no dependency, so it renders UTC and says so, which is why the function
 is `java_timestamp_utc` rather than a silent `java_timestamp`.
 
+## Decoding a single field
+
+`unescape` is the decode half of the reader, and the reference exposes it as a
+function of its own, so this crate does too. The reader applies it to every key
+and value, but a caller who already has a field in hand does not need to parse a
+document to decode it.
+
+```rust
+use javaproperties::unescape;
+
+assert_eq!(unescape(r"caf\u00e9").unwrap(), "café");
+assert_eq!(unescape(r"a\tb").unwrap(), "a\tb");
+// A backslash before an ordinary character is dropped.
+assert_eq!(unescape(r"a\qb").unwrap(), "aqb");
+// A `\u` without four hex digits is an error, not a literal `u`.
+assert!(unescape(r"\u12").is_err());
+```
+
+Two corners of the reference's standalone function are worth naming, because
+they differ from what the reader ever produces and a hand-written test would
+have got them wrong. A backslash with nothing after it stands for itself, so
+`unescape(r"abc\")` is `abc\` - the reader never sees this, because a lone
+trailing backslash is a line continuation and is joined away before any field is
+decoded. And a backslash immediately before a line feed stays literal, because
+the reference's escape pattern cannot match a newline; the reader does not see
+that either, for the same reason. Matching the reference here is what the
+fixture checks.
+
 ## The XML format
 
 `java.util.Properties` has a second representation, reached through
@@ -155,6 +183,19 @@ produce the same bytes. That corpus immediately found two more rules the first
 version of the writer had wrong: the reference sorts by key *and then value*, not
 by key alone, so a key given twice is ordered by its value; and an empty comment
 string writes a bare `#` line, which is not the same as no comment at all.
+
+The standalone `unescape` is checked the same way, by
+`gen_writer.py`'s `unescape.tsv` and `unescape-random.tsv`: the reference's own
+answers for a curated set and **two thousand random fields**, with an invalid
+`\u` recorded as the reference's `InvalidUEscapeError`. Making `unescape` public
+is what made that gate possible, and it immediately found two corners the reader
+could never reach and a hand-written test had therefore got wrong. A backslash
+with nothing after it stands for itself rather than being dropped, so
+`unescape(r"abc\")` is `abc\`; and a backslash immediately before a line feed
+stays literal, because the reference's escape pattern cannot match a newline. The
+one place the crate cannot agree is a *lone* surrogate: Rust text cannot hold
+one, so it becomes U+FFFD, and the generator normalises that single case rather
+than hiding it.
 
 The random corpus is generated with a fixed seed by `scripts/fuzz/javaproperties/`,
 so it can be rebuilt exactly,

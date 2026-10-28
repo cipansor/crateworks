@@ -29,6 +29,7 @@ never a dependency of any crate.
 | `adhan` | `adhan/gen.js` | `adhan` npm 4.4.6 | `NODE_PATH=<modules> node adhan/gen.js [out]` |
 | `javaproperties` | `javaproperties/gen.py` | `javaproperties` PyPI 0.8.2 | `python3 javaproperties/gen.py [out]` |
 | `javaproperties` (writer) | `javaproperties/gen_writer.py` | `javaproperties` PyPI 0.8.2 | `TZ=UTC python3 javaproperties/gen_writer.py [out]` |
+| `javaproperties` (`unescape`) | `javaproperties/gen_writer.py` | `javaproperties` PyPI 0.8.2 | `TZ=UTC python3 javaproperties/gen_writer.py [out]` |
 | `javaproperties` (XML) | `javaproperties/gen_xml.py` | `javaproperties` PyPI 0.8.2 | `python3 javaproperties/gen_xml.py [out]` |
 | `iso6346` | `iso6346/gen.js` | `container-validator` npm 1.1.0 | `NODE_PATH=<modules> node iso6346/gen.js [out]` |
 | `address-parser` | `address-parser/gen.js` | `parse-address` npm 1.1.2 | `NODE_PATH=<modules> node address-parser/gen.js [out]` |
@@ -86,6 +87,13 @@ to write down.
   *and then value*, and an empty comment string writes a bare `#` line rather than
   nothing. Neither is reachable from a corpus of inputs, which is why the writer
   needs its own generator.
+- `javaproperties` (`unescape`) — 2,029 fields through the reference's standalone
+  `unescape`, which this crate now exposes too. Found two corners the reader can
+  never reach and a hand-written test had therefore got wrong: a lone trailing
+  backslash stands for itself rather than being dropped, and a backslash
+  immediately before a line feed stays literal because the reference's escape
+  pattern cannot match a newline. Both were pinned by a unit test that asserted
+  the wrong answer until the corpus disagreed with it.
 - `iso6346` — 4,000 codes from every owner-prefix letter, all three categories and
   a serial across the whole range. Found nothing: the check digit is one page of
   arithmetic and the reference agrees with it on every case. The corpus is what

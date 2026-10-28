@@ -16,7 +16,7 @@
 //! `TZ=UTC` and the crate's function is named `java_timestamp_utc`.
 
 use javaproperties::{
-    Properties, WriteOptions, escape, java_timestamp_utc, join_key_value, to_comment,
+    Properties, WriteOptions, escape, java_timestamp_utc, join_key_value, to_comment, unescape,
 };
 
 /// Decodes the escaping the generator writes.
@@ -248,4 +248,44 @@ fn a_timestamp_comment_is_written_before_the_entries() {
         ..WriteOptions::default()
     });
     assert_eq!(text, "#note\n#Thu Jan 01 00:00:00 UTC 1970\na=1\n");
+}
+
+#[test]
+fn unescape_matches_the_reference() {
+    // `unescape` is the decode half of the reader, and the reference exposes it
+    // as a function of its own. The fixture records its output, with a valid
+    // surrogate pair decoded and a lone surrogate normalised to U+FFFD, which is
+    // the one place the crate cannot match Python: Rust text cannot hold a lone
+    // surrogate. An invalid `\u` is the reference's `InvalidUEscapeError`, marked
+    // as `!error` in the fixture.
+    let mut checked = 0;
+    let mut failures = Vec::new();
+    let sources = [
+        include_str!("fixtures/unescape.tsv"),
+        include_str!("fixtures/unescape-random.tsv"),
+    ];
+    for fields in sources.into_iter().flat_map(rows) {
+        let input = decode(fields[0]);
+        let got = unescape(&input);
+        let matches = match (fields[1], &got) {
+            ("!error", Err(_)) => true,
+            ("!error", Ok(_)) => false,
+            (_, Err(_)) => false,
+            (expected, Ok(value)) => *value == decode(expected),
+        };
+        if !matches {
+            failures.push(format!(
+                "{input:?}\n  expected {:?}\n  got {got:?}",
+                decode(fields[1])
+            ));
+        }
+        checked += 1;
+    }
+    assert!(checked > 2_000, "only {checked} cases");
+    assert!(
+        failures.is_empty(),
+        "{} of {checked} unescape cases disagreed:\n{}",
+        failures.len(),
+        failures.join("\n")
+    );
 }

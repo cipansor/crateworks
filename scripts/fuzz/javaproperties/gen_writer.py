@@ -6,7 +6,7 @@ writer at all, so this records the reference's own output for the writer API tha
 this crate now exposes:
 
     escape, join_key_value, to_comment, java_timestamp, dumps(separator=,
-    comments=, sort_keys=, ensure_ascii=)
+    comments=, sort_keys=, ensure_ascii=), unescape
 
 Every expectation here is produced by Python's `javaproperties` 0.8.2, which
 replicates `java.util.Properties` and is itself tested against Java. Nothing is
@@ -240,3 +240,55 @@ for _ in range(2000):
     ensure_ascii = random.random() < 0.7
     rows.append(dumps_row(pairs, sep, comments, sort_keys, ensure_ascii))
 write("dumps-random.tsv", rows)
+
+# --- unescape ----------------------------------------------------------------
+# The reader calls `unescape` on every key and value, but the reference also
+# exposes it as a documented function, and so does this crate. The difference
+# worth recording: a *lone* surrogate cannot be a Rust `char`, so the crate
+# replaces it with U+FFFD, while Python keeps the raw code unit. A valid pair is
+# decoded by both, so only the lone case is normalised here.
+def crate_unescape(text: str) -> str:
+    out = []
+    i = 0
+    while i < len(text):
+        c = text[i]
+        if 0xD800 <= ord(c) <= 0xDBFF and i + 1 < len(text):
+            low = text[i + 1]
+            if 0xDC00 <= ord(low) <= 0xDFFF:
+                out.append(chr(0x10000 + ((ord(c) - 0xD800) << 10) + (ord(low) - 0xDC00)))
+                i += 2
+                continue
+        if 0xD800 <= ord(c) <= 0xDFFF:
+            out.append("\ufffd")
+        else:
+            out.append(c)
+        i += 1
+    return "".join(out)
+
+
+UNESCAPE_CASES = [
+    "", "a", r"a\tb", r"a\nb", r"a\fb", r"a\rb", r"a\\b", r"\u0041",
+    r"caf\u00e9", r"a\ b", r"no\escape", r"a\qb", r"\u00e9", r"\ud83d\ude00",
+    r"a\ud83d", r"\u0041\u0042", r"\t\u0041\n", "already plain", r"\\u0041",
+    r"\u0000", r"\uFFFF", r"a\\", "\\",
+]
+
+# Inputs the reference rejects, as `\u` not followed by four hex digits.
+UNESCAPE_ERROR_CASES = [r"\u12", r"\u", r"\uZZZZ", r"\u12g4", r"a\u12", r"\u123"]
+
+rows = ["input\tunescaped"]
+for s in UNESCAPE_CASES:
+    rows.append("\t".join([escape_tsv(s), escape_tsv(crate_unescape(javaproperties.unescape(s)))]))
+for s in UNESCAPE_ERROR_CASES:
+    rows.append("\t".join([escape_tsv(s), "!error"]))
+write("unescape.tsv", rows)
+
+rows = ["input\tunescaped"]
+for _ in range(2000):
+    s = piece(8)
+    try:
+        expected = escape_tsv(crate_unescape(javaproperties.unescape(s)))
+    except javaproperties.InvalidUEscapeError:
+        expected = "!error"
+    rows.append("\t".join([escape_tsv(s), expected]))
+write("unescape-random.tsv", rows)
