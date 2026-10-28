@@ -73,7 +73,10 @@ to write down.
   shafaq and polar-circle options, and `Rounding::None`. Found three gaps the
   37,440-time grid missed, because the grid never set an adjustment and only used
   the default rounding. Widening the corpus to the shafaq and polar-circle
-  options then showed both were missing from the crate altogether.
+  options then showed both were missing from the crate altogether. A seventh
+  column, the reference's `sunset`, showed a fourth: the reference reports
+  `sunset` and `maghrib` as separate readings and a Maghrib angle or adjustment
+  moves only the second, so a caller had no way to read the raw sunset.
 - `javaproperties` — 6,000 documents built from the format's own punctuation.
   Found nothing, which is the useful outcome too: it is what turns "the rules we
   thought of are right" into "the rules we checked agree".

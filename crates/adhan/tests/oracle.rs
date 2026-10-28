@@ -316,3 +316,34 @@ fn the_southern_hemisphere_is_not_a_sign_error() {
         "the southern summer day is longer: {sydney_day} vs {london_day}"
     );
 }
+
+#[test]
+fn sunset_is_the_sunset_and_maghrib_may_move_off_it() {
+    // The reference reports `sunset` and `maghrib` as separate readings. They
+    // coincide under most methods, but a method that defines Maghrib by an angle
+    // (Tehran) or a caller's own Maghrib minutes move `maghrib` alone. These are
+    // the reference's own values: Tehran sunset 13:52, Maghrib 14:10; Makkah has
+    // no Maghrib angle, so the two are the same.
+    let tehran = prayer_times(
+        2026,
+        10,
+        21,
+        35.6892,
+        51.3890,
+        &Parameters::for_method(Method::Tehran),
+    );
+    assert_eq!(tehran.sunset, Some((13, 52, 0)));
+    assert_eq!(tehran.maghrib, Some((14, 10, 0)));
+    assert!(tehran.sunset < tehran.maghrib);
+
+    let makkah = prayer_times(
+        2026,
+        10,
+        21,
+        21.4225,
+        39.8262,
+        &Parameters::for_method(Method::MuslimWorldLeague),
+    );
+    assert_eq!(makkah.sunset, makkah.maghrib);
+    assert_eq!(makkah.sunset, Some((14, 52, 0)));
+}

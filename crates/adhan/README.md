@@ -36,11 +36,37 @@ bearing to the Kaaba in degrees clockwise from true north, and
 day, which is what the voluntary night prayer is timed by. Both are what the
 reference library offers beside the times, and both are checked against it.
 
-The six times are returned as whole hours, minutes and seconds. The seconds are
+The times are returned as whole hours, minutes and seconds. The seconds are
 there because `Rounding::None` keeps them and the reference does the same; under
 the default `Rounding::Nearest` the second is always zero. Nothing here formats
-them,
-reads a clock, or knows about time zones; that is the caller's business.
+them, reads a clock, or knows about time zones; that is the caller's business.
+
+Beside the six named times there is a seventh reading, `sunset`, which is the raw
+astronomical sunset with no adjustment. It is usually the same as `maghrib`, and
+it is there for the two cases where it is not: a method that defines Maghrib by
+an angle (Tehran), and a caller who adds minutes to Maghrib. In both, `maghrib`
+moves and `sunset` stays where the sun set, which is what the reference reports
+and what an app drawing a day/night band wants.
+
+```rust
+use adhan::{Method, Parameters, prayer_times};
+
+// Tehran defines Maghrib by an angle, so Maghrib is later than sunset.
+let times = prayer_times(
+    2026, 10, 21, 35.6892, 51.3890,
+    &Parameters::for_method(Method::Tehran),
+);
+assert_eq!(times.sunset, Some((13, 52, 0)));
+assert_eq!(times.maghrib, Some((14, 10, 0)));
+assert!(times.sunset < times.maghrib);
+
+// Under a method with no Maghrib angle the two readings are the same.
+let makkah = prayer_times(
+    2026, 10, 21, 21.4225, 39.8262,
+    &Parameters::for_method(Method::MuslimWorldLeague),
+);
+assert_eq!(makkah.sunset, makkah.maghrib);
+```
 
 ## The two choices that actually matter
 
@@ -139,6 +165,12 @@ way to reproduce its answer. Both are now implemented and pinned by the corpus.
 One more: at high latitude with `Rounding::None`, a Fajr that falls before
 midnight UTC came out a second late, because truncating toward zero is not the
 same as flooring when the reading is negative.
+
+A seventh reading, `sunset`, was missing altogether. The reference's `PrayerTimes`
+reports both `sunset` and `maghrib`, and they part company whenever a Maghrib
+angle or a Maghrib adjustment moves the latter - 4,023 of the 6,000 cases, and
+every Tehran case. `sunset` is now its own field, and the corpus compares it as a
+seventh column, so the two readings cannot be conflated again.
 
 That comparison also settled two things worth recording. The `adhan` Python port
 is wrong for eastern longitudes, giving Jakarta's Dhuhr about fourteen hours off,

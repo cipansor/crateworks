@@ -17,6 +17,11 @@
 //! arithmetic produces, and a result of whole minutes could not express them.
 //! The times now carry seconds.
 //!
+//! The corpus also compares the reference's `sunset` as a seventh column, beside
+//! the six named times. The reference reports `sunset` and `maghrib` separately,
+//! and a Maghrib angle or a Maghrib adjustment moves only the latter, so the two
+//! readings differ in most cases and the field has to exist to be compared.
+//!
 //! The reference reports an absolute instant, and a time drawn near a pole may
 //! land on the day before or after. Only the clock reading is compared, which is
 //! what this crate returns.
@@ -43,6 +48,7 @@ struct Case {
     polar: PolarCircleResolution,
     adjustments: [f64; 6],
     times: [Option<(i64, u32, u32)>; 6],
+    sunset: Option<(i64, u32, u32)>,
 }
 
 /// The clock reading of an ISO instant, ignoring the date.
@@ -147,6 +153,7 @@ fn cases() -> Vec<Case> {
                 f[14].parse().unwrap(),
             ],
             times: [time(15), time(16), time(17), time(18), time(19), time(20)],
+            sunset: time(21),
         })
     }
     out
@@ -187,14 +194,24 @@ fn every_random_case_agrees_with_the_reference() {
             got.asr,
             got.maghrib,
             got.isha,
+            got.sunset,
         ];
 
-        for (index, (expected, actual)) in case.times.iter().zip(ours.iter()).enumerate() {
+        for (index, (expected, actual)) in case
+            .times
+            .iter()
+            .chain(std::iter::once(&case.sunset))
+            .zip(ours.iter())
+            .enumerate()
+        {
             if expected == actual {
                 continue;
             }
+            const FIELD_NAMES: [&str; 7] = [
+                "fajr", "sunrise", "dhuhr", "asr", "maghrib", "isha", "sunset",
+            ];
             failures.push(format!(
-                "lat={} lon={} date={}-{}-{} method={} madhab={:?} rule={:?} rounding={:?} adj={:?} field {index}: expected {expected:?} got {actual:?}",
+                "lat={} lon={} date={}-{}-{} method={} madhab={:?} rule={:?} rounding={:?} adj={:?} field {}: expected {expected:?} got {actual:?}",
                 case.latitude,
                 case.longitude,
                 case.year,
@@ -205,6 +222,7 @@ fn every_random_case_agrees_with_the_reference() {
                 case.rule,
                 case.rounding,
                 case.adjustments,
+                FIELD_NAMES[index],
             ));
         }
     }

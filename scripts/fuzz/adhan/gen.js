@@ -23,7 +23,7 @@ function pick(obj, rnd) { const ks = Object.keys(obj); return ks[Math.floor(rnd(
 let seed = 20261021;
 function rnd() { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }
 
-const rows = ['lat\tlon\tdate\tmethod\tmadhab\trule\trounding\tshafaq\tpolar\tfajr_adj\tsunrise_adj\tdhuhr_adj\tasr_adj\tmaghrib_adj\tisha_adj\tfajr\tsunrise\tdhuhr\tasr\tmaghrib\tisha'];
+const rows = ['lat\tlon\tdate\tmethod\tmadhab\trule\trounding\tshafaq\tpolar\tfajr_adj\tsunrise_adj\tdhuhr_adj\tasr_adj\tmaghrib_adj\tisha_adj\tfajr\tsunrise\tdhuhr\tasr\tmaghrib\tisha\tsunset'];
 
 // Coordinates: a broad sweep, weighted to the interesting latitudes.
 function coordinate() {
@@ -70,7 +70,8 @@ while (made < 6000 && attempts < 60000) {
   const iso = x => (x && !isNaN(x) ? x.toISOString() : 'null');
   rows.push([lat, lon, `${y}-${m}-${d}`, mname, hname, rname, oname, sname, pname,
     adj.fajr, adj.sunrise, adj.dhuhr, adj.asr, adj.maghrib, adj.isha,
-    iso(pt.fajr), iso(pt.sunrise), iso(pt.dhuhr), iso(pt.asr), iso(pt.maghrib), iso(pt.isha)].join('\t'));
+    iso(pt.fajr), iso(pt.sunrise), iso(pt.dhuhr), iso(pt.asr), iso(pt.maghrib), iso(pt.isha),
+    iso(pt.sunset)].join('\t'));
   made++;
 }
 const target = process.argv[2] || 'crates/adhan/tests/fixtures/fuzz.tsv';

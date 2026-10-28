@@ -500,6 +500,15 @@ pub struct PrayerTimes {
     pub dhuhr: Option<(i64, u32, u32)>,
     /// Asr.
     pub asr: Option<(i64, u32, u32)>,
+    /// Sunset, the moment the sun's upper limb reaches the horizon.
+    ///
+    /// This is the raw astronomical sunset, with no adjustment applied, which
+    /// is how the reference reports it. It is usually the same reading as
+    /// [`maghrib`](Self::maghrib), but not always: a method that defines
+    /// Maghrib by an angle (Tehran) or a caller that adds minutes to Maghrib
+    /// moves `maghrib` and leaves `sunset` where the sun set. When the two
+    /// differ, `sunset` is the earlier of the two.
+    pub sunset: Option<(i64, u32, u32)>,
     /// Maghrib, at sunset.
     pub maghrib: Option<(i64, u32, u32)>,
     /// Isha, after twilight.
@@ -720,6 +729,12 @@ pub fn prayer_times(
             .plus_minutes(parameters.added_minutes(ASR))
             .rounded(parameters.rounding)
             .components(),
+        // The reference rounds the raw solar sunset with no adjustment, then
+        // reports Maghrib separately: `this.sunset = roundedMinute(sunsetTime)`
+        // against `this.maghrib = roundedMinute(dateByAddingMinutes(maghribTime,
+        // maghribAdjustment))`. The two coincide unless a Maghrib angle or a
+        // Maghrib adjustment moves the latter.
+        sunset: sunset.rounded(parameters.rounding).components(),
         maghrib: maghrib
             .plus_minutes(parameters.added_minutes(MAGHRIB))
             .rounded(parameters.rounding)
