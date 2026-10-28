@@ -18,6 +18,7 @@ Needs: npm install @formulajs/formulajs
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
 from datetime import date
@@ -451,9 +452,10 @@ CASES = {
     "FIXED": [(1234.5, 1), (1234.567, 2, TRUE)],
     "NUMBERVALUE": [(text("1.5"),), (text("1,5"), text(","))],
     # --- statistical distributions ---------------------------------------
-    # These follow the flat legacy names, which is the only spelling the
-    # reference exports. The crate also accepts the dotted modern names, but
-    # the reference cannot be asked for those.
+    # Most of these follow the flat legacy names. The modern dotted spellings
+    # that the reference exposes as nested namespaces (`CHISQ.DIST`,
+    # `T.INV.2T`, ...) are listed under their own keys, and `js_member` walks
+    # the path.
     "NORMDIST": [
         (1, 0, 1, TRUE),
         (1, 0, 1, FALSE),
@@ -471,7 +473,9 @@ CASES = {
     ],
     "LOGNORMINV": [(0.5, 1, 0.5), (0.3, 0, 1)],
     "TDIST": [(2, 5, 1), (2, 5, 2), (1.5, 10, 1), (0.5, 3, 2)],
+    "T.DIST.2T": [(2, 5), (1.5, 10), (0.5, 3)],
     "TINV": [(0.3, 5), (0.05, 10), (0.5, 4)],
+    "T.INV.2T": [(0.3, 5), (0.05, 10), (0.5, 4)],
     "CHIDIST": [
         (3, 5, TRUE),
         (3, 5, FALSE),
@@ -479,6 +483,16 @@ CASES = {
         (2, 1, FALSE),
     ],
     "CHIINV": [(0.3, 5), (0.05, 10), (0.95, 3)],
+    # The modern dotted spellings must agree with their legacy counterparts.
+    "CHISQ.DIST": [
+        (3, 5, TRUE),
+        (3, 5, FALSE),
+        (7.5, 3, TRUE),
+        (2, 1, FALSE),
+    ],
+    "CHISQ.DIST.RT": [(3, 5), (7.5, 3), (2, 1)],
+    "CHISQ.INV": [(0.3, 5), (0.05, 10), (0.95, 3)],
+    "CHISQ.INV.RT": [(0.3, 5), (0.05, 10), (0.95, 3)],
     "FDIST": [
         (2, 3, 4, TRUE),
         (2, 3, 4, FALSE),
@@ -492,7 +506,14 @@ CASES = {
         (2, 8, 0.25, TRUE),
         (5, 20, 0.3, FALSE),
     ],
+    "BINOM.DIST.RANGE": [
+        (10, 0.5, 3),
+        (10, 0.5, 3, 5),
+        (20, 0.3, 4, 8),
+        (6, 0.5, 2, 2),
+    ],
     "CRITBINOM": [(10, 0.5, 0.75), (20, 0.3, 0.9), (6, 0.5, 0.5)],
+    "BINOM.INV": [(10, 0.5, 0.75), (20, 0.3, 0.9), (6, 0.5, 0.5)],
     "POISSONDIST": [(2, 3, TRUE), (2, 3, FALSE), (5, 2.5, TRUE)],
     "EXPONDIST": [(1, 2, TRUE), (1, 2, FALSE), (0.5, 0.5, TRUE)],
     "WEIBULLDIST": [
@@ -585,6 +606,10 @@ CASES = {
         (RANGE(10, 20), RANGE(15, 15)),
         (RANGE(5, 10, 15), RANGE(10, 10, 10)),
     ],
+    "CHISQ.TEST": [
+        (RANGE(10, 20), RANGE(15, 15)),
+        (RANGE(5, 10, 15), RANGE(10, 10, 10)),
+    ],
     "PROB": [
         (RANGE(1, 2, 3), RANGE(0.2, 0.3, 0.5), 2),
         (RANGE(1, 2, 3), RANGE(0.2, 0.3, 0.5), 1, 2),
@@ -673,22 +698,35 @@ def rust_formulas():
     appear in the case.
     """
     out = []
+    for name, args in all_cases():
+        cells = []
+        rendered_args = []
+        for arg in args:
+            if isinstance(arg, Range):
+                column = len({c for c, _, _ in cells})
+                for row, value in enumerate(arg.values):
+                    cells.append((column, row, float(value)))
+                rendered_args.append(
+                    f"{COLUMN_NAMES[column]}1:{COLUMN_NAMES[column]}{len(arg.values)}"
+                )
+            else:
+                rendered_args.append(render_rust(arg))
+        out.append((f"={name}({', '.join(rendered_args)})", cells))
+    return out
+
+
+def all_cases():
+    """Every (name, arguments) pair, flat cases first then the dotted aliases.
+
+    Both the Rust and the JS side iterate this, so the two lists stay aligned
+    even as the dotted names are derived from the crate's own list.
+    """
     for name, arg_sets in CASES.items():
         for args in arg_sets:
-            cells = []
-            rendered_args = []
-            for arg in args:
-                if isinstance(arg, Range):
-                    column = len({c for c, _, _ in cells})
-                    for row, value in enumerate(arg.values):
-                        cells.append((column, row, float(value)))
-                    rendered_args.append(
-                        f"{COLUMN_NAMES[column]}1:{COLUMN_NAMES[column]}{len(arg.values)}"
-                    )
-                else:
-                    rendered_args.append(render_rust(arg))
-            out.append((f"={name}({', '.join(rendered_args)})", cells))
-    return out
+            yield name, args
+    for name, arg_sets in dotted_alias_cases().items():
+        for args in arg_sets:
+            yield name, args
 
 
 COLUMN_NAMES = [chr(ord("A") + i) for i in range(26)]
@@ -702,17 +740,66 @@ def render_rust(arg):
     return repr(arg)
 
 
+def js_member(name):
+    """The reference's member path for a name, as a JS expression.
+
+    A dotted name is a nested namespace in the reference, so `CHISQ.DIST` is
+    `f.CHISQ.DIST`. A segment that is not a bare identifier - `T.INV.2T` has a
+    `2T` - cannot follow a dot, so it is bracketed.
+    """
+    if name == "ISOCEILING":
+        return "f.ISO.CEILING"
+    parts = name.split(".")
+    expr = "f"
+    for part in parts:
+        if part.isidentifier():
+            expr += f".{part}"
+        else:
+            expr += f"[{json.dumps(part)}]"
+    return expr
+
+
 def js_cases():
     """The JS call expressions and the name they belong to, in case order."""
     out = []
-    for name, arg_sets in CASES.items():
-        for args in arg_sets:
-            rendered = ", ".join(render_js(a) for a in args)
-            # `ISO.CEILING` is a nested namespace, so the flat name the CASES
-            # table uses has to be spelled the way the reference exposes it.
-            dotted = "ISO.CEILING" if name == "ISOCEILING" else name
-            out.append((name, f"f.{dotted}({rendered})"))
+    for name, args in all_cases():
+        rendered = ", ".join(render_js(a) for a in args)
+        out.append((name, f"{js_member(name)}({rendered})"))
     return out
+
+
+def dotted_alias_cases():
+    """Cases for the modern dotted names, mirrored from their flat spelling.
+
+    Every dotted name the reference exposes whose canonical form is already a
+    case must give the same answer as that flat case. Reading the pairs from
+    `CASES` means a dotted alias cannot be added to `FUNCTION_NAMES` without
+    also being checked against the reference here, and a flat case that gains
+    arguments is re-checked under the dotted name too.
+    """
+    out = {}
+    for name in advertised_dotted_names():
+        flat = name.replace(".", "")
+        if flat in CASES:
+            out[name] = CASES[flat]
+    return out
+
+
+def advertised_dotted_names():
+    """The dotted names in the crate's `FUNCTION_NAMES`, read from the source.
+
+    Reading the list rather than repeating it means a dotted name added to the
+    crate is picked up by the gate without a second edit, so the crate and its
+    oracle cannot drift apart silently.
+    """
+    source = (CRATE / "src" / "functions.rs").read_text()
+    table = re.search(
+        r"pub const FUNCTION_NAMES: &\[&str\] = &\[(.*?)\n\];", source, re.S
+    )
+    if table is None:
+        raise SystemExit("could not find FUNCTION_NAMES in functions.rs")
+    names = re.findall(r'"([^"]+)"', table.group(1))
+    return [n for n in names if "." in n]
 
 
 def render_js(arg):

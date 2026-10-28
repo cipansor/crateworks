@@ -284,6 +284,98 @@ fn the_dotted_names_reach_the_same_arm_as_the_flat_ones() {
 }
 
 #[test]
+fn the_advertised_dotted_names_all_resolve() {
+    // A name in `FUNCTION_NAMES` that the dispatcher does not know would make
+    // a caller's validation reject a formula that works. Every dotted name the
+    // crate advertises must evaluate, so a missing alias is caught here rather
+    // than by a user.
+    let grid = "A1=1;A2=2;A3=3;A4=4;B1=3;B2=4";
+    for formula in [
+        "=BETA.DIST(0.5,2,3,TRUE)",
+        "=BETA.INV(0.5,2,3)",
+        "=BINOM.DIST(1,5,0.5,TRUE)",
+        "=CEILING.MATH(2.5)",
+        "=CEILING.PRECISE(2.5)",
+        "=COVARIANCE.P(A1:A4,B1:B2)",
+        "=COVARIANCE.S(A1:A4,B1:B2)",
+        "=EXPON.DIST(1,2,TRUE)",
+        "=F.DIST(2,3,4,TRUE)",
+        "=F.DIST.RT(2,3,4)",
+        "=F.INV(0.5,3,4)",
+        "=F.INV.RT(0.5,3,4)",
+        "=F.TEST(A1:A4,B1:B2)",
+        "=FLOOR.MATH(2.5)",
+        "=FLOOR.PRECISE(2.5)",
+        "=GAMMA.DIST(1,2,3,TRUE)",
+        "=GAMMA.INV(0.5,2,3)",
+        "=GAMMALN.PRECISE(2)",
+        "=HYPGEOM.DIST(2,5,3,20,TRUE)",
+        "=ISO.CEILING(1.5)",
+        "=LOGNORM.DIST(1,0,1,TRUE)",
+        "=LOGNORM.INV(0.5,0,1)",
+        "=MODE.SNGL(1,2,2)",
+        "=NEGBINOM.DIST(1,2,0.5,TRUE)",
+        "=NETWORKDAYS.INTL(45292,45322)",
+        "=NORM.DIST(1,0,1,TRUE)",
+        "=NORM.INV(0.5,0,1)",
+        "=NORM.S.DIST(1,TRUE)",
+        "=NORM.S.INV(0.5)",
+        "=PERCENTILE.EXC(A1:A4,0.5)",
+        "=PERCENTILE.INC(A1:A4,0.5)",
+        "=PERCENTRANK.EXC(A1:A4,2)",
+        "=PERCENTRANK.INC(A1:A4,2)",
+        "=POISSON.DIST(1,2,TRUE)",
+        "=QUARTILE.EXC(A1:A4,1)",
+        "=QUARTILE.INC(A1:A4,1)",
+        "=RANK.AVG(2,A1:A4)",
+        "=RANK.EQ(2,A1:A4)",
+        "=SKEW.P(A1:A4)",
+        "=STDEV.P(A1:A4)",
+        "=STDEV.S(A1:A4)",
+        "=T.DIST(2,5,1)",
+        "=T.DIST.RT(2,5)",
+        "=T.INV(0.3,5)",
+        "=T.TEST(A1:A4,B1:B2,2,1)",
+        "=VAR.P(A1:A4)",
+        "=VAR.S(A1:A4)",
+        "=WEIBULL.DIST(1,2,3,TRUE)",
+        "=WORKDAY.INTL(45292,3)",
+        "=Z.TEST(A1:A4,2)",
+    ] {
+        assert!(
+            eval(grid, formula).is_ok(),
+            "{formula} is advertised but did not evaluate: {:?}",
+            eval(grid, formula)
+        );
+    }
+}
+
+#[test]
+fn the_modern_distribution_names_match_the_reference() {
+    // Each value was read from `@formulajs/formulajs` before being written
+    // down, and the whole set is re-checked by `verify_spreadsheet.py`.
+    assert!((num("", "=CHISQ.DIST(3,5,TRUE)") - 0.30001416412137294).abs() < 1e-12);
+    assert!((num("", "=CHISQ.DIST(3,5,FALSE)") - 0.1541803298037694).abs() < 1e-12);
+    assert!((num("", "=CHISQ.DIST.RT(3,5)") - 0.6999858358786271).abs() < 1e-12);
+    assert!((num("", "=CHISQ.INV(0.3,5)") - 2.9999081327599035).abs() < 1e-9);
+    assert!((num("", "=CHISQ.INV.RT(0.3,5)") - 6.0644299841549).abs() < 1e-9);
+    let grid = "A1=10;A2=20;B1=15;B2=15";
+    assert!((num(grid, "=CHISQ.TEST(A1:A2,B1:B2)") - 0.067889).abs() < 1e-12);
+    assert_eq!(num("", "=BINOM.INV(10,0.5,0.75)"), 6.0);
+    assert!((num("", "=T.DIST.2T(2,5)") - 0.10193947882957999).abs() < 1e-12);
+    assert!((num("", "=T.INV.2T(0.05,5)") - 2.570581834764143).abs() < 1e-12);
+    // The modern spelling and the legacy one are the same function.
+    assert_eq!(
+        num(grid, "=CHISQ.TEST(A1:A2,B1:B2)"),
+        num(grid, "=CHITEST(A1:A2,B1:B2)")
+    );
+    assert_eq!(
+        num("", "=BINOM.INV(10,0.5,0.75)"),
+        num("", "=CRITBINOM(10,0.5,0.75)")
+    );
+}
+
+#[test]
 fn regression_and_tests_agree_with_the_reference() {
     assert!(
         (num(

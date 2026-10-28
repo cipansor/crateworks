@@ -135,8 +135,8 @@ impl Arg {
 /// `CHISQ.INV.RT` - and the older flat names without them - `NORMSDIST`,
 /// `CHIINVRT`. Both mean the same function, so the dots are removed and the
 /// result is the flat alias the arms below are written against. The reference
-/// library exposes only the flat spellings, so that is the one the oracle can
-/// check; the dotted spelling is accepted for the user's benefit.
+/// exposes most modern names as nested namespaces, which the oracle walks, so
+/// both spellings are checked against it.
 fn canonical_name(name: &str) -> String {
     name.replace('.', "")
 }
@@ -2560,6 +2560,17 @@ pub(crate) fn call_from(
             }
             Ok(Value::Number(1.0 - stats::studentt_cdf(x, dof)))
         }
+        // `T.DIST.2T`: the two-tailed probability, which is the right tail
+        // doubled. A negative `x` is rejected, as in `TDIST`.
+        "TDIST2T" => {
+            require_arity(name, args, 2)?;
+            let x = first_number(name, &args[0])?;
+            let dof = first_number(name, &args[1])?;
+            if x < 0.0 || dof < 1.0 {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            Ok(Value::Number((1.0 - stats::studentt_cdf(x, dof)) * 2.0))
+        }
         "TINV" => {
             require_arity(name, args, 2)?;
             let p = first_number(name, &args[0])?;
@@ -2567,16 +2578,27 @@ pub(crate) fn call_from(
             if dof < 1.0 || p <= 0.0 || p >= 1.0 {
                 return Err(Error::Arithmetic(ValueError::NotANumber));
             }
-            // `T.INV` is the one-tailed inverse; `T.INV.2T` is the two-tailed
-            // one, which the reference does not export under a flat name.
+            // `T.INV` is the one-tailed inverse.
             Ok(Value::Number(stats::studentt_inv(p, dof)))
         }
-        "CHIDIST" => {
+        // `T.INV.2T`: the two-tailed inverse, which Excel defines as the
+        // positive `x` with a two-tailed probability of `p`, so it is the
+        // one-tailed inverse of `p / 2` taken in the upper tail.
+        "TINV2T" => {
+            require_arity(name, args, 2)?;
+            let p = first_number(name, &args[0])?;
+            let dof = first_number(name, &args[1])?;
+            if dof < 1.0 || p <= 0.0 || p >= 1.0 {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            Ok(Value::Number(stats::studentt_inv(1.0 - p / 2.0, dof)))
+        }
+        // `CHIDIST` and its modern spelling `CHISQ.DIST` reach the same arm:
+        // the optional cumulative flag, when false or absent, is the density.
+        "CHIDIST" | "CHISQDIST" => {
             require_between(name, args, 2, 3)?;
             let x = first_number(name, &args[0])?;
             let dof = first_number(name, &args[1])?;
-            // The modern form takes a cumulative flag; the legacy two-argument
-            // form is the right tail.
             match args.get(2) {
                 Some(flag) if first_value(flag).as_bool() => {
                     Ok(Value::Number(stats::chisq_cdf(x, dof)))
@@ -2586,7 +2608,7 @@ pub(crate) fn call_from(
                 _ => Ok(Value::Number(stats::chisq_pdf(x, dof))),
             }
         }
-        "CHIDISTRT" => {
+        "CHIDISTRT" | "CHISQDISTRT" => {
             require_arity(name, args, 2)?;
             let x = first_number(name, &args[0])?;
             let dof = first_number(name, &args[1])?;
@@ -2610,6 +2632,7 @@ pub(crate) fn call_from(
             }
             Ok(Value::Number(stats::chisq_inv(1.0 - p, dof)))
         }
+        // `CHISQ.INV` is the left-tail inverse, the same as `CHIINV`.
         "CHISQINV" => {
             require_arity(name, args, 2)?;
             let p = first_number(name, &args[0])?;
@@ -2618,6 +2641,16 @@ pub(crate) fn call_from(
                 return Err(Error::Arithmetic(ValueError::NotANumber));
             }
             Ok(Value::Number(stats::chisq_inv(p, dof)))
+        }
+        // `CHISQ.INV.RT` is the right-tail inverse, the same as `CHIINVRT`.
+        "CHISQINVRT" => {
+            require_arity(name, args, 2)?;
+            let p = first_number(name, &args[0])?;
+            let dof = first_number(name, &args[1])?;
+            if !(0.0..=1.0).contains(&p) || dof < 1.0 {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            Ok(Value::Number(stats::chisq_inv(1.0 - p, dof)))
         }
         "FDIST" => {
             require_between(name, args, 3, 4)?;
@@ -2670,7 +2703,31 @@ pub(crate) fn call_from(
                 stats::binomial_pdf(k, n, p)
             }))
         }
-        "CRITBINOM" => {
+        // `BINOM.DIST.RANGE`: the sum of the binomial density over an inclusive
+        // interval of successes. The fourth argument is optional and defaults
+        // to the third, so the three-argument form is a single term.
+        "BINOMDISTRANGE" => {
+            require_between(name, args, 3, 4)?;
+            let trials = first_number(name, &args[0])?;
+            let p = first_number(name, &args[1])?;
+            let lower = first_number(name, &args[2])?;
+            let upper = match args.get(3) {
+                Some(a) => first_number(name, a)?,
+                None => lower,
+            };
+            if trials < 0.0 || !(0.0..=1.0).contains(&p) || lower < 0.0 || upper < lower {
+                return Err(Error::Arithmetic(ValueError::NotANumber));
+            }
+            let mut result = 0.0;
+            let mut k = lower;
+            while k <= upper {
+                result += stats::binomial_pdf(k, trials, p);
+                k += 1.0;
+            }
+            Ok(Value::Number(result))
+        }
+        // `BINOM.INV` is the modern name for `CRITBINOM`.
+        "CRITBINOM" | "BINOMINV" => {
             require_arity(name, args, 3)?;
             let n = first_number(name, &args[0])?;
             let p = first_number(name, &args[1])?;
@@ -2956,7 +3013,8 @@ pub(crate) fn call_from(
             let b = numbers_of_arg(name, &args[1])?;
             Ok(Value::Number(stats::ftest(&a, &b)))
         }
-        "CHITEST" => {
+        // `CHISQ.TEST` is the modern name for `CHITEST`.
+        "CHITEST" | "CHISQTEST" => {
             require_arity(name, args, 2)?;
             let a = numbers_of_arg(name, &args[0])?;
             let b = numbers_of_arg(name, &args[1])?;
@@ -4252,7 +4310,10 @@ fn require_at_least(name: &str, args: &[Arg], minimum: usize) -> Result<(), Erro
 /// Names of every function the crate implements.
 ///
 /// This is public so that a caller can offer completion or validate a formula
-/// against the supported set.
+/// against the supported set. Both the dotted modern spelling and the flat alias
+/// of a function are listed, so a caller offering completion sees the name a
+/// modern spreadsheet writes as well as the one an older one does; the two
+/// dispatch to the same implementation.
 pub const FUNCTION_NAMES: &[&str] = &[
     "ABS",
     "ACCRINT",
@@ -4279,11 +4340,16 @@ pub const FUNCTION_NAMES: &[&str] = &[
     "BESSELK",
     "BESSELY",
     "BETADIST",
+    "BETA.DIST",
     "BETAINV",
+    "BETA.INV",
     "BIN2DEC",
     "BIN2HEX",
     "BIN2OCT",
+    "BINOM.INV",
     "BINOMDIST",
+    "BINOM.DIST",
+    "BINOM.DIST.RANGE",
     "BITAND",
     "BITLSHIFT",
     "BITOR",
@@ -4291,13 +4357,21 @@ pub const FUNCTION_NAMES: &[&str] = &[
     "BITXOR",
     "CEILING",
     "CEILINGMATH",
+    "CEILING.MATH",
     "CEILINGPRECISE",
+    "CEILING.PRECISE",
     "CHAR",
     "CHIDIST",
     "CHIDISTRT",
+    "CHIDIST.RT",
     "CHIINV",
     "CHIINVRT",
-    "CHISQINV",
+    "CHIINV.RT",
+    "CHISQ.DIST",
+    "CHISQ.DIST.RT",
+    "CHISQ.INV",
+    "CHISQ.INV.RT",
+    "CHISQ.TEST",
     "CHITEST",
     "CHOOSE",
     "CLEAN",
@@ -4327,7 +4401,9 @@ pub const FUNCTION_NAMES: &[&str] = &[
     "COUPDAYS",
     "COVAR",
     "COVARIANCEP",
+    "COVARIANCE.P",
     "COVARIANCES",
+    "COVARIANCE.S",
     "CRITBINOM",
     "CSC",
     "CSCH",
@@ -4361,29 +4437,42 @@ pub const FUNCTION_NAMES: &[&str] = &[
     "EXACT",
     "EXP",
     "EXPONDIST",
+    "EXPON.DIST",
     "FACT",
     "FACTDOUBLE",
     "FALSE",
     "FDIST",
+    "F.DIST",
     "FDISTRT",
+    "F.DIST.RT",
+    "FDIST.RT",
     "FIND",
     "FINV",
+    "F.INV",
     "FINVRT",
+    "F.INV.RT",
+    "FINV.RT",
     "FISHER",
     "FISHERINV",
     "FIXED",
     "FLOOR",
     "FLOORMATH",
+    "FLOOR.MATH",
     "FLOORPRECISE",
+    "FLOOR.PRECISE",
     "FORECAST",
     "FTEST",
+    "F.TEST",
     "FV",
     "FVSCHEDULE",
     "GAMMA",
     "GAMMADIST",
+    "GAMMA.DIST",
     "GAMMAINV",
+    "GAMMA.INV",
     "GAMMALN",
     "GAMMALNPRECISE",
+    "GAMMALN.PRECISE",
     "GAUSS",
     "GCD",
     "GEOMEAN",
@@ -4395,6 +4484,7 @@ pub const FUNCTION_NAMES: &[&str] = &[
     "HLOOKUP",
     "HOUR",
     "HYPGEOMDIST",
+    "HYPGEOM.DIST",
     "IFNA",
     "IFS",
     "IMABS",
@@ -4436,6 +4526,7 @@ pub const FUNCTION_NAMES: &[&str] = &[
     "ISNONTEXT",
     "ISNUMBER",
     "ISOCEILING",
+    "ISO.CEILING",
     "ISODD",
     "ISOWEEKNUM",
     "ISPMT",
@@ -4450,7 +4541,9 @@ pub const FUNCTION_NAMES: &[&str] = &[
     "LOG10",
     "LOGINV",
     "LOGNORMDIST",
+    "LOGNORM.DIST",
     "LOGNORMINV",
+    "LOGNORM.INV",
     "LOOKUP",
     "LOWER",
     "MATCH",
@@ -4466,19 +4559,26 @@ pub const FUNCTION_NAMES: &[&str] = &[
     "MIRR",
     "MOD",
     "MODESNGL",
+    "MODE.SNGL",
     "MONTH",
     "MROUND",
     "MULTINOMIAL",
     "N",
     "NA",
     "NEGBINOMDIST",
+    "NEGBINOM.DIST",
     "NETWORKDAYS",
     "NETWORKDAYSINTL",
+    "NETWORKDAYS.INTL",
     "NOMINAL",
     "NORMDIST",
+    "NORM.DIST",
     "NORMINV",
+    "NORM.INV",
     "NORMSDIST",
+    "NORM.S.DIST",
     "NORMSINV",
+    "NORM.S.INV",
     "NOT",
     "NPER",
     "NPV",
@@ -4492,15 +4592,20 @@ pub const FUNCTION_NAMES: &[&str] = &[
     "PEARSON",
     "PERCENTILE",
     "PERCENTILEEXC",
+    "PERCENTILE.EXC",
     "PERCENTILEINC",
+    "PERCENTILE.INC",
     "PERCENTRANKEXC",
+    "PERCENTRANK.EXC",
     "PERCENTRANKINC",
+    "PERCENTRANK.INC",
     "PERMUT",
     "PERMUTATIONA",
     "PHI",
     "PI",
     "PMT",
     "POISSONDIST",
+    "POISSON.DIST",
     "POWER",
     "PPMT",
     "PRICEDISC",
@@ -4510,12 +4615,16 @@ pub const FUNCTION_NAMES: &[&str] = &[
     "PV",
     "QUARTILE",
     "QUARTILEEXC",
+    "QUARTILE.EXC",
     "QUARTILEINC",
+    "QUARTILE.INC",
     "QUOTIENT",
     "RADIANS",
     "RANK",
     "RANKAVG",
+    "RANK.AVG",
     "RANKEQ",
+    "RANK.EQ",
     "REPLACE",
     "REPT",
     "RIGHT",
@@ -4538,6 +4647,7 @@ pub const FUNCTION_NAMES: &[&str] = &[
     "SINH",
     "SKEW",
     "SKEWP",
+    "SKEW.P",
     "SLN",
     "SLOPE",
     "SMALL",
@@ -4546,8 +4656,10 @@ pub const FUNCTION_NAMES: &[&str] = &[
     "STANDARDIZE",
     "STDEVA",
     "STDEVP",
+    "STDEV.P",
     "STDEVPA",
     "STDEVS",
+    "STDEV.S",
     "STEYX",
     "SUBSTITUTE",
     "SUM",
@@ -4567,17 +4679,24 @@ pub const FUNCTION_NAMES: &[&str] = &[
     "TBILLPRICE",
     "TBILLYIELD",
     "TDIST",
+    "T.DIST",
+    "T.DIST.2T",
     "TDISTRT",
+    "T.DIST.RT",
+    "TDIST.RT",
     "TEXT",
     "TEXTJOIN",
     "TIME",
     "TIMEVALUE",
     "TINV",
+    "T.INV",
+    "T.INV.2T",
     "TRIM",
     "TRIMMEAN",
     "TRUE",
     "TRUNC",
     "TTEST",
+    "T.TEST",
     "TYPE",
     "UNICHAR",
     "UNICODE",
@@ -4585,20 +4704,25 @@ pub const FUNCTION_NAMES: &[&str] = &[
     "VALUE",
     "VARA",
     "VARP",
+    "VAR.P",
     "VARPA",
     "VARS",
+    "VAR.S",
     "VLOOKUP",
     "WEEKDAY",
     "WEEKNUM",
     "WEIBULLDIST",
+    "WEIBULL.DIST",
     "WORKDAY",
     "WORKDAYINTL",
+    "WORKDAY.INTL",
     "XIRR",
     "XNPV",
     "XOR",
     "YEAR",
     "YEARFRAC",
     "ZTEST",
+    "Z.TEST",
 ];
 
 #[cfg(test)]

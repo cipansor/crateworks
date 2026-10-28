@@ -22,7 +22,9 @@ impl Sheet for Grid {
 assert_eq!(Evaluator::new(&Grid).eval("=SUM(A1:A2)*2").unwrap(), Value::Number(10.0));
 ```
 
-345 functions plus `IF` and `IFERROR`, which are evaluated lazily along with
+408 function names - 342 flat and 66 dotted modern spellings that share an
+implementation with their flat alias - plus `IF` and `IFERROR`, which are
+evaluated lazily along with
 `SWITCH`. Cell and range references, absolute references, sheet qualifiers, text
 concatenation, and comparison operators. The library covers arithmetic and
 rounding, trigonometry and its hyperbolic and reciprocal forms, logarithms, the
@@ -63,10 +65,12 @@ string and a way to resolve cell references, so it can be used with `xlsx`,
   `FINV`, `BINOMDIST`, `CRITBINOM`, `POISSONDIST`, `EXPONDIST`, `WEIBULLDIST`,
   `GAMMADIST`, `GAMMAINV`, `BETADIST`, `BETAINV`, `HYPGEOMDIST`, `NEGBINOMDIST`,
   `STANDARDIZE`, `GAUSS`, `PHI`, `FISHER`, `FISHERINV`, `CONFIDENCE`,
-  `CONFIDENCE.NORM`, `CONFIDENCE.T`.
+  `CONFIDENCE.NORM`, `CONFIDENCE.T`, and the modern dotted spellings
+  `CHISQ.DIST`, `CHISQ.DIST.RT`, `CHISQ.INV`, `CHISQ.INV.RT`, `T.DIST.2T`,
+  `T.INV.2T`, `BINOM.INV`.
 * Regression and hypothesis tests - `CORREL`, `PEARSON`, `RSQ`, `SLOPE`,
   `INTERCEPT`, `STEYX`, `FORECAST`, `COVAR`, `COVARIANCEP`, `COVARIANCES`,
-  `ZTEST`, `TTEST`, `FTEST`, `CHITEST`.
+  `ZTEST`, `TTEST`, `FTEST`, `CHITEST`, `CHISQ.TEST`.
 * Base conversion and bitwise - `BIN2DEC`, `BIN2HEX`, `BIN2OCT`, `HEX2BIN`,
   `HEX2DEC`, `HEX2OCT`, `OCT2BIN`, `OCT2DEC`, `OCT2HEX`, `DEC2BIN`, `DEC2HEX`,
   `DEC2OCT`, `BASE`, `DECIMAL`, `BITAND`, `BITOR`, `BITXOR`, `BITLSHIFT`,
@@ -156,7 +160,11 @@ A modern function name may be dotted - `NORM.S.DIST`, `CHISQ.INV.RT`,
 `T.INV.2T` - and the tokeniser accepts one wherever a call follows. Both the
 dotted spelling and the flat alias a spreadsheet also accepts (`NORMSDIST`,
 `CHIINV`) reach the same implementation, so a formula written either way
-evaluates the same.
+evaluates the same. The dots are only stripped before dispatch, so the two
+spellings cannot drift apart, and every dotted name is listed in
+`FUNCTION_NAMES` alongside its flat alias. `BINOM.DIST.RANGE` is the one that is
+not a rename: it sums the binomial density over an inclusive interval and has no
+flat counterpart.
 
 The distributions, the regression and correlation functions and the hypothesis
 tests were ported from the JavaScript `@formulajs/formulajs` library, which
