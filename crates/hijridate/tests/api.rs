@@ -207,3 +207,63 @@ fn today_round_trips_through_both_calendars() {
     let hijri = Hijri::today().unwrap();
     assert_eq!(today.to_hijri(), hijri);
 }
+
+#[test]
+fn every_ordinal_row_agrees_with_hijridate() {
+    let mut checked = 0;
+    for line in include_str!("fixtures/hijridate_ordinal.tsv")
+        .lines()
+        .skip(1)
+    {
+        if line.is_empty() {
+            continue;
+        }
+        let f: Vec<&str> = line.split('\t').collect();
+        let (year, month, day): (i32, u8, u8) = (
+            f[0].parse().unwrap(),
+            f[1].parse().unwrap(),
+            f[2].parse().unwrap(),
+        );
+        let ordinal: i64 = f[3].parse().unwrap();
+        let date = Gregorian::new(year, month, day).unwrap();
+        assert_eq!(date.toordinal(), ordinal, "{year}-{month}-{day}");
+        // The inverse must land back on the same date.
+        assert_eq!(Gregorian::fromordinal(ordinal).unwrap(), date);
+        // `replace(day=1)` keeps the year and month and resets the day.
+        assert_eq!(
+            date.replace(None, None, Some(1)).unwrap().isoformat(),
+            f[4],
+            "{year}-{month}-{day}"
+        );
+        checked += 1;
+    }
+    assert!(checked > 40, "only {checked} ordinal rows were checked");
+}
+
+#[test]
+fn an_out_of_range_ordinal_is_reported() {
+    // Year 0 is before the proleptic epoch the reference supports.
+    assert!(Gregorian::fromordinal(0).is_err());
+    assert!(Gregorian::fromordinal(-1).is_err());
+    assert_eq!(
+        Gregorian::fromordinal(1).unwrap(),
+        Gregorian::new(1, 1, 1).unwrap()
+    );
+    assert_eq!(
+        Gregorian::fromordinal(3_652_059).unwrap(),
+        Gregorian::new(9999, 12, 31).unwrap()
+    );
+}
+
+#[test]
+fn replace_rejects_a_date_that_does_not_exist() {
+    let date = Gregorian::new(2026, 2, 18).unwrap();
+    assert!(date.replace(Some(2025), Some(2), Some(29)).is_err());
+    assert!(date.replace(None, Some(13), None).is_err());
+    assert_eq!(
+        date.replace(Some(2024), Some(2), Some(29))
+            .unwrap()
+            .isoformat(),
+        "2024-02-29"
+    );
+}

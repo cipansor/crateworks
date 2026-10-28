@@ -88,3 +88,24 @@ for kind, date in [("H", Hijri(1447, 9, 1)), ("G", Gregorian(2026, 2, 18))]:
 out = crate / "tests" / "fixtures" / "hijridate_api.tsv"
 out.write_text("\n".join(rows) + "\n")
 print(f"wrote {len(rows) - 1} rows to {out}")
+
+
+# The Gregorian ordinal, its inverse, and `replace`. Only the Gregorian type
+# carries these in the reference, so the fixture is Gregorian-only. The ordinal
+# is the proleptic day count from 0001-01-01, which is what `datetime.date`
+# uses and what a caller passes to `date.fromordinal`.
+ordinal_rows = ["year\tmonth\tday\tordinal\treplaced"]
+for y in (1, 2, 4, 1582, 1600, 1900, 1999, 2000, 2024, 2026, 9999):
+    for m, d in ((1, 1), (2, 28), (3, 1), (12, 31)):
+        try:
+            g = Gregorian(y, m, d)
+        except ValueError:
+            continue
+        replaced = g.replace(day=1)
+        ordinal_rows.append(
+            f"{y}\t{m}\t{d}\t{g.toordinal()}\t{replaced.isoformat()}"
+        )
+
+ordinal_out = crate / "tests" / "fixtures" / "hijridate_ordinal.tsv"
+ordinal_out.write_text("\n".join(ordinal_rows) + "\n")
+print(f"wrote {len(ordinal_rows) - 1} rows to {ordinal_out}")

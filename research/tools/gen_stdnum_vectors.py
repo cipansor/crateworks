@@ -176,6 +176,20 @@ INTERNATIONAL: dict[str, str] = {
     "Meid": "meid",
     "Isan": "isan",
     "BitcoinAddress": "bitcoin",
+    # Added in 0.1.8: the identifiers that need no registry table of their own.
+    # MAC is validated without the manufacturer lookup, which needs the IEEE
+    # OUI registry the crate deliberately does not ship.
+    "Mac": "mac",
+    "Isil": "isil",
+}
+
+
+# Modules whose `validate` needs an argument other than the number itself, so
+# the verdict matches the mode this crate implements. The MAC manufacturer
+# lookup is the only one: the crate checks the shape and the address class bits,
+# not the IEEE registry.
+VALIDATE_KWARGS: dict[str, dict[str, object]] = {
+    "mac": {"validate_manufacturer": False},
 }
 
 
@@ -225,9 +239,9 @@ def mutations(value: str) -> list[str]:
     return out
 
 
-def verdict(mod, value: str) -> bool:
+def verdict(mod, value: str, **kwargs) -> bool:
     try:
-        mod.validate(value)
+        mod.validate(value, **kwargs)
     except Exception:
         return False
     return True
@@ -273,11 +287,12 @@ def main() -> int:
             cases.append(value)
         seen: set[str] = set()
         count_ok = 0
+        kwargs = VALIDATE_KWARGS.get(py_name, {})
         for value in cases:
             if value in seen:
                 continue
             seen.add(value)
-            ok = verdict(mod, value)
+            ok = verdict(mod, value, **kwargs)
             count_ok += ok
             lines.append(f"{rust_name}\t{value}\t{1 if ok else 0}")
         summary.append(

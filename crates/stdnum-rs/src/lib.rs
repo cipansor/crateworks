@@ -7,7 +7,9 @@ pub mod id;
 pub mod identifiers;
 pub mod isbn;
 pub mod iso7064;
+pub mod library;
 pub mod luhn;
+pub mod network;
 pub mod securities;
 pub mod telecom;
 
@@ -19,7 +21,9 @@ pub use iban::Iban;
 pub use id::{Country, IdNumber};
 pub use identifiers::{CasNumber, CreditorReference, Imei, Ismn, Isni, Isrc, Issn};
 pub use isbn::Isbn;
+pub use library::Isil;
 pub use luhn::Luhn;
+pub use network::Mac;
 pub use securities::{Bic, Cusip, Figi, Grid, Isin, Lei};
 pub use telecom::{BitcoinAddress, Imo, Isan, Meid};
 
@@ -135,6 +139,10 @@ pub enum NumberType {
     Isan,
     /// A Bitcoin address.
     BitcoinAddress,
+    /// A MAC address, the hardware identifier of a network interface.
+    Mac,
+    /// An ISIL, the identifier of a library or a related organisation.
+    Isil,
     /// A national identifier for a specific country.
     National(Country),
 }
@@ -177,6 +185,8 @@ pub fn validate(kind: NumberType, input: &str) -> Result<()> {
         NumberType::Meid => Meid::parse(input).map(|_| ()),
         NumberType::Isan => Isan::parse(input).map(|_| ()),
         NumberType::BitcoinAddress => BitcoinAddress::parse(input).map(|_| ()),
+        NumberType::Mac => Mac::parse(input).map(|_| ()),
+        NumberType::Isil => Isil::parse(input).map(|_| ()),
         NumberType::National(country) => IdNumber::parse(country, input).map(|_| ()),
     }
 }

@@ -1290,6 +1290,13 @@ pub(crate) fn call_from(
             }
             Ok(Value::Text(out))
         }
+        "CONVERT" => {
+            require_arity(name, args, 3)?;
+            let number = first_number(name, &args[0])?;
+            let from = first_text(&args[1]);
+            let to = first_text(&args[2]);
+            Ok(Value::Number(crate::convert::convert(number, &from, &to)?))
+        }
         "LEFT" => {
             require_arity(name, args, 2)?;
             let text = first_text(&args[0]);
@@ -4260,6 +4267,7 @@ pub const FUNCTION_NAMES: &[&str] = &[
     "COMPLEX",
     "CONCAT",
     "CONCATENATE",
+    "CONVERT",
     "CORREL",
     "COS",
     "COSH",

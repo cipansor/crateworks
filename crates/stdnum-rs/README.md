@@ -67,6 +67,8 @@ type of its own:
 | `Meid` | MEID | a piece of CDMA mobile equipment |
 | `Isan` | ISO 15706 | an audiovisual work |
 | `BitcoinAddress` | BIP-13 / BIP-173 | a Bitcoin payment destination |
+| `Mac` | IEEE 802 | the hardware address of a network interface |
+| `Isil` | ISO 15511 | a library or a related organisation |
 
 `Cusip::to_isin` and `Isin::from_national_id` move a national identifier to the
 international form. `Ismn` accepts both the current thirteen-digit form and the
@@ -90,7 +92,7 @@ contributors, which in turn follows each authority's published specification.
 This is an independent reimplementation and shares no code with it; see
 [`NOTICE`](https://github.com/cipansor/crateworks/blob/main/crates/stdnum-rs/NOTICE).
 
-`tests/fixtures/stdnum_vectors.tsv` holds 33,064 numbers labelled by that
+`tests/fixtures/stdnum_vectors.tsv` holds 33,489 numbers labelled by that
 reference: every number in its own documentation plus each single-digit
 substitution of a valid number, the last character dropped and a character
 appended. `tests/readme.rs` replays the file, so a change that makes this crate

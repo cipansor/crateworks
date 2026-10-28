@@ -22,7 +22,7 @@ impl Sheet for Grid {
 assert_eq!(Evaluator::new(&Grid).eval("=SUM(A1:A2)*2").unwrap(), Value::Number(10.0));
 ```
 
-340 functions plus `IF` and `IFERROR`, which are evaluated lazily along with
+341 functions plus `IF` and `IFERROR`, which are evaluated lazily along with
 `SWITCH`. Cell and range references, absolute references, sheet qualifiers, text
 concatenation, and comparison operators. The library covers arithmetic and
 rounding, trigonometry and its hyperbolic and reciprocal forms, logarithms, the
@@ -70,6 +70,9 @@ string and a way to resolve cell references, so it can be used with `xlsx`,
   `HEX2DEC`, `HEX2OCT`, `OCT2BIN`, `OCT2DEC`, `OCT2HEX`, `DEC2BIN`, `DEC2HEX`,
   `DEC2OCT`, `BASE`, `DECIMAL`, `BITAND`, `BITOR`, `BITXOR`, `BITLSHIFT`,
   `BITRSHIFT`, `ROMAN`, `ARABIC`.
+* Unit conversion - `CONVERT`, between 146 units across mass, length, time,
+  pressure, energy, power, information, magnetism and more, with the decimal SI
+  and the binary prefixes. See the section on `CONVERT` below.
 * Information - `ISBLANK`, `ISNUMBER`, `ISTEXT`, `ISNONTEXT`, `ISLOGICAL`,
   `ISERROR`, `ISERR`, `ISEVEN`, `ISODD`, `TYPE`, `DELTA`, `GESTEP`, `N`, `T`,
   `XOR`.
@@ -112,6 +115,25 @@ The base-conversion and bitwise functions follow the spreadsheet convention of
 a fixed ten-digit field, so a ten-character binary, octal or hexadecimal string
 whose leading digit is at or above half the base is a negative number. `BASE`
 accepts a radix from 2 to 36, and `DECIMAL` parses one.
+
+### CONVERT
+
+`CONVERT(value, from, to)` expresses a value in one unit as another. The units
+are the ones Excel knows, 146 of them, and the table is generated from
+`@formulajs/formulajs` by `research/tools/gen_convert_units.py` rather than
+hand-written. A unit is written with its symbol or any of its aliases, so
+`CONVERT(1, "L", "gal")` and `CONVERT(1, "lt", "gal")` agree.
+
+A unit may carry a decimal SI prefix (`k`, `m`, `M`) or a binary prefix (`ki`,
+`Mi`), applied only when the bare name is not itself a unit: `km` is a kilometre,
+but `min` is a minute and `mmHg` a millimetre of mercury. `kibyte` is 1024 bits.
+A prefix is tried only after the whole string fails to match a unit, so a
+multi-letter symbol always wins.
+
+Converting between two units of different categories, or naming a unit the
+crate does not know, is an error, which is how a spreadsheet reports `#N/A`.
+The reference instead returns its `{}` object for both; this crate reports the
+error so a caller can tell the two apart.
 
 `FUNCTION_NAMES` is the list of every function the crate implements, and a caller
 can validate a formula against it. The conditional ones are `IF` and `IFERROR`,

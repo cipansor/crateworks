@@ -64,6 +64,23 @@ def RANGE(*values):
 # function name -> list of argument tuples.
 CASES = {
     "ABS": [(-3.5,), (0.0,), (7.0,)],
+    "CONVERT": [
+        (1, text("m"), text("cm")),
+        (1, text("kg"), text("lbm")),
+        (1, text("day"), text("hr")),
+        (1, text("ft"), text("m")),
+        (1, text("mi"), text("km")),
+        (1, text("gal"), text("l")),
+        (1, text("Wh"), text("J")),
+        (1, text("km"), text("m")),
+        (1, text("kibyte"), text("bit")),
+        (1, text("Pa"), text("mmHg")),
+        (2.5, text("m"), text("ft")),
+        # `C` is the coulomb and `K` the kelvin, two categories, so both sides
+        # report `#N/A`; the reference does not implement the Celsius scale.
+        (100, text("C"), text("K")),
+        (1, text("furlong"), text("m")),
+    ],
     "CEILING": [(2.5, 1), (-2.5, 1), (-2.5, -1), (1.5, 0.1), (10, 3)],
     "FLOOR": [(2.5, 1), (-2.5, -1), (-2.5, 1), (10, 3)],
     "TRUNC": [(2.567, 2), (-2.567, 1), (2.567,), (2.567, 0)],

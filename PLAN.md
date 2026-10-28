@@ -58,16 +58,20 @@ Rust equivalent.
 
 **Covers today.** IBAN (78 countries, MOD-97, check-digit generation), ISBN-10
 and ISBN-13 with conversion, EAN-8/EAN-13/UPC-A with UPC-to-EAN conversion,
-Luhn with check-digit generation, seventeen international identifiers (ISIN,
+Luhn with check-digit generation, nineteen international identifiers (ISIN,
 CUSIP, FIGI, LEI, BIC, GRID, ISSN, ISRC, IMEI, ISMN, ISNI, CAS number, ISO
-11649 creditor reference, IMO number, MEID, ISAN and a Bitcoin address), and
+11649 creditor reference, IMO number, MEID, ISAN, a Bitcoin address, a MAC
+address and an ISIL), and
 **112 national identifiers across 90 countries**, reached through
 `Country::ALL`. Every one of `python-stdnum`'s 89 national modules now has a
 counterpart. The four newest need no registry: the IMO number is a seven-digit
 hull identifier with a check digit, the MEID is a fourteen-digit hexadecimal
 one, the ISAN carries its own check character over a hyphenated block, and the
 Bitcoin address is verified by its Base58 double-SHA-256 or Bech32 checksum,
-with the SHA-256 implemented inside the crate rather than pulled in.
+with the SHA-256 implemented inside the crate rather than pulled in. The MAC
+address checks the shape, the zero padding and the address-class bits but
+deliberately omits the IEEE manufacturer registry, and the ISIL checks the
+registered agency prefix from the authority's published list.
 
 **Not covered.** Anything that needs a registry lookup. A number that passes may
 still be unissued; this is a form filter, not proof of existence.
@@ -80,7 +84,7 @@ works with `xlsx`, `ods`, or a database of cells.
 
 **Covers today.** Tokeniser with absolute references, sheet qualifiers, ranges
 and dotted modern names (`NORM.S.DIST`, `CHISQ.INV.RT`); recursive-descent
-parser with spreadsheet operator precedence; evaluator with 340 functions plus
+parser with spreadsheet operator precedence; evaluator with 341 functions plus
 `IF` and `IFERROR`, which are handled specially so they do not evaluate both
 branches. A range size limit bounds the work a hostile formula can request. The
 functions cover arithmetic and rounding, trigonometry and its hyperbolic and
@@ -94,7 +98,8 @@ roman numerals, text case, search and formatting, date and time (including the
 `NETWORKDAYS.INTL` and `WORKDAY.INTL` weekend forms), complex numbers, financial
 and depreciation calculations (including `RATE` and `COUPDAYS`), the
 `AGGREGATE` selector, lookup and reference, `SUBTOTAL`, position-by-position
-products, and the conditional aggregates (`SUMIFS`, `COUNTIFS`, `AVERAGEIFS`,
+products, unit conversion (`CONVERT`, from a generated 146-unit table), and the
+conditional aggregates (`SUMIFS`, `COUNTIFS`, `AVERAGEIFS`,
 `MAXIFS`, `MINIFS`). The distributions and the tests are ported from
 `@formulajs/formulajs`, which delegates to `jStat`, and
 `research/tools/verify_spreadsheet.py` compares every one of them against it.
@@ -120,7 +125,9 @@ formula, and the Umm al-Qura table is what those dates are looked up in.
 1343 to 1500 (Gregorian 1924 to 2077), taken from the published Umm al-Qura month
 starts. Real month lengths (29 or 30, varying by year), month names, weekday and
 day names, validation that rejects a day past the end of its month, and `Display`
-as `YYYY-MM-DD`. No dependencies.
+as `YYYY-MM-DD`. A Gregorian date also carries the proleptic ordinal the
+reference inherits from `datetime.date` - `toordinal`, `fromordinal` and a
+component-wise `replace` - pinned to the reference by a fixture. No dependencies.
 
 **Not covered.** Outside the table the crate falls back to the classical
 arithmetic calendar and flags the result with `is_tabular`; those dates can be a

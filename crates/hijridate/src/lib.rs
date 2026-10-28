@@ -556,6 +556,53 @@ impl Gregorian {
         let jdn = days + 2_440_588;
         Ok(from_julian(jdn))
     }
+
+    /// The proleptic Gregorian ordinal, day 1 being 1 January of year 1.
+    ///
+    /// This is the reference's `toordinal`, which follows `datetime.date`: it
+    /// counts from the proleptic Gregorian epoch, so `0001-01-01` is 1 and
+    /// `2026-02-18` is 739665.
+    #[must_use]
+    pub fn toordinal(self) -> i64 {
+        // The Julian day number of 0001-01-01 is 1721426, so this is the day
+        // count from that date plus one.
+        to_julian(self.year, self.month, self.day) - 1_721_425
+    }
+
+    /// Builds a Gregorian date from a proleptic ordinal.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::GregorianDate`] when the ordinal is outside the range
+    /// the reference supports, 1 January of year 1 through 31 December 9999.
+    pub fn fromordinal(ordinal: i64) -> Result<Self> {
+        let date = from_julian(ordinal + 1_721_425);
+        if !(1..=9999).contains(&date.year) {
+            return Err(Error::GregorianDate {
+                year: date.year,
+                month: date.month,
+                day: date.day,
+            });
+        }
+        Ok(date)
+    }
+
+    /// A copy of this date with the given components replaced.
+    ///
+    /// A component left as `None` keeps its current value. This is the
+    /// reference's `replace`, which comes from `datetime.date`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::GregorianDate`] when the result is not a real date,
+    /// such as 31 February.
+    pub fn replace(self, year: Option<i32>, month: Option<u8>, day: Option<u8>) -> Result<Self> {
+        Self::new(
+            year.unwrap_or(self.year),
+            month.unwrap_or(self.month),
+            day.unwrap_or(self.day),
+        )
+    }
 }
 
 impl fmt::Display for Gregorian {

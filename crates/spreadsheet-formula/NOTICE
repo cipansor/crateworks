@@ -12,4 +12,8 @@ MIT licence. The kernels were written from those projects' published algorithms
 and share no code with them; the cases in `tests/oracle.rs` were produced by
 running formulajs.
 
+`CONVERT`'s unit table is extracted from formulajs's own `CONVERT` function by
+`research/tools/gen_convert_units.py`, which reads the installed package rather
+than a retyped copy. The conversion arithmetic is this crate's own.
+
 Licensed under the Apache License, Version 2.0 (see LICENSE).
