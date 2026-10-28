@@ -41,6 +41,10 @@ COUNTRIES = {
     "Uruguay": "UY", "FrenchGuiana": "GF", "SaintBarthelemy": "BL",
     "SaintPierreAndMiquelon": "PM", "FrenchSouthernTerritories": "TF",
     "Reunion": "RE", "Mayotte": "YT", "Liberia": "LR", "Congo": "CG",
+    "Liechtenstein": "LI", "SaintMartin": "MF", "NewCaledonia": "NC",
+    "Martinique": "MQ", "WallisAndFutuna": "WF", "Guadeloupe": "GP",
+    "FrenchPolynesia": "PF", "Haiti": "HT", "SvalbardAndJanMayen": "SJ",
+    "Lesotho": "LS",
 }
 
 # Countries whose holiday *set* already differs from the reference in a way

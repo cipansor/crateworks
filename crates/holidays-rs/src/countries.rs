@@ -155,6 +155,26 @@ pub enum Country {
     Liberia,
     /// Republic of the Congo.
     Congo,
+    /// Liechtenstein.
+    Liechtenstein,
+    /// Saint Martin (French part).
+    SaintMartin,
+    /// New Caledonia.
+    NewCaledonia,
+    /// Martinique.
+    Martinique,
+    /// Wallis and Futuna.
+    WallisAndFutuna,
+    /// Guadeloupe.
+    Guadeloupe,
+    /// French Polynesia.
+    FrenchPolynesia,
+    /// Haiti.
+    Haiti,
+    /// Svalbard and Jan Mayen.
+    SvalbardAndJanMayen,
+    /// Lesotho.
+    Lesotho,
 }
 
 impl Country {
@@ -215,6 +235,16 @@ impl Country {
         Self::Mayotte,
         Self::Liberia,
         Self::Congo,
+        Self::Liechtenstein,
+        Self::SaintMartin,
+        Self::NewCaledonia,
+        Self::Martinique,
+        Self::WallisAndFutuna,
+        Self::Guadeloupe,
+        Self::FrenchPolynesia,
+        Self::Haiti,
+        Self::SvalbardAndJanMayen,
+        Self::Lesotho,
     ];
 
     /// The holiday rules for this country, in no particular order.
@@ -276,6 +306,16 @@ impl Country {
             Self::Mayotte => MAYOTTE,
             Self::Liberia => LIBERIA,
             Self::Congo => CONGO,
+            Self::Liechtenstein => LIECHTENSTEIN,
+            Self::SaintMartin => SAINT_MARTIN,
+            Self::NewCaledonia => NEW_CALEDONIA,
+            Self::Martinique => MARTINIQUE,
+            Self::WallisAndFutuna => WALLIS_AND_FUTUNA,
+            Self::Guadeloupe => GUADELOUPE,
+            Self::FrenchPolynesia => FRENCH_POLYNESIA,
+            Self::Haiti => HAITI,
+            Self::SvalbardAndJanMayen => SVALBARD_AND_JAN_MAYEN,
+            Self::Lesotho => LESOTHO,
         }
     }
 
@@ -335,7 +375,17 @@ impl Country {
             | Self::Reunion
             | Self::Mayotte
             | Self::Liberia
-            | Self::Congo => SubstituteStyle::None,
+            | Self::Congo
+            | Self::Liechtenstein
+            | Self::SaintMartin
+            | Self::NewCaledonia
+            | Self::Martinique
+            | Self::WallisAndFutuna
+            | Self::Guadeloupe
+            | Self::FrenchPolynesia
+            | Self::Haiti
+            | Self::SvalbardAndJanMayen
+            | Self::Lesotho => SubstituteStyle::None,
             // Latvia moves a weekend holiday to the next Monday from 2007; the
             // two holidays that do not are wrapped in `Rule::NeverSubstituted`.
             Self::Latvia => SubstituteStyle::NextMonday,
@@ -401,6 +451,16 @@ impl Country {
             Self::Mayotte => "Mayotte",
             Self::Liberia => "Liberia",
             Self::Congo => "Republic of the Congo",
+            Self::Liechtenstein => "Liechtenstein",
+            Self::SaintMartin => "Saint Martin",
+            Self::NewCaledonia => "New Caledonia",
+            Self::Martinique => "Martinique",
+            Self::WallisAndFutuna => "Wallis and Futuna",
+            Self::Guadeloupe => "Guadeloupe",
+            Self::FrenchPolynesia => "French Polynesia",
+            Self::Haiti => "Haiti",
+            Self::SvalbardAndJanMayen => "Svalbard and Jan Mayen",
+            Self::Lesotho => "Lesotho",
         }
     }
 }
@@ -1553,6 +1613,391 @@ static CONGO: &[Holiday] = &[
     h("Noël", Rule::Fixed { month: 12, day: 25 }),
 ];
 
+static LIECHTENSTEIN: &[Holiday] = &[
+    h("Neujahr", Rule::Fixed { month: 1, day: 1 }),
+    h("Heilige Drei Könige", Rule::Fixed { month: 1, day: 6 }),
+    h("Mariä Lichtmess", Rule::Fixed { month: 2, day: 2 }),
+    h("Josefstag", Rule::Fixed { month: 3, day: 19 }),
+    h("Ostersonntag", Rule::EasterOffset(0)),
+    h("Ostermontag", Rule::EasterOffset(1)),
+    h("Tag der Arbeit", Rule::Fixed { month: 5, day: 1 }),
+    h("Auffahrt", Rule::EasterOffset(39)),
+    h("Pfingstsonntag", Rule::EasterOffset(49)),
+    h("Pfingstmontag", Rule::EasterOffset(50)),
+    h("Fronleichnam", Rule::EasterOffset(60)),
+    h("Staatsfeiertag", Rule::Fixed { month: 8, day: 15 }),
+    h("Mariä Geburt", Rule::Fixed { month: 9, day: 8 }),
+    h("Allerheiligen", Rule::Fixed { month: 11, day: 1 }),
+    h("Mariä Empfängnis", Rule::Fixed { month: 12, day: 8 }),
+    h("Weihnachten", Rule::Fixed { month: 12, day: 25 }),
+    h("Stephanstag", Rule::Fixed { month: 12, day: 26 }),
+];
+
+static SAINT_MARTIN: &[Holiday] = &[
+    h(
+        "Jour de l'an",
+        Rule::Since {
+            year: 2008,
+            base: &Rule::Fixed { month: 1, day: 1 },
+        },
+    ),
+    h(
+        "Lundi de Pâques",
+        Rule::Since {
+            year: 2008,
+            base: &Rule::EasterOffset(1),
+        },
+    ),
+    h(
+        "Lundi de Pentecôte",
+        Rule::Since {
+            year: 2008,
+            base: &Rule::EasterOffset(50),
+        },
+    ),
+    h(
+        "Fête du Travail",
+        Rule::Since {
+            year: 2008,
+            base: &Rule::Fixed { month: 5, day: 1 },
+        },
+    ),
+    h(
+        "Fête de la Victoire",
+        Rule::Since {
+            year: 2008,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
+    h(
+        "Ascension",
+        Rule::Since {
+            year: 2008,
+            base: &Rule::EasterOffset(39),
+        },
+    ),
+    h(
+        "Fête nationale",
+        Rule::Since {
+            year: 2008,
+            base: &Rule::Fixed { month: 7, day: 14 },
+        },
+    ),
+    h(
+        "Assomption",
+        Rule::Since {
+            year: 2008,
+            base: &Rule::Fixed { month: 8, day: 15 },
+        },
+    ),
+    h(
+        "Toussaint",
+        Rule::Since {
+            year: 2008,
+            base: &Rule::Fixed { month: 11, day: 1 },
+        },
+    ),
+    h(
+        "Armistice",
+        Rule::Since {
+            year: 2008,
+            base: &Rule::Fixed { month: 11, day: 11 },
+        },
+    ),
+    h(
+        "Noël",
+        Rule::Since {
+            year: 2008,
+            base: &Rule::Fixed { month: 12, day: 25 },
+        },
+    ),
+    h(
+        "Abolition de l'esclavage",
+        Rule::Since {
+            year: 2012,
+            base: &Rule::Fixed { month: 5, day: 28 },
+        },
+    ),
+    h(
+        "Fête de Victor Schoelcher",
+        Rule::Since {
+            year: 2012,
+            base: &Rule::Fixed { month: 7, day: 21 },
+        },
+    ),
+];
+
+static NEW_CALEDONIA: &[Holiday] = &[
+    h("Jour de l'an", Rule::Fixed { month: 1, day: 1 }),
+    h("Lundi de Pâques", Rule::EasterOffset(1)),
+    h(
+        "Lundi de Pentecôte",
+        Rule::Until {
+            year: 2004,
+            base: &Rule::EasterOffset(50),
+        },
+    ),
+    h(
+        "Lundi de Pentecôte",
+        Rule::Since {
+            year: 2008,
+            base: &Rule::EasterOffset(50),
+        },
+    ),
+    h("Fête du Travail", Rule::Fixed { month: 5, day: 1 }),
+    h("Fête de la Victoire", Rule::Fixed { month: 5, day: 8 }),
+    h("Ascension", Rule::EasterOffset(39)),
+    h("Fête nationale", Rule::Fixed { month: 7, day: 14 }),
+    h("Assomption", Rule::Fixed { month: 8, day: 15 }),
+    h("Toussaint", Rule::Fixed { month: 11, day: 1 }),
+    h("Armistice", Rule::Fixed { month: 11, day: 11 }),
+    h("Noël", Rule::Fixed { month: 12, day: 25 }),
+    h(
+        "Fête de la Citoyenneté",
+        Rule::Since {
+            year: 2004,
+            base: &Rule::Fixed { month: 9, day: 24 },
+        },
+    ),
+    h(
+        "Fête de la prise de possession",
+        Rule::Until {
+            year: 2003,
+            base: &Rule::Fixed { month: 9, day: 24 },
+        },
+    ),
+];
+
+static MARTINIQUE: &[Holiday] = &[
+    h("Jour de l'an", Rule::Fixed { month: 1, day: 1 }),
+    h("Lundi de Pâques", Rule::EasterOffset(1)),
+    h(
+        "Lundi de Pentecôte",
+        Rule::Until {
+            year: 2004,
+            base: &Rule::EasterOffset(50),
+        },
+    ),
+    h(
+        "Lundi de Pentecôte",
+        Rule::Since {
+            year: 2008,
+            base: &Rule::EasterOffset(50),
+        },
+    ),
+    h("Fête du Travail", Rule::Fixed { month: 5, day: 1 }),
+    h("Fête de la Victoire", Rule::Fixed { month: 5, day: 8 }),
+    h("Ascension", Rule::EasterOffset(39)),
+    h("Fête nationale", Rule::Fixed { month: 7, day: 14 }),
+    h("Assomption", Rule::Fixed { month: 8, day: 15 }),
+    h("Toussaint", Rule::Fixed { month: 11, day: 1 }),
+    h("Armistice", Rule::Fixed { month: 11, day: 11 }),
+    h("Noël", Rule::Fixed { month: 12, day: 25 }),
+    h("Vendredi saint", Rule::EasterOffset(-2)),
+    h(
+        "Abolition de l'esclavage",
+        Rule::Fixed { month: 5, day: 22 },
+    ),
+    h(
+        "Fête de Victor Schoelcher",
+        Rule::Fixed { month: 7, day: 21 },
+    ),
+];
+
+static WALLIS_AND_FUTUNA: &[Holiday] = &[
+    h("Jour de l'an", Rule::Fixed { month: 1, day: 1 }),
+    h("Lundi de Pâques", Rule::EasterOffset(1)),
+    h(
+        "Lundi de Pentecôte",
+        Rule::Until {
+            year: 2004,
+            base: &Rule::EasterOffset(50),
+        },
+    ),
+    h(
+        "Lundi de Pentecôte",
+        Rule::Since {
+            year: 2008,
+            base: &Rule::EasterOffset(50),
+        },
+    ),
+    h("Fête du Travail", Rule::Fixed { month: 5, day: 1 }),
+    h("Fête de la Victoire", Rule::Fixed { month: 5, day: 8 }),
+    h("Ascension", Rule::EasterOffset(39)),
+    h("Fête nationale", Rule::Fixed { month: 7, day: 14 }),
+    h("Assomption", Rule::Fixed { month: 8, day: 15 }),
+    h("Toussaint", Rule::Fixed { month: 11, day: 1 }),
+    h("Armistice", Rule::Fixed { month: 11, day: 11 }),
+    h("Noël", Rule::Fixed { month: 12, day: 25 }),
+    h("Saint Pierre Chanel", Rule::Fixed { month: 4, day: 28 }),
+    h("Saints Pierre et Paul", Rule::Fixed { month: 6, day: 29 }),
+    h("Fête du Territoire", Rule::Fixed { month: 7, day: 29 }),
+];
+
+static GUADELOUPE: &[Holiday] = &[
+    h("Jour de l'an", Rule::Fixed { month: 1, day: 1 }),
+    h("Lundi de Pâques", Rule::EasterOffset(1)),
+    h(
+        "Lundi de Pentecôte",
+        Rule::Until {
+            year: 2004,
+            base: &Rule::EasterOffset(50),
+        },
+    ),
+    h(
+        "Lundi de Pentecôte",
+        Rule::Since {
+            year: 2008,
+            base: &Rule::EasterOffset(50),
+        },
+    ),
+    h("Fête du Travail", Rule::Fixed { month: 5, day: 1 }),
+    h("Fête de la Victoire", Rule::Fixed { month: 5, day: 8 }),
+    h("Ascension", Rule::EasterOffset(39)),
+    h("Fête nationale", Rule::Fixed { month: 7, day: 14 }),
+    h("Assomption", Rule::Fixed { month: 8, day: 15 }),
+    h("Toussaint", Rule::Fixed { month: 11, day: 1 }),
+    h("Armistice", Rule::Fixed { month: 11, day: 11 }),
+    h("Noël", Rule::Fixed { month: 12, day: 25 }),
+    h("Vendredi saint", Rule::EasterOffset(-2)),
+    h("Mi-Carême", Rule::EasterOffset(-24)),
+    h(
+        "Abolition de l'esclavage",
+        Rule::Fixed { month: 5, day: 27 },
+    ),
+    h(
+        "Fête de Victor Schoelcher",
+        Rule::Fixed { month: 7, day: 21 },
+    ),
+];
+
+static FRENCH_POLYNESIA: &[Holiday] = &[
+    h("Jour de l'an", Rule::Fixed { month: 1, day: 1 }),
+    h("Lundi de Pâques", Rule::EasterOffset(1)),
+    h(
+        "Lundi de Pentecôte",
+        Rule::Until {
+            year: 2004,
+            base: &Rule::EasterOffset(50),
+        },
+    ),
+    h(
+        "Lundi de Pentecôte",
+        Rule::Since {
+            year: 2008,
+            base: &Rule::EasterOffset(50),
+        },
+    ),
+    h("Fête du Travail", Rule::Fixed { month: 5, day: 1 }),
+    h("Fête de la Victoire", Rule::Fixed { month: 5, day: 8 }),
+    h("Ascension", Rule::EasterOffset(39)),
+    h("Fête nationale", Rule::Fixed { month: 7, day: 14 }),
+    h("Assomption", Rule::Fixed { month: 8, day: 15 }),
+    h("Toussaint", Rule::Fixed { month: 11, day: 1 }),
+    h("Armistice", Rule::Fixed { month: 11, day: 11 }),
+    h("Noël", Rule::Fixed { month: 12, day: 25 }),
+    h("Vendredi saint", Rule::EasterOffset(-2)),
+    h("Arrivée de l'Évangile", Rule::Fixed { month: 3, day: 5 }),
+    h(
+        "Matāri'i",
+        Rule::Since {
+            year: 2025,
+            base: &Rule::Fixed { month: 11, day: 20 },
+        },
+    ),
+    h(
+        "Fête de l'autonomie",
+        Rule::Until {
+            year: 2024,
+            base: &Rule::Fixed { month: 6, day: 29 },
+        },
+    ),
+];
+
+static HAITI: &[Holiday] = &[
+    h(
+        "Fête de l'Indépendance Nationale",
+        Rule::Fixed { month: 1, day: 1 },
+    ),
+    h("Nouvel An", Rule::Fixed { month: 1, day: 1 }),
+    h("Jour des Aïeux", Rule::Fixed { month: 1, day: 2 }),
+    h(
+        "Fête de l'Agriculture et du Travail",
+        Rule::Fixed { month: 5, day: 1 },
+    ),
+    h(
+        "Fête du Drapeau et de l'Université",
+        Rule::Fixed { month: 5, day: 18 },
+    ),
+    h(
+        "Commémoration de la Bataille de Vertières",
+        Rule::Fixed { month: 11, day: 18 },
+    ),
+    h("Jour des Forces Armées", Rule::Fixed { month: 11, day: 18 }),
+    h("Carnaval", Rule::EasterOffset(-49)),
+    h("Lundi Gras", Rule::EasterOffset(-48)),
+    h("Mardi Gras", Rule::EasterOffset(-47)),
+    h("Vendredi Saint", Rule::EasterOffset(-2)),
+    h("Pâques", Rule::EasterOffset(0)),
+    h("Fête-Dieu", Rule::EasterOffset(60)),
+    h("Assomption de Marie", Rule::Fixed { month: 8, day: 15 }),
+    h("Mort de Dessalines", Rule::Fixed { month: 10, day: 17 }),
+    h("La Toussaint", Rule::Fixed { month: 11, day: 1 }),
+    h("Fête des Morts", Rule::Fixed { month: 11, day: 2 }),
+    h("Noël", Rule::Fixed { month: 12, day: 25 }),
+];
+
+static SVALBARD_AND_JAN_MAYEN: &[Holiday] = &[
+    h("Første nyttårsdag", Rule::Fixed { month: 1, day: 1 }),
+    h("Skjærtorsdag", Rule::EasterOffset(-3)),
+    h("Langfredag", Rule::EasterOffset(-2)),
+    h("Første påskedag", Rule::EasterOffset(0)),
+    h("Andre påskedag", Rule::EasterOffset(1)),
+    h("Arbeidernes dag", Rule::Fixed { month: 5, day: 1 }),
+    h("Grunnlovsdag", Rule::Fixed { month: 5, day: 17 }),
+    h("Kristi himmelfartsdag", Rule::EasterOffset(39)),
+    h("Første pinsedag", Rule::EasterOffset(49)),
+    h("Andre pinsedag", Rule::EasterOffset(50)),
+    h("Første juledag", Rule::Fixed { month: 12, day: 25 }),
+    h("Andre juledag", Rule::Fixed { month: 12, day: 26 }),
+];
+
+static LESOTHO: &[Holiday] = &[
+    h("New Year's Day", Rule::Fixed { month: 1, day: 1 }),
+    h("Moshoeshoe's Day", Rule::Fixed { month: 3, day: 11 }),
+    h("Good Friday", Rule::EasterOffset(-2)),
+    h("Easter Monday", Rule::EasterOffset(1)),
+    h("Workers' Day", Rule::Fixed { month: 5, day: 1 }),
+    h("Ascension Day", Rule::EasterOffset(39)),
+    h("King's Birthday", Rule::Fixed { month: 7, day: 17 }),
+    h("Independence Day", Rule::Fixed { month: 10, day: 4 }),
+    h("Christmas Day", Rule::Fixed { month: 12, day: 25 }),
+    h("Boxing Day", Rule::Fixed { month: 12, day: 26 }),
+    // Africa/Heroes Day replaced Heroes Day (4 April) in 2003.
+    h(
+        "Africa/Heroes Day",
+        Rule::Since {
+            year: 2003,
+            base: &Rule::Fixed { month: 5, day: 25 },
+        },
+    ),
+    h(
+        "Heroes Day",
+        Rule::Until {
+            year: 2002,
+            base: &Rule::Fixed { month: 4, day: 4 },
+        },
+    ),
+    h(
+        "Africa Day",
+        Rule::Once {
+            year: 2002,
+            month: 5,
+            day: 25,
+        },
+    ),
+];
+
 /// Places every holiday of `year`, resolving the collisions a substitution
 /// creates.
 ///
@@ -1934,6 +2379,66 @@ impl Calendar {
     #[must_use]
     pub const fn congo() -> Self {
         Self::new(Country::Congo)
+    }
+
+    /// Builds the calendar for Liechtenstein.
+    #[must_use]
+    pub const fn liechtenstein() -> Self {
+        Self::new(Country::Liechtenstein)
+    }
+
+    /// Builds the calendar for Saint Martin.
+    #[must_use]
+    pub const fn saint_martin() -> Self {
+        Self::new(Country::SaintMartin)
+    }
+
+    /// Builds the calendar for New Caledonia.
+    #[must_use]
+    pub const fn new_caledonia() -> Self {
+        Self::new(Country::NewCaledonia)
+    }
+
+    /// Builds the calendar for Martinique.
+    #[must_use]
+    pub const fn martinique() -> Self {
+        Self::new(Country::Martinique)
+    }
+
+    /// Builds the calendar for Wallis and Futuna.
+    #[must_use]
+    pub const fn wallis_and_futuna() -> Self {
+        Self::new(Country::WallisAndFutuna)
+    }
+
+    /// Builds the calendar for Guadeloupe.
+    #[must_use]
+    pub const fn guadeloupe() -> Self {
+        Self::new(Country::Guadeloupe)
+    }
+
+    /// Builds the calendar for French Polynesia.
+    #[must_use]
+    pub const fn french_polynesia() -> Self {
+        Self::new(Country::FrenchPolynesia)
+    }
+
+    /// Builds the calendar for Haiti.
+    #[must_use]
+    pub const fn haiti() -> Self {
+        Self::new(Country::Haiti)
+    }
+
+    /// Builds the calendar for Svalbard and Jan Mayen.
+    #[must_use]
+    pub const fn svalbard_and_jan_mayen() -> Self {
+        Self::new(Country::SvalbardAndJanMayen)
+    }
+
+    /// Builds the calendar for Lesotho.
+    #[must_use]
+    pub const fn lesotho() -> Self {
+        Self::new(Country::Lesotho)
     }
 
     /// Builds the calendar for Cyprus.
@@ -4558,6 +5063,122 @@ mod tests {
             cal.holiday_name(d(2026, 10, 12)),
             Some("White Sunday (Lotu a Tamaiti)")
         );
+    }
+
+    #[test]
+    fn liechtenstein_has_the_catholic_set() {
+        let cal = Calendar::liechtenstein();
+        assert_eq!(cal.holiday_name(d(2026, 1, 6)), Some("Heilige Drei Könige"));
+        assert_eq!(cal.holiday_name(d(2026, 6, 4)), Some("Fronleichnam"));
+        assert_eq!(cal.holiday_name(d(2026, 12, 8)), Some("Mariä Empfängnis"));
+        assert_eq!(cal.holiday_name(d(2026, 12, 26)), Some("Stephanstag"));
+    }
+
+    #[test]
+    fn saint_martin_starts_in_2008() {
+        let cal = Calendar::saint_martin();
+        assert!(cal.holiday_name(d(2007, 1, 1)).is_none());
+        assert_eq!(cal.holiday_name(d(2008, 1, 1)), Some("Jour de l'an"));
+        assert_eq!(
+            cal.holiday_name(d(2012, 5, 28)),
+            Some("Abolition de l'esclavage")
+        );
+    }
+
+    #[test]
+    fn new_caledonia_citizenship_day_replaced_possession_day() {
+        let cal = Calendar::new_caledonia();
+        assert_eq!(
+            cal.holiday_name(d(2003, 9, 24)),
+            Some("Fête de la prise de possession")
+        );
+        assert_eq!(
+            cal.holiday_name(d(2004, 9, 24)),
+            Some("Fête de la Citoyenneté")
+        );
+        // Whit Monday was suspended for three years, 2005-2007.
+        assert!(cal.holiday_name(d(2006, 6, 5)).is_none());
+        assert_eq!(cal.holiday_name(d(2008, 5, 12)), Some("Lundi de Pentecôte"));
+    }
+
+    #[test]
+    fn martinique_and_guadeloupe_keep_their_local_abolition_days() {
+        let mq = Calendar::martinique();
+        assert_eq!(
+            mq.holiday_name(d(2026, 5, 22)),
+            Some("Abolition de l'esclavage")
+        );
+        assert_eq!(
+            mq.holiday_name(d(2026, 7, 21)),
+            Some("Fête de Victor Schoelcher")
+        );
+        let gp = Calendar::guadeloupe();
+        assert_eq!(
+            gp.holiday_name(d(2026, 5, 27)),
+            Some("Abolition de l'esclavage")
+        );
+        // Mi-Carême is 24 days before Easter; Easter 2026 is 5 April.
+        assert_eq!(gp.holiday_name(d(2026, 3, 12)), Some("Mi-Carême"));
+    }
+
+    #[test]
+    fn wallis_and_futuna_has_territory_day() {
+        let cal = Calendar::wallis_and_futuna();
+        assert_eq!(cal.holiday_name(d(2026, 7, 29)), Some("Fête du Territoire"));
+        assert_eq!(
+            cal.holiday_name(d(2026, 4, 28)),
+            Some("Saint Pierre Chanel")
+        );
+    }
+
+    #[test]
+    fn french_polynesia_matarii_replaced_autonomy_day() {
+        let cal = Calendar::french_polynesia();
+        assert_eq!(
+            cal.holiday_name(d(2024, 6, 29)),
+            Some("Fête de l'autonomie")
+        );
+        assert!(cal.holiday_name(d(2025, 6, 29)).is_none());
+        assert_eq!(cal.holiday_name(d(2025, 11, 20)), Some("Matāri'i"));
+    }
+
+    #[test]
+    fn haiti_has_the_revolutionary_set() {
+        let cal = Calendar::haiti();
+        assert_eq!(
+            cal.holiday_name(d(2026, 1, 1)),
+            Some("Fête de l'Indépendance Nationale")
+        );
+        assert_eq!(
+            cal.holiday_name(d(2026, 5, 18)),
+            Some("Fête du Drapeau et de l'Université")
+        );
+        // 18 November is both the Vertières battle and Armed Forces Day; the
+        // first listed name is the one `holiday_name` reports.
+        assert_eq!(
+            cal.holiday_name(d(2026, 11, 18)),
+            Some("Commémoration de la Bataille de Vertières")
+        );
+    }
+
+    #[test]
+    fn svalbard_follows_the_norwegian_calendar() {
+        let cal = Calendar::svalbard_and_jan_mayen();
+        assert_eq!(cal.holiday_name(d(2026, 5, 17)), Some("Grunnlovsdag"));
+        assert_eq!(
+            cal.holiday_name(d(2026, 5, 14)),
+            Some("Kristi himmelfartsdag")
+        );
+    }
+
+    #[test]
+    fn lesotho_renamed_heroes_day_in_2003() {
+        let cal = Calendar::lesotho();
+        assert_eq!(cal.holiday_name(d(2026, 3, 11)), Some("Moshoeshoe's Day"));
+        assert_eq!(cal.holiday_name(d(2026, 5, 25)), Some("Africa/Heroes Day"));
+        // Before 2003 it was Heroes Day on 4 April; Africa Day fell on 25 May.
+        assert_eq!(cal.holiday_name(d(2001, 4, 4)), Some("Heroes Day"));
+        assert!(cal.holiday_name(d(2001, 5, 25)).is_none());
     }
 
     #[test]

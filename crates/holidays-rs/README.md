@@ -26,8 +26,10 @@ Croatia, Slovenia, Estonia, Lithuania, Luxembourg, Iceland, Cyprus, Malta,
 Greece, Romania, Mexico, Latvia, Brazil, El Salvador, Nicaragua, Peru, Uruguay,
 Andorra, Cabo Verde, the Faroe Islands, Greenland, Switzerland (the national
 set only), French Guiana, Saint Barthelemy, Saint Pierre and Miquelon, the
-French Southern Territories, Reunion, Mayotte, Liberia, the Republic of the
-Congo, the Pitcairn Islands, Tokelau and Samoa. `Country::ALL` lists them.
+French Southern Territories, Reunion, Mayotte, Liechtenstein, Saint Martin, New
+Caledonia, Martinique, Wallis and Futuna, Guadeloupe, French Polynesia, Haiti,
+Svalbard and Jan Mayen, Liberia, the Republic of the Congo, Lesotho, the
+Pitcairn Islands, Tokelau and Samoa. `Country::ALL` lists them.
 
 Greece, Cyprus and Romania keep the Orthodox calendar, so their movable feasts
 are computed from Orthodox Easter with `Rule::OrthodoxEasterOffset` rather than
@@ -103,8 +105,8 @@ python3 research/tools/verify_holidays.py
 ```
 
 `closest_holiday` is checked separately against the same package by
-`research/tools/gen_holidays_closest.py` and the `closest` test: 17,200 rows over
-43 countries whose holiday set already matches the reference, three probes a
+`research/tools/gen_holidays_closest.py` and the `closest` test: 21,200 rows over
+53 countries whose holiday set already matches the reference, three probes a
 month for eleven years plus the year boundaries where the answer crosses into
 the next year. The countries it skips are the ones `verify_holidays.py` already
 marks as deliberate differences - a nearest-holiday query over a different set
