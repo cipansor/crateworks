@@ -115,6 +115,18 @@ def is_ancestor(rev: str) -> bool:
     return result.returncode == 0
 
 
+def latest_tag(crate: str) -> str | None:
+    """The highest version tag of this crate that HEAD descends from.
+
+    This is the crate's last release. `None` means the crate has never been
+    tagged, so all of its history is unreleased.
+    """
+    candidates = [tag for tag in crate_tags(crate) if is_ancestor(tag)]
+    if not candidates:
+        return None
+    return max(candidates, key=lambda tag: version_key(tag, crate))
+
+
 def previous_tag(crate: str, current: str) -> str | None:
     """The highest earlier tag of this crate that HEAD descends from."""
     candidates = [

@@ -23,6 +23,7 @@ def load(name: str):
 
 publish = load("publish")
 release_notes = load("release_notes")
+release_plan = load("release_plan")
 check_token = load("check_token")
 
 
@@ -128,6 +129,104 @@ class PreviousTag(unittest.TestCase):
         self.assertEqual(
             release_notes.version_key("a-v1.2.3", "a"),
             release_notes.version_key("b-v1.2.3", "b"),
+        )
+
+
+class NextVersion(unittest.TestCase):
+    """The bump level must follow Cargo's compatibility rule, not just +1.
+
+    Below 1.0 the leading non-zero field is the boundary: `^0.1.9` accepts
+    `0.1.10` but not `0.2.0`, so a breaking change takes a minor bump, not a
+    major one, and only a patch bump is guaranteed compatible.
+    """
+
+    def test_patch_increments_the_last_field(self):
+        self.assertEqual(publish.next_version("0.1.9", "patch"), "0.1.10")
+        self.assertEqual(publish.next_version("1.2.3", "patch"), "1.2.4")
+
+    def test_minor_resets_patch_and_zeroes_it(self):
+        self.assertEqual(publish.next_version("0.1.9", "minor"), "0.2.0")
+        self.assertEqual(publish.next_version("1.2.3", "minor"), "1.3.0")
+
+    def test_major_below_one_is_the_move_to_one_point_zero(self):
+        self.assertEqual(publish.next_version("0.1.9", "major"), "1.0.0")
+
+    def test_major_at_or_above_one_increments_the_leading_field(self):
+        self.assertEqual(publish.next_version("1.2.3", "major"), "2.0.0")
+
+    def test_an_unknown_level_is_refused(self):
+        with self.assertRaises(publish.ReleaseError):
+            publish.next_version("0.1.9", "huge")
+
+    def test_a_non_semver_version_is_refused(self):
+        with self.assertRaises(publish.ReleaseError):
+            publish.next_version("0.1", "patch")
+
+
+class RequirementAccepts(unittest.TestCase):
+    """A dependent is only due when the new dependency version falls outside `^`."""
+
+    def test_a_patch_bump_stays_inside_caret(self):
+        self.assertTrue(release_plan.requirement_accepts("0.1.9", "0.1.10"))
+
+    def test_a_minor_bump_leaves_caret_below_one(self):
+        self.assertFalse(release_plan.requirement_accepts("0.1.9", "0.2.0"))
+
+    def test_a_minor_bump_stays_inside_caret_above_one(self):
+        self.assertTrue(release_plan.requirement_accepts("1.2.3", "1.3.0"))
+
+    def test_a_major_bump_leaves_caret_above_one(self):
+        self.assertFalse(release_plan.requirement_accepts("1.2.3", "2.0.0"))
+
+
+class ReleaseWorthiness(unittest.TestCase):
+    """Not every commit deserves a new published version."""
+
+    def test_docs_only_is_not_a_release(self):
+        self.assertFalse(
+            release_plan.commit_is_release_worthy("docs: fix a typo", ["crates/x/src/lib.rs"])
+        )
+
+    def test_a_feature_is_a_release(self):
+        self.assertTrue(
+            release_plan.commit_is_release_worthy("feat: add a parser", ["crates/x/src/lib.rs"])
+        )
+
+    def test_an_unconventional_subject_is_a_release(self):
+        # Guessing "no release" from a subject nobody followed the convention
+        # for is the costlier mistake, so it counts.
+        self.assertTrue(
+            release_plan.commit_is_release_worthy("Fix the off-by-one", ["crates/x/src/lib.rs"])
+        )
+
+    def test_a_manifest_only_change_is_not_a_release(self):
+        # This is the case that would re-release all 26 crates for a packaging
+        # refactor: the manifest changed, the published code did not.
+        self.assertFalse(
+            release_plan.commit_is_release_worthy("refactor: move the version", ["crates/x/Cargo.toml"])
+        )
+
+    def test_a_manifest_change_alongside_code_is_a_release(self):
+        self.assertTrue(
+            release_plan.commit_is_release_worthy(
+                "feat: add a parser",
+                ["crates/x/Cargo.toml", "crates/x/src/lib.rs"],
+            )
+        )
+
+    def test_suggested_level_is_minor_for_a_feature(self):
+        self.assertEqual(
+            release_plan.suggested_level([("a", "feat: add a parser")]), "minor"
+        )
+
+    def test_suggested_level_is_minor_for_a_breaking_change(self):
+        self.assertEqual(
+            release_plan.suggested_level([("a", "fix!: drop the old API")]), "minor"
+        )
+
+    def test_suggested_level_is_patch_for_a_fix(self):
+        self.assertEqual(
+            release_plan.suggested_level([("a", "fix: correct a checksum")]), "patch"
         )
 
 
