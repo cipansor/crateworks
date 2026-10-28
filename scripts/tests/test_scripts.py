@@ -102,18 +102,27 @@ class CratesFromTag(unittest.TestCase):
 class ManifestVersions(unittest.TestCase):
     """The tag has to agree with the manifest, so reading it must be right."""
 
-    def test_every_crate_declares_a_version(self):
+    def test_every_crate_declares_its_own_version(self):
+        # The workspace deliberately sets no shared version, so each crate must
+        # carry its own; a crate that fell back to a workspace version would be
+        # re-versioned by every other crate's release.
         crates, _, manifests = publish.load_manifests()
         self.assertGreater(len(crates), 0)
         for crate in crates:
             with self.subTest(crate=crate):
-                self.assertTrue(publish.version_of(manifests[crate]))
+                self.assertIsInstance(publish.version_of(manifests[crate]), str)
 
-    def test_workspace_inheritance_resolves_to_the_workspace_version(self):
-        _, _, manifests = publish.load_manifests()
-        # xmlkit inherits `version.workspace = true`; a naive read of the raw
-        # manifest would return a dict instead of a version string.
-        self.assertIsInstance(publish.version_of(manifests["xmlkit"]), str)
+    def test_the_workspace_declares_no_shared_version(self):
+        import tomllib
+        from pathlib import Path
+        workspace = tomllib.loads(
+            (Path(__file__).resolve().parent.parent.parent / "Cargo.toml").read_text()
+        )
+        self.assertNotIn(
+            "version",
+            workspace["workspace"]["package"],
+            "a shared [workspace.package] version re-versions every crate at once",
+        )
 
 
 class PreviousTag(unittest.TestCase):
