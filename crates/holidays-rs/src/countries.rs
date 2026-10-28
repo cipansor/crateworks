@@ -135,6 +135,26 @@ pub enum Country {
     Tokelau,
     /// Samoa.
     Samoa,
+    /// Australia (national holidays only).
+    Australia,
+    /// Uruguay.
+    Uruguay,
+    /// French Guiana.
+    FrenchGuiana,
+    /// Saint Barthelemy.
+    SaintBarthelemy,
+    /// Saint Pierre and Miquelon.
+    SaintPierreAndMiquelon,
+    /// French Southern Territories.
+    FrenchSouthernTerritories,
+    /// Reunion.
+    Reunion,
+    /// Mayotte.
+    Mayotte,
+    /// Liberia.
+    Liberia,
+    /// Republic of the Congo.
+    Congo,
 }
 
 impl Country {
@@ -185,6 +205,16 @@ impl Country {
         Self::PitcairnIslands,
         Self::Tokelau,
         Self::Samoa,
+        Self::Australia,
+        Self::Uruguay,
+        Self::FrenchGuiana,
+        Self::SaintBarthelemy,
+        Self::SaintPierreAndMiquelon,
+        Self::FrenchSouthernTerritories,
+        Self::Reunion,
+        Self::Mayotte,
+        Self::Liberia,
+        Self::Congo,
     ];
 
     /// The holiday rules for this country, in no particular order.
@@ -236,6 +266,16 @@ impl Country {
             Self::PitcairnIslands => PITCAIRN_ISLANDS,
             Self::Tokelau => TOKELAU,
             Self::Samoa => SAMOA,
+            Self::Australia => AUSTRALIA,
+            Self::Uruguay => URUGUAY,
+            Self::FrenchGuiana => FRENCH_GUIANA,
+            Self::SaintBarthelemy => SAINT_BARTHELEMY,
+            Self::SaintPierreAndMiquelon => SAINT_PIERRE_AND_MIQUELON,
+            Self::FrenchSouthernTerritories => FRENCH_SOUTHERN_TERRITORIES,
+            Self::Reunion => REUNION,
+            Self::Mayotte => MAYOTTE,
+            Self::Liberia => LIBERIA,
+            Self::Congo => CONGO,
         }
     }
 
@@ -285,7 +325,17 @@ impl Country {
             | Self::Switzerland
             | Self::PitcairnIslands
             | Self::Tokelau
-            | Self::Samoa => SubstituteStyle::None,
+            | Self::Samoa
+            | Self::Australia
+            | Self::Uruguay
+            | Self::FrenchGuiana
+            | Self::SaintBarthelemy
+            | Self::SaintPierreAndMiquelon
+            | Self::FrenchSouthernTerritories
+            | Self::Reunion
+            | Self::Mayotte
+            | Self::Liberia
+            | Self::Congo => SubstituteStyle::None,
             // Latvia moves a weekend holiday to the next Monday from 2007; the
             // two holidays that do not are wrapped in `Rule::NeverSubstituted`.
             Self::Latvia => SubstituteStyle::NextMonday,
@@ -341,6 +391,16 @@ impl Country {
             Self::PitcairnIslands => "Pitcairn Islands",
             Self::Tokelau => "Tokelau",
             Self::Samoa => "Samoa",
+            Self::Australia => "Australia",
+            Self::Uruguay => "Uruguay",
+            Self::FrenchGuiana => "French Guiana",
+            Self::SaintBarthelemy => "Saint Barthelemy",
+            Self::SaintPierreAndMiquelon => "Saint Pierre and Miquelon",
+            Self::FrenchSouthernTerritories => "French Southern Territories",
+            Self::Reunion => "Reunion",
+            Self::Mayotte => "Mayotte",
+            Self::Liberia => "Liberia",
+            Self::Congo => "Republic of the Congo",
         }
     }
 }
@@ -1054,6 +1114,445 @@ static SAMOA: &[Holiday] = &[
     h("Boxing Day", Rule::Fixed { month: 12, day: 26 }),
 ];
 
+/// Australia.
+///
+/// The reference models the national set; the state holidays (the various
+/// Labour Days, Melbourne Cup) are not here.
+static AUSTRALIA: &[Holiday] = &[
+    h("Good Friday", Rule::EasterOffset(-2)),
+    h("Easter Monday", Rule::EasterOffset(1)),
+    h("New Year's Day", Rule::Fixed { month: 1, day: 1 }),
+    h("Australia Day", Rule::Fixed { month: 1, day: 26 }),
+    h("ANZAC Day", Rule::Fixed { month: 4, day: 25 }),
+    h("Christmas Day", Rule::Fixed { month: 12, day: 25 }),
+    h("Boxing Day", Rule::Fixed { month: 12, day: 26 }),
+    h(
+        "National Day of Mourning for Queen Elizabeth II",
+        Rule::Once {
+            year: 2022,
+            month: 9,
+            day: 22,
+        },
+    ),
+];
+
+/// Uruguay.
+///
+/// The only variable holiday is the presidential inauguration on 1 March,
+/// which the reference lists only for the years it was held.
+static URUGUAY: &[Holiday] = &[
+    h("Año Nuevo", Rule::Fixed { month: 1, day: 1 }),
+    h("Día de los Trabajadores", Rule::Fixed { month: 5, day: 1 }),
+    h("Jura de la Constitución", Rule::Fixed { month: 7, day: 18 }),
+    h(
+        "Declaratoria de la Independencia",
+        Rule::Fixed { month: 8, day: 25 },
+    ),
+    h("Día de la Familia", Rule::Fixed { month: 12, day: 25 }),
+    h(
+        "Inauguración del Presidente de la República",
+        Rule::Once {
+            year: 2000,
+            month: 3,
+            day: 1,
+        },
+    ),
+    h(
+        "Inauguración del Presidente de la República",
+        Rule::Once {
+            year: 2005,
+            month: 3,
+            day: 1,
+        },
+    ),
+    h(
+        "Inauguración del Presidente de la República",
+        Rule::Once {
+            year: 2010,
+            month: 3,
+            day: 1,
+        },
+    ),
+    h(
+        "Inauguración del Presidente de la República",
+        Rule::Once {
+            year: 2015,
+            month: 3,
+            day: 1,
+        },
+    ),
+    h(
+        "Inauguración del Presidente de la República",
+        Rule::Once {
+            year: 2020,
+            month: 3,
+            day: 1,
+        },
+    ),
+];
+
+/// French Guiana.
+static FRENCH_GUIANA: &[Holiday] = &[
+    h("Jour de l'an", Rule::Fixed { month: 1, day: 1 }),
+    h("Lundi de Pâques", Rule::EasterOffset(1)),
+    h(
+        "Lundi de Pentecôte",
+        Rule::Until {
+            year: 2004,
+            base: &Rule::EasterOffset(50),
+        },
+    ),
+    h(
+        "Lundi de Pentecôte",
+        Rule::Since {
+            year: 2008,
+            base: &Rule::EasterOffset(50),
+        },
+    ),
+    h("Fête du Travail", Rule::Fixed { month: 5, day: 1 }),
+    h("Fête de la Victoire", Rule::Fixed { month: 5, day: 8 }),
+    h("Ascension", Rule::EasterOffset(39)),
+    h("Fête nationale", Rule::Fixed { month: 7, day: 14 }),
+    h("Assomption", Rule::Fixed { month: 8, day: 15 }),
+    h("Toussaint", Rule::Fixed { month: 11, day: 1 }),
+    h("Armistice", Rule::Fixed { month: 11, day: 11 }),
+    h("Noël", Rule::Fixed { month: 12, day: 25 }),
+    h(
+        "Abolition de l'esclavage",
+        Rule::Fixed { month: 6, day: 10 },
+    ),
+];
+
+/// Saint Barthelemy.
+///
+/// The overseas collectivity separated from Guadeloupe in 2007, so every
+/// holiday is bounded from 2008.
+static SAINT_BARTHELEMY: &[Holiday] = &[
+    h(
+        "Jour de l'an",
+        Rule::Since {
+            year: 2008,
+            base: &Rule::Fixed { month: 1, day: 1 },
+        },
+    ),
+    h(
+        "Lundi de Pâques",
+        Rule::Since {
+            year: 2008,
+            base: &Rule::EasterOffset(1),
+        },
+    ),
+    h(
+        "Lundi de Pentecôte",
+        Rule::Since {
+            year: 2008,
+            base: &Rule::EasterOffset(50),
+        },
+    ),
+    h(
+        "Fête du Travail",
+        Rule::Since {
+            year: 2008,
+            base: &Rule::Fixed { month: 5, day: 1 },
+        },
+    ),
+    h(
+        "Fête de la Victoire",
+        Rule::Since {
+            year: 2008,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
+    h(
+        "Ascension",
+        Rule::Since {
+            year: 2008,
+            base: &Rule::EasterOffset(39),
+        },
+    ),
+    h(
+        "Fête nationale",
+        Rule::Since {
+            year: 2008,
+            base: &Rule::Fixed { month: 7, day: 14 },
+        },
+    ),
+    h(
+        "Assomption",
+        Rule::Since {
+            year: 2008,
+            base: &Rule::Fixed { month: 8, day: 15 },
+        },
+    ),
+    h(
+        "Toussaint",
+        Rule::Since {
+            year: 2008,
+            base: &Rule::Fixed { month: 11, day: 1 },
+        },
+    ),
+    h(
+        "Armistice",
+        Rule::Since {
+            year: 2008,
+            base: &Rule::Fixed { month: 11, day: 11 },
+        },
+    ),
+    h(
+        "Noël",
+        Rule::Since {
+            year: 2008,
+            base: &Rule::Fixed { month: 12, day: 25 },
+        },
+    ),
+    h(
+        "Abolition de l'esclavage",
+        Rule::Since {
+            year: 2012,
+            base: &Rule::Fixed { month: 10, day: 9 },
+        },
+    ),
+];
+
+/// Saint Pierre and Miquelon.
+static SAINT_PIERRE_AND_MIQUELON: &[Holiday] = &[
+    h("Jour de l'an", Rule::Fixed { month: 1, day: 1 }),
+    h("Lundi de Pâques", Rule::EasterOffset(1)),
+    h(
+        "Lundi de Pentecôte",
+        Rule::Until {
+            year: 2004,
+            base: &Rule::EasterOffset(50),
+        },
+    ),
+    h(
+        "Lundi de Pentecôte",
+        Rule::Since {
+            year: 2008,
+            base: &Rule::EasterOffset(50),
+        },
+    ),
+    h("Fête du Travail", Rule::Fixed { month: 5, day: 1 }),
+    h("Fête de la Victoire", Rule::Fixed { month: 5, day: 8 }),
+    h("Ascension", Rule::EasterOffset(39)),
+    h("Fête nationale", Rule::Fixed { month: 7, day: 14 }),
+    h("Assomption", Rule::Fixed { month: 8, day: 15 }),
+    h("Toussaint", Rule::Fixed { month: 11, day: 1 }),
+    h("Armistice", Rule::Fixed { month: 11, day: 11 }),
+    h("Noël", Rule::Fixed { month: 12, day: 25 }),
+];
+
+/// French Southern Territories.
+static FRENCH_SOUTHERN_TERRITORIES: &[Holiday] = &[
+    h("Jour de l'an", Rule::Fixed { month: 1, day: 1 }),
+    h("Lundi de Pâques", Rule::EasterOffset(1)),
+    h(
+        "Lundi de Pentecôte",
+        Rule::Until {
+            year: 2004,
+            base: &Rule::EasterOffset(50),
+        },
+    ),
+    h(
+        "Lundi de Pentecôte",
+        Rule::Since {
+            year: 2008,
+            base: &Rule::EasterOffset(50),
+        },
+    ),
+    h("Fête du Travail", Rule::Fixed { month: 5, day: 1 }),
+    h("Fête de la Victoire", Rule::Fixed { month: 5, day: 8 }),
+    h("Ascension", Rule::EasterOffset(39)),
+    h("Fête nationale", Rule::Fixed { month: 7, day: 14 }),
+    h("Assomption", Rule::Fixed { month: 8, day: 15 }),
+    h("Toussaint", Rule::Fixed { month: 11, day: 1 }),
+    h("Armistice", Rule::Fixed { month: 11, day: 11 }),
+    h("Noël", Rule::Fixed { month: 12, day: 25 }),
+];
+
+/// Reunion.
+static REUNION: &[Holiday] = &[
+    h("Jour de l'an", Rule::Fixed { month: 1, day: 1 }),
+    h("Lundi de Pâques", Rule::EasterOffset(1)),
+    h(
+        "Lundi de Pentecôte",
+        Rule::Until {
+            year: 2004,
+            base: &Rule::EasterOffset(50),
+        },
+    ),
+    h(
+        "Lundi de Pentecôte",
+        Rule::Since {
+            year: 2008,
+            base: &Rule::EasterOffset(50),
+        },
+    ),
+    h("Fête du Travail", Rule::Fixed { month: 5, day: 1 }),
+    h("Fête de la Victoire", Rule::Fixed { month: 5, day: 8 }),
+    h("Ascension", Rule::EasterOffset(39)),
+    h("Fête nationale", Rule::Fixed { month: 7, day: 14 }),
+    h("Assomption", Rule::Fixed { month: 8, day: 15 }),
+    h("Toussaint", Rule::Fixed { month: 11, day: 1 }),
+    h("Armistice", Rule::Fixed { month: 11, day: 11 }),
+    h("Noël", Rule::Fixed { month: 12, day: 25 }),
+    h(
+        "Abolition de l'esclavage",
+        Rule::Fixed { month: 12, day: 20 },
+    ),
+];
+
+/// Mayotte.
+static MAYOTTE: &[Holiday] = &[
+    h("Jour de l'an", Rule::Fixed { month: 1, day: 1 }),
+    h("Lundi de Pâques", Rule::EasterOffset(1)),
+    h(
+        "Lundi de Pentecôte",
+        Rule::Until {
+            year: 2004,
+            base: &Rule::EasterOffset(50),
+        },
+    ),
+    h(
+        "Lundi de Pentecôte",
+        Rule::Since {
+            year: 2008,
+            base: &Rule::EasterOffset(50),
+        },
+    ),
+    h("Fête du Travail", Rule::Fixed { month: 5, day: 1 }),
+    h("Fête de la Victoire", Rule::Fixed { month: 5, day: 8 }),
+    h("Ascension", Rule::EasterOffset(39)),
+    h("Fête nationale", Rule::Fixed { month: 7, day: 14 }),
+    h("Assomption", Rule::Fixed { month: 8, day: 15 }),
+    h("Toussaint", Rule::Fixed { month: 11, day: 1 }),
+    h("Armistice", Rule::Fixed { month: 11, day: 11 }),
+    h("Noël", Rule::Fixed { month: 12, day: 25 }),
+    h(
+        "Abolition de l'esclavage",
+        Rule::Fixed { month: 4, day: 27 },
+    ),
+];
+
+/// Liberia.
+///
+/// The reference lists every holiday the country has kept; the year bounds
+/// carry the suspensions and renamings.
+static LIBERIA: &[Holiday] = &[
+    h("New Year's Day", Rule::Fixed { month: 1, day: 1 }),
+    h("Armed Forces Day", Rule::Fixed { month: 2, day: 11 }),
+    h(
+        "Decoration Day",
+        Rule::NthWeekday {
+            month: 3,
+            weekday: 3,
+            nth: 2,
+        },
+    ),
+    h(
+        "J. J. Roberts Memorial Birthday",
+        Rule::Fixed { month: 3, day: 15 },
+    ),
+    h(
+        "Fasting and Prayer Day",
+        Rule::NthWeekday {
+            month: 4,
+            weekday: 5,
+            nth: 2,
+        },
+    ),
+    h(
+        "National Unification and Integration Day",
+        Rule::Fixed { month: 5, day: 14 },
+    ),
+    h("Independence Day", Rule::Fixed { month: 7, day: 26 }),
+    h("National Flag Day", Rule::Fixed { month: 8, day: 24 }),
+    h(
+        "Thanksgiving Day",
+        Rule::NthWeekday {
+            month: 11,
+            weekday: 4,
+            nth: 1,
+        },
+    ),
+    h(
+        "Tubman Administration Goodwill Day",
+        Rule::Fixed { month: 11, day: 29 },
+    ),
+    h("Christmas Day", Rule::Fixed { month: 12, day: 25 }),
+    h(
+        "Inauguration Day",
+        Rule::Between {
+            from: 2006,
+            to: 2006,
+            base: &Rule::NthWeekday {
+                month: 1,
+                weekday: 1,
+                nth: 1,
+            },
+        },
+    ),
+    h(
+        "Inauguration Day",
+        Rule::Between {
+            from: 2012,
+            to: 2012,
+            base: &Rule::NthWeekday {
+                month: 1,
+                weekday: 1,
+                nth: 1,
+            },
+        },
+    ),
+    h(
+        "Inauguration Day",
+        Rule::Between {
+            from: 2018,
+            to: 2018,
+            base: &Rule::NthWeekday {
+                month: 1,
+                weekday: 1,
+                nth: 1,
+            },
+        },
+    ),
+    h(
+        "Inauguration Day",
+        Rule::Between {
+            from: 2024,
+            to: 2024,
+            base: &Rule::NthWeekday {
+                month: 1,
+                weekday: 1,
+                nth: 1,
+            },
+        },
+    ),
+];
+
+/// Republic of the Congo.
+static CONGO: &[Holiday] = &[
+    h("Jour de l'An", Rule::Fixed { month: 1, day: 1 }),
+    h("Lundi de Pâques", Rule::EasterOffset(1)),
+    h("Fête du Travail", Rule::Fixed { month: 5, day: 1 }),
+    h("Ascension", Rule::EasterOffset(39)),
+    h("Lundi de Pentecôte", Rule::EasterOffset(50)),
+    h(
+        "Fête de la Réconciliation",
+        Rule::Fixed { month: 6, day: 10 },
+    ),
+    h("Fête Nationale", Rule::Fixed { month: 8, day: 15 }),
+    h("Toussaint", Rule::Fixed { month: 11, day: 1 }),
+    h(
+        "Jour de la République",
+        Rule::Since {
+            year: 2010,
+            base: &Rule::Fixed { month: 11, day: 28 },
+        },
+    ),
+    h("Noël", Rule::Fixed { month: 12, day: 25 }),
+];
+
 /// Places every holiday of `year`, resolving the collisions a substitution
 /// creates.
 ///
@@ -1375,6 +1874,66 @@ impl Calendar {
     #[must_use]
     pub const fn samoa() -> Self {
         Self::new(Country::Samoa)
+    }
+
+    /// Builds the calendar for Australia.
+    #[must_use]
+    pub const fn australia() -> Self {
+        Self::new(Country::Australia)
+    }
+
+    /// Builds the calendar for Uruguay.
+    #[must_use]
+    pub const fn uruguay() -> Self {
+        Self::new(Country::Uruguay)
+    }
+
+    /// Builds the calendar for French Guiana.
+    #[must_use]
+    pub const fn french_guiana() -> Self {
+        Self::new(Country::FrenchGuiana)
+    }
+
+    /// Builds the calendar for Saint Barthelemy.
+    #[must_use]
+    pub const fn saint_barthelemy() -> Self {
+        Self::new(Country::SaintBarthelemy)
+    }
+
+    /// Builds the calendar for Saint Pierre and Miquelon.
+    #[must_use]
+    pub const fn saint_pierre_and_miquelon() -> Self {
+        Self::new(Country::SaintPierreAndMiquelon)
+    }
+
+    /// Builds the calendar for the French Southern Territories.
+    #[must_use]
+    pub const fn french_southern_territories() -> Self {
+        Self::new(Country::FrenchSouthernTerritories)
+    }
+
+    /// Builds the calendar for Reunion.
+    #[must_use]
+    pub const fn reunion() -> Self {
+        Self::new(Country::Reunion)
+    }
+
+    /// Builds the calendar for Mayotte.
+    #[must_use]
+    pub const fn mayotte() -> Self {
+        Self::new(Country::Mayotte)
+    }
+
+    /// Builds the calendar for Liberia.
+    #[must_use]
+    pub const fn liberia() -> Self {
+        Self::new(Country::Liberia)
+    }
+
+    /// Builds the calendar for the Republic of the Congo.
+    #[must_use]
+    pub const fn congo() -> Self {
+        Self::new(Country::Congo)
     }
 
     /// Builds the calendar for Cyprus.

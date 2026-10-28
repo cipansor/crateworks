@@ -21,11 +21,13 @@ Friday and the United Kingdom moves a weekend holiday forward to Monday.
 
 Covered: Indonesia, United States, United Kingdom, Germany, France,
 Netherlands, Spain, Italy, Portugal, Belgium, Austria, Poland, Sweden, Norway,
-Denmark, Finland, Ireland, Canada, New Zealand, Czechia, Slovakia, Croatia,
-Slovenia, Estonia, Lithuania, Luxembourg, Iceland, Cyprus, Malta, Greece,
-Romania, Mexico, Latvia, Brazil, El Salvador, Nicaragua, Peru, Andorra, Cabo
-Verde, the Faroe Islands, Greenland, Switzerland (the national set only),
-the Pitcairn Islands, Tokelau and Samoa. `Country::ALL` lists them.
+Denmark, Finland, Ireland, Canada, New Zealand, Australia, Czechia, Slovakia,
+Croatia, Slovenia, Estonia, Lithuania, Luxembourg, Iceland, Cyprus, Malta,
+Greece, Romania, Mexico, Latvia, Brazil, El Salvador, Nicaragua, Peru, Uruguay,
+Andorra, Cabo Verde, the Faroe Islands, Greenland, Switzerland (the national
+set only), French Guiana, Saint Barthelemy, Saint Pierre and Miquelon, the
+French Southern Territories, Reunion, Mayotte, Liberia, the Republic of the
+Congo, the Pitcairn Islands, Tokelau and Samoa. `Country::ALL` lists them.
 
 Greece, Cyprus and Romania keep the Orthodox calendar, so their movable feasts
 are computed from Orthodox Easter with `Rule::OrthodoxEasterOffset` rather than

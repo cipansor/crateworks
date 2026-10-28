@@ -179,6 +179,14 @@ def rust_rule(shape, frm, to):
         )
     if frm == FIRST and to == LAST:
         return core
+    if frm == to:
+        # A run of one year is a one-off, and the crate spells that
+        # `Rule::Once`; `Between` with equal bounds is legal but reads as a
+        # window that never was.
+        month = shape[1]
+        day = shape[2] if kind == "fixed" else None
+        if day is not None:
+            return f"Rule::Once {{ year: {frm}, month: {month}, day: {day} }}"
     if frm == FIRST:
         return f"Rule::Until {{ year: {to}, base: &{core} }}"
     if to == LAST:
@@ -190,7 +198,14 @@ def derive(code):
     ref = pyholidays.country_holidays(code, years=range(FIRST, LAST + 1))
     byname = collections.defaultdict(dict)
     for d, n in ref.items():
-        byname[n][d.year] = d
+        # The reference collapses two holidays that fall on the same day into one
+        # entry whose name is the two joined by "; " (ANZAC Day; Easter Monday,
+        # 2011). Split it back into its parts so each holiday keeps a single name
+        # and the year it was collapsed for is not left uncovered: the crate has
+        # no such joined name, and treating the collapse as a gap would make the
+        # individual holiday's rule skip that year.
+        for part in n.split("; "):
+            byname[part][d.year] = d
     entries = []
     for name, byyear in byname.items():
         years = set(byyear)
