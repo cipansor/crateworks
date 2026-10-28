@@ -189,6 +189,10 @@ INTERNATIONAL: dict[str, str] = {
     # Added in 0.1.10: the two EU-domain identifiers.
     "EcNumber": "eu.ecnumber",
     "EuropeanBanknote": "eu.banknote",
+    # Added in 0.2.0: the SEPA Creditor Identifier and the European Energy
+    # Identification Code, the two remaining self-contained `eu` modules.
+    "SepaCreditorIdentifier": "eu.at_02",
+    "Eic": "eu.eic",
 }
 
 
@@ -305,9 +309,49 @@ def banknote_corpus(mod, rng) -> list[str]:
 # Identifiers whose doctest is a single example, so their generic corpus would
 # be too thin to catch a divergence. Each builder returns valid numbers, which
 # the caller then mutates exactly like a doctest example.
+def sepa_creditor_corpus(mod, rng) -> list[str]:
+    """Valid SEPA Creditor Identifiers.
+
+    A random ISO country code, a random three-character business code and a
+    random national identifier, closed with the reference's own check digits.
+    The reference has no length check, so the national identifier is kept long
+    enough to stay inside the scheme's own range rather than accidentally
+    exercising the crate's documented minimum.
+    """
+    letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    out: list[str] = []
+    for _ in range(15):
+        country = rng.choice(letters) + rng.choice(letters)
+        business = "".join(rng.choice(letters + "0123456789") for _ in range(3))
+        national = "".join(
+            rng.choice(letters + "0123456789") for _ in range(rng.randint(3, 20))
+        )
+        body = country + "00" + business + national
+        check = mod.calc_check_digits(body)
+        out.append(country + check + business + national)
+    return out
+
+
+def eic_corpus(mod, rng) -> list[str]:
+    """Valid Energy Identification Codes: a random fifteen-character payload
+    from the reference's own alphabet plus the reference's check character."""
+    alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-"
+    out: list[str] = []
+    while len(out) < 15:
+        payload = "".join(rng.choice(alphabet) for _ in range(15))
+        code = payload + mod.calc_check_digit(payload)
+        # A check character of `-` is a truncated code the reference rejects, so
+        # it would not be a valid seed.
+        if code[-1] != "-":
+            out.append(code)
+    return out
+
+
 CUSTOM_CORPUS: dict[str, object] = {
     "eu.ecnumber": ecnumber_corpus,
     "eu.banknote": banknote_corpus,
+    "eu.at_02": sepa_creditor_corpus,
+    "eu.eic": eic_corpus,
 }
 
 CORPUS_SIZE = 1500

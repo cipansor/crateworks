@@ -6,8 +6,9 @@ contributors (https://github.com/cipansor/crateworks).
 
 The identifier rules, both the national ones and the international ones
 (ISIN, CUSIP, FIGI, LEI, BIC, GRid, ISSN, ISRC, IMEI, ISMN, ISNI, CAS RN, the
-EC Number, the euro banknote serial, the ISO 11649 creditor reference, the MAC
-address and the ISIL), and the check-digit algorithms (Luhn, the ISO 7064
+EC Number, the euro banknote serial, the ISO 11649 creditor reference, the SEPA
+Creditor Identifier (AT-02), the European Energy Identification Code (EIC), the
+MAC address and the ISIL), and the check-digit algorithms (Luhn, the ISO 7064
 family, Damm and Verhoeff), were cross-checked
 against the python-stdnum library by Arthur de Jong and contributors
 (https://arthurdejong.org/python-stdnum/), which is distributed under the GNU

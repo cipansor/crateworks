@@ -829,6 +829,203 @@ impl std::fmt::Display for EuropeanBanknote {
     }
 }
 
+/// A SEPA Creditor Identifier (AT-02), the reference a creditor puts on a
+/// direct-debit mandate so a payment can be traced back to it.
+///
+/// It is the ISO country code, two check digits, a three-character business
+/// code (`ZZZ` when the creditor has none) and a country-specific national
+/// identifier, so it is between five and thirty-five characters. The check
+/// digits are ISO 7064 MOD 97-10 over the national identifier followed by the
+/// country code and the check digits, with the business code left out of the
+/// sum.
+///
+/// This is a different identifier from the ISO 11649 [`CreditorReference`],
+/// which starts with `RF`; both are called a creditor reference and a payment
+/// carries whichever the scheme names.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct SepaCreditorIdentifier(String);
+
+/// The characters an AT-02 keeps: the reference removes the punctuation a
+/// mandate may be written with, but leaves any other character in place so it
+/// can fail the alphanumeric check.
+fn sepa_creditor_compact(input: &str) -> String {
+    input
+        .chars()
+        .filter(|c| {
+            !matches!(
+                c,
+                ' ' | '-' | '/' | '?' | ':' | '(' | ')' | '.' | 'm' | '\'' | '+' | '"'
+            )
+        })
+        .flat_map(char::to_uppercase)
+        .collect()
+}
+
+impl SepaCreditorIdentifier {
+    /// Validates `input` and returns the normalised form.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Empty`], [`Error::InvalidCharacter`],
+    /// [`Error::WrongLength`] or [`Error::BadChecksum`].
+    pub fn parse(input: &str) -> Result<Self> {
+        let normalized = sepa_creditor_compact(input);
+        if normalized.is_empty() {
+            return Err(Error::Empty);
+        }
+        if !(7..=35).contains(&normalized.len()) {
+            return Err(Error::WrongLength {
+                expected: 35,
+                found: normalized.len(),
+            });
+        }
+        for byte in normalized.bytes() {
+            if index_in(ALNUM, byte).is_none() {
+                return Err(Error::InvalidCharacter(char::from(byte)));
+            }
+        }
+        // The check digits cover the national identifier, then the country code
+        // and the check digits themselves; the three-character business code at
+        // positions four to six is deliberately excluded, which is what makes
+        // the checksum independent of the code's business segment.
+        let rearranged = format!("{}{}", &normalized[7..], &normalized[..4]);
+        if iso7064::mod_97_10_checksum(&rearranged) != Some(1) {
+            return Err(Error::BadChecksum);
+        }
+        Ok(Self(normalized))
+    }
+
+    /// The normalised identifier, without separators.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    /// The two-character ISO country code that starts the identifier.
+    #[must_use]
+    pub fn country_code(&self) -> &str {
+        &self.0[..2]
+    }
+
+    /// The three-character creditor business code, `ZZZ` when there is none.
+    #[must_use]
+    pub fn business_code(&self) -> &str {
+        &self.0[4..7]
+    }
+
+    /// The national identifier that follows the business code.
+    #[must_use]
+    pub fn national_identifier(&self) -> &str {
+        &self.0[7..]
+    }
+}
+
+impl std::fmt::Display for SepaCreditorIdentifier {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+/// A European Energy Identification Code (EIC), the sixteen-character code that
+/// names a party, an area or a measuring point in the European electricity and
+/// gas market.
+///
+/// It is two characters for the issuing office, one for the object type, twelve
+/// for the object and a final check character, drawn from the digits, the
+/// capital letters and the minus sign. The check character is a MOD 37 check
+/// over the first fifteen characters, so a single mistyped character is caught
+/// before the code is used to address a market message.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Eic(String);
+
+/// The thirty-seven characters an EIC may use, in the order the check
+/// character's arithmetic counts them.
+const EIC_ALPHABET: &[u8] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-";
+
+impl Eic {
+    /// Validates `input` and returns the normalised form, without spaces.
+    ///
+    /// Unlike an IBAN or an AT-02, an EIC is not case-folded: the reference
+    /// accepts only the capital letters, and a lower-case code is rejected
+    /// rather than repaired, because the code's case is part of its identity.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Empty`], [`Error::InvalidCharacter`],
+    /// [`Error::WrongLength`] or [`Error::BadChecksum`].
+    pub fn parse(input: &str) -> Result<Self> {
+        let normalized: String = input.chars().filter(|c| !c.is_whitespace()).collect();
+        if normalized.is_empty() {
+            return Err(Error::Empty);
+        }
+        if normalized.len() != 16 {
+            return Err(Error::WrongLength {
+                expected: 16,
+                found: normalized.len(),
+            });
+        }
+        for byte in normalized.bytes() {
+            if index_in(EIC_ALPHABET, byte).is_none() {
+                return Err(Error::InvalidCharacter(char::from(byte)));
+            }
+        }
+        // The check character is never the minus sign, which the reference
+        // rejects separately because a minus there means a truncated code.
+        if normalized.as_bytes()[15] == b'-' {
+            return Err(Error::InvalidCharacter('-'));
+        }
+        let expected = eic_check_character(&normalized[..15]);
+        if normalized.as_bytes()[15] != expected {
+            return Err(Error::BadChecksum);
+        }
+        Ok(Self(normalized))
+    }
+
+    /// The normalised code.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    /// The two-character issuing office code.
+    #[must_use]
+    pub fn issuing_office(&self) -> &str {
+        &self.0[..2]
+    }
+
+    /// The single character that names the object type.
+    #[must_use]
+    pub fn object_type(&self) -> char {
+        self.0.as_bytes()[2] as char
+    }
+}
+
+/// The EIC check character for the fifteen-character payload.
+///
+/// Each character is weighted by its distance from the end of the alphabet, the
+/// weighted sum is taken modulo thirty-seven, and the complement indexes back
+/// into the alphabet.
+fn eic_check_character(payload: &str) -> u8 {
+    let sum: u32 = payload
+        .bytes()
+        .enumerate()
+        .map(|(i, b)| {
+            let value = EIC_ALPHABET
+                .iter()
+                .position(|c| *c == b)
+                .expect("payload characters are in the alphabet") as u32;
+            (16 - i as u32) * value
+        })
+        .sum();
+    EIC_ALPHABET[36 - ((sum - 1) % 37) as usize]
+}
+
+impl std::fmt::Display for Eic {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1034,6 +1231,91 @@ mod tests {
         assert_eq!(
             EuropeanBanknote::parse("O00000000000"),
             Err(Error::InvalidPrefix)
+        );
+    }
+
+    #[test]
+    fn accepts_a_published_sepa_creditor_identifier() {
+        let id = SepaCreditorIdentifier::parse("ES 23 ZZZ 47690558N").unwrap();
+        assert_eq!(id.as_str(), "ES23ZZZ47690558N");
+        assert_eq!(id.country_code(), "ES");
+        assert_eq!(id.business_code(), "ZZZ");
+        assert_eq!(id.national_identifier(), "47690558N");
+        // The same identifier with no business code.
+        assert_eq!(
+            SepaCreditorIdentifier::parse("ES2300047690558N")
+                .unwrap()
+                .as_str(),
+            "ES2300047690558N"
+        );
+    }
+
+    #[test]
+    fn strips_the_separators_a_mandate_may_be_written_with() {
+        assert_eq!(
+            SepaCreditorIdentifier::parse("ES++()+23ZZZ4//7690558N")
+                .unwrap()
+                .as_str(),
+            "ES23ZZZ47690558N"
+        );
+    }
+
+    #[test]
+    fn rejects_a_sepa_creditor_identifier_with_bad_check_digits() {
+        assert_eq!(
+            SepaCreditorIdentifier::parse("ES24ZZZ47690558N"),
+            Err(Error::BadChecksum)
+        );
+    }
+
+    #[test]
+    fn rejects_a_sepa_creditor_identifier_that_is_too_short() {
+        // The reference has no length check and would accept a lone character;
+        // the scheme's own minimum is a country code, two check digits and a
+        // business code, which is what this crate enforces.
+        assert_eq!(
+            SepaCreditorIdentifier::parse("ES23"),
+            Err(Error::WrongLength {
+                expected: 35,
+                found: 4,
+            })
+        );
+    }
+
+    #[test]
+    fn accepts_a_published_energy_identification_code() {
+        let eic = Eic::parse("22XWATTPLUS----G").unwrap();
+        assert_eq!(eic.as_str(), "22XWATTPLUS----G");
+        assert_eq!(eic.issuing_office(), "22");
+        assert_eq!(eic.object_type(), 'X');
+        assert_eq!(
+            Eic::parse("10X1001A1001A450").unwrap().as_str(),
+            "10X1001A1001A450"
+        );
+    }
+
+    #[test]
+    fn rejects_an_energy_identification_code_with_a_bad_check_character() {
+        assert_eq!(Eic::parse("22XWATTPLUS----X"), Err(Error::BadChecksum));
+    }
+
+    #[test]
+    fn rejects_an_energy_identification_code_whose_check_character_is_a_minus() {
+        // A minus in the last position means the code was truncated, and the
+        // reference rejects it before the checksum is even considered.
+        assert_eq!(
+            Eic::parse("23X--130302DLGW-"),
+            Err(Error::InvalidCharacter('-'))
+        );
+    }
+
+    #[test]
+    fn rejects_a_lower_case_energy_identification_code() {
+        // The reference does not case-fold an EIC, so a lower-case code fails
+        // the alphabet rather than being repaired.
+        assert_eq!(
+            Eic::parse("22xwattplus----g"),
+            Err(Error::InvalidCharacter('x'))
         );
     }
 }

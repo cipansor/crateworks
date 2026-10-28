@@ -1,12 +1,53 @@
-//! SHA-256, for callers who want a digest that is not SHA-1.
+//! SHA-256 and SHA-224, for callers who want a digest that is not SHA-1.
 //!
 //! Written out for the same reason as SHA-1: the crate has no dependencies, and
 //! the function is short. Like SHA-1 here it names a value rather than protects
 //! it, and the two produce the same digest for the same canonical bytes as the
-//! reference package does.
+//! reference package does. SHA-224 is the same function with a different initial
+//! state and a truncated output, so both go through [`digest_with`].
 
 /// The SHA-256 digest of `data`.
 pub(crate) fn digest(data: &[u8]) -> [u8; 32] {
+    digest_with(INIT_256, data)
+}
+
+/// The SHA-224 digest of `data`: SHA-256 with a different initial state, cut to
+/// its first 28 bytes.
+pub(crate) fn digest224(data: &[u8]) -> [u8; 28] {
+    let full = digest_with(INIT_224, data);
+    let mut out = [0u8; 28];
+    out.copy_from_slice(&full[..28]);
+    out
+}
+
+/// The initial hash value for SHA-256: the fractional parts of the square roots
+/// of the first eight primes, from FIPS 180-4.
+const INIT_256: [u32; 8] = [
+    0x6a09_e667,
+    0xbb67_ae85,
+    0x3c6e_f372,
+    0xa54f_f53a,
+    0x510e_527f,
+    0x9b05_688c,
+    0x1f83_d9ab,
+    0x5be0_cd19,
+];
+
+/// The initial hash value for SHA-224: the fractional parts of the square roots
+/// of the ninth through sixteenth primes, from FIPS 180-4.
+const INIT_224: [u32; 8] = [
+    0xc105_9ed8,
+    0x367c_d507,
+    0x3070_dd17,
+    0xf70e_5939,
+    0xffc0_0b31,
+    0x6858_1511,
+    0x64f9_8fa7,
+    0xbefa_4fa4,
+];
+
+/// The full 32-byte digest of `data` under a SHA-256-family initial state.
+fn digest_with(initial: [u32; 8], data: &[u8]) -> [u8; 32] {
     const K: [u32; 64] = [
         0x428a_2f98,
         0x7137_4491,
@@ -74,16 +115,7 @@ pub(crate) fn digest(data: &[u8]) -> [u8; 32] {
         0xc671_78f2,
     ];
 
-    let mut state: [u32; 8] = [
-        0x6a09_e667,
-        0xbb67_ae85,
-        0x3c6e_f372,
-        0xa54f_f53a,
-        0x510e_527f,
-        0x9b05_688c,
-        0x1f83_d9ab,
-        0x5be0_cd19,
-    ];
+    let mut state: [u32; 8] = initial;
     let bit_length = (data.len() as u64).wrapping_mul(8);
 
     let mut message = data.to_vec();
@@ -164,6 +196,33 @@ mod tests {
             out.push(char::from_digit(u32::from(byte & 0x0f), 16).expect("nibble"));
         }
         out
+    }
+
+    /// The SHA-224 digest as lowercase hexadecimal.
+    fn hex224(data: &[u8]) -> String {
+        let mut out = String::new();
+        for byte in digest224(data) {
+            out.push(char::from_digit(u32::from(byte >> 4), 16).expect("nibble"));
+            out.push(char::from_digit(u32::from(byte & 0x0f), 16).expect("nibble"));
+        }
+        out
+    }
+
+    #[test]
+    fn the_published_sha224_vectors_match() {
+        // The vectors from FIPS 180-4 and the well-known extras.
+        assert_eq!(
+            hex224(b""),
+            "d14a028c2a3a2bc9476102bb288234c415a2b01f828ea62ac5b3e42f"
+        );
+        assert_eq!(
+            hex224(b"abc"),
+            "23097d223405d8228642a477bda255b32aadbce4bda0b3f7e36c9da7"
+        );
+        assert_eq!(
+            hex224(b"abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"),
+            "75388b16512776cc5dba5da1fd890150b0c6455cb4f58b1952522525"
+        );
     }
 
     #[test]

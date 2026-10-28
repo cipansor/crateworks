@@ -23,7 +23,8 @@ pub use ean::Ean;
 pub use iban::Iban;
 pub use id::{Country, IdNumber};
 pub use identifiers::{
-    CasNumber, CreditorReference, EcNumber, EuropeanBanknote, Imei, Ismn, Isni, Isrc, Issn,
+    CasNumber, CreditorReference, EcNumber, Eic, EuropeanBanknote, Imei, Ismn, Isni, Isrc, Issn,
+    SepaCreditorIdentifier,
 };
 pub use isbn::Isbn;
 pub use library::Isil;
@@ -158,6 +159,10 @@ pub enum NumberType {
     EcNumber,
     /// A euro banknote serial number.
     EuropeanBanknote,
+    /// A SEPA Creditor Identifier (AT-02).
+    SepaCreditorIdentifier,
+    /// A European Energy Identification Code (EIC).
+    Eic,
     /// A national identifier for a specific country.
     National(Country),
 }
@@ -206,6 +211,8 @@ pub fn validate(kind: NumberType, input: &str) -> Result<()> {
         NumberType::Isil => Isil::parse(input).map(|_| ()),
         NumberType::EcNumber => EcNumber::parse(input).map(|_| ()),
         NumberType::EuropeanBanknote => EuropeanBanknote::parse(input).map(|_| ()),
+        NumberType::SepaCreditorIdentifier => SepaCreditorIdentifier::parse(input).map(|_| ()),
+        NumberType::Eic => Eic::parse(input).map(|_| ()),
         NumberType::National(country) => IdNumber::parse(country, input).map(|_| ()),
     }
 }

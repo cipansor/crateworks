@@ -20,6 +20,8 @@ pub enum Algorithm {
     Sha1,
     /// SHA-256, 64 hexadecimal characters.
     Sha256,
+    /// SHA-224, 56 hexadecimal characters.
+    Sha224,
     /// SHA-512, 128 hexadecimal characters.
     Sha512,
     /// SHA-384, 96 hexadecimal characters.
@@ -304,6 +306,7 @@ pub fn hash(value: &Value) -> String {
 /// let value = Value::string("cipansor");
 /// assert_eq!(hash_with(&value, Algorithm::Sha1).len(), 40);
 /// assert_eq!(hash_with(&value, Algorithm::Sha256).len(), 64);
+/// assert_eq!(hash_with(&value, Algorithm::Sha224).len(), 56);
 /// assert_eq!(hash_with(&value, Algorithm::Md5).len(), 32);
 /// ```
 #[must_use]
@@ -398,6 +401,7 @@ fn raw_digest(data: &[u8], algorithm: Algorithm) -> Vec<u8> {
     match algorithm {
         Algorithm::Sha1 => sha1::digest(data).to_vec(),
         Algorithm::Sha256 => sha256::digest(data).to_vec(),
+        Algorithm::Sha224 => sha256::digest224(data).to_vec(),
         Algorithm::Sha512 => sha512::digest(data).to_vec(),
         Algorithm::Sha384 => sha512::digest384(data).to_vec(),
         Algorithm::Md5 => md5::digest(data).to_vec(),

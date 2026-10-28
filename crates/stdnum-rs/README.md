@@ -71,6 +71,8 @@ type of its own:
 | `Isil` | ISO 15511 | a library or a related organisation |
 | `EcNumber` | EC Number | a chemical substance in the EU |
 | `EuropeanBanknote` | — | the serial number on a euro banknote |
+| `SepaCreditorIdentifier` | AT-02 | a SEPA direct-debit creditor |
+| `Eic` | EIC | an entity or object in the European energy market |
 
 `Cusip::to_isin` and `Isin::from_national_id` move a national identifier to the
 international form. `Ismn` accepts both the current thirteen-digit form and the
@@ -100,18 +102,18 @@ contributors, which in turn follows each authority's published specification.
 This is an independent reimplementation and shares no code with it; see
 [`NOTICE`](https://github.com/cipansor/crateworks/blob/main/crates/stdnum-rs/NOTICE).
 
-`tests/fixtures/stdnum_vectors.tsv` holds 39,365 numbers labelled by that
+`tests/fixtures/stdnum_vectors.tsv` holds 45,134 numbers labelled by that
 reference: every number in its own documentation plus each single-digit
 substitution of a valid number, the last character dropped and a character
 appended. Damm and Verhoeff also carry a 1,500-number random corpus each, built
 by asking the reference for the check digit of a random payload, because their
-own documentation offers a single example; `EcNumber` and `EuropeanBanknote`
-get a smaller corpus the same way, because their documentation offers one
-example too. `tests/readme.rs` replays the whole file, so a change that makes
-this crate disagree with the reference fails the build. The check digit, the
-accepted shapes and the separator characters all came out of that comparison,
-and `research/tools/gen_stdnum_vectors.py` regenerates the file when a type is
-added.
+own documentation offers a single example; `EcNumber`, `EuropeanBanknote`,
+`SepaCreditorIdentifier` and `Eic` get a smaller corpus the same way, because
+their documentation offers one example too. `tests/readme.rs` replays the whole
+file, so a change that makes this crate disagree with the reference fails the
+build. The check digit, the accepted shapes and the separator characters all
+came out of that comparison, and `research/tools/gen_stdnum_vectors.py`
+regenerates the file when a type is added.
 
 Two behaviours were settled by that comparison rather than by the
 specification alone. `mod_37_36` replaces a zero intermediate value with the
@@ -169,6 +171,18 @@ assert_eq!(
 );
 assert_eq!(stdnum_rs::EcNumber::parse("2000018").unwrap().as_str(), "200-001-8");
 assert!(stdnum_rs::EuropeanBanknote::parse("P36007033744").is_ok());
+
+// A SEPA creditor identifier and an energy identification code.
+assert_eq!(
+    stdnum_rs::SepaCreditorIdentifier::parse("ES 23 ZZZ 47690558N")
+        .unwrap()
+        .business_code(),
+    "ZZZ",
+);
+assert_eq!(
+    stdnum_rs::Eic::parse("22XWATTPLUS----G").unwrap().object_type(),
+    'X',
+);
 ```
 
 ## Scope

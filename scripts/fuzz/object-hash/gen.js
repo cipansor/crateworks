@@ -240,6 +240,23 @@ function extended384(path) {
   console.log('extended384', out.length - 1, 'rows in', path);
 }
 
+// Adds the SHA-224 digest to each row, so the Rust side is held to the sixth
+// algorithm the reference offers. SHA-224 is SHA-256 with a different initial
+// state and a truncated output, so like SHA-384 it is worth pinning against the
+// reference rather than only against the FIPS vectors.
+function extended224(path) {
+  const crypto = require('crypto');
+  const lines = require('fs').readFileSync(path, 'utf8').split('\n').filter((l) => l.length);
+  const out = [lines[0] + '\tsha224'];
+  for (const line of lines.slice(1)) {
+    const canonical = line.split('\t')[1];
+    const buf = Buffer.from(canonical, 'utf8');
+    out.push(line + '\t' + crypto.createHash('sha224').update(buf).digest('hex'));
+  }
+  require('fs').writeFileSync(path, out.join('\n') + '\n');
+  console.log('extended224', out.length - 1, 'rows in', path);
+}
+
 const target = process.argv[2];
 if (!target) {
   console.error('usage: node gen.js <fuzz.tsv> <objects.tsv> [oracle.tsv to extend] [oracle.tsv to append object cases to]');
@@ -256,3 +273,4 @@ if (process.argv[4]) extended(process.argv[4]);
 if (process.argv[5]) appendObjectOracle(process.argv[5]);
 if (process.argv[6]) extended512(process.argv[6]);
 if (process.argv[7]) extended384(process.argv[7]);
+if (process.argv[8]) extended224(process.argv[8]);

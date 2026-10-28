@@ -87,6 +87,8 @@ fn known_type(name: &str) -> Option<NumberType> {
         "Isil" => NumberType::Isil,
         "EcNumber" => NumberType::EcNumber,
         "EuropeanBanknote" => NumberType::EuropeanBanknote,
+        "SepaCreditorIdentifier" => NumberType::SepaCreditorIdentifier,
+        "Eic" => NumberType::Eic,
         _ => return None,
     })
 }
