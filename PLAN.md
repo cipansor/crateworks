@@ -58,20 +58,27 @@ Rust equivalent.
 
 **Covers today.** IBAN (78 countries, MOD-97, check-digit generation), ISBN-10
 and ISBN-13 with conversion, EAN-8/EAN-13/UPC-A with UPC-to-EAN conversion,
-Luhn, Damm and Verhoeff with check-digit generation, nineteen international
+Luhn, Damm and Verhoeff with check-digit generation, twenty-one international
 identifiers (ISIN, CUSIP, FIGI, LEI, BIC, GRID, ISSN, ISRC, IMEI, ISMN, ISNI,
 CAS number, ISO 11649 creditor reference, IMO number, MEID, ISAN, a Bitcoin
-address, a MAC address and an ISIL), and
-**112 national identifiers across 90 countries**, reached through
-`Country::ALL`. Every one of `python-stdnum`'s 89 national modules now has a
-counterpart. The four newest need no registry: the IMO number is a seven-digit
-hull identifier with a check digit, the MEID is a fourteen-digit hexadecimal
-one, the ISAN carries its own check character over a hyphenated block, and the
-Bitcoin address is verified by its Base58 double-SHA-256 or Bech32 checksum,
-with the SHA-256 implemented inside the crate rather than pulled in. The MAC
-address checks the shape, the zero padding and the address-class bits but
-deliberately omits the IEEE manufacturer registry, and the ISIL checks the
-registered agency prefix from the authority's published list.
+address, a MAC address, an ISIL, the EU EC number and euro banknote serial, the
+SEPA creditor identifier and the EIC), and
+**129 national identifiers across 98 countries**, reached through
+`Country::ALL`. The 0.4.0 round closed the remaining oracle-backed gap against
+`python-stdnum`: the Polish NIP and REGON, the French NIF, the Norwegian bank
+account number and MVA, the Danish CVR, the Estonian registrikood and KMKR, the
+Lithuanian PVM, the Slovak IČ DPH, the Portuguese Cartão de Cidadão, the
+Canadian Business Number, the Australian ACN, the Indian PAN and GSTIN, the
+Mexican CURP and the South African tax number. Every one of those is verified
+against the reference by `gen_stdnum_vectors.py`, which now labels 4,166 more
+vectors. The four registry-free international identifiers are unchanged: the IMO
+number is a seven-digit hull identifier with a check digit, the MEID is a
+fourteen-digit hexadecimal one, the ISAN carries its own check character over a
+hyphenated block, and the Bitcoin address is verified by its Base58
+double-SHA-256 or Bech32 checksum, with the SHA-256 implemented inside the crate
+rather than pulled in. The MAC address checks the shape, the zero padding and the
+address-class bits but deliberately omits the IEEE manufacturer registry, and the
+ISIL checks the registered agency prefix from the authority's published list.
 
 **Not covered.** Anything that needs a registry lookup. A number that passes may
 still be unissued; this is a form filter, not proof of existence.

@@ -19,24 +19,28 @@ Checksum and structure only; nothing here contacts a registry.
 
 ## What is covered
 
-One hundred and two national identifiers are covered. Europe accounts for the
-largest share: the Irish VAT and PPS numbers, the Croatian OIB, the Czech and
-Slovak birth numbers, the Swiss AHV/AVS and UID, the Russian ИНН and ОГРН, the
+One hundred and twenty-nine national identifiers are covered. Europe accounts
+for the largest share: the Irish VAT and PPS numbers, the Croatian OIB, the Czech
+and Slovak birth numbers, the Swiss AHV/AVS and UID, the Russian ИНН and ОГРН, the
 Ukrainian ЄДРПОУ, the Austrian UID and TIN, the Latvian PVN, the Monégasque TVA,
 and the microstate numbers of Andorra, Liechtenstein, San Marino, Albania,
-Azerbaijan, Moldova and the Faroe Islands. The Americas bring the United States
+Azerbaijan, Moldova and the Faroe Islands. The 0.4.0 round added the Polish NIP
+and REGON, the French NIF, the Norwegian bank account number and MVA, the Danish
+CVR, the Estonian registrikood and KMKR, the Lithuanian PVM, the Slovak IČ DPH
+and the Portuguese Cartão de Cidadão. The Americas bring the United States
 Social Security and taxpayer numbers, the Chilean RUT, the Colombian NIT, the
 Peruvian RUC, the Argentine CUIT, the Paraguayan RUC, the Salvadoran NIT, the
 Ecuadorian CI and RUC, the Guatemalan NIT, the Costa Rican CPJ, the Dominican
-RNC and the Cuban NI. Iceland contributes the kennitala and the VSK number, and
-Mauritius the NID.
+RNC, the Cuban NI, the Mexican CURP and the Canadian Business Number. Iceland
+contributes the kennitala and the VSK number, and Mauritius the NID.
 Asia and Oceania contribute the Japanese corporate and My Number identifiers,
 the Pakistani CNIC, the Taiwanese UBN, the Israeli identity number, the Thai
 PIN, the Singapore UEN, the Malaysian NRIC, the Vietnamese MST, the Indonesian
-NPWP and NIK, and the Chinese, Korean and Australian numbers. The United Kingdom
+NPWP and NIK, the Indian PAN and GSTIN, and the Chinese, Korean and Australian
+numbers (now including the ACN). The United Kingdom
 is represented by the NHS number, the UTR, the VAT number and SEDOL, and Africa
-and the Middle East by the South African identity number, the Greek ΑΜΚΑ, and
-the tax and company numbers of Algeria, Egypt, Ghana, Kenya, Morocco,
+and the Middle East by the South African identity and tax numbers, the Greek
+ΑΜΚΑ, and the tax and company numbers of Algeria, Egypt, Ghana, Kenya, Morocco,
 Mozambique, Senegal, Tunisia and Guinea. [`Country::ALL`](https://docs.rs/stdnum-rs)
 lists them all.
 

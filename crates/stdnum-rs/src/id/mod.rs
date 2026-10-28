@@ -56,8 +56,10 @@ use nordics::{denmark, finland, norway, sweden};
 use north_america::united_states;
 use oceania::{australia, canada, new_zealand};
 use southeast_asia::{indonesia, philippines};
+use vat::estonia as estonia_vat;
 use vat::{
-    cyprus, czechia, finland as finland_vat, greece as greece_vat, malta, sweden as sweden_vat,
+    cyprus, czechia, finland as finland_vat, greece as greece_vat, malta, slovakia as slovakia_vat,
+    sweden as sweden_vat,
 };
 
 pub use asia::verhoeff_check_digit;
@@ -295,6 +297,40 @@ pub enum Country {
     CubaNi,
     /// Mauritius: NID national identifier, 14 characters.
     MauritiusNid,
+    /// Poland: NIP tax identification number, 10 digits.
+    PolandNip,
+    /// Poland: REGON business register number, 9 or 14 digits.
+    PolandRegon,
+    /// France: NIF tax number, 13 digits.
+    FranceNif,
+    /// Norway: bank account number, 11 digits.
+    NorwayAccountNumber,
+    /// Norway: MVA VAT registration.
+    NorwayMva,
+    /// Denmark: CVR VAT registration, 8 digits.
+    DenmarkCvr,
+    /// Canada: Business Number, 9 or 15 characters.
+    CanadaBusinessNumber,
+    /// Australia: ACN company number, 9 digits.
+    AustraliaAcn,
+    /// India: PAN income-tax identifier, 10 characters.
+    IndiaPan,
+    /// India: GSTIN goods-and-services-tax number, 15 characters.
+    IndiaGstin,
+    /// Mexico: CURP population registry code, 18 characters.
+    MexicoCurp,
+    /// Estonia: Registrikood organisation registration code, 8 digits.
+    EstoniaRegistrikood,
+    /// Estonia: KMKR VAT registration, 9 digits.
+    EstoniaKmkr,
+    /// Lithuania: PVM VAT registration, 9 or 12 digits.
+    LithuaniaPvm,
+    /// Slovakia: IČ DPH VAT registration, 10 digits.
+    SlovakiaDph,
+    /// Portugal: Cartão de Cidadão number, 12 characters.
+    PortugalCc,
+    /// South Africa: tax reference number, 10 digits.
+    SouthAfricaTin,
 }
 
 impl Country {
@@ -412,6 +448,23 @@ impl Country {
         Self::GuineaNifp,
         Self::CubaNi,
         Self::MauritiusNid,
+        Self::PolandNip,
+        Self::PolandRegon,
+        Self::FranceNif,
+        Self::NorwayAccountNumber,
+        Self::NorwayMva,
+        Self::DenmarkCvr,
+        Self::CanadaBusinessNumber,
+        Self::AustraliaAcn,
+        Self::IndiaPan,
+        Self::IndiaGstin,
+        Self::MexicoCurp,
+        Self::EstoniaRegistrikood,
+        Self::EstoniaKmkr,
+        Self::LithuaniaPvm,
+        Self::SlovakiaDph,
+        Self::PortugalCc,
+        Self::SouthAfricaTin,
     ];
 
     /// A short English description of the identifier.
@@ -530,6 +583,23 @@ impl Country {
             Self::GuineaNifp => "Guinea NIFp tax number",
             Self::CubaNi => "Cuba NI identity number",
             Self::MauritiusNid => "Mauritius NID national identifier",
+            Self::PolandNip => "Poland NIP tax number",
+            Self::PolandRegon => "Poland REGON business register number",
+            Self::FranceNif => "France NIF tax number",
+            Self::NorwayAccountNumber => "Norway bank account number",
+            Self::NorwayMva => "Norway MVA VAT number",
+            Self::DenmarkCvr => "Denmark CVR VAT number",
+            Self::CanadaBusinessNumber => "Canada Business Number",
+            Self::AustraliaAcn => "Australia ACN company number",
+            Self::IndiaPan => "India PAN income-tax identifier",
+            Self::IndiaGstin => "India GSTIN tax number",
+            Self::MexicoCurp => "Mexico CURP population registry code",
+            Self::EstoniaRegistrikood => "Estonia registrikood organisation code",
+            Self::EstoniaKmkr => "Estonia KMKR VAT number",
+            Self::LithuaniaPvm => "Lithuania PVM VAT number",
+            Self::SlovakiaDph => "Slovakia IČ DPH VAT number",
+            Self::PortugalCc => "Portugal Cartão de Cidadão number",
+            Self::SouthAfricaTin => "South Africa tax reference number",
         }
     }
 }
@@ -612,7 +682,24 @@ impl IdNumber {
             | Country::DominicanRepublicRnc
             | Country::GuineaNifp
             | Country::CubaNi
-            | Country::MauritiusNid => input,
+            | Country::MauritiusNid
+            | Country::PolandNip
+            | Country::PolandRegon
+            | Country::FranceNif
+            | Country::NorwayAccountNumber
+            | Country::NorwayMva
+            | Country::DenmarkCvr
+            | Country::CanadaBusinessNumber
+            | Country::AustraliaAcn
+            | Country::IndiaPan
+            | Country::IndiaGstin
+            | Country::MexicoCurp
+            | Country::EstoniaRegistrikood
+            | Country::EstoniaKmkr
+            | Country::LithuaniaPvm
+            | Country::SlovakiaDph
+            | Country::PortugalCc
+            | Country::SouthAfricaTin => input,
             _ => normalized.as_str(),
         };
         match country {
@@ -728,6 +815,23 @@ impl IdNumber {
             Country::GuineaNifp => guinea::validate_nifp(subject)?,
             Country::CubaNi => cuba::validate_ni(subject)?,
             Country::MauritiusNid => mauritius::validate_nid(subject)?,
+            Country::PolandNip => poland::validate_nip(subject)?,
+            Country::PolandRegon => poland::validate_regon(subject)?,
+            Country::FranceNif => france::validate_nif(subject)?,
+            Country::NorwayAccountNumber => norway::validate_account_number(subject)?,
+            Country::NorwayMva => norway::validate_mva(subject)?,
+            Country::DenmarkCvr => denmark::validate_cvr(subject)?,
+            Country::CanadaBusinessNumber => canada::validate_business_number(subject)?,
+            Country::AustraliaAcn => australia::validate_acn(subject)?,
+            Country::IndiaPan => india::validate_pan(subject)?,
+            Country::IndiaGstin => india::validate_gstin(subject)?,
+            Country::MexicoCurp => mexico::validate_curp(subject)?,
+            Country::EstoniaRegistrikood => estonia::validate_registrikood(subject)?,
+            Country::EstoniaKmkr => estonia_vat::validate_kmkr(subject)?,
+            Country::LithuaniaPvm => lithuania::validate_pvm(subject)?,
+            Country::SlovakiaDph => slovakia_vat::validate_dph(subject)?,
+            Country::PortugalCc => portugal::validate_cc(subject)?,
+            Country::SouthAfricaTin => south_africa::validate_tin(subject)?,
         }
         Ok(Self {
             country,
@@ -786,5 +890,61 @@ mod tests {
         let n = IdNumber::parse(Country::BrazilCpf, "390.533.447-05").unwrap();
         assert_eq!(n.country(), Country::BrazilCpf);
         assert_eq!(n.as_str(), "39053344705");
+    }
+
+    /// The identifiers added in 0.4.0, each pinned by a reference value and a
+    /// mutation that must be rejected. The fixture gate covers these over
+    /// thousands of inputs; this test states the shape the crate promises.
+    #[test]
+    fn newly_covered_identifiers() {
+        let ok = |country, value: &str| {
+            assert!(
+                IdNumber::parse(country, value).is_ok(),
+                "{country:?} rejected {value:?}"
+            );
+        };
+        let no = |country, value: &str| {
+            assert!(
+                IdNumber::parse(country, value).is_err(),
+                "{country:?} accepted {value:?}"
+            );
+        };
+        ok(Country::PolandNip, "PL 8567346215");
+        no(Country::PolandNip, "PL 8567346216");
+        ok(Country::PolandRegon, "192598184");
+        ok(Country::PolandRegon, "12345678512347");
+        no(Country::PolandRegon, "192598183");
+        ok(Country::FranceNif, "3023217600053");
+        no(Country::FranceNif, "3023217600054");
+        ok(Country::NorwayAccountNumber, "8601 11 17947");
+        ok(Country::NorwayAccountNumber, "0000.4090403");
+        no(Country::NorwayAccountNumber, "8601 11 17949");
+        ok(Country::NorwayMva, "NO 995 525 828 MVA");
+        no(Country::NorwayMva, "NO 995 525 829 MVA");
+        ok(Country::DenmarkCvr, "DK 13585628");
+        no(Country::DenmarkCvr, "DK 13585627");
+        ok(Country::CanadaBusinessNumber, "12302 6635");
+        no(Country::CanadaBusinessNumber, "12302 6636");
+        ok(Country::AustraliaAcn, "004 085 616");
+        no(Country::AustraliaAcn, "004 085 617");
+        ok(Country::IndiaPan, "ACUPA7085R");
+        no(Country::IndiaPan, "ACUPA7085RR");
+        ok(Country::IndiaGstin, "27AAPFU0939F1ZV");
+        no(Country::IndiaGstin, "27AAPFU0939F1ZO");
+        ok(Country::MexicoCurp, "BOXW310820HNERXN09");
+        no(Country::MexicoCurp, "BOXW310820HNERXN08");
+        ok(Country::EstoniaRegistrikood, "12345678");
+        no(Country::EstoniaRegistrikood, "12345679");
+        ok(Country::EstoniaKmkr, "100594102");
+        no(Country::EstoniaKmkr, "100594103");
+        ok(Country::LithuaniaPvm, "119511515");
+        ok(Country::LithuaniaPvm, "LT 100001919017");
+        no(Country::LithuaniaPvm, "100001919018");
+        ok(Country::SlovakiaDph, "SK 202 274 96 19");
+        no(Country::SlovakiaDph, "SK 202 274 96 18");
+        ok(Country::PortugalCc, "00000000 0 ZZ4");
+        no(Country::PortugalCc, "00000000 0 ZZ3");
+        ok(Country::SouthAfricaTin, "0001339050");
+        no(Country::SouthAfricaTin, "0001339051");
     }
 }

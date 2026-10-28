@@ -19,11 +19,63 @@ pub(super) mod canada {
         }
         Ok(())
     }
+
+    /// Validates a Canadian Business Number.
+    ///
+    /// Nine digits with a Luhn check, or a fifteen-character BN15 where the
+    /// nine digits are followed by a two-letter program code and four digits.
+    pub(in crate::id) fn validate_business_number(s: &str) -> Result<()> {
+        let compacted: String = s
+            .chars()
+            .filter(|c| !matches!(c, '-' | ' '))
+            .flat_map(char::to_uppercase)
+            .collect();
+        if !matches!(compacted.len(), 9 | 15) {
+            return Err(Error::WrongLength {
+                expected: 9,
+                found: compacted.len(),
+            });
+        }
+        let digits = checksum::digits_only(&compacted[..9])?;
+        if !checksum::luhn_matches(&digits[..8], digits[8]) {
+            return Err(Error::BadChecksum);
+        }
+        if compacted.len() == 15 {
+            let program = &compacted[9..11];
+            if !matches!(program, "RC" | "RM" | "RP" | "RT") {
+                return Err(Error::InvalidPrefix);
+            }
+            checksum::digits_only(&compacted[11..])?;
+        }
+        Ok(())
+    }
 }
 
 /// Australia: ABN and TFN.
 pub(super) mod australia {
     use super::*;
+
+    /// Validates an Australian Company Number.
+    ///
+    /// Nine digits whose check digit is the weighted sum of the first eight,
+    /// with the weights running from eight down to one (the first digit is
+    /// multiplied by eight).
+    pub(in crate::id) fn validate_acn(s: &str) -> Result<()> {
+        let s: String = s.chars().filter(|c| *c != ' ').collect();
+        let digits = checksum::digits_only(&s)?;
+        checksum::expect_len(&digits, 9)?;
+        let sum: i64 = digits
+            .iter()
+            .enumerate()
+            .map(|(i, &d)| i64::from(d) * (i as i64 - 8))
+            .sum();
+        // The weights are negative, so the remainder must be taken in Python's
+        // convention rather than Rust's.
+        if sum.rem_euclid(10) as u8 != digits[8] {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
 
     /// Validates an Australian Business Number.
     pub(in crate::id) fn validate_abn(s: &str) -> Result<()> {

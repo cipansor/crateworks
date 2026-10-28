@@ -2,7 +2,7 @@
 
 use crate::{Error, Result, checksum};
 
-/// India: Aadhaar.
+/// India: Aadhaar, PAN and GSTIN.
 pub(super) mod india {
     use super::*;
 
@@ -15,6 +15,104 @@ pub(super) mod india {
             return Err(Error::OutOfRange);
         }
         if !verhoeff_is_valid(&digits) {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
+
+    /// The holder types a PAN's fourth character may name.
+    ///
+    /// The fourth character says who holds the number: an individual, a firm, a
+    /// trust and so on. A character outside this set is not a PAN at all.
+    const PAN_HOLDER_TYPES: &[u8] = b"ABCFGHLJPTK";
+
+    /// Validates an Indian PAN (Permanent Account Number).
+    ///
+    /// Ten characters: five letters, four digits and a final letter. The fourth
+    /// letter names the holder type and the last four digits are a serial that
+    /// may not be all zero. The reference documents no check-digit algorithm,
+    /// so the final letter is only required to be a letter.
+    pub(in crate::id) fn validate_pan(s: &str) -> Result<()> {
+        let s: String = s
+            .chars()
+            .filter(|c| !matches!(c, ' ' | '-'))
+            .flat_map(char::to_uppercase)
+            .collect();
+        if s.chars().count() != 10 {
+            return Err(Error::WrongLength {
+                expected: 10,
+                found: s.chars().count(),
+            });
+        }
+        let bytes = s.as_bytes();
+        // The shape is fixed: letters, then four digits, then a letter.
+        if !bytes[..5].iter().all(u8::is_ascii_uppercase)
+            || !bytes[5..9].iter().all(u8::is_ascii_digit)
+            || !bytes[9].is_ascii_uppercase()
+        {
+            let bad = bytes
+                .iter()
+                .find(|b| !b.is_ascii_alphanumeric())
+                .copied()
+                .unwrap_or(bytes[0]);
+            return Err(Error::InvalidCharacter(char::from(bad)));
+        }
+        if !PAN_HOLDER_TYPES.contains(&bytes[3]) {
+            return Err(Error::OutOfRange);
+        }
+        if &s[5..9] == "0000" {
+            return Err(Error::OutOfRange);
+        }
+        Ok(())
+    }
+
+    /// The Indian state codes a GSTIN may begin with.
+    const GSTIN_STATE_CODES: [&str; 37] = [
+        "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15",
+        "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30",
+        "31", "32", "33", "34", "35", "36", "37",
+    ];
+
+    /// The alphanumeric alphabet the GSTIN check digit is computed over.
+    const ALNUM: &[u8] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+    /// Validates an Indian GSTIN, the goods-and-services-tax number.
+    ///
+    /// Fifteen characters: a two-digit state code, the holder's PAN, a
+    /// registration count, a literal `Z` and a Luhn-mod-36 check digit. The
+    /// registration count may not be zero, and the PAN must be valid on its own.
+    pub(in crate::id) fn validate_gstin(s: &str) -> Result<()> {
+        let s = s.replace(" -", "");
+        if s.chars().count() != 15 {
+            return Err(Error::WrongLength {
+                expected: 15,
+                found: s.chars().count(),
+            });
+        }
+        let bytes = s.as_bytes();
+        let shaped = bytes[..2].iter().all(u8::is_ascii_digit)
+            && bytes[2..7].iter().all(u8::is_ascii_uppercase)
+            && bytes[7..11].iter().all(u8::is_ascii_digit)
+            && bytes[11].is_ascii_uppercase()
+            && bytes[12..].iter().all(u8::is_ascii_alphanumeric);
+        if !shaped {
+            let bad = bytes
+                .iter()
+                .find(|b| !b.is_ascii_alphanumeric())
+                .copied()
+                .unwrap_or(bytes[0]);
+            return Err(Error::InvalidCharacter(char::from(bad)));
+        }
+        if !GSTIN_STATE_CODES.contains(&&s[..2]) || bytes[12] == b'0' || bytes[13] != b'Z' {
+            return Err(Error::OutOfRange);
+        }
+        validate_pan(&s[2..12])?;
+        // The check digit is Luhn over the whole number read in base 36.
+        let values: Vec<u8> = bytes
+            .iter()
+            .map(|b| ALNUM.iter().position(|a| a == b).unwrap_or(0) as u8)
+            .collect();
+        if checksum::luhn_mod_n_checksum(&values, 36) != 0 {
             return Err(Error::BadChecksum);
         }
         Ok(())
@@ -249,6 +347,100 @@ pub(super) mod mexico {
         "KOGE", "KOJO", "KULO", "MAME", "MAMO", "MEAR", "MEAS", "MEON", "MION", "MOCO", "MULA",
         "PEDA", "PEDO", "PENE", "PUTA", "PUTO", "QULO", "RATA", "RUIN",
     ];
+
+    /// The two-letter codes of the Mexican states a CURP may name.
+    const CURP_STATES: [&str; 33] = [
+        "AS", "BC", "BS", "CC", "CH", "CL", "CM", "CS", "DF", "DG", "GR", "GT", "HG", "JC", "MC",
+        "MN", "MS", "NE", "NL", "NT", "OC", "PL", "QR", "QT", "SL", "SP", "SR", "TC", "TL", "TS",
+        "VZ", "YN", "ZS",
+    ];
+
+    /// Four-letter name fragments the CURP refuses, the same list the RFC
+    /// uses.
+    const CURP_NAME_BLACKLIST: [&str; 81] = [
+        "BACA", "BAKA", "BUEI", "BUEY", "CACA", "CACO", "CAGA", "CAGO", "CAKA", "CAKO", "COGE",
+        "COGI", "COJA", "COJE", "COJI", "COJO", "COLA", "CULO", "FALO", "FETO", "GETA", "GUEI",
+        "GUEY", "JETA", "JOTO", "KACA", "KACO", "KAGA", "KAGO", "KAKA", "KAKO", "KOGE", "KOGI",
+        "KOJA", "KOJE", "KOJI", "KOJO", "KOLA", "KULO", "LILO", "LOCA", "LOCO", "LOKA", "LOKO",
+        "MAME", "MAMO", "MEAR", "MEAS", "MEON", "MIAR", "MION", "MOCO", "MOKO", "MULA", "MULO",
+        "NACA", "NACO", "PEDA", "PEDO", "PENE", "PIPI", "PITO", "POPO", "PUTA", "PUTO", "QULO",
+        "RATA", "ROBA", "ROBE", "ROBO", "RUIN", "SENO", "TETA", "VACA", "VAGA", "VAGO", "VAKA",
+        "VUEI", "VUEY", "WUEI", "WUEY",
+    ];
+
+    /// The alphabet the CURP check digit is computed over, with the enye
+    /// between the ampersand and the O.
+    const CURP_ALPHABET: &[u8] = b"0123456789ABCDEFGHIJKLMN&OPQRSTUVWXYZ";
+
+    /// Validates a Mexican CURP, the population registry code.
+    ///
+    /// Eighteen characters: four name letters, six digits of birth date, a sex
+    /// letter, a two-letter state, three consonants and a check digit. The
+    /// century is taken from the seventeenth character, which is a digit before
+    /// 2000 and a letter after.
+    pub(in crate::id) fn validate_curp(s: &str) -> Result<()> {
+        let s: String = s
+            .chars()
+            .filter(|c| !matches!(c, '-' | '_' | ' '))
+            .flat_map(char::to_uppercase)
+            .collect();
+        if s.chars().count() != 18 {
+            return Err(Error::WrongLength {
+                expected: 18,
+                found: s.chars().count(),
+            });
+        }
+        let bytes = s.as_bytes();
+        let shaped = bytes[..4].iter().all(u8::is_ascii_uppercase)
+            && bytes[4..10].iter().all(u8::is_ascii_digit)
+            && bytes[10..16].iter().all(u8::is_ascii_uppercase)
+            && bytes[16].is_ascii_alphanumeric()
+            && bytes[17].is_ascii_digit();
+        if !shaped {
+            let bad = bytes
+                .iter()
+                .find(|b| !b.is_ascii_alphanumeric())
+                .copied()
+                .unwrap_or(bytes[0]);
+            return Err(Error::InvalidCharacter(char::from(bad)));
+        }
+        if CURP_NAME_BLACKLIST.contains(&&s[..4]) {
+            return Err(Error::OutOfRange);
+        }
+        // The birth date, with the century read off the seventeenth character.
+        let digit = |i: usize| u32::from(bytes[i] - b'0');
+        let yy = digit(4) * 10 + digit(5);
+        let year = if bytes[16].is_ascii_digit() {
+            yy + 1900
+        } else {
+            yy + 2000
+        };
+        let month = digit(6) * 10 + digit(7);
+        let day = digit(8) * 10 + digit(9);
+        if !checksum::is_real_date(year, month, day) {
+            return Err(Error::OutOfRange);
+        }
+        // The eleventh character is the sex: H for a man, M for a woman.
+        if !matches!(bytes[10], b'H' | b'M') {
+            return Err(Error::OutOfRange);
+        }
+        if !CURP_STATES.contains(&&s[11..13]) {
+            return Err(Error::OutOfRange);
+        }
+        // The check digit is a weighted sum over the first seventeen characters.
+        let sum: u32 = bytes[..17]
+            .iter()
+            .enumerate()
+            .map(|(i, b)| {
+                let value = CURP_ALPHABET.iter().position(|a| a == b).unwrap_or(0) as u32;
+                value * (18 - i as u32)
+            })
+            .sum();
+        if ((10 - sum % 10) % 10) as u8 != bytes[17] - b'0' {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
 }
 
 /// The Verhoeff tables, shared by Aadhaar and the public check-digit helper.

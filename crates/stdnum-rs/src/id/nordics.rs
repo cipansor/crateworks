@@ -120,6 +120,62 @@ pub(super) mod norway {
         Ok(())
     }
 
+    /// Validates a Norwegian MVA number, the VAT registration.
+    ///
+    /// The VAT number is the organisation number with `MVA` appended, so the
+    /// check is the organisation number's.
+    pub(in crate::id) fn validate_mva(s: &str) -> Result<()> {
+        let compacted: String = s
+            .chars()
+            .filter(|c| !c.is_whitespace())
+            .flat_map(char::to_uppercase)
+            .collect();
+        let s = compacted.strip_prefix("NO").unwrap_or(&compacted);
+        let Some(head) = s.strip_suffix("MVA") else {
+            return Err(Error::InvalidPrefix);
+        };
+        validate_org_number(head)
+    }
+
+    /// Validates a Norwegian bank account number (kontonummer).
+    ///
+    /// Eleven digits whose last is a mod-11 check over the first ten; a
+    /// seven-digit number is a postgiro account and uses Luhn instead. A
+    /// leading `0000` is the postgiro bank code and is stripped.
+    pub(in crate::id) fn validate_account_number(s: &str) -> Result<()> {
+        let cleaned: String = s
+            .chars()
+            .filter(|c| !matches!(c, ' ' | '.' | '-'))
+            .collect();
+        let cleaned = cleaned.strip_prefix("0000").unwrap_or(&cleaned);
+        let digits = checksum::digits_only(cleaned)?;
+        match digits.len() {
+            7 => {
+                if !checksum::luhn_matches(&digits[..6], digits[6]) {
+                    return Err(Error::BadChecksum);
+                }
+            }
+            11 => {
+                const WEIGHTS: [u32; 10] = [6, 7, 8, 9, 4, 5, 6, 7, 8, 9];
+                let sum: u32 = digits[..10]
+                    .iter()
+                    .zip(WEIGHTS)
+                    .map(|(&d, w)| u32::from(d) * w)
+                    .sum();
+                if (sum % 11) as u8 != digits[10] {
+                    return Err(Error::BadChecksum);
+                }
+            }
+            found => {
+                return Err(Error::WrongLength {
+                    expected: 11,
+                    found,
+                });
+            }
+        }
+        Ok(())
+    }
+
     /// Whether the mod-11 check digit for `payload` equals `expected`.
     ///
     /// A raw remainder of one would give a check digit of ten, which has no
@@ -166,6 +222,40 @@ pub(super) mod denmark {
         // A number cannot belong to someone who has not been born yet.
         if !checksum::is_not_in_the_future(year, month, day) {
             return Err(Error::OutOfRange);
+        }
+        Ok(())
+    }
+
+    /// Validates a Danish CVR number, the VAT registration (momsregistrerings-
+    /// nummer).
+    ///
+    /// Eight digits whose weighted sum is a multiple of eleven; a leading zero
+    /// is not issued.
+    pub(in crate::id) fn validate_cvr(s: &str) -> Result<()> {
+        let compacted: String = s
+            .chars()
+            .filter(|c| !matches!(c, ' ' | '-' | '.' | ',' | '/' | ':'))
+            .flat_map(char::to_uppercase)
+            .collect();
+        let s = compacted.strip_prefix("DK").unwrap_or(&compacted);
+        let digits = checksum::digits_only(s)?;
+        if digits.len() != 8 {
+            return Err(Error::WrongLength {
+                expected: 8,
+                found: digits.len(),
+            });
+        }
+        if digits[0] == 0 {
+            return Err(Error::OutOfRange);
+        }
+        const WEIGHTS: [u32; 8] = [2, 7, 6, 5, 4, 3, 2, 1];
+        let sum: u32 = digits
+            .iter()
+            .zip(WEIGHTS)
+            .map(|(&d, w)| u32::from(d) * w)
+            .sum();
+        if !sum.is_multiple_of(11) {
+            return Err(Error::BadChecksum);
         }
         Ok(())
     }

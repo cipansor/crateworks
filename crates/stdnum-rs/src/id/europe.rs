@@ -196,6 +196,59 @@ pub(super) mod portugal {
         }
         Ok(())
     }
+
+    /// Validates a Portuguese Cartão de Cidadão number.
+    ///
+    /// The number ends in two alphanumeric version characters and a check
+    /// digit; the reference places no length limit on the leading digits, so
+    /// the shape is a run of digits, two alphanumerics and a digit. The check
+    /// digit is a Luhn-like sum over the preceding characters read in base 36,
+    /// where a doubled value above nine is folded back.
+    pub(in crate::id) fn validate_cc(s: &str) -> Result<()> {
+        const ALPHABET: &[u8] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        let s: String = s
+            .chars()
+            .filter(|c| !c.is_whitespace())
+            .flat_map(char::to_uppercase)
+            .collect();
+        if s.chars().count() < 3 {
+            return Err(Error::WrongLength {
+                expected: 3,
+                found: s.chars().count(),
+            });
+        }
+        let bytes = s.as_bytes();
+        let body = &bytes[..bytes.len() - 1];
+        // Every character but the last two version characters must be a digit.
+        if !body[..body.len() - 2].iter().all(u8::is_ascii_digit)
+            || !body[body.len() - 2..].iter().all(|b| ALPHABET.contains(b))
+            || !bytes[bytes.len() - 1].is_ascii_digit()
+        {
+            let bad = bytes
+                .iter()
+                .find(|b| !ALPHABET.contains(b))
+                .copied()
+                .unwrap_or(bytes[0]);
+            return Err(Error::InvalidCharacter(char::from(bad)));
+        }
+        let index = |b: u8| ALPHABET.iter().position(|a| *a == b).unwrap_or(0) as u32;
+        // Walking from the right, an even index is doubled and a product above
+        // nine is folded by nine.
+        let mut sum = 0u32;
+        for (i, &b) in body.iter().rev().enumerate() {
+            let value = index(b);
+            sum += if i.is_multiple_of(2) {
+                let doubled = value * 2;
+                if doubled > 9 { doubled - 9 } else { doubled }
+            } else {
+                value
+            };
+        }
+        if ((10 - sum % 10) % 10) as u8 != bytes[bytes.len() - 1] - b'0' {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
 }
 
 /// France: SIREN and SIRET.
@@ -278,6 +331,34 @@ pub(super) mod france {
             if (body + 1 + check / 11) % 11 != check % 11 {
                 return Err(Error::BadChecksum);
             }
+        }
+        Ok(())
+    }
+
+    /// Validates a French NIF, the thirteen-digit tax number (numéro
+    /// d'identification fiscale).
+    ///
+    /// The first character selects a range and the last three digits are the
+    /// first ten read modulo 511.
+    pub(in crate::id) fn validate_nif(s: &str) -> Result<()> {
+        let digits = checksum::digits_only(s)?;
+        if digits.len() != 13 {
+            return Err(Error::WrongLength {
+                expected: 13,
+                found: digits.len(),
+            });
+        }
+        if !matches!(digits[0], 0..=3) {
+            return Err(Error::OutOfRange);
+        }
+        let head: u64 = digits[..10]
+            .iter()
+            .fold(0u64, |acc, &d| acc * 10 + u64::from(d));
+        let expected = (head % 511) as u32;
+        let found =
+            u32::from(digits[10]) * 100 + u32::from(digits[11]) * 10 + u32::from(digits[12]);
+        if expected != found {
+            return Err(Error::BadChecksum);
         }
         Ok(())
     }
@@ -473,6 +554,69 @@ pub(super) mod romania {
 /// Poland: PESEL.
 pub(super) mod poland {
     use super::*;
+
+    /// Validates a Polish NIP, the tax identification number.
+    ///
+    /// Ten digits with a weighted checksum; the last weight is negative, which
+    /// is what makes a valid number sum to zero rather than to a specific
+    /// digit.
+    pub(in crate::id) fn validate_nip(s: &str) -> Result<()> {
+        let compacted: String = s
+            .chars()
+            .filter(|c| !matches!(c, ' ' | '-'))
+            .flat_map(char::to_uppercase)
+            .collect();
+        let s = compacted.strip_prefix("PL").unwrap_or(&compacted);
+        let digits = checksum::digits_only(s)?;
+        checksum::expect_len(&digits, 10)?;
+        const WEIGHTS: [i64; 10] = [6, 5, 7, 2, 3, 4, 5, 6, 7, -1];
+        let sum: i64 = digits
+            .iter()
+            .zip(WEIGHTS)
+            .map(|(&d, w)| i64::from(d) * w)
+            .sum();
+        if sum % 11 != 0 {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
+
+    /// Validates a Polish REGON, the business register number.
+    ///
+    /// Nine digits for a legal entity and fourteen for its local units. A
+    /// fourteen-digit number carries a second check digit over the first eight.
+    pub(in crate::id) fn validate_regon(s: &str) -> Result<()> {
+        let digits = checksum::digits_only(s)?;
+        if !matches!(digits.len(), 9 | 14) {
+            return Err(Error::WrongLength {
+                expected: 9,
+                found: digits.len(),
+            });
+        }
+        if digits[digits.len() - 1] != regon_check_digit(&digits[..digits.len() - 1]) {
+            return Err(Error::BadChecksum);
+        }
+        if digits.len() == 14 && digits[8] != regon_check_digit(&digits[..8]) {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
+
+    /// The REGON check digit for a payload of eight or thirteen digits.
+    ///
+    /// A remainder of ten collapses to zero, which the reference writes as
+    /// `% 11 % 10`.
+    fn regon_check_digit(payload: &[u8]) -> u8 {
+        const SHORT: [u32; 8] = [8, 9, 2, 3, 4, 5, 6, 7];
+        const LONG: [u32; 13] = [2, 4, 8, 5, 0, 9, 7, 3, 6, 1, 2, 4, 8];
+        let weights: &[u32] = if payload.len() == 8 { &SHORT } else { &LONG };
+        let sum: u32 = payload
+            .iter()
+            .zip(weights)
+            .map(|(&d, w)| u32::from(d) * w)
+            .sum();
+        (sum % 11 % 10) as u8
+    }
 
     /// Validates a Polish PESEL.
     pub(in crate::id) fn validate_pesel(s: &str) -> Result<()> {

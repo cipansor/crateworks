@@ -253,6 +253,59 @@ pub(super) mod czechia {
     }
 }
 
+/// Estonia: KMKR, the VAT registration.
+pub(super) mod estonia {
+    use super::*;
+
+    /// Validates an Estonian KMKR number.
+    ///
+    /// Nine digits whose weighted sum is a multiple of ten.
+    pub(in crate::id) fn validate_kmkr(s: &str) -> Result<()> {
+        let s = s.strip_prefix("EE").unwrap_or(s);
+        let digits = checksum::digits_only(s)?;
+        checksum::expect_len(&digits, 9)?;
+        const WEIGHTS: [u32; 9] = [3, 7, 1, 3, 7, 1, 3, 7, 1];
+        let sum: u32 = digits
+            .iter()
+            .zip(WEIGHTS)
+            .map(|(&d, w)| u32::from(d) * w)
+            .sum();
+        if !sum.is_multiple_of(10) {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
+}
+
+/// Slovakia: IČ DPH, the VAT registration.
+pub(super) mod slovakia {
+    use super::*;
+
+    /// Validates a Slovak IČ DPH number.
+    ///
+    /// A ten-digit number that is either a birth number, which is checked as
+    /// one, or a company number whose second digit is one of the tax-office
+    /// codes and whose value is a multiple of eleven.
+    pub(in crate::id) fn validate_dph(s: &str) -> Result<()> {
+        let s = s.strip_prefix("SK").unwrap_or(s);
+        let s = s.replace(' ', "");
+        let digits = checksum::digits_only(&s)?;
+        checksum::expect_len(&digits, 10)?;
+        // A birth number is valid as a VAT number too.
+        if crate::id::europe_ext::czechoslovakia::validate_rc(&s).is_ok() {
+            return Ok(());
+        }
+        if digits[0] == 0 || !matches!(digits[2], 2 | 3 | 4 | 7 | 8 | 9) {
+            return Err(Error::OutOfRange);
+        }
+        let value = digits.iter().fold(0u64, |acc, &d| acc * 10 + u64::from(d));
+        if !value.is_multiple_of(11) {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

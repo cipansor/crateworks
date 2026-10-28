@@ -149,6 +149,26 @@ COUNTRIES: dict[str, str] = {
     "GuineaNifp": "gn.nifp",
     "CubaNi": "cu.ni",
     "MauritiusNid": "mu.nid",
+    # Added in 0.4.0: the identifiers python-stdnum covers that the crate still
+    # lacked - the Polish, Nordic, Canadian, Australian, Indian, Mexican and
+    # further-European tax and register numbers.
+    "PolandNip": "pl.nip",
+    "PolandRegon": "pl.regon",
+    "FranceNif": "fr.nif",
+    "NorwayAccountNumber": "no.kontonr",
+    "NorwayMva": "no.mva",
+    "DenmarkCvr": "dk.cvr",
+    "CanadaBusinessNumber": "ca.bn",
+    "AustraliaAcn": "au.acn",
+    "IndiaPan": "in_.pan",
+    "IndiaGstin": "in_.gstin",
+    "MexicoCurp": "mx.curp",
+    "EstoniaRegistrikood": "ee.registrikood",
+    "EstoniaKmkr": "ee.kmkr",
+    "LithuaniaPvm": "lt.pvm",
+    "SlovakiaDph": "sk.dph",
+    "PortugalCc": "pt.cc",
+    "SouthAfricaTin": "za.tin",
 }
 
 EXAMPLE_RE = re.compile(r">>> validate\('([^']*)'\)")

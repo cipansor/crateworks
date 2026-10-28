@@ -307,13 +307,36 @@ pub(super) mod estonia {
 
     /// The modular weight sum the Baltic codes share: the weight cycles one
     /// through nine from `start`.
-    fn weighted(digits: &[u8], start: u32) -> u32 {
+    pub(super) fn weighted(digits: &[u8], start: u32) -> u32 {
         digits
             .iter()
             .enumerate()
             .map(|(i, &d)| ((i as u32 + start - 1) % 9 + 1) * u32::from(d))
             .sum::<u32>()
             % 11
+    }
+
+    /// Validates an Estonian Registrikood, the organisation registration code.
+    ///
+    /// Eight digits whose first is a register: 1 a commercial company, 7 a
+    /// school or government body, 8 a non-profit, 9 a foundation. The check
+    /// digit uses the isikukood's algorithm over the first seven.
+    pub(in crate::id) fn validate_registrikood(s: &str) -> Result<()> {
+        let digits = checksum::digits_only(s)?;
+        checksum::expect_len(&digits, 8)?;
+        if !matches!(digits[0], 1 | 7 | 8 | 9) {
+            return Err(Error::OutOfRange);
+        }
+        let first = weighted(&digits[..7], 1);
+        let check = if first == 10 {
+            weighted(&digits[..7], 3) % 11
+        } else {
+            first
+        };
+        if digits[7] != (check % 10) as u8 {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
     }
 }
 
@@ -360,6 +383,57 @@ pub(super) mod lithuania {
             first
         };
         if digits[10] != (check % 10) as u8 {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
+
+    /// Validates a Lithuanian PVM number, the VAT registration.
+    ///
+    /// Nine digits for a legal entity or twelve for a temporary taxpayer. The
+    /// check digit retries with a shifted weight table when the first pass
+    /// yields ten.
+    pub(in crate::id) fn validate_pvm(s: &str) -> Result<()> {
+        let compacted: String = s
+            .chars()
+            .filter(|c| !matches!(c, ' ' | '-'))
+            .flat_map(char::to_uppercase)
+            .collect();
+        let s = compacted.strip_prefix("LT").unwrap_or(&compacted);
+        let digits = checksum::digits_only(s)?;
+        match digits.len() {
+            9 => {
+                if digits[7] != 1 {
+                    return Err(Error::OutOfRange);
+                }
+            }
+            12 => {
+                if digits[10] != 1 {
+                    return Err(Error::OutOfRange);
+                }
+            }
+            found => {
+                return Err(Error::WrongLength { expected: 9, found });
+            }
+        }
+        let payload = &digits[..digits.len() - 1];
+        let first: u32 = payload
+            .iter()
+            .enumerate()
+            .map(|(i, &d)| ((i as u32 % 9) + 1) * u32::from(d))
+            .sum::<u32>()
+            % 11;
+        let check = if first == 10 {
+            payload
+                .iter()
+                .enumerate()
+                .map(|(i, &d)| (((i as u32 + 2) % 9) + 1) * u32::from(d))
+                .sum::<u32>()
+                % 11
+        } else {
+            first
+        };
+        if digits[digits.len() - 1] != (check % 10) as u8 {
             return Err(Error::BadChecksum);
         }
         Ok(())

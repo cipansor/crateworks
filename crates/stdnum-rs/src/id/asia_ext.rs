@@ -243,6 +243,31 @@ pub(super) mod south_africa {
         }
         Ok(())
     }
+
+    /// Validates a South African tax reference number.
+    ///
+    /// Ten digits with a Luhn check; the first digit is one of `01239`.
+    pub(in crate::id) fn validate_tin(s: &str) -> Result<()> {
+        let s: String = s
+            .chars()
+            .filter(|c| !matches!(c, ' ' | '-' | '/'))
+            .flat_map(char::to_uppercase)
+            .collect();
+        if s.chars().count() != 10 {
+            return Err(Error::WrongLength {
+                expected: 10,
+                found: s.chars().count(),
+            });
+        }
+        let digits = checksum::digits_only(&s)?;
+        if !matches!(digits[0], 0..=3 | 9) {
+            return Err(Error::OutOfRange);
+        }
+        if !checksum::luhn_matches(&digits[..9], digits[9]) {
+            return Err(Error::BadChecksum);
+        }
+        Ok(())
+    }
 }
 
 /// Greece: ΑΜΚΑ, the social security number.
