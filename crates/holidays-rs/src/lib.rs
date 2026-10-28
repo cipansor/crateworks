@@ -7,6 +7,18 @@ mod date;
 pub use countries::{Calendar, Country, SubstituteStyle};
 pub use date::Date;
 
+/// The direction to search for the nearest holiday.
+///
+/// Used by [`Calendar::closest_holiday`], which mirrors the reference's
+/// `get_closest_holiday`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Direction {
+    /// Search forwards, to the first holiday strictly after the date.
+    Forward,
+    /// Search backwards, to the last holiday strictly before the date.
+    Backward,
+}
+
 /// A rule that determines the date of a holiday within a year.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Rule {

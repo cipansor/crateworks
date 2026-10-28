@@ -34,11 +34,27 @@ are computed from Orthodox Easter with `Rule::OrthodoxEasterOffset` rather than
 from the Western one; in 2024 the two Easters were five weeks apart, so sharing
 a single rule would have been wrong for most years.
 
-The crate answers three questions:
+The crate answers four questions:
 
 1. Which dates are public holidays in a given country and year?
 2. Is a particular date a working day?
 3. What is the *n*-th working day from a given date?
+4. What is the nearest holiday before or after a given date?
+
+`closest_holiday(date, Direction::Forward)` returns the first holiday strictly
+after `date` and `Direction::Backward` the last one strictly before it, each as a
+date and a name. A holiday that falls on `date` itself is not returned, matching
+the reference's half-open search:
+
+```rust
+use holidays_rs::{Calendar, Date, Direction};
+
+let cal = Calendar::united_states();
+let d = Date::new(2026, 2, 18).unwrap();
+let (date, name) = cal.closest_holiday(d, Direction::Forward).unwrap();
+assert_eq!(name, "Memorial Day");
+assert_eq!(date, Date::new(2026, 5, 25).unwrap());
+```
 
 ## Scope
 
@@ -85,6 +101,14 @@ Run it from the repository root:
 ```sh
 python3 research/tools/verify_holidays.py
 ```
+
+`closest_holiday` is checked separately against the same package by
+`research/tools/gen_holidays_closest.py` and the `closest` test: 17,200 rows over
+43 countries whose holiday set already matches the reference, three probes a
+month for eleven years plus the year boundaries where the answer crosses into
+the next year. The countries it skips are the ones `verify_holidays.py` already
+marks as deliberate differences - a nearest-holiday query over a different set
+answers a different question - and the script records why each is skipped.
 
 Part of the [crateworks](https://github.com/cipansor/crateworks)
 workspace. Licensed under the Apache License, Version 2.0, copyright Yayasan

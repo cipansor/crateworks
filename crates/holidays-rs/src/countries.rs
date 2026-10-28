@@ -1,6 +1,6 @@
 //! Country calendars and the query API built on top of them.
 
-use crate::{Date, Holiday, Rule};
+use crate::{Date, Direction, Holiday, Rule};
 
 /// What a country does when a holiday falls on a weekend.
 ///
@@ -2090,6 +2090,62 @@ impl Calendar {
     #[must_use]
     pub fn is_working_day(&self, date: Date) -> bool {
         !date.is_weekend() && !self.is_holiday(date)
+    }
+
+    /// The nearest holiday in the given direction, with its name.
+    ///
+    /// This is the reference's `get_closest_holiday`. `Forward` returns the
+    /// first holiday strictly after `date`, `Backward` the last one strictly
+    /// before it; a holiday that falls on `date` itself is not returned, which
+    /// is what the reference's half-open bisection does. `None` means no
+    /// holiday was found within the search window.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use holidays_rs::{Calendar, Date, Direction};
+    ///
+    /// let cal = Calendar::united_states();
+    /// let d = Date::new(2026, 2, 18).unwrap();
+    /// let (date, name) = cal.closest_holiday(d, Direction::Forward).unwrap();
+    /// assert_eq!(name, "Memorial Day");
+    /// assert_eq!(date, Date::new(2026, 5, 25).unwrap());
+    /// ```
+    #[must_use]
+    pub fn closest_holiday(
+        &self,
+        date: Date,
+        direction: Direction,
+    ) -> Option<(Date, &'static str)> {
+        // Three years either way is enough for any calendar here: a country
+        // never goes a whole year without a holiday. The reference expands its
+        // year set on demand; this searches a fixed window instead.
+        for offset in 0..=3 {
+            let year = match direction {
+                Direction::Forward => date.year + offset,
+                Direction::Backward => date.year - offset,
+            };
+            let mut candidates: Vec<(Date, &'static str)> = self
+                .holidays_in(year)
+                .into_iter()
+                .chain(
+                    self.extra
+                        .iter()
+                        .copied()
+                        .filter(|d| d.year == year)
+                        .map(|d| (d, "")),
+                )
+                .collect();
+            candidates.sort_unstable_by_key(|(d, _)| *d);
+            let found = match direction {
+                Direction::Forward => candidates.into_iter().find(|(d, _)| *d > date),
+                Direction::Backward => candidates.into_iter().rev().find(|(d, _)| *d < date),
+            };
+            if found.is_some() {
+                return found;
+            }
+        }
+        None
     }
 
     /// All holiday dates in `year`, including extras, for repeated lookups.
