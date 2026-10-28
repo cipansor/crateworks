@@ -4,4 +4,11 @@ Copyright 2026 Yayasan Pesantren Cipansor and contributors
 This product includes software developed by Yayasan Pesantren Cipansor and
 contributors (https://github.com/cipansor/crateworks).
 
+The country calendars and their weekend-substitution rules were derived from
+and verified against the python-holidays library
+(https://github.com/vacanza/holidays) by its authors and contributors, which is
+distributed under the MIT License. The dates themselves are public law in each
+country; this crate is an independent reimplementation for Rust and shares no
+code with it.
+
 Licensed under the Apache License, Version 2.0 (see LICENSE).

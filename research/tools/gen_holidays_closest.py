@@ -45,6 +45,14 @@ COUNTRIES = {
     "Martinique": "MQ", "WallisAndFutuna": "WF", "Guadeloupe": "GP",
     "FrenchPolynesia": "PF", "Haiti": "HT", "SvalbardAndJanMayen": "SJ",
     "Lesotho": "LS",
+    # Added in 0.4.1.
+    "Jamaica": "JM", "Mozambique": "MZ", "SaintLucia": "LC", "Monaco": "MC",
+    "EquatorialGuinea": "GQ", "Niue": "NU", "Panama": "PA", "Nauru": "NR",
+    "DrCongo": "CD", "Botswana": "BW", "FalklandIslands": "FK", "Malawi": "MW",
+    "NorfolkIsland": "NF", "AmericanSamoa": "AS", "Guam": "GU",
+    "Micronesia": "FM", "NorthernMarianaIslands": "MP", "Palau": "PW",
+    "SaoTomeAndPrincipe": "ST", "UnitedStatesMinorOutlyingIslands": "UM",
+    "UnitedStatesVirginIslands": "VI",
 }
 
 # Countries whose holiday *set* already differs from the reference in a way
@@ -65,6 +73,31 @@ EXCLUDED = {
     "Italy": "crate omits Easter Sunday, which is always a Sunday",
     "Mexico": "reference shifts a fixed holiday to a nearby Monday",
     "Greece": "crate omits the observed Labour Day duplicate",
+    # Added in 0.4.1. Every country that moves a holiday lists the raw date and
+    # the observed one, so the reference set is larger than the crate's, which
+    # reports the observed date only. A closest-holiday query over that larger
+    # set answers a different question.
+    "Jamaica": "reference carries '(observed)' duplicate dates",
+    "Mozambique": "reference carries '(observed)' duplicate dates",
+    "SaintLucia": "reference carries '(observed)' duplicate dates",
+    "Monaco": "reference carries '(observed)' duplicate dates",
+    "EquatorialGuinea": "reference carries '(observed)' duplicate dates",
+    "Niue": "reference carries '(observed)' duplicate dates",
+    "Panama": "reference carries '(observed)' duplicate dates",
+    "Nauru": "reference carries '(observed)' duplicate dates",
+    "DrCongo": "reference carries '(observed)' duplicate dates",
+    "Botswana": "reference carries '(observed)' duplicate dates",
+    "FalklandIslands": "reference carries '(observed)' duplicate dates",
+    "Malawi": "reference carries '(observed)' duplicate dates",
+    "NorfolkIsland": "reference carries '(observed)' duplicate dates",
+    "AmericanSamoa": "reference carries '(observed)' duplicate dates",
+    "Guam": "reference carries '(observed)' duplicate dates",
+    "Micronesia": "reference carries '(observed)' duplicate dates",
+    "NorthernMarianaIslands": "reference carries '(observed)' duplicate dates",
+    "Palau": "reference carries '(observed)' duplicate dates",
+    "SaoTomeAndPrincipe": "reference carries '(observed)' duplicate dates",
+    "UnitedStatesMinorOutlyingIslands": "reference carries '(observed)' duplicate dates",
+    "UnitedStatesVirginIslands": "reference carries '(observed)' duplicate dates",
 }
 
 YEARS = list(range(2018, 2034))

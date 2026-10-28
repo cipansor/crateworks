@@ -15,9 +15,12 @@ assert_eq!(cal.next_working_day(d), Date::new(2026, 8, 18).unwrap());
 ```
 
 Holidays are rules, not tables, so a calendar stays correct for any year.
-Country-specific weekend substitution is `SubstituteStyle`, applied per country
-when a year is resolved: the United States moves a Saturday holiday back to
-Friday and the United Kingdom moves a weekend holiday forward to Monday.
+Weekend substitution is decided per holiday rather than per country: a rule can
+carry its own shift with `Rule::ObservedShift`, and a country-wide
+`SubstituteStyle` covers the holidays that share one. The United States moves a
+Saturday holiday back to Friday and the United Kingdom moves a weekend holiday
+forward to Monday; Jamaica moves Christmas Day to the Tuesday when it falls on a
+Sunday, because Boxing Day already holds the Monday.
 
 Covered: Indonesia, United States, United Kingdom, Germany, France,
 Netherlands, Spain, Italy, Portugal, Belgium, Austria, Poland, Sweden, Norway,
@@ -28,7 +31,11 @@ Andorra, Cabo Verde, the Faroe Islands, Greenland, Switzerland (the national
 set only), French Guiana, Saint Barthelemy, Saint Pierre and Miquelon, the
 French Southern Territories, Reunion, Mayotte, Liechtenstein, Saint Martin, New
 Caledonia, Martinique, Wallis and Futuna, Guadeloupe, French Polynesia, Haiti,
-Svalbard and Jan Mayen, Liberia, the Republic of the Congo, Lesotho, the
+Svalbard and Jan Mayen, Liberia, the Republic of the Congo, Lesotho, Jamaica,
+Mozambique, Saint Lucia, Monaco, Equatorial Guinea, Niue, Panama, Nauru, DR
+Congo, Botswana, the Falkland Islands, Malawi, Norfolk Island, American Samoa,
+Guam, Micronesia, the Northern Mariana Islands, Palau, Sao Tome and Principe,
+the United States Minor Outlying Islands, the United States Virgin Islands, the
 Pitcairn Islands, Tokelau and Samoa. `Country::ALL` lists them.
 
 Greece, Cyprus and Romania keep the Orthodox calendar, so their movable feasts
@@ -77,6 +84,11 @@ weekday (Mexico's New Year's Day and Christmas, which are dropped when they
 fall on a Sunday),
 `Rule::ObservedFrom` for a holiday that gained a substitute day late (New
 Zealand's Mondayised Waitangi Day and Anzac Day from 2014),
+`Rule::ObservedShift` for a holiday with its own weekend rule, which the
+country-wide style cannot describe (Jamaica's Christmas Day, moved two days
+forward when it falls on a Sunday so that it does not collide with Boxing Day;
+Niue's Constitution Day Holiday, which is allowed to share the Monday that is
+also Peniamina Gospel Day),
 `Rule::ObservedOffWeekendAndOrthodoxEasterMonday` for a date moved off a weekend
 and one day further when the landing day is already Orthodox Easter Monday
 (Greece's Labour Day, which moved twice in 2021) and `Rule::Table` for

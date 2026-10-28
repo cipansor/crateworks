@@ -252,6 +252,33 @@ pub enum Rule {
         /// The rule that applies within the range.
         base: &'static Rule,
     },
+    /// A holiday that moves off particular weekdays by a fixed number of days.
+    ///
+    /// The country-wide [`SubstituteStyle`] cannot describe every country. The
+    /// reference libraries decide substitution per holiday, so a single country
+    /// may keep one holiday where it falls, roll another forward a day and roll
+    /// a third forward two: Jamaica observes Christmas Day on the Tuesday when
+    /// it falls on a Sunday, because Boxing Day already holds the Monday.
+    ///
+    /// `shifts` is the same shape the reference uses: a list of
+    /// `(weekday, days)` pairs. A weekday absent from the list keeps the
+    /// holiday on the date it falls, which is how a country says "this holiday
+    /// is never moved". Before `from` the holiday is not moved at all, because
+    /// a country adopts the rule at a particular time.
+    ///
+    /// The shifted date is placed exactly where the rule puts it, even when
+    /// another holiday already holds that date: Niue's Constitution Day Holiday
+    /// lands on the Monday that is also Peniamina Gospel Day, and the reference
+    /// reports both on it.
+    ObservedShift {
+        /// The rule for the date the holiday falls on.
+        base: &'static Rule,
+        /// The first year in which the shift applies, inclusive.
+        from: i32,
+        /// `(weekday, days)` pairs. Weekday 0 is Sunday, as everywhere else in
+        /// this crate.
+        shifts: &'static [(u8, i32)],
+    },
 }
 
 impl Rule {
@@ -280,6 +307,10 @@ impl Rule {
             | Self::NeverSubstituted { .. }
             | Self::Absorbed { .. }
             | Self::ObservedOffWeekendAndOrthodoxEasterMonday { .. } => false,
+            // The shift wraps another rule and does not itself restrict the
+            // year, but a base that does (`Between`, `Since`, `Once`) still
+            // makes the holiday absent outside its window.
+            Self::ObservedShift { base, .. } => base.is_year_restricted(),
         }
     }
 
@@ -424,6 +455,7 @@ impl Rule {
                 (date.weekday() != weekday).then_some(date)
             }
             Self::NeverSubstituted { base } | Self::ObservedFrom { base, .. } => base.resolve(year),
+            Self::ObservedShift { base, .. } => base.resolve(year),
             Self::Between { from, to, base } => {
                 if (from..=to).contains(&year) {
                     base.resolve(year)
@@ -448,6 +480,9 @@ impl Rule {
             // is still seen.
             Self::NeverSubstituted { .. } => false,
             Self::ObservedFrom { year: first, .. } => year >= *first,
+            // A per-holiday shift replaces the country style entirely, so the
+            // country style must not apply on top of it.
+            Self::ObservedShift { .. } => false,
             Self::Since { year: first, base } => year >= *first && base.substitutes_in(year),
             Self::Until { year: last, base } => year <= *last && base.substitutes_in(year),
             Self::Between { from, to, base } => {
@@ -465,6 +500,56 @@ impl Rule {
                 !excluded && base.substitutes_in(year)
             }
             _ => true,
+        }
+    }
+
+    /// The per-holiday shift this rule applies in `year`, if any.
+    ///
+    /// Returns the number of days the holiday moves. A rule without its own
+    /// shift returns `None`, and the country style decides instead. A weekday
+    /// absent from the shift table is not moved, which is how the table says
+    /// "this holiday is never moved".
+    ///
+    /// The year wrappers pass the question down, so a shift nested inside a
+    /// `Since` or a `Between` is still seen.
+    #[must_use]
+    pub const fn observed_shift(&self, year: i32, weekday: u8) -> Option<i32> {
+        match self {
+            Self::ObservedShift { from, shifts, .. } => {
+                if year < *from {
+                    return None;
+                }
+                let mut i = 0;
+                while i < shifts.len() {
+                    if shifts[i].0 == weekday {
+                        return Some(shifts[i].1);
+                    }
+                    i += 1;
+                }
+                None
+            }
+            Self::Since { year: first, base } => {
+                if year >= *first {
+                    base.observed_shift(year, weekday)
+                } else {
+                    None
+                }
+            }
+            Self::Until { year: last, base } => {
+                if year <= *last {
+                    base.observed_shift(year, weekday)
+                } else {
+                    None
+                }
+            }
+            Self::Between { from, to, base } => {
+                if *from <= year && year <= *to {
+                    base.observed_shift(year, weekday)
+                } else {
+                    None
+                }
+            }
+            _ => None,
         }
     }
 
@@ -725,5 +810,41 @@ mod tests {
         assert!(anzac.substitutes_in(2014));
         assert!(anzac.substitute_may_share());
         assert!(!Rule::Fixed { month: 4, day: 25 }.substitute_may_share());
+    }
+
+    #[test]
+    fn observed_shift_moves_a_holiday_off_named_weekdays() {
+        // Jamaica's Christmas Day: two days forward from a Sunday, so it does
+        // not collide with Boxing Day, and not moved otherwise.
+        const CHRISTMAS: Rule = Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 25 },
+            from: 2000,
+            shifts: &[(0, 2)],
+        };
+        // 2022-12-25 is a Sunday.
+        let d = CHRISTMAS.resolve(2022).unwrap();
+        assert_eq!(d.weekday(), 0);
+        assert_eq!(CHRISTMAS.observed_shift(2022, 0), Some(2));
+        // 2024-12-25 is a Wednesday, which the table does not name.
+        let d = CHRISTMAS.resolve(2024).unwrap();
+        assert_eq!(d.weekday(), 3);
+        assert_eq!(CHRISTMAS.observed_shift(2024, 3), None);
+        // The shift does not apply before `from`.
+        assert_eq!(CHRISTMAS.observed_shift(1999, 0), None);
+        // A shift is not itself substituted by the country style.
+        assert!(!CHRISTMAS.substitutes_in(2022));
+        assert!(!CHRISTMAS.substitute_may_share());
+        // A base that restricts the year is still seen through the shift.
+        const SINCE: Rule = Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2015,
+                base: &Rule::Fixed { month: 1, day: 4 },
+            },
+            from: 2000,
+            shifts: &[(0, -1)],
+        };
+        assert!(SINCE.is_year_restricted());
+        assert!(SINCE.resolve(2014).is_none());
+        assert!(SINCE.resolve(2015).is_some());
     }
 }

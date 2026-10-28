@@ -175,6 +175,48 @@ pub enum Country {
     SvalbardAndJanMayen,
     /// Lesotho.
     Lesotho,
+    /// Jamaica.
+    Jamaica,
+    /// Mozambique.
+    Mozambique,
+    /// Saint Lucia.
+    SaintLucia,
+    /// Monaco.
+    Monaco,
+    /// Equatorial Guinea.
+    EquatorialGuinea,
+    /// Niue.
+    Niue,
+    /// Panama.
+    Panama,
+    /// Nauru.
+    Nauru,
+    /// DR Congo.
+    DrCongo,
+    /// Botswana.
+    Botswana,
+    /// Falkland Islands.
+    FalklandIslands,
+    /// Malawi.
+    Malawi,
+    /// Norfolk Island.
+    NorfolkIsland,
+    /// American Samoa.
+    AmericanSamoa,
+    /// Guam.
+    Guam,
+    /// Micronesia.
+    Micronesia,
+    /// Northern Mariana Islands.
+    NorthernMarianaIslands,
+    /// Palau.
+    Palau,
+    /// Sao Tome and Principe.
+    SaoTomeAndPrincipe,
+    /// United States Minor Outlying Islands.
+    UnitedStatesMinorOutlyingIslands,
+    /// United States Virgin Islands.
+    UnitedStatesVirginIslands,
 }
 
 impl Country {
@@ -245,6 +287,27 @@ impl Country {
         Self::Haiti,
         Self::SvalbardAndJanMayen,
         Self::Lesotho,
+        Self::Jamaica,
+        Self::Mozambique,
+        Self::SaintLucia,
+        Self::Monaco,
+        Self::EquatorialGuinea,
+        Self::Niue,
+        Self::Panama,
+        Self::Nauru,
+        Self::DrCongo,
+        Self::Botswana,
+        Self::FalklandIslands,
+        Self::Malawi,
+        Self::NorfolkIsland,
+        Self::AmericanSamoa,
+        Self::Guam,
+        Self::Micronesia,
+        Self::NorthernMarianaIslands,
+        Self::Palau,
+        Self::SaoTomeAndPrincipe,
+        Self::UnitedStatesMinorOutlyingIslands,
+        Self::UnitedStatesVirginIslands,
     ];
 
     /// The holiday rules for this country, in no particular order.
@@ -316,6 +379,27 @@ impl Country {
             Self::Haiti => HAITI,
             Self::SvalbardAndJanMayen => SVALBARD_AND_JAN_MAYEN,
             Self::Lesotho => LESOTHO,
+            Self::Jamaica => JAMAICA,
+            Self::Mozambique => MOZAMBIQUE,
+            Self::SaintLucia => SAINT_LUCIA,
+            Self::Monaco => MONACO,
+            Self::EquatorialGuinea => EQUATORIAL_GUINEA,
+            Self::Niue => NIUE,
+            Self::Panama => PANAMA,
+            Self::Nauru => NAURU,
+            Self::DrCongo => DR_CONGO,
+            Self::Botswana => BOTSWANA,
+            Self::FalklandIslands => FALKLAND_ISLANDS,
+            Self::Malawi => MALAWI,
+            Self::NorfolkIsland => NORFOLK_ISLAND,
+            Self::AmericanSamoa => AMERICAN_SAMOA,
+            Self::Guam => GUAM,
+            Self::Micronesia => MICRONESIA,
+            Self::NorthernMarianaIslands => NORTHERN_MARIANA_ISLANDS,
+            Self::Palau => PALAU,
+            Self::SaoTomeAndPrincipe => SAO_TOME_AND_PRINCIPE,
+            Self::UnitedStatesMinorOutlyingIslands => UNITED_STATES_MINOR_OUTLYING_ISLANDS,
+            Self::UnitedStatesVirginIslands => UNITED_STATES_VIRGIN_ISLANDS,
         }
     }
 
@@ -385,7 +469,28 @@ impl Country {
             | Self::FrenchPolynesia
             | Self::Haiti
             | Self::SvalbardAndJanMayen
-            | Self::Lesotho => SubstituteStyle::None,
+            | Self::Lesotho
+            | Self::Jamaica
+            | Self::Mozambique
+            | Self::SaintLucia
+            | Self::Monaco
+            | Self::EquatorialGuinea
+            | Self::Niue
+            | Self::Panama
+            | Self::Nauru
+            | Self::DrCongo
+            | Self::Botswana
+            | Self::FalklandIslands
+            | Self::Malawi
+            | Self::NorfolkIsland
+            | Self::AmericanSamoa
+            | Self::Guam
+            | Self::Micronesia
+            | Self::NorthernMarianaIslands
+            | Self::Palau
+            | Self::SaoTomeAndPrincipe
+            | Self::UnitedStatesMinorOutlyingIslands
+            | Self::UnitedStatesVirginIslands => SubstituteStyle::None,
             // Latvia moves a weekend holiday to the next Monday from 2007; the
             // two holidays that do not are wrapped in `Rule::NeverSubstituted`.
             Self::Latvia => SubstituteStyle::NextMonday,
@@ -461,6 +566,27 @@ impl Country {
             Self::Haiti => "Haiti",
             Self::SvalbardAndJanMayen => "Svalbard and Jan Mayen",
             Self::Lesotho => "Lesotho",
+            Self::Jamaica => "Jamaica",
+            Self::Mozambique => "Mozambique",
+            Self::SaintLucia => "Saint Lucia",
+            Self::Monaco => "Monaco",
+            Self::EquatorialGuinea => "Equatorial Guinea",
+            Self::Niue => "Niue",
+            Self::Panama => "Panama",
+            Self::Nauru => "Nauru",
+            Self::DrCongo => "DR Congo",
+            Self::Botswana => "Botswana",
+            Self::FalklandIslands => "Falkland Islands",
+            Self::Malawi => "Malawi",
+            Self::NorfolkIsland => "Norfolk Island",
+            Self::AmericanSamoa => "American Samoa",
+            Self::Guam => "Guam",
+            Self::Micronesia => "Micronesia",
+            Self::NorthernMarianaIslands => "Northern Mariana Islands",
+            Self::Palau => "Palau",
+            Self::SaoTomeAndPrincipe => "Sao Tome and Principe",
+            Self::UnitedStatesMinorOutlyingIslands => "United States Minor Outlying Islands",
+            Self::UnitedStatesVirginIslands => "United States Virgin Islands",
         }
     }
 }
@@ -1998,6 +2124,2599 @@ static LESOTHO: &[Holiday] = &[
     ),
 ];
 
+/// Jamaica.
+///
+/// Derived from the reference `holidays` package and verified against it
+/// for 2000-2050 by `research/tools/derive_holidays.py`.
+static JAMAICA: &[Holiday] = &[
+    h(
+        "New Year's Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 1, day: 1 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h("Ash Wednesday", Rule::EasterOffset(-46)),
+    h("Good Friday", Rule::EasterOffset(-2)),
+    h("Easter Monday", Rule::EasterOffset(1)),
+    h(
+        "National Labour Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 5, day: 23 },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Emancipation Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 8, day: 1 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Independence Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 8, day: 6 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "National Heroes Day",
+        Rule::NthWeekday {
+            month: 10,
+            weekday: 1,
+            nth: 3,
+        },
+    ),
+    h(
+        "Christmas Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 25 },
+            from: 2000,
+            shifts: &[(0, 2)],
+        },
+    ),
+    h(
+        "Boxing Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 26 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+];
+
+/// Mozambique.
+///
+/// Derived from the reference `holidays` package and verified against it
+/// for 2000-2050 by `research/tools/derive_holidays.py`.
+static MOZAMBIQUE: &[Holiday] = &[
+    h(
+        "Dia da Fraternidade universal",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 1, day: 1 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Dia dos Heróis Moçambicanos",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 2, day: 3 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Dia da Mulher Moçambicana",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 4, day: 7 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Dia Internacional dos Trabalhadores",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 5, day: 1 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Dia da Independência Nacional",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 6, day: 25 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Dia da Vitória",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 9, day: 7 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Dia das Forças Armadas de Libertação Nacional",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 9, day: 25 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Dia da Paz e Reconciliação",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 10, day: 4 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Dia da Família",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 25 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+];
+
+/// Saint Lucia.
+///
+/// Derived from the reference `holidays` package and verified against it
+/// for 2000-2050 by `research/tools/derive_holidays.py`.
+static SAINT_LUCIA: &[Holiday] = &[
+    h(
+        "New Year's Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 1, day: 1 },
+            from: 2000,
+            shifts: &[(0, 2)],
+        },
+    ),
+    h(
+        "New Year's Holiday",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 1, day: 2 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Independence Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 2, day: 22 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h("Good Friday", Rule::EasterOffset(-2)),
+    h("Easter Monday", Rule::EasterOffset(1)),
+    h(
+        "Labour Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 5, day: 1 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h("Whit Monday", Rule::EasterOffset(50)),
+    h("Corpus Christi", Rule::EasterOffset(60)),
+    h(
+        "Emancipation Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 8, day: 1 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Thanksgiving Day",
+        Rule::NthWeekday {
+            month: 10,
+            weekday: 1,
+            nth: 1,
+        },
+    ),
+    h(
+        "National Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 13 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Christmas Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 25 },
+            from: 2000,
+            shifts: &[(0, 2)],
+        },
+    ),
+    h(
+        "Boxing Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 26 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+];
+
+/// Monaco.
+///
+/// Derived from the reference `holidays` package and verified against it
+/// for 2000-2050 by `research/tools/derive_holidays.py`.
+static MONACO: &[Holiday] = &[
+    h(
+        "Le jour de l'An",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 1, day: 1 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Le jour de la Sainte-Dévote",
+        Rule::Fixed { month: 1, day: 27 },
+    ),
+    h("Le Lundi de Pâques", Rule::EasterOffset(1)),
+    h(
+        "Le jour de la Fête du Travail",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 5, day: 1 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h("Le jour de l'Ascension", Rule::EasterOffset(39)),
+    h("Le Lundi de Pentecôte", Rule::EasterOffset(50)),
+    h("Le jour de la Fête Dieu", Rule::EasterOffset(60)),
+    h(
+        "Le jour de l'Assomption",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 8, day: 15 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Le jour de la Toussaint",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 11, day: 1 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Le jour de la Fête de S.A.S. le Prince Souverain",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 11, day: 19 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Le jour de l'Immaculée Conception",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 8 },
+            from: 2014,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Le jour de Noël",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 25 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Jour férié",
+        Rule::Once {
+            year: 2015,
+            month: 1,
+            day: 7,
+        },
+    ),
+];
+
+/// Equatorial Guinea.
+///
+/// Derived from the reference `holidays` package and verified against it
+/// for 2000-2050 by `research/tools/derive_holidays.py`.
+static EQUATORIAL_GUINEA: &[Holiday] = &[
+    h(
+        "Año Nuevo",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2007,
+                base: &Rule::Fixed { month: 1, day: 1 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Día Internacional de la Mujer",
+        Rule::Since {
+            year: 2007,
+            base: &Rule::Fixed { month: 3, day: 8 },
+        },
+    ),
+    h(
+        "Jueves Santo",
+        Rule::Since {
+            year: 2007,
+            base: &Rule::EasterOffset(-3),
+        },
+    ),
+    h(
+        "Viernes Santo",
+        Rule::Since {
+            year: 2007,
+            base: &Rule::EasterOffset(-2),
+        },
+    ),
+    h(
+        "Día Internacional del Trabajo",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2007,
+                base: &Rule::Fixed { month: 5, day: 1 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Día de la liberación Africana",
+        Rule::Since {
+            year: 2007,
+            base: &Rule::Fixed { month: 5, day: 25 },
+        },
+    ),
+    h(
+        "Natalicio de Su Excelencia el Presidente de la República",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2007,
+                base: &Rule::Fixed { month: 6, day: 5 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Corpus Christi",
+        Rule::Since {
+            year: 2007,
+            base: &Rule::EasterOffset(60),
+        },
+    ),
+    h(
+        "Día de las Fuerzas Armadas",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2007,
+                base: &Rule::Fixed { month: 8, day: 3 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Día de la Constitución",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2007,
+                base: &Rule::Fixed { month: 8, day: 15 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Día de la Independencia Nacional",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2007,
+                base: &Rule::Fixed { month: 10, day: 12 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Festividad de la Inmaculada Concepción de María",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2007,
+                base: &Rule::Fixed { month: 12, day: 8 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Día de Navidad",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2007,
+                base: &Rule::Fixed { month: 12, day: 25 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Victoria de la AFCON contra Costa de Marfil",
+        Rule::Once {
+            year: 2024,
+            month: 1,
+            day: 23,
+        },
+    ),
+];
+
+/// Niue.
+///
+/// Derived from the reference `holidays` package and verified against it
+/// for 2000-2050 by `research/tools/derive_holidays.py`.
+static NIUE: &[Holiday] = &[
+    h(
+        "New Year's Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 1, day: 1 },
+            from: 2000,
+            shifts: &[(0, 2), (6, 2)],
+        },
+    ),
+    h(
+        "Takai Commission Holiday",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 1, day: 2 },
+            from: 2000,
+            shifts: &[(0, 2), (6, 2)],
+        },
+    ),
+    h("Good Friday", Rule::EasterOffset(-2)),
+    h("Easter Monday", Rule::EasterOffset(1)),
+    h(
+        "ANZAC Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 4, day: 25 },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "King's Birthday",
+        Rule::Since {
+            year: 2023,
+            base: &Rule::NthWeekday {
+                month: 6,
+                weekday: 1,
+                nth: 1,
+            },
+        },
+    ),
+    h(
+        "Constitution Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 10, day: 19 },
+            from: 2000,
+            shifts: &[(0, 2), (6, 2)],
+        },
+    ),
+    h(
+        "Constitution Day Holiday",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 10, day: 20 },
+            from: 2000,
+            shifts: &[(0, 2), (6, 2)],
+        },
+    ),
+    h(
+        "Peniamina Gospel Day",
+        Rule::NthWeekday {
+            month: 10,
+            weekday: 1,
+            nth: 4,
+        },
+    ),
+    h(
+        "Christmas Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 25 },
+            from: 2000,
+            shifts: &[(0, 2), (6, 2)],
+        },
+    ),
+    h(
+        "Boxing Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 26 },
+            from: 2000,
+            shifts: &[(0, 2), (6, 2)],
+        },
+    ),
+    h(
+        "Queen's Birthday",
+        Rule::Until {
+            year: 2022,
+            base: &Rule::NthWeekday {
+                month: 6,
+                weekday: 1,
+                nth: 1,
+            },
+        },
+    ),
+    h(
+        "Queen Elizabeth II's Funeral",
+        Rule::Once {
+            year: 2022,
+            month: 9,
+            day: 19,
+        },
+    ),
+];
+
+/// Panama.
+///
+/// Derived from the reference `holidays` package and verified against it
+/// for 2000-2050 by `research/tools/derive_holidays.py`.
+static PANAMA: &[Holiday] = &[
+    h(
+        "Año Nuevo",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 1, day: 1 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Día de los Mártires",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 1, day: 9 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h("Martes de Carnaval", Rule::EasterOffset(-47)),
+    h("Viernes Santo", Rule::EasterOffset(-2)),
+    h(
+        "Día del Trabajo",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 5, day: 1 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Separación de Panamá de Colombia",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 11, day: 3 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Día de Colón",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2002,
+                base: &Rule::Fixed { month: 11, day: 5 },
+            },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Primer Grito de Independencia",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 11, day: 10 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Independencia de Panamá de España",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 11, day: 28 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Día de la Madre",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 8 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Día de Duelo Nacional",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2022,
+                base: &Rule::Fixed { month: 12, day: 20 },
+            },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Navidad",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 25 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Toma posesión del Presidente de la república",
+        Rule::Once {
+            year: 2014,
+            month: 7,
+            day: 1,
+        },
+    ),
+    h(
+        "Toma posesión del Presidente de la república",
+        Rule::Once {
+            year: 2019,
+            month: 7,
+            day: 1,
+        },
+    ),
+    h(
+        "Toma posesión del Presidente de la república",
+        Rule::Once {
+            year: 2024,
+            month: 7,
+            day: 1,
+        },
+    ),
+];
+
+/// Nauru.
+///
+/// Derived from the reference `holidays` package and verified against it
+/// for 2000-2050 by `research/tools/derive_holidays.py`.
+static NAURU: &[Holiday] = &[
+    h(
+        "New Year's Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 1, day: 1 },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Independence Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 1, day: 31 },
+            from: 2000,
+            shifts: &[(0, 2), (6, 2)],
+        },
+    ),
+    h(
+        "Day following Independence Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 2, day: 1 },
+            from: 2000,
+            shifts: &[(0, 2), (6, 2)],
+        },
+    ),
+    h(
+        "International Women's Day",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2019,
+                base: &Rule::Fixed { month: 3, day: 8 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h("Good Friday", Rule::EasterOffset(-2)),
+    h("Easter Monday", Rule::EasterOffset(1)),
+    h("Easter Tuesday", Rule::EasterOffset(2)),
+    h(
+        "Constitution Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 5, day: 17 },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "RONPHOS Handover",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2018,
+                base: &Rule::Fixed { month: 7, day: 1 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Ibumin Earoeni Day",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2019,
+                base: &Rule::Fixed { month: 8, day: 19 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Sir Hammer DeRoburt Day",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2020,
+                base: &Rule::Fixed { month: 9, day: 25 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Angam Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 10, day: 26 },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Christmas Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 25 },
+            from: 2000,
+            shifts: &[(0, 2), (6, 2)],
+        },
+    ),
+    h(
+        "Day following Christmas",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 26 },
+            from: 2000,
+            shifts: &[(0, 2), (6, 2)],
+        },
+    ),
+    h(
+        "National Youth Day",
+        Rule::ObservedShift {
+            base: &Rule::Between {
+                from: 2001,
+                to: 2019,
+                base: &Rule::Fixed { month: 9, day: 25 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+];
+
+/// DR Congo.
+///
+/// Derived from the reference `holidays` package and verified against it
+/// for 2000-2050 by `research/tools/derive_holidays.py`.
+static DR_CONGO: &[Holiday] = &[
+    h(
+        "Nouvel an",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 1, day: 1 },
+            from: 2000,
+            shifts: &[(0, -1)],
+        },
+    ),
+    h(
+        "Martyrs de l'indépendance",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2015,
+                base: &Rule::Fixed { month: 1, day: 4 },
+            },
+            from: 2000,
+            shifts: &[(0, -1)],
+        },
+    ),
+    h(
+        "Journée du héros national Laurent Désiré Kabila",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2015,
+                base: &Rule::Fixed { month: 1, day: 16 },
+            },
+            from: 2000,
+            shifts: &[(0, -1)],
+        },
+    ),
+    h(
+        "Journée du héros national Patrice Emery Lumumba",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2015,
+                base: &Rule::Fixed { month: 1, day: 17 },
+            },
+            from: 2000,
+            shifts: &[(0, -1)],
+        },
+    ),
+    h(
+        "Journée du combat de Simon Kimbangu et de la conscience africaine",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2023,
+                base: &Rule::Fixed { month: 4, day: 6 },
+            },
+            from: 2000,
+            shifts: &[(0, -1)],
+        },
+    ),
+    h(
+        "Fête du travail",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 5, day: 1 },
+            from: 2000,
+            shifts: &[(0, -1)],
+        },
+    ),
+    h(
+        "Journée de la Révolution et des Forces Armées",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2014,
+                base: &Rule::Fixed { month: 5, day: 17 },
+            },
+            from: 2000,
+            shifts: &[(0, -1)],
+        },
+    ),
+    h(
+        "Journée de l'indépendance",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 6, day: 30 },
+            from: 2000,
+            shifts: &[(0, -1)],
+        },
+    ),
+    h(
+        "Fête des parents",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 8, day: 1 },
+            from: 2000,
+            shifts: &[(0, -1)],
+        },
+    ),
+    h(
+        "Journée commémorative du génocide Congolais",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2024,
+                base: &Rule::Fixed { month: 8, day: 2 },
+            },
+            from: 2000,
+            shifts: &[(0, -1)],
+        },
+    ),
+    h(
+        "Noël",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 25 },
+            from: 2000,
+            shifts: &[(0, -1)],
+        },
+    ),
+    h(
+        "Fête des Forces armées zaïroises",
+        Rule::ObservedShift {
+            base: &Rule::Until {
+                year: 2013,
+                base: &Rule::Fixed { month: 11, day: 17 },
+            },
+            from: 2000,
+            shifts: &[(0, -1)],
+        },
+    ),
+    h(
+        "Anniversaire du Mouvement populaire de la révolution",
+        Rule::ObservedShift {
+            base: &Rule::Until {
+                year: 2013,
+                base: &Rule::Fixed { month: 5, day: 20 },
+            },
+            from: 2000,
+            shifts: &[(0, -1)],
+        },
+    ),
+    h(
+        "Anniversaire de la nouvelle Constitution révolutionnaire",
+        Rule::ObservedShift {
+            base: &Rule::Until {
+                year: 2013,
+                base: &Rule::Fixed { month: 6, day: 24 },
+            },
+            from: 2000,
+            shifts: &[(0, -1)],
+        },
+    ),
+    h(
+        "Journée de la Jeunesse",
+        Rule::ObservedShift {
+            base: &Rule::Until {
+                year: 2013,
+                base: &Rule::Fixed { month: 10, day: 14 },
+            },
+            from: 2000,
+            shifts: &[(0, -1)],
+        },
+    ),
+    h(
+        "Anniversaire du changement du nom de notre Pays",
+        Rule::ObservedShift {
+            base: &Rule::Until {
+                year: 2013,
+                base: &Rule::Fixed { month: 10, day: 27 },
+            },
+            from: 2000,
+            shifts: &[(0, -1)],
+        },
+    ),
+    h(
+        "Anniversaire du nouveau régime",
+        Rule::ObservedShift {
+            base: &Rule::Until {
+                year: 2013,
+                base: &Rule::Fixed { month: 11, day: 24 },
+            },
+            from: 2000,
+            shifts: &[(0, -1)],
+        },
+    ),
+];
+
+/// Botswana.
+///
+/// Derived from the reference `holidays` package and verified against it
+/// for 2000-2050 by `research/tools/derive_holidays.py`.
+static BOTSWANA: &[Holiday] = &[
+    h(
+        "New Year's Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 1, day: 1 },
+            from: 2000,
+            shifts: &[(0, 2)],
+        },
+    ),
+    h(
+        "New Year's Day Holiday",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 1, day: 2 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h("Good Friday", Rule::EasterOffset(-2)),
+    h("Holy Saturday", Rule::EasterOffset(-1)),
+    h("Easter Monday", Rule::EasterOffset(1)),
+    h(
+        "Labour Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 5, day: 1 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h("Ascension Day", Rule::EasterOffset(39)),
+    h(
+        "Sir Seretse Khama Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 7, day: 1 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "President's Day",
+        Rule::NthWeekday {
+            month: 7,
+            weekday: 1,
+            nth: 3,
+        },
+    ),
+    h(
+        "President's Day Holiday",
+        Rule::WeekdayOnOrAfter {
+            month: 7,
+            day: 16,
+            weekday: 2,
+        },
+    ),
+    h(
+        "Botswana Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 9, day: 30 },
+            from: 2000,
+            shifts: &[(0, 2)],
+        },
+    ),
+    h(
+        "Botswana Day Holiday",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 10, day: 1 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Christmas Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 25 },
+            from: 2000,
+            shifts: &[(0, 2)],
+        },
+    ),
+    h(
+        "Boxing Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 26 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Boxing Day Holiday",
+        Rule::Once {
+            year: 2020,
+            month: 12,
+            day: 28,
+        },
+    ),
+    h(
+        "Boxing Day Holiday",
+        Rule::Once {
+            year: 2026,
+            month: 12,
+            day: 28,
+        },
+    ),
+    h(
+        "Boxing Day Holiday",
+        Rule::Once {
+            year: 2037,
+            month: 12,
+            day: 28,
+        },
+    ),
+    h(
+        "Boxing Day Holiday",
+        Rule::Once {
+            year: 2043,
+            month: 12,
+            day: 28,
+        },
+    ),
+    h(
+        "Boxing Day Holiday",
+        Rule::Once {
+            year: 2048,
+            month: 12,
+            day: 28,
+        },
+    ),
+    h(
+        "Labour Day Holiday",
+        Rule::Once {
+            year: 2021,
+            month: 5,
+            day: 3,
+        },
+    ),
+    h(
+        "Labour Day Holiday",
+        Rule::Once {
+            year: 2027,
+            month: 5,
+            day: 3,
+        },
+    ),
+    h(
+        "Labour Day Holiday",
+        Rule::Once {
+            year: 2032,
+            month: 5,
+            day: 3,
+        },
+    ),
+    h(
+        "Labour Day Holiday",
+        Rule::Once {
+            year: 2038,
+            month: 5,
+            day: 3,
+        },
+    ),
+    h(
+        "Labour Day Holiday",
+        Rule::Once {
+            year: 2049,
+            month: 5,
+            day: 3,
+        },
+    ),
+    h(
+        "Public Holiday",
+        Rule::Once {
+            year: 2019,
+            month: 7,
+            day: 2,
+        },
+    ),
+];
+
+/// Falkland Islands.
+///
+/// Derived from the reference `holidays` package and verified against it
+/// for 2000-2050 by `research/tools/derive_holidays.py`.
+static FALKLAND_ISLANDS: &[Holiday] = &[
+    h(
+        "New Year's Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 1, day: 1 },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h("Good Friday", Rule::EasterOffset(-2)),
+    h(
+        "Liberation Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 6, day: 14 },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Peat Cutting Day",
+        Rule::Since {
+            year: 2002,
+            base: &Rule::NthWeekday {
+                month: 10,
+                weekday: 1,
+                nth: 1,
+            },
+        },
+    ),
+    h(
+        "HM The King's Birthday",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2022,
+                base: &Rule::Fixed { month: 11, day: 14 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Christmas Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 25 },
+            from: 2000,
+            shifts: &[(0, 3), (6, 3)],
+        },
+    ),
+    h(
+        "Boxing Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 26 },
+            from: 2000,
+            shifts: &[(0, 3), (6, 2)],
+        },
+    ),
+    h(
+        "Christmas Holiday",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 27 },
+            from: 2000,
+            shifts: &[(0, 2), (6, 2)],
+        },
+    ),
+    h(
+        "HM The Queen's Birthday",
+        Rule::ObservedShift {
+            base: &Rule::Until {
+                year: 2022,
+                base: &Rule::Fixed { month: 4, day: 21 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Falkland Day",
+        Rule::Until {
+            year: 2001,
+            base: &Rule::Fixed { month: 8, day: 14 },
+        },
+    ),
+    h(
+        "Queen Elizabeth II's Funeral",
+        Rule::Once {
+            year: 2022,
+            month: 9,
+            day: 19,
+        },
+    ),
+    h(
+        "HM The King's Coronation",
+        Rule::Once {
+            year: 2023,
+            month: 5,
+            day: 8,
+        },
+    ),
+];
+
+/// Malawi.
+///
+/// Derived from the reference `holidays` package and verified against it
+/// for 2000-2050 by `research/tools/derive_holidays.py`.
+static MALAWI: &[Holiday] = &[
+    h(
+        "New Year's Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 1, day: 1 },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "John Chilembwe Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 1, day: 15 },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Martyrs Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 3, day: 3 },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h("Good Friday", Rule::EasterOffset(-2)),
+    h("Easter Monday", Rule::EasterOffset(1)),
+    h(
+        "Labour Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 5, day: 1 },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Kamuzu Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 5, day: 14 },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Independence Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 7, day: 6 },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Mother's Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 10, day: 15 },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Christmas Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 25 },
+            from: 2000,
+            shifts: &[(0, 2), (6, 2)],
+        },
+    ),
+    h(
+        "Boxing Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 26 },
+            from: 2000,
+            shifts: &[(0, 2), (6, 2)],
+        },
+    ),
+];
+
+/// Norfolk Island.
+///
+/// Derived from the reference `holidays` package and verified against it
+/// for 2000-2050 by `research/tools/derive_holidays.py`.
+static NORFOLK_ISLAND: &[Holiday] = &[
+    h(
+        "New Year's Day",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2016,
+                base: &Rule::Fixed { month: 1, day: 1 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Australia Day",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2016,
+                base: &Rule::Fixed { month: 1, day: 26 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Foundation Day",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2016,
+                base: &Rule::Fixed { month: 3, day: 6 },
+            },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Good Friday",
+        Rule::Since {
+            year: 2016,
+            base: &Rule::EasterOffset(-2),
+        },
+    ),
+    h(
+        "Easter Monday",
+        Rule::Since {
+            year: 2016,
+            base: &Rule::EasterOffset(1),
+        },
+    ),
+    h(
+        "ANZAC Day",
+        Rule::Since {
+            year: 2016,
+            base: &Rule::Fixed { month: 4, day: 25 },
+        },
+    ),
+    h(
+        "Bounty Day",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2016,
+                base: &Rule::Fixed { month: 6, day: 8 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "King's Birthday",
+        Rule::Since {
+            year: 2023,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 6,
+                day: 11,
+                weekday: 1,
+            },
+        },
+    ),
+    h(
+        "Show Day",
+        Rule::Since {
+            year: 2016,
+            base: &Rule::NthWeekday {
+                month: 10,
+                weekday: 1,
+                nth: 2,
+            },
+        },
+    ),
+    h(
+        "Thanksgiving Day",
+        Rule::Since {
+            year: 2016,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 11,
+                day: 24,
+                weekday: 3,
+            },
+        },
+    ),
+    h(
+        "Christmas Day",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2016,
+                base: &Rule::Fixed { month: 12, day: 25 },
+            },
+            from: 2000,
+            shifts: &[(0, 2), (6, 2)],
+        },
+    ),
+    h(
+        "Boxing Day",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2016,
+                base: &Rule::Fixed { month: 12, day: 26 },
+            },
+            from: 2000,
+            shifts: &[(0, 2), (6, 2)],
+        },
+    ),
+    h(
+        "Queen's Birthday",
+        Rule::Between {
+            from: 2016,
+            to: 2022,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 6,
+                day: 11,
+                weekday: 1,
+            },
+        },
+    ),
+    h(
+        "National Day of Mourning for Queen Elizabeth II",
+        Rule::Once {
+            year: 2022,
+            month: 9,
+            day: 22,
+        },
+    ),
+];
+/// American Samoa.
+///
+/// Derived from the reference `holidays` package and verified against it
+/// for 2000-2050 by `research/tools/derive_holidays.py`.
+static AMERICAN_SAMOA: &[Holiday] = &[
+    h(
+        "New Year's Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 1, day: 1 },
+            from: 2001,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Memorial Day",
+        Rule::WeekdayOnOrAfter {
+            month: 5,
+            day: 25,
+            weekday: 1,
+        },
+    ),
+    h(
+        "Juneteenth National Independence Day",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2021,
+                base: &Rule::Fixed { month: 6, day: 19 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Independence Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 7, day: 4 },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Labor Day",
+        Rule::NthWeekday {
+            month: 9,
+            weekday: 1,
+            nth: 1,
+        },
+    ),
+    h(
+        "Thanksgiving Day",
+        Rule::NthWeekday {
+            month: 11,
+            weekday: 4,
+            nth: 4,
+        },
+    ),
+    h(
+        "Christmas Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 25 },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Martin Luther King Jr. Day",
+        Rule::NthWeekday {
+            month: 1,
+            weekday: 1,
+            nth: 3,
+        },
+    ),
+    h(
+        "Washington's Birthday",
+        Rule::NthWeekday {
+            month: 2,
+            weekday: 1,
+            nth: 3,
+        },
+    ),
+    h(
+        "Columbus Day",
+        Rule::NthWeekday {
+            month: 10,
+            weekday: 1,
+            nth: 2,
+        },
+    ),
+    h(
+        "Veterans Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 11, day: 11 },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "American Samoa Flag Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 4, day: 17 },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Manu'a Islands Cession Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 7, day: 16 },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "White Sunday",
+        Rule::NthWeekday {
+            month: 10,
+            weekday: 0,
+            nth: 2,
+        },
+    ),
+];
+
+/// Guam.
+///
+/// Derived from the reference `holidays` package and verified against it
+/// for 2000-2050 by `research/tools/derive_holidays.py`.
+static GUAM: &[Holiday] = &[
+    h(
+        "New Year's Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 1, day: 1 },
+            from: 2001,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Memorial Day",
+        Rule::WeekdayOnOrAfter {
+            month: 5,
+            day: 25,
+            weekday: 1,
+        },
+    ),
+    h(
+        "Juneteenth National Independence Day",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2021,
+                base: &Rule::Fixed { month: 6, day: 19 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Independence Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 7, day: 4 },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Labor Day",
+        Rule::NthWeekday {
+            month: 9,
+            weekday: 1,
+            nth: 1,
+        },
+    ),
+    h(
+        "Thanksgiving Day",
+        Rule::NthWeekday {
+            month: 11,
+            weekday: 4,
+            nth: 4,
+        },
+    ),
+    h(
+        "Christmas Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 25 },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Martin Luther King Jr. Day",
+        Rule::NthWeekday {
+            month: 1,
+            weekday: 1,
+            nth: 3,
+        },
+    ),
+    h(
+        "Washington's Birthday",
+        Rule::NthWeekday {
+            month: 2,
+            weekday: 1,
+            nth: 3,
+        },
+    ),
+    h(
+        "Veterans Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 11, day: 11 },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Guam Discovery Day",
+        Rule::NthWeekday {
+            month: 3,
+            weekday: 1,
+            nth: 1,
+        },
+    ),
+    h("Good Friday", Rule::EasterOffset(-2)),
+    h("Liberation Day (Guam)", Rule::Fixed { month: 7, day: 21 }),
+    h("All Souls' Day", Rule::Fixed { month: 11, day: 2 }),
+    h("Lady of Camarin Day", Rule::Fixed { month: 12, day: 8 }),
+];
+
+/// Micronesia.
+///
+/// Derived from the reference `holidays` package and verified against it
+/// for 2000-2050 by `research/tools/derive_holidays.py`.
+static MICRONESIA: &[Holiday] = &[
+    h(
+        "New Year's Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 1, day: 1 },
+            from: 2001,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Micronesian Culture and Tradition Day",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2011,
+                base: &Rule::Fixed { month: 3, day: 31 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Federated States of Micronesia Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 5, day: 10 },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "United Nations Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 10, day: 24 },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Independence Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 11, day: 3 },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "FSM Veterans of Foreign Wars Day",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2004,
+                base: &Rule::Fixed { month: 11, day: 11 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Presidents Day",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2021,
+                base: &Rule::Fixed { month: 11, day: 23 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Christmas Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 25 },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+];
+
+/// Northern Mariana Islands.
+///
+/// Derived from the reference `holidays` package and verified against it
+/// for 2000-2050 by `research/tools/derive_holidays.py`.
+static NORTHERN_MARIANA_ISLANDS: &[Holiday] = &[
+    h(
+        "New Year's Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 1, day: 1 },
+            from: 2001,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Memorial Day",
+        Rule::WeekdayOnOrAfter {
+            month: 5,
+            day: 25,
+            weekday: 1,
+        },
+    ),
+    h(
+        "Juneteenth National Independence Day",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2021,
+                base: &Rule::Fixed { month: 6, day: 19 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Independence Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 7, day: 4 },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Labor Day",
+        Rule::NthWeekday {
+            month: 9,
+            weekday: 1,
+            nth: 1,
+        },
+    ),
+    h(
+        "Thanksgiving Day",
+        Rule::NthWeekday {
+            month: 11,
+            weekday: 4,
+            nth: 4,
+        },
+    ),
+    h(
+        "Christmas Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 25 },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Martin Luther King Jr. Day",
+        Rule::NthWeekday {
+            month: 1,
+            weekday: 1,
+            nth: 3,
+        },
+    ),
+    h(
+        "Washington's Birthday",
+        Rule::NthWeekday {
+            month: 2,
+            weekday: 1,
+            nth: 3,
+        },
+    ),
+    h(
+        "Veterans Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 11, day: 11 },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Commonwealth Covenant Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 3, day: 24 },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h("Good Friday", Rule::EasterOffset(-2)),
+    h(
+        "Commonwealth Cultural Day",
+        Rule::NthWeekday {
+            month: 10,
+            weekday: 1,
+            nth: 2,
+        },
+    ),
+    h(
+        "Election Day",
+        Rule::Between {
+            from: 2008,
+            to: 2008,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 11,
+                day: 2,
+                weekday: 2,
+            },
+        },
+    ),
+    h(
+        "Election Day",
+        Rule::Between {
+            from: 2010,
+            to: 2010,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 11,
+                day: 2,
+                weekday: 2,
+            },
+        },
+    ),
+    h(
+        "Election Day",
+        Rule::Between {
+            from: 2012,
+            to: 2012,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 11,
+                day: 2,
+                weekday: 2,
+            },
+        },
+    ),
+    h(
+        "Election Day",
+        Rule::Between {
+            from: 2014,
+            to: 2014,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 11,
+                day: 2,
+                weekday: 2,
+            },
+        },
+    ),
+    h(
+        "Election Day",
+        Rule::Between {
+            from: 2016,
+            to: 2016,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 11,
+                day: 2,
+                weekday: 2,
+            },
+        },
+    ),
+    h(
+        "Election Day",
+        Rule::Between {
+            from: 2018,
+            to: 2018,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 11,
+                day: 2,
+                weekday: 2,
+            },
+        },
+    ),
+    h(
+        "Election Day",
+        Rule::Between {
+            from: 2020,
+            to: 2020,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 11,
+                day: 2,
+                weekday: 2,
+            },
+        },
+    ),
+    h(
+        "Election Day",
+        Rule::Between {
+            from: 2022,
+            to: 2022,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 11,
+                day: 2,
+                weekday: 2,
+            },
+        },
+    ),
+    h(
+        "Election Day",
+        Rule::Between {
+            from: 2024,
+            to: 2024,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 11,
+                day: 2,
+                weekday: 2,
+            },
+        },
+    ),
+    h(
+        "Election Day",
+        Rule::Between {
+            from: 2026,
+            to: 2026,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 11,
+                day: 2,
+                weekday: 2,
+            },
+        },
+    ),
+    h(
+        "Election Day",
+        Rule::Between {
+            from: 2028,
+            to: 2028,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 11,
+                day: 2,
+                weekday: 2,
+            },
+        },
+    ),
+    h(
+        "Election Day",
+        Rule::Between {
+            from: 2030,
+            to: 2030,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 11,
+                day: 2,
+                weekday: 2,
+            },
+        },
+    ),
+    h(
+        "Election Day",
+        Rule::Between {
+            from: 2032,
+            to: 2032,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 11,
+                day: 2,
+                weekday: 2,
+            },
+        },
+    ),
+    h(
+        "Election Day",
+        Rule::Between {
+            from: 2034,
+            to: 2034,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 11,
+                day: 2,
+                weekday: 2,
+            },
+        },
+    ),
+    h(
+        "Election Day",
+        Rule::Between {
+            from: 2036,
+            to: 2036,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 11,
+                day: 2,
+                weekday: 2,
+            },
+        },
+    ),
+    h(
+        "Election Day",
+        Rule::Between {
+            from: 2038,
+            to: 2038,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 11,
+                day: 2,
+                weekday: 2,
+            },
+        },
+    ),
+    h(
+        "Election Day",
+        Rule::Between {
+            from: 2040,
+            to: 2040,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 11,
+                day: 2,
+                weekday: 2,
+            },
+        },
+    ),
+    h(
+        "Election Day",
+        Rule::Between {
+            from: 2042,
+            to: 2042,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 11,
+                day: 2,
+                weekday: 2,
+            },
+        },
+    ),
+    h(
+        "Election Day",
+        Rule::Between {
+            from: 2044,
+            to: 2044,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 11,
+                day: 2,
+                weekday: 2,
+            },
+        },
+    ),
+    h(
+        "Election Day",
+        Rule::Between {
+            from: 2046,
+            to: 2046,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 11,
+                day: 2,
+                weekday: 2,
+            },
+        },
+    ),
+    h(
+        "Election Day",
+        Rule::Between {
+            from: 2048,
+            to: 2048,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 11,
+                day: 2,
+                weekday: 2,
+            },
+        },
+    ),
+    h(
+        "Election Day",
+        Rule::Since {
+            year: 2050,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 11,
+                day: 2,
+                weekday: 2,
+            },
+        },
+    ),
+    h(
+        "Citizenship Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 11, day: 4 },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Constitution Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 8 },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+];
+
+/// Palau.
+///
+/// Derived from the reference `holidays` package and verified against it
+/// for 2000-2050 by `research/tools/derive_holidays.py`.
+static PALAU: &[Holiday] = &[
+    h(
+        "New Year's Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 1, day: 1 },
+            from: 2001,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Youth Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 3, day: 15 },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Senior Citizens Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 5, day: 5 },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "President's Day",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2018,
+                base: &Rule::Fixed { month: 6, day: 1 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Constitution Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 7, day: 9 },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Labor Day",
+        Rule::NthWeekday {
+            month: 9,
+            weekday: 1,
+            nth: 1,
+        },
+    ),
+    h(
+        "Independence Day",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2018,
+                base: &Rule::Fixed { month: 10, day: 1 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "United Nations Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 10, day: 24 },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Thanksgiving Day",
+        Rule::NthWeekday {
+            month: 11,
+            weekday: 4,
+            nth: 4,
+        },
+    ),
+    h(
+        "Family Day",
+        Rule::Since {
+            year: 2017,
+            base: &Rule::NthWeekday {
+                month: 11,
+                weekday: 5,
+                nth: 4,
+            },
+        },
+    ),
+    h(
+        "Christmas Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 25 },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Memorial Day",
+        Rule::Between {
+            from: 2011,
+            to: 2012,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 5,
+                day: 28,
+                weekday: 1,
+            },
+        },
+    ),
+    h(
+        "National Day of Democracy",
+        Rule::Once {
+            year: 2020,
+            month: 11,
+            day: 3,
+        },
+    ),
+];
+
+/// Sao Tome and Principe.
+///
+/// Derived from the reference `holidays` package and verified against it
+/// for 2000-2050 by `research/tools/derive_holidays.py`.
+static SAO_TOME_AND_PRINCIPE: &[Holiday] = &[
+    h(
+        "Ano Novo",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2014,
+                base: &Rule::Fixed { month: 1, day: 1 },
+            },
+            from: 2018,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Dia do Rei Amador",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2014,
+                base: &Rule::Fixed { month: 1, day: 4 },
+            },
+            from: 2016,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Dia dos Mártires",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2014,
+                base: &Rule::Fixed { month: 2, day: 3 },
+            },
+            from: 2020,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Dia do Trabalhador",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2014,
+                base: &Rule::Fixed { month: 5, day: 1 },
+            },
+            from: 2017,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Dia da Independência",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2014,
+                base: &Rule::Fixed { month: 7, day: 12 },
+            },
+            from: 2016,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Dia das Forças Armadas",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2014,
+                base: &Rule::Fixed { month: 9, day: 6 },
+            },
+            from: 2016,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Dia da Reforma Agrária",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2014,
+                base: &Rule::Fixed { month: 9, day: 30 },
+            },
+            from: 2019,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Dia de São Tomé",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2019,
+                base: &Rule::Fixed { month: 12, day: 21 },
+            },
+            from: 2020,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Natal",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2014,
+                base: &Rule::Fixed { month: 12, day: 25 },
+            },
+            from: 2017,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+];
+
+/// United States Minor Outlying Islands.
+///
+/// Derived from the reference `holidays` package and verified against it
+/// for 2000-2050 by `research/tools/derive_holidays.py`.
+static UNITED_STATES_MINOR_OUTLYING_ISLANDS: &[Holiday] = &[
+    h(
+        "New Year's Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 1, day: 1 },
+            from: 2001,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Memorial Day",
+        Rule::WeekdayOnOrAfter {
+            month: 5,
+            day: 25,
+            weekday: 1,
+        },
+    ),
+    h(
+        "Juneteenth National Independence Day",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2021,
+                base: &Rule::Fixed { month: 6, day: 19 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Independence Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 7, day: 4 },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Labor Day",
+        Rule::NthWeekday {
+            month: 9,
+            weekday: 1,
+            nth: 1,
+        },
+    ),
+    h(
+        "Thanksgiving Day",
+        Rule::NthWeekday {
+            month: 11,
+            weekday: 4,
+            nth: 4,
+        },
+    ),
+    h(
+        "Christmas Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 25 },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Martin Luther King Jr. Day",
+        Rule::NthWeekday {
+            month: 1,
+            weekday: 1,
+            nth: 3,
+        },
+    ),
+    h(
+        "Washington's Birthday",
+        Rule::NthWeekday {
+            month: 2,
+            weekday: 1,
+            nth: 3,
+        },
+    ),
+    h(
+        "Veterans Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 11, day: 11 },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+];
+
+/// United States Virgin Islands.
+///
+/// Derived from the reference `holidays` package and verified against it
+/// for 2000-2050 by `research/tools/derive_holidays.py`.
+static UNITED_STATES_VIRGIN_ISLANDS: &[Holiday] = &[
+    h(
+        "New Year's Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 1, day: 1 },
+            from: 2001,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Memorial Day",
+        Rule::WeekdayOnOrAfter {
+            month: 5,
+            day: 25,
+            weekday: 1,
+        },
+    ),
+    h(
+        "Juneteenth National Independence Day",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2021,
+                base: &Rule::Fixed { month: 6, day: 19 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Independence Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 7, day: 4 },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h("Emancipation Day", Rule::Fixed { month: 7, day: 3 }),
+    h(
+        "Labor Day",
+        Rule::NthWeekday {
+            month: 9,
+            weekday: 1,
+            nth: 1,
+        },
+    ),
+    h(
+        "Thanksgiving Day",
+        Rule::NthWeekday {
+            month: 11,
+            weekday: 4,
+            nth: 4,
+        },
+    ),
+    h(
+        "Christmas Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 25 },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h(
+        "Martin Luther King Jr. Day",
+        Rule::NthWeekday {
+            month: 1,
+            weekday: 1,
+            nth: 3,
+        },
+    ),
+    h(
+        "Veterans Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 11, day: 11 },
+            from: 2000,
+            shifts: &[(0, 1), (6, -1)],
+        },
+    ),
+    h("Three Kings Day", Rule::Fixed { month: 1, day: 6 }),
+    h(
+        "Presidents' Day",
+        Rule::NthWeekday {
+            month: 2,
+            weekday: 1,
+            nth: 3,
+        },
+    ),
+    h("Transfer Day", Rule::Fixed { month: 3, day: 31 }),
+    h("Holy Thursday", Rule::EasterOffset(-3)),
+    h("Good Friday", Rule::EasterOffset(-2)),
+    h("Easter Monday", Rule::EasterOffset(1)),
+    h(
+        "Columbus Day and Puerto Rico Friendship Day",
+        Rule::NthWeekday {
+            month: 10,
+            weekday: 1,
+            nth: 2,
+        },
+    ),
+    h("Liberty Day", Rule::Fixed { month: 11, day: 1 }),
+    h("Christmas Second Day", Rule::Fixed { month: 12, day: 26 }),
+];
 /// Places every holiday of `year`, resolving the collisions a substitution
 /// creates.
 ///
@@ -2441,6 +5160,132 @@ impl Calendar {
         Self::new(Country::Lesotho)
     }
 
+    /// Builds the calendar for Jamaica.
+    #[must_use]
+    pub const fn jamaica() -> Self {
+        Self::new(Country::Jamaica)
+    }
+
+    /// Builds the calendar for Mozambique.
+    #[must_use]
+    pub const fn mozambique() -> Self {
+        Self::new(Country::Mozambique)
+    }
+
+    /// Builds the calendar for Saint Lucia.
+    #[must_use]
+    pub const fn saint_lucia() -> Self {
+        Self::new(Country::SaintLucia)
+    }
+
+    /// Builds the calendar for Monaco.
+    #[must_use]
+    pub const fn monaco() -> Self {
+        Self::new(Country::Monaco)
+    }
+
+    /// Builds the calendar for Equatorial Guinea.
+    #[must_use]
+    pub const fn equatorial_guinea() -> Self {
+        Self::new(Country::EquatorialGuinea)
+    }
+
+    /// Builds the calendar for Niue.
+    #[must_use]
+    pub const fn niue() -> Self {
+        Self::new(Country::Niue)
+    }
+
+    /// Builds the calendar for Panama.
+    #[must_use]
+    pub const fn panama() -> Self {
+        Self::new(Country::Panama)
+    }
+
+    /// Builds the calendar for Nauru.
+    #[must_use]
+    pub const fn nauru() -> Self {
+        Self::new(Country::Nauru)
+    }
+
+    /// Builds the calendar for DR Congo.
+    #[must_use]
+    pub const fn dr_congo() -> Self {
+        Self::new(Country::DrCongo)
+    }
+
+    /// Builds the calendar for Botswana.
+    #[must_use]
+    pub const fn botswana() -> Self {
+        Self::new(Country::Botswana)
+    }
+
+    /// Builds the calendar for the Falkland Islands.
+    #[must_use]
+    pub const fn falkland_islands() -> Self {
+        Self::new(Country::FalklandIslands)
+    }
+
+    /// Builds the calendar for Malawi.
+    #[must_use]
+    pub const fn malawi() -> Self {
+        Self::new(Country::Malawi)
+    }
+
+    /// Builds the calendar for Norfolk Island.
+    #[must_use]
+    pub const fn norfolk_island() -> Self {
+        Self::new(Country::NorfolkIsland)
+    }
+
+    /// Builds the calendar for American Samoa.
+    #[must_use]
+    pub const fn american_samoa() -> Self {
+        Self::new(Country::AmericanSamoa)
+    }
+
+    /// Builds the calendar for Guam.
+    #[must_use]
+    pub const fn guam() -> Self {
+        Self::new(Country::Guam)
+    }
+
+    /// Builds the calendar for Micronesia.
+    #[must_use]
+    pub const fn micronesia() -> Self {
+        Self::new(Country::Micronesia)
+    }
+
+    /// Builds the calendar for the Northern Mariana Islands.
+    #[must_use]
+    pub const fn northern_mariana_islands() -> Self {
+        Self::new(Country::NorthernMarianaIslands)
+    }
+
+    /// Builds the calendar for Palau.
+    #[must_use]
+    pub const fn palau() -> Self {
+        Self::new(Country::Palau)
+    }
+
+    /// Builds the calendar for Sao Tome and Principe.
+    #[must_use]
+    pub const fn sao_tome_and_principe() -> Self {
+        Self::new(Country::SaoTomeAndPrincipe)
+    }
+
+    /// Builds the calendar for the United States Minor Outlying Islands.
+    #[must_use]
+    pub const fn united_states_minor_outlying_islands() -> Self {
+        Self::new(Country::UnitedStatesMinorOutlyingIslands)
+    }
+
+    /// Builds the calendar for the United States Virgin Islands.
+    #[must_use]
+    pub const fn united_states_virgin_islands() -> Self {
+        Self::new(Country::UnitedStatesVirginIslands)
+    }
+
     /// Builds the calendar for Cyprus.
     #[must_use]
     pub const fn cyprus() -> Self {
@@ -2525,6 +5370,14 @@ impl Calendar {
             .flat_map(|h| {
                 [year, year + 1].into_iter().filter_map(move |y| {
                     h.rule.resolve(y).map(|d| {
+                        // A rule with its own shift names the observed date
+                        // directly, so the country style must not touch it and
+                        // the collision rule must leave it where the reference
+                        // puts it. Two holidays may share that date.
+                        if let Some(delta) = h.rule.observed_shift(y, d.weekday()) {
+                            let observed = d.add_days(delta).unwrap_or(d);
+                            return (observed, h.name, false, false);
+                        }
                         (
                             d,
                             h.name,

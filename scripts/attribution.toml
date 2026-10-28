@@ -80,3 +80,7 @@ marker = "jStat"
 [[upstream]]
 project = "bessel (npm) by SheetJS"
 marker = "SheetJS/bessel"
+
+[[upstream]]
+project = "python-holidays by the vacanza organisation and contributors"
+marker = "python-holidays"

@@ -26,15 +26,19 @@ memory. Those belong to a dedicated parser.
 settlement dates, and ticket systems computing SLAs. The existing `holidays`
 crate has one release from 2023 and an abandoned repository.
 
-**Covers today.** 65 countries, from Indonesia and the United States through
+**Covers today.** 86 countries, from Indonesia and the United States through
 Europe (including the Orthodox-Easter calendars Cyprus, Greece and Romania, and
-Malta) and Latin America (Mexico, Brazil, El Salvador, Nicaragua and Peru).
-Fixed-date rules, Easter-relative rules via both the Gregorian and the
-Orthodox computus, and *n*-th-weekday rules including "last Monday of the
-month".
-Weekend substitution per country, including the United States rule (Saturday
-back to Friday) and the United Kingdom rule (both days forward to Monday), and
-collision resolution so Christmas and Boxing Day never land on the same day.
+Malta), Latin America (Mexico, Brazil, El Salvador, Nicaragua and Peru), the
+Caribbean and Pacific. Fixed-date rules, Easter-relative rules via both the
+Gregorian and the Orthodox computus, and *n*-th-weekday rules including "last
+Monday of the month".
+Weekend substitution per holiday rather than per country: a rule can carry its
+own shift table with `Rule::ObservedShift`, and a country-wide `SubstituteStyle`
+covers the holidays that share one, including the United States rule (Saturday
+back to Friday) and the United Kingdom rule (both days forward to Monday).
+Collision resolution so Christmas and Boxing Day never land on the same day,
+except where the reference reports both on one date (Niue's Constitution Day
+Holiday).
 Queries: `is_holiday`, `holiday_name`, `is_working_day`, `next_working_day`,
 `nth_working_day_after`, `nth_working_day_before`, `working_days_between`,
 `closest_holiday`.

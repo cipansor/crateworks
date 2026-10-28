@@ -6,6 +6,11 @@ expressed as one of the crate's rules (fixed date, nth weekday, Easter offset,
 with a year bound). This prints the candidates with the fewest unexpressible
 holidays first, so the cheap ones are tried before the expensive ones.
 
+This ranks the *base* shapes only. A country can also fail here and still be
+expressible, because `Rule::ObservedShift` gives each holiday its own weekend
+shift table on top of the base shape; `derive_holidays.py` fits that too and is
+the authority on whether a country actually fits.
+
 Usage:  python3 fit_holidays.py [limit]
 """
 
