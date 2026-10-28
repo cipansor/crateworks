@@ -1,7 +1,7 @@
 [package]
 name = "soap-client"
 description = "SOAP 1.1 and 1.2 envelopes, plus WSDL reading, for calling legacy web services."
-version.workspace = true
+version = "0.1.9"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true

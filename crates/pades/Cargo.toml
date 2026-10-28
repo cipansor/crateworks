@@ -1,7 +1,7 @@
 [package]
 name = "pades"
 description = "PAdES PDF signatures: read a signed document, check what it covers, and report how far its long-term validation reaches."
-version.workspace = true
+version = "0.1.9"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true

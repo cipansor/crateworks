@@ -1,7 +1,7 @@
 [package]
 name = "runits"
 description = "Runtime unit conversion: parse and convert quantities written as text, such as \"3.5 kg\" to \"lb\", from a table compiled in from pint."
-version.workspace = true
+version = "0.1.9"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
