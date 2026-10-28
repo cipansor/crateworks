@@ -9,6 +9,8 @@ crate. `check_attribution.py` and `check_actions_pinned.py` run in CI, on the
 | `check_attribution.py` | Fails when a crate credits an upstream project in its code but not in `NOTICE` (run in CI) |
 | `attribution.toml` | Data for the above: the upstream projects and the marker that identifies each |
 | `check_actions_pinned.py` | Fails when a workflow uses an action by a mutable tag or branch instead of a commit SHA (run in CI) |
+| `release_plan.py` | Reports which crates changed since their last release, and the bump each one suggests |
+| `bump.py` | Bumps one crate's version by an explicit semver level, refusing a crate with no change |
 | `publish.py` | Works out the order the crates can be published in, and checks or runs it |
 | `check_token.py` | Checks that the crates.io token in `CARGO_REGISTRY_TOKEN` is one the registry accepts (used by the release workflow) |
 | `release_notes.py` | Builds release notes for one crate from the commits that touched it (used by the release workflow) |
@@ -96,6 +98,83 @@ path, so that a crate cannot match its own name. `hijridate` matches itself,
 which is why its marker is the author's handle `dralshehri` rather than the
 project name. A marker that is too generic turns into a false positive: a marker
 of `xmlkit` matches every crate that depends on `xmlkit`.
+
+## release_plan.py
+
+Answers the first question of a release: which crates have changed since their
+last release? A release here publishes one crate, and a crate nobody changed is
+not a release - a version on crates.io can never be deleted, so re-uploading one
+publishes a version nobody asked for, permanently.
+
+```sh
+python3 scripts/release_plan.py            # every crate
+python3 scripts/release_plan.py --crate xmlkit
+python3 scripts/release_plan.py --json     # machine-readable
+```
+
+It is read-only. It reports a crate when any of these holds:
+
+| Reason | What it means |
+| --- | --- |
+| A release-worthy commit | A commit touched the crate's code since its last tag |
+| An uncommitted change | A changed or untracked file under `crates/<name>/` that is not just `Cargo.toml` |
+| A pending bump | The manifest version is ahead of the crate's last tag |
+| A dependency moved | `xmlkit` or `pdfa` released a version outside the crate's `^` requirement |
+
+Documentation, tests, CI, housekeeping and a `Cargo.toml`-only edit do **not**
+count, so a packaging change does not look like 26 releases. A commit subject
+that does not follow the convention is assumed to matter, because guessing "no
+release" from it is the costlier mistake.
+
+The suggested level comes from the commit subjects: any `feat` or `!` breaking
+marker asks for a minor, otherwise a patch. It is a suggestion to confirm.
+
+A dependency only makes a dependent due when the new version falls outside `^`.
+`^0.1.9` accepts `0.1.10`, so a patch bump of `xmlkit` needs no dependent
+release; `0.2.0` does not, so every dependent is due whether or not its own code
+changed.
+
+Full history is required, for the same reason `release_notes.py` needs it: the
+range and the tags come from git, and a shallow clone would silently report the
+wrong thing.
+
+## bump.py
+
+Bumps one crate's version by an explicit semver level. It edits one manifest, and
+never another crate's - which is the opposite of the shared workspace version
+this repository used to carry, where a single edit re-versioned all of them.
+
+```sh
+python3 scripts/bump.py stdnum-rs patch
+python3 scripts/bump.py xmlkit minor
+python3 scripts/bump.py stdnum-rs patch --dry-run
+```
+
+The level follows Cargo's compatibility rule, which differs below `1.0` because
+the leading non-zero field is the boundary:
+
+| Level | `0.1.9` becomes | `1.2.3` becomes | When |
+| --- | --- | --- | --- |
+| `patch` | `0.1.10` | `1.2.4` | A compatible fix |
+| `minor` | `0.2.0` | `1.3.0` | New functionality, or a breaking change below 1.0 |
+| `major` | `1.0.0` | `2.0.0` | A deliberate move to a stable API |
+
+Adding a function is a **minor** bump below 1.0, not a patch: `^0.1.9` does not
+reach `0.2.0`, so a minor bump is also what a breaking change takes. Reaching for
+`patch` by reflex is how a crate stays on `0.1.x` forever. The arithmetic lives
+in `publish.next_version`, so it is not re-derived by hand.
+
+A crate with no change since its last release is refused, because re-releasing it
+publishes a version nobody asked for. `--force` overrides that when a release is
+wanted anyway.
+
+When the crate is `xmlkit` or `pdfa` - the two the workspace depends on - the
+`[workspace.dependencies]` requirement is updated too, and the dependents that
+need a re-release are named. A patch bump keeps them building; a minor bump does
+not, so they must be released against the new version.
+
+It edits files and stops there. Committing, tagging and publishing are separate,
+visible steps.
 
 ## publish.py
 
@@ -233,14 +312,31 @@ which is why this script exists for the dry run.
 
 ## Releasing
 
-Releases are per crate, because the crates version independently.
+Releases are per crate, because the crates version independently. Each crate
+carries its own `version` in its own `Cargo.toml`; there is no shared workspace
+version, because one would re-version every crate at once and that is how every
+release came to publish all of them.
+
+**Release only the crates that changed.** Start from the plan:
+
+```sh
+python3 scripts/release_plan.py          # which crates are due, and why
+python3 scripts/bump.py xmlkit minor     # bump one of them, by an explicit level
+```
+
+Then commit, tag and push that one crate:
+
+```sh
+git tag xmlkit-v0.2.0 && git push origin xmlkit-v0.2.0
+```
+
+Repeat for each crate the plan named. Do not tag a crate it did not name: a crate
+nobody changed publishes a version nobody asked for, and a version on crates.io
+cannot be deleted.
+
 `.github/workflows/release.yml` publishes one crate per tag. The tag is
 `<crate>-v<version>`, and it runs on any `*-v*` tag or by hand from the Actions
 tab (`workflow_dispatch`, with the tag as input) to finish a partial release.
-
-```sh
-git tag xmlkit-v0.1.1 && git push origin xmlkit-v0.1.1
-```
 
 Push the tags one at a time. A push carrying several tags starts the workflow
 once, for one of them, so `git push --tags` with the seventeen tags that existed

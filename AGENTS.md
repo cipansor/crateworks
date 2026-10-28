@@ -41,6 +41,71 @@ Uploading needs a crates.io token; see the "Authenticating" section of
 `scripts/README.md`. Run the dry run first, then upload with `--publish` (it
 asks for confirmation; `--yes` skips the prompt for CI).
 
+## Versioning and what gets released
+
+**Each crate carries its own version, and a release publishes only the crates
+that changed.** This is the rule most easily got wrong, and getting it wrong is
+expensive: a version number on crates.io cannot be deleted, so releasing a crate
+nobody changed publishes a version nobody asked for, permanently.
+
+The crates used to share one version through `[workspace.package] version`, and
+every crate said `version.workspace = true`. That is why every release published
+all of them, and why the number only ever moved in the last place (`0.1.8` ->
+`0.1.9`, a patch bump for everything, even a change that added a function). That
+shared version is gone. A crate's version lives in its own `Cargo.toml`:
+
+```toml
+[package]
+name = "stdnum-rs"
+version = "0.1.9"
+```
+
+Do not put `version` back in `[workspace.package]` and do not use
+`version.workspace = true` in a crate. One bump must touch one manifest.
+
+**Before releasing, ask which crates are due:**
+
+```sh
+python3 scripts/release_plan.py
+```
+
+It reports a crate only when it has a release-worthy change since its last tag: a
+commit that touched its code (documentation, tests, CI, housekeeping and a
+`Cargo.toml`-only edit do not count), an uncommitted change, a manifest bumped
+past its last tag, or a workspace dependency that released a version outside the
+crate's `^` requirement. A crate with none of those is not a release.
+
+**Bump one crate at a time, with an explicit level:**
+
+```sh
+python3 scripts/bump.py stdnum-rs patch
+```
+
+`bump.py` refuses a crate with no change since its last release unless `--force`
+is given. It edits only that crate's manifest. When the crate is `xmlkit` or
+`pdfa` - the two the workspace depends on - it also updates the
+`[workspace.dependencies]` requirement and names the dependents that now need a
+release.
+
+**Choose the level by Cargo's compatibility rule, not by habit.** Below `1.0`
+the leading non-zero field is the boundary, so `^0.1.9` accepts `0.1.10` but not
+`0.2.0`:
+
+| Level | `0.1.9` becomes | When |
+| --- | --- | --- |
+| `patch` | `0.1.10` | A compatible fix. The only bump a dependent is guaranteed to accept |
+| `minor` | `0.2.0` | New functionality, **or any breaking change below 1.0** |
+| `major` | `1.0.0` | The deliberate move to a stable API. Not something a routine change earns |
+
+A change that adds a function is a **minor** bump (`0.1.9` -> `0.2.0`), not a
+patch. Reaching for `patch` by reflex is how a crate stays on `0.1.x` forever.
+`publish.py` holds this arithmetic in `next_version`; do not compute a version by
+hand.
+
+**Then release each crate on its own.** Commit, tag `<crate>-v<version>`, push
+that one tag, and let the workflow publish that one crate. Repeat for each crate
+the plan named. Never tag a crate the plan did not name.
+
 A release is a tag naming one crate, `<crate>-v<version>`, for example
 `xmlkit-v0.1.1`. `.github/workflows/release.yml` runs on `*-v*`, checks that the
 tag names a real crate at the version in its manifest, publishes just that crate
@@ -219,7 +284,21 @@ means what you think it means. This has cost two separate debugging rounds.
   repository root does not stop `cargo publish -p xmlkit`; one under
   `crates/xmlkit/` does. `scripts/publish.py` reports this per crate.
 - **A published version number cannot be reused or deleted.** If `0.1.0` is
-  wrong, the fix ships as `0.1.1`. Dry-run before uploading.
+  wrong, the fix ships as `0.1.1`. Dry-run before uploading. This is why a crate
+  nobody changed must not be released: the version is permanent.
+- **A shared `[workspace.package] version` re-versions every crate at once.** That
+  is what made every release publish all 26 crates, and what kept the number in
+  the patch position. Each crate now declares its own `version`, and the workspace
+  sets none. Do not restore it; `release_plan.py` reports which crates actually
+  changed, and `bump.py` bumps one at a time.
+- **A change that adds a function is a minor bump below 1.0.** `0.1.9` -> `0.2.0`,
+  not `0.1.10`: `^0.1.9` does not reach `0.2.0`, so a minor bump is also the
+  breaking-change bump pre-1.0. `publish.next_version` implements this; a reflexive
+  `patch` is how a crate stays on `0.1.x` forever.
+- **A patch bump of `xmlkit`/`pdfa` keeps dependents building; a minor bump does
+  not.** `^0.1.9` accepts `0.1.10`, so dependents need no release for it, but
+  `0.2.0` falls outside the requirement and every dependent has to be re-released
+  against it. `bump.py` updates `[workspace.dependencies]` and names them.
 - **A crate name cannot be changed after publication.** Check with
   `research/tools/namecheck.py` before writing code, not after.
 - **crates.io category names must be in the live list**, which is not the same as
@@ -244,6 +323,8 @@ means what you think it means. This has cost two separate debugging rounds.
 
 ```
 crates/<name>/          one crate: src/, tests/, README.md, LICENSE, NOTICE
+scripts/release_plan.py which crates changed since their last release (read-only)
+scripts/bump.py         bump one crate's version by an explicit semver level
 scripts/publish.py      derive and run the publish order (dry-run by default)
 scripts/fuzz/<name>/    corpus generators (dev tools, never built by CI)
 research/               the measurements that identified the gaps

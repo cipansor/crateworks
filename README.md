@@ -103,13 +103,18 @@ longer exists.
 
 ## Using a single crate
 
-Each crate is published independently. A project that only needs holiday
-arithmetic depends on `holidays-rs` alone:
+Each crate is published independently and versions on its own. A project that
+only needs holiday arithmetic depends on `holidays-rs` alone:
 
 ```toml
 [dependencies]
 holidays-rs = "0.1"
 ```
+
+There is no shared workspace version: a release publishes only the crates that
+changed, so a crate nobody touched keeps the version it has. `release_plan.py`
+reports which crates are due and `bump.py` bumps one at a time; see
+[`scripts/README.md`](scripts/README.md).
 
 ## How the crates are checked
 

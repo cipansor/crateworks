@@ -475,6 +475,13 @@ margin.
 
 ## Publishing order
 
+Each crate carries its own version, and a release publishes only the crates that
+changed since their last release. `scripts/release_plan.py` reports which those
+are and `scripts/bump.py <crate> <level>` bumps one of them; a crate nobody
+changed is not a release, because a version on crates.io can never be deleted.
+This is a change from the shared `[workspace.package] version` the workspace used
+to carry, under which every release republished every crate.
+
 `cargo package` resolves a `path` dependency against the registry, so a crate
 that depends on another crate in this workspace cannot be packaged until that
 dependency is published. Publish bottom-up. The check is `cargo publish
@@ -495,7 +502,8 @@ resolving the dependency rather than in building it.
 The other rule is that a published version cannot be overwritten. `0.1.0` is
 spent the moment it is uploaded, so a mistake in the first upload of a crate
 costs the `0.1.0` number and the fix goes out as `0.1.1`. Check with
-`cargo publish --dry-run` first.
+`cargo publish --dry-run` first. This is also why a crate nobody changed must not
+be released: the version it would spend is permanent.
 
 `scripts/publish.py` works out the order from the manifests and runs it:
 

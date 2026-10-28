@@ -57,6 +57,40 @@ changes with it. `python3 scripts/publish.py` works the order out from the
 manifests and dry-runs every crate without uploading anything; see
 [`scripts/README.md`](scripts/README.md).
 
+## Versioning and releases
+
+Each crate carries its own version, in its own `Cargo.toml`. There is no shared
+workspace version: a release publishes only the crates that changed, and a crate
+that did not change is not released, because a version on crates.io can never be
+deleted. Do not add `version` to `[workspace.package]`, and do not use
+`version.workspace = true`.
+
+A contribution that changes what a crate does is worth a new version; one that
+only touches its documentation, its tests or its `Cargo.toml` is not. Ask which
+crates are due:
+
+```sh
+python3 scripts/release_plan.py
+```
+
+Then bump one crate with the level the change deserves:
+
+```sh
+python3 scripts/bump.py stdnum-rs patch
+```
+
+The level follows Cargo's compatibility rule, which is not the same below `1.0`
+as above it, because `^0.1.9` accepts `0.1.10` but not `0.2.0`:
+
+| Level | `0.1.9` becomes | When |
+| --- | --- | --- |
+| `patch` | `0.1.10` | A compatible fix |
+| `minor` | `0.2.0` | New functionality, or any breaking change below 1.0 |
+| `major` | `1.0.0` | A deliberate move to a stable API |
+
+Adding a function is a **minor** bump, not a patch. Maintainers tag and publish;
+a contributor does not need a crates.io token.
+
 ## What makes a good contribution
 
 ### A new country or identifier
