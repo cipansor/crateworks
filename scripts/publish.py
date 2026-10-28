@@ -200,16 +200,51 @@ def topo_order(crates: list[str], deps: dict[str, list[str]]) -> list[str]:
 
 
 def version_of(manifest: dict) -> str:
-    """The version a manifest declares, following `version.workspace = true`.
+    """The version a manifest declares.
 
-    tomllib reads that key as `{'workspace': True}`, a dict, so it cannot be
-    compared against a version string as it stands.
+    Each crate states its own `version`; the workspace deliberately does NOT set
+    a shared `[workspace.package] version`, because a shared one re-versions all
+    of them at once and that is how every release came to publish every crate.
+    The `version.workspace = true` form is still resolved here, so a manifest that
+    inherits from a workspace that does set one keeps working.
     """
     field = manifest["package"]["version"]
     if isinstance(field, str):
         return field
     workspace = tomllib.loads((ROOT / "Cargo.toml").read_text())
     return workspace["workspace"]["package"]["version"]
+
+
+# Semantic-version levels, weakest first. Cargo's compatibility rule is what
+# makes the pre-1.0 case different: `^0.1.9` accepts `0.1.10` but NOT `0.2.0`, so
+# below 1.0 a minor bump is also a breaking change for every dependent, and a
+# patch bump is the only one that stays compatible.
+LEVELS = ("patch", "minor", "major")
+
+
+def next_version(version: str, level: str) -> str:
+    """The version one semver level above `version`.
+
+    Follows Cargo's compatibility model, which treats 0.x differently from 1.x:
+
+    * `patch` - a compatible fix. `0.1.9` -> `0.1.10`, `1.2.3` -> `1.2.4`.
+    * `minor` - new functionality, or a breaking change. `0.1.9` -> `0.2.0`,
+      `1.2.3` -> `1.3.0`. Below 1.0 this is the bump a breaking change takes,
+      because `^0.1.9` does not reach `0.2.0`.
+    * `major` - `1.2.3` -> `2.0.0`. Below 1.0 it is `0.1.9` -> `1.0.0`, the
+      deliberate move to a stable API, not something a routine change earns.
+    """
+    if level not in LEVELS:
+        raise ReleaseError(f"unknown version level `{level}`; use one of {', '.join(LEVELS)}")
+    parts = version.split(".")
+    if len(parts) != 3 or not all(p.isdigit() for p in parts):
+        raise ReleaseError(f"`{version}` is not a major.minor.patch version")
+    major, minor, patch = (int(p) for p in parts)
+    if level == "major":
+        return f"{major + 1}.0.0" if major > 0 else "1.0.0"
+    if level == "minor":
+        return f"{major}.{minor + 1}.0"
+    return f"{major}.{minor}.{patch + 1}"
 
 
 def release_selection(
