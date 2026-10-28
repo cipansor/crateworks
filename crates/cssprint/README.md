@@ -12,7 +12,7 @@ tree of positioned boxes.
 ```rust
 use cssprint::{Stylesheet, layout};
 
-let sheet = Stylesheet::parse("div { width: 50px; height: 20px }");
+let sheet = Stylesheet::parse("div { width: 50px; height: 20px }")?;
 let document = layout(
     r#"<div></div><div style="width: 80px"></div>"#,
     &sheet,
@@ -34,7 +34,7 @@ Text is laid out too, and wrapped into lines:
 ```rust
 use cssprint::{Stylesheet, layout};
 
-let sheet = Stylesheet::parse("div { font-family: weasyprint; width: 40px }");
+let sheet = Stylesheet::parse("div { font-family: weasyprint; width: 40px }")?;
 let document = layout("<div>hello world</div>", &sheet, 200.0)?;
 
 let div = &document.body().children[0];
