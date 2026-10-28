@@ -1,0 +1,217 @@
+count	has_comment	comment	sort_keys	document	pairs
+1	0		0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<entry key="a">1</entry>\n</properties>\n	a	1
+1	0		1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<entry key="a">1</entry>\n</properties>\n	a	1
+1	1		0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment></comment>\n<entry key="a">1</entry>\n</properties>\n	a	1
+1	1		1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment></comment>\n<entry key="a">1</entry>\n</properties>\n	a	1
+1	1	hi	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>hi</comment>\n<entry key="a">1</entry>\n</properties>\n	a	1
+1	1	hi	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>hi</comment>\n<entry key="a">1</entry>\n</properties>\n	a	1
+1	1	one\ntwo	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>one\ntwo</comment>\n<entry key="a">1</entry>\n</properties>\n	a	1
+1	1	one\ntwo	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>one\ntwo</comment>\n<entry key="a">1</entry>\n</properties>\n	a	1
+1	1	a&b<c>d	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>a&amp;b&lt;c&gt;d</comment>\n<entry key="a">1</entry>\n</properties>\n	a	1
+1	1	a&b<c>d	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>a&amp;b&lt;c&gt;d</comment>\n<entry key="a">1</entry>\n</properties>\n	a	1
+1	1	caf\xe9	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>caf\xe9</comment>\n<entry key="a">1</entry>\n</properties>\n	a	1
+1	1	caf\xe9	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>caf\xe9</comment>\n<entry key="a">1</entry>\n</properties>\n	a	1
+2	0		0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<entry key="a">1</entry>\n<entry key="b">2</entry>\n</properties>\n	a	1	b	2
+2	0		1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<entry key="a">1</entry>\n<entry key="b">2</entry>\n</properties>\n	a	1	b	2
+2	1		0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment></comment>\n<entry key="a">1</entry>\n<entry key="b">2</entry>\n</properties>\n	a	1	b	2
+2	1		1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment></comment>\n<entry key="a">1</entry>\n<entry key="b">2</entry>\n</properties>\n	a	1	b	2
+2	1	hi	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>hi</comment>\n<entry key="a">1</entry>\n<entry key="b">2</entry>\n</properties>\n	a	1	b	2
+2	1	hi	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>hi</comment>\n<entry key="a">1</entry>\n<entry key="b">2</entry>\n</properties>\n	a	1	b	2
+2	1	one\ntwo	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>one\ntwo</comment>\n<entry key="a">1</entry>\n<entry key="b">2</entry>\n</properties>\n	a	1	b	2
+2	1	one\ntwo	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>one\ntwo</comment>\n<entry key="a">1</entry>\n<entry key="b">2</entry>\n</properties>\n	a	1	b	2
+2	1	a&b<c>d	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>a&amp;b&lt;c&gt;d</comment>\n<entry key="a">1</entry>\n<entry key="b">2</entry>\n</properties>\n	a	1	b	2
+2	1	a&b<c>d	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>a&amp;b&lt;c&gt;d</comment>\n<entry key="a">1</entry>\n<entry key="b">2</entry>\n</properties>\n	a	1	b	2
+2	1	caf\xe9	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>caf\xe9</comment>\n<entry key="a">1</entry>\n<entry key="b">2</entry>\n</properties>\n	a	1	b	2
+2	1	caf\xe9	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>caf\xe9</comment>\n<entry key="a">1</entry>\n<entry key="b">2</entry>\n</properties>\n	a	1	b	2
+2	0		0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<entry key="b">2</entry>\n<entry key="a">1</entry>\n</properties>\n	b	2	a	1
+2	0		1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<entry key="a">1</entry>\n<entry key="b">2</entry>\n</properties>\n	b	2	a	1
+2	1		0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment></comment>\n<entry key="b">2</entry>\n<entry key="a">1</entry>\n</properties>\n	b	2	a	1
+2	1		1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment></comment>\n<entry key="a">1</entry>\n<entry key="b">2</entry>\n</properties>\n	b	2	a	1
+2	1	hi	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>hi</comment>\n<entry key="b">2</entry>\n<entry key="a">1</entry>\n</properties>\n	b	2	a	1
+2	1	hi	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>hi</comment>\n<entry key="a">1</entry>\n<entry key="b">2</entry>\n</properties>\n	b	2	a	1
+2	1	one\ntwo	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>one\ntwo</comment>\n<entry key="b">2</entry>\n<entry key="a">1</entry>\n</properties>\n	b	2	a	1
+2	1	one\ntwo	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>one\ntwo</comment>\n<entry key="a">1</entry>\n<entry key="b">2</entry>\n</properties>\n	b	2	a	1
+2	1	a&b<c>d	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>a&amp;b&lt;c&gt;d</comment>\n<entry key="b">2</entry>\n<entry key="a">1</entry>\n</properties>\n	b	2	a	1
+2	1	a&b<c>d	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>a&amp;b&lt;c&gt;d</comment>\n<entry key="a">1</entry>\n<entry key="b">2</entry>\n</properties>\n	b	2	a	1
+2	1	caf\xe9	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>caf\xe9</comment>\n<entry key="b">2</entry>\n<entry key="a">1</entry>\n</properties>\n	b	2	a	1
+2	1	caf\xe9	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>caf\xe9</comment>\n<entry key="a">1</entry>\n<entry key="b">2</entry>\n</properties>\n	b	2	a	1
+1	0		0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<entry key="name">cipansor</entry>\n</properties>\n	name	cipansor
+1	0		1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<entry key="name">cipansor</entry>\n</properties>\n	name	cipansor
+1	1		0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment></comment>\n<entry key="name">cipansor</entry>\n</properties>\n	name	cipansor
+1	1		1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment></comment>\n<entry key="name">cipansor</entry>\n</properties>\n	name	cipansor
+1	1	hi	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>hi</comment>\n<entry key="name">cipansor</entry>\n</properties>\n	name	cipansor
+1	1	hi	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>hi</comment>\n<entry key="name">cipansor</entry>\n</properties>\n	name	cipansor
+1	1	one\ntwo	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>one\ntwo</comment>\n<entry key="name">cipansor</entry>\n</properties>\n	name	cipansor
+1	1	one\ntwo	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>one\ntwo</comment>\n<entry key="name">cipansor</entry>\n</properties>\n	name	cipansor
+1	1	a&b<c>d	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>a&amp;b&lt;c&gt;d</comment>\n<entry key="name">cipansor</entry>\n</properties>\n	name	cipansor
+1	1	a&b<c>d	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>a&amp;b&lt;c&gt;d</comment>\n<entry key="name">cipansor</entry>\n</properties>\n	name	cipansor
+1	1	caf\xe9	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>caf\xe9</comment>\n<entry key="name">cipansor</entry>\n</properties>\n	name	cipansor
+1	1	caf\xe9	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>caf\xe9</comment>\n<entry key="name">cipansor</entry>\n</properties>\n	name	cipansor
+1	0		0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<entry key="k">a&amp;b&lt;c&gt;d</entry>\n</properties>\n	k	a&b<c>d
+1	0		1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<entry key="k">a&amp;b&lt;c&gt;d</entry>\n</properties>\n	k	a&b<c>d
+1	1		0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment></comment>\n<entry key="k">a&amp;b&lt;c&gt;d</entry>\n</properties>\n	k	a&b<c>d
+1	1		1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment></comment>\n<entry key="k">a&amp;b&lt;c&gt;d</entry>\n</properties>\n	k	a&b<c>d
+1	1	hi	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>hi</comment>\n<entry key="k">a&amp;b&lt;c&gt;d</entry>\n</properties>\n	k	a&b<c>d
+1	1	hi	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>hi</comment>\n<entry key="k">a&amp;b&lt;c&gt;d</entry>\n</properties>\n	k	a&b<c>d
+1	1	one\ntwo	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>one\ntwo</comment>\n<entry key="k">a&amp;b&lt;c&gt;d</entry>\n</properties>\n	k	a&b<c>d
+1	1	one\ntwo	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>one\ntwo</comment>\n<entry key="k">a&amp;b&lt;c&gt;d</entry>\n</properties>\n	k	a&b<c>d
+1	1	a&b<c>d	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>a&amp;b&lt;c&gt;d</comment>\n<entry key="k">a&amp;b&lt;c&gt;d</entry>\n</properties>\n	k	a&b<c>d
+1	1	a&b<c>d	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>a&amp;b&lt;c&gt;d</comment>\n<entry key="k">a&amp;b&lt;c&gt;d</entry>\n</properties>\n	k	a&b<c>d
+1	1	caf\xe9	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>caf\xe9</comment>\n<entry key="k">a&amp;b&lt;c&gt;d</entry>\n</properties>\n	k	a&b<c>d
+1	1	caf\xe9	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>caf\xe9</comment>\n<entry key="k">a&amp;b&lt;c&gt;d</entry>\n</properties>\n	k	a&b<c>d
+1	0		0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<entry key="k">a"b'c</entry>\n</properties>\n	k	a"b'c
+1	0		1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<entry key="k">a"b'c</entry>\n</properties>\n	k	a"b'c
+1	1		0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment></comment>\n<entry key="k">a"b'c</entry>\n</properties>\n	k	a"b'c
+1	1		1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment></comment>\n<entry key="k">a"b'c</entry>\n</properties>\n	k	a"b'c
+1	1	hi	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>hi</comment>\n<entry key="k">a"b'c</entry>\n</properties>\n	k	a"b'c
+1	1	hi	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>hi</comment>\n<entry key="k">a"b'c</entry>\n</properties>\n	k	a"b'c
+1	1	one\ntwo	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>one\ntwo</comment>\n<entry key="k">a"b'c</entry>\n</properties>\n	k	a"b'c
+1	1	one\ntwo	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>one\ntwo</comment>\n<entry key="k">a"b'c</entry>\n</properties>\n	k	a"b'c
+1	1	a&b<c>d	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>a&amp;b&lt;c&gt;d</comment>\n<entry key="k">a"b'c</entry>\n</properties>\n	k	a"b'c
+1	1	a&b<c>d	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>a&amp;b&lt;c&gt;d</comment>\n<entry key="k">a"b'c</entry>\n</properties>\n	k	a"b'c
+1	1	caf\xe9	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>caf\xe9</comment>\n<entry key="k">a"b'c</entry>\n</properties>\n	k	a"b'c
+1	1	caf\xe9	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>caf\xe9</comment>\n<entry key="k">a"b'c</entry>\n</properties>\n	k	a"b'c
+1	0		0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<entry key="a b">c d</entry>\n</properties>\n	a b	c d
+1	0		1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<entry key="a b">c d</entry>\n</properties>\n	a b	c d
+1	1		0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment></comment>\n<entry key="a b">c d</entry>\n</properties>\n	a b	c d
+1	1		1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment></comment>\n<entry key="a b">c d</entry>\n</properties>\n	a b	c d
+1	1	hi	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>hi</comment>\n<entry key="a b">c d</entry>\n</properties>\n	a b	c d
+1	1	hi	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>hi</comment>\n<entry key="a b">c d</entry>\n</properties>\n	a b	c d
+1	1	one\ntwo	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>one\ntwo</comment>\n<entry key="a b">c d</entry>\n</properties>\n	a b	c d
+1	1	one\ntwo	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>one\ntwo</comment>\n<entry key="a b">c d</entry>\n</properties>\n	a b	c d
+1	1	a&b<c>d	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>a&amp;b&lt;c&gt;d</comment>\n<entry key="a b">c d</entry>\n</properties>\n	a b	c d
+1	1	a&b<c>d	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>a&amp;b&lt;c&gt;d</comment>\n<entry key="a b">c d</entry>\n</properties>\n	a b	c d
+1	1	caf\xe9	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>caf\xe9</comment>\n<entry key="a b">c d</entry>\n</properties>\n	a b	c d
+1	1	caf\xe9	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>caf\xe9</comment>\n<entry key="a b">c d</entry>\n</properties>\n	a b	c d
+1	0		0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<entry key='k"q'>v</entry>\n</properties>\n	k"q	v
+1	0		1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<entry key='k"q'>v</entry>\n</properties>\n	k"q	v
+1	1		0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment></comment>\n<entry key='k"q'>v</entry>\n</properties>\n	k"q	v
+1	1		1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment></comment>\n<entry key='k"q'>v</entry>\n</properties>\n	k"q	v
+1	1	hi	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>hi</comment>\n<entry key='k"q'>v</entry>\n</properties>\n	k"q	v
+1	1	hi	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>hi</comment>\n<entry key='k"q'>v</entry>\n</properties>\n	k"q	v
+1	1	one\ntwo	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>one\ntwo</comment>\n<entry key='k"q'>v</entry>\n</properties>\n	k"q	v
+1	1	one\ntwo	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>one\ntwo</comment>\n<entry key='k"q'>v</entry>\n</properties>\n	k"q	v
+1	1	a&b<c>d	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>a&amp;b&lt;c&gt;d</comment>\n<entry key='k"q'>v</entry>\n</properties>\n	k"q	v
+1	1	a&b<c>d	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>a&amp;b&lt;c&gt;d</comment>\n<entry key='k"q'>v</entry>\n</properties>\n	k"q	v
+1	1	caf\xe9	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>caf\xe9</comment>\n<entry key='k"q'>v</entry>\n</properties>\n	k"q	v
+1	1	caf\xe9	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>caf\xe9</comment>\n<entry key='k"q'>v</entry>\n</properties>\n	k"q	v
+1	0		0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<entry key="k'q">v</entry>\n</properties>\n	k'q	v
+1	0		1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<entry key="k'q">v</entry>\n</properties>\n	k'q	v
+1	1		0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment></comment>\n<entry key="k'q">v</entry>\n</properties>\n	k'q	v
+1	1		1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment></comment>\n<entry key="k'q">v</entry>\n</properties>\n	k'q	v
+1	1	hi	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>hi</comment>\n<entry key="k'q">v</entry>\n</properties>\n	k'q	v
+1	1	hi	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>hi</comment>\n<entry key="k'q">v</entry>\n</properties>\n	k'q	v
+1	1	one\ntwo	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>one\ntwo</comment>\n<entry key="k'q">v</entry>\n</properties>\n	k'q	v
+1	1	one\ntwo	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>one\ntwo</comment>\n<entry key="k'q">v</entry>\n</properties>\n	k'q	v
+1	1	a&b<c>d	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>a&amp;b&lt;c&gt;d</comment>\n<entry key="k'q">v</entry>\n</properties>\n	k'q	v
+1	1	a&b<c>d	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>a&amp;b&lt;c&gt;d</comment>\n<entry key="k'q">v</entry>\n</properties>\n	k'q	v
+1	1	caf\xe9	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>caf\xe9</comment>\n<entry key="k'q">v</entry>\n</properties>\n	k'q	v
+1	1	caf\xe9	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>caf\xe9</comment>\n<entry key="k'q">v</entry>\n</properties>\n	k'q	v
+1	0		0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<entry key="both&quot;'x">v</entry>\n</properties>\n	both"'x	v
+1	0		1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<entry key="both&quot;'x">v</entry>\n</properties>\n	both"'x	v
+1	1		0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment></comment>\n<entry key="both&quot;'x">v</entry>\n</properties>\n	both"'x	v
+1	1		1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment></comment>\n<entry key="both&quot;'x">v</entry>\n</properties>\n	both"'x	v
+1	1	hi	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>hi</comment>\n<entry key="both&quot;'x">v</entry>\n</properties>\n	both"'x	v
+1	1	hi	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>hi</comment>\n<entry key="both&quot;'x">v</entry>\n</properties>\n	both"'x	v
+1	1	one\ntwo	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>one\ntwo</comment>\n<entry key="both&quot;'x">v</entry>\n</properties>\n	both"'x	v
+1	1	one\ntwo	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>one\ntwo</comment>\n<entry key="both&quot;'x">v</entry>\n</properties>\n	both"'x	v
+1	1	a&b<c>d	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>a&amp;b&lt;c&gt;d</comment>\n<entry key="both&quot;'x">v</entry>\n</properties>\n	both"'x	v
+1	1	a&b<c>d	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>a&amp;b&lt;c&gt;d</comment>\n<entry key="both&quot;'x">v</entry>\n</properties>\n	both"'x	v
+1	1	caf\xe9	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>caf\xe9</comment>\n<entry key="both&quot;'x">v</entry>\n</properties>\n	both"'x	v
+1	1	caf\xe9	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>caf\xe9</comment>\n<entry key="both&quot;'x">v</entry>\n</properties>\n	both"'x	v
+1	0		0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<entry key="tab&#9;key">v</entry>\n</properties>\n	tab\tkey	v
+1	0		1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<entry key="tab&#9;key">v</entry>\n</properties>\n	tab\tkey	v
+1	1		0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment></comment>\n<entry key="tab&#9;key">v</entry>\n</properties>\n	tab\tkey	v
+1	1		1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment></comment>\n<entry key="tab&#9;key">v</entry>\n</properties>\n	tab\tkey	v
+1	1	hi	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>hi</comment>\n<entry key="tab&#9;key">v</entry>\n</properties>\n	tab\tkey	v
+1	1	hi	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>hi</comment>\n<entry key="tab&#9;key">v</entry>\n</properties>\n	tab\tkey	v
+1	1	one\ntwo	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>one\ntwo</comment>\n<entry key="tab&#9;key">v</entry>\n</properties>\n	tab\tkey	v
+1	1	one\ntwo	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>one\ntwo</comment>\n<entry key="tab&#9;key">v</entry>\n</properties>\n	tab\tkey	v
+1	1	a&b<c>d	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>a&amp;b&lt;c&gt;d</comment>\n<entry key="tab&#9;key">v</entry>\n</properties>\n	tab\tkey	v
+1	1	a&b<c>d	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>a&amp;b&lt;c&gt;d</comment>\n<entry key="tab&#9;key">v</entry>\n</properties>\n	tab\tkey	v
+1	1	caf\xe9	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>caf\xe9</comment>\n<entry key="tab&#9;key">v</entry>\n</properties>\n	tab\tkey	v
+1	1	caf\xe9	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>caf\xe9</comment>\n<entry key="tab&#9;key">v</entry>\n</properties>\n	tab\tkey	v
+1	0		0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<entry key="nl&#10;key">v</entry>\n</properties>\n	nl\nkey	v
+1	0		1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<entry key="nl&#10;key">v</entry>\n</properties>\n	nl\nkey	v
+1	1		0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment></comment>\n<entry key="nl&#10;key">v</entry>\n</properties>\n	nl\nkey	v
+1	1		1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment></comment>\n<entry key="nl&#10;key">v</entry>\n</properties>\n	nl\nkey	v
+1	1	hi	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>hi</comment>\n<entry key="nl&#10;key">v</entry>\n</properties>\n	nl\nkey	v
+1	1	hi	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>hi</comment>\n<entry key="nl&#10;key">v</entry>\n</properties>\n	nl\nkey	v
+1	1	one\ntwo	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>one\ntwo</comment>\n<entry key="nl&#10;key">v</entry>\n</properties>\n	nl\nkey	v
+1	1	one\ntwo	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>one\ntwo</comment>\n<entry key="nl&#10;key">v</entry>\n</properties>\n	nl\nkey	v
+1	1	a&b<c>d	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>a&amp;b&lt;c&gt;d</comment>\n<entry key="nl&#10;key">v</entry>\n</properties>\n	nl\nkey	v
+1	1	a&b<c>d	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>a&amp;b&lt;c&gt;d</comment>\n<entry key="nl&#10;key">v</entry>\n</properties>\n	nl\nkey	v
+1	1	caf\xe9	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>caf\xe9</comment>\n<entry key="nl&#10;key">v</entry>\n</properties>\n	nl\nkey	v
+1	1	caf\xe9	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>caf\xe9</comment>\n<entry key="nl&#10;key">v</entry>\n</properties>\n	nl\nkey	v
+1	0		0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<entry key="cr&#13;key">v</entry>\n</properties>\n	cr\rkey	v
+1	0		1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<entry key="cr&#13;key">v</entry>\n</properties>\n	cr\rkey	v
+1	1		0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment></comment>\n<entry key="cr&#13;key">v</entry>\n</properties>\n	cr\rkey	v
+1	1		1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment></comment>\n<entry key="cr&#13;key">v</entry>\n</properties>\n	cr\rkey	v
+1	1	hi	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>hi</comment>\n<entry key="cr&#13;key">v</entry>\n</properties>\n	cr\rkey	v
+1	1	hi	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>hi</comment>\n<entry key="cr&#13;key">v</entry>\n</properties>\n	cr\rkey	v
+1	1	one\ntwo	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>one\ntwo</comment>\n<entry key="cr&#13;key">v</entry>\n</properties>\n	cr\rkey	v
+1	1	one\ntwo	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>one\ntwo</comment>\n<entry key="cr&#13;key">v</entry>\n</properties>\n	cr\rkey	v
+1	1	a&b<c>d	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>a&amp;b&lt;c&gt;d</comment>\n<entry key="cr&#13;key">v</entry>\n</properties>\n	cr\rkey	v
+1	1	a&b<c>d	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>a&amp;b&lt;c&gt;d</comment>\n<entry key="cr&#13;key">v</entry>\n</properties>\n	cr\rkey	v
+1	1	caf\xe9	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>caf\xe9</comment>\n<entry key="cr&#13;key">v</entry>\n</properties>\n	cr\rkey	v
+1	1	caf\xe9	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>caf\xe9</comment>\n<entry key="cr&#13;key">v</entry>\n</properties>\n	cr\rkey	v
+1	0		0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<entry key="caf\xe9">\u4e2d\u6587</entry>\n</properties>\n	caf\xe9	\u4e2d\u6587
+1	0		1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<entry key="caf\xe9">\u4e2d\u6587</entry>\n</properties>\n	caf\xe9	\u4e2d\u6587
+1	1		0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment></comment>\n<entry key="caf\xe9">\u4e2d\u6587</entry>\n</properties>\n	caf\xe9	\u4e2d\u6587
+1	1		1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment></comment>\n<entry key="caf\xe9">\u4e2d\u6587</entry>\n</properties>\n	caf\xe9	\u4e2d\u6587
+1	1	hi	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>hi</comment>\n<entry key="caf\xe9">\u4e2d\u6587</entry>\n</properties>\n	caf\xe9	\u4e2d\u6587
+1	1	hi	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>hi</comment>\n<entry key="caf\xe9">\u4e2d\u6587</entry>\n</properties>\n	caf\xe9	\u4e2d\u6587
+1	1	one\ntwo	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>one\ntwo</comment>\n<entry key="caf\xe9">\u4e2d\u6587</entry>\n</properties>\n	caf\xe9	\u4e2d\u6587
+1	1	one\ntwo	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>one\ntwo</comment>\n<entry key="caf\xe9">\u4e2d\u6587</entry>\n</properties>\n	caf\xe9	\u4e2d\u6587
+1	1	a&b<c>d	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>a&amp;b&lt;c&gt;d</comment>\n<entry key="caf\xe9">\u4e2d\u6587</entry>\n</properties>\n	caf\xe9	\u4e2d\u6587
+1	1	a&b<c>d	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>a&amp;b&lt;c&gt;d</comment>\n<entry key="caf\xe9">\u4e2d\u6587</entry>\n</properties>\n	caf\xe9	\u4e2d\u6587
+1	1	caf\xe9	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>caf\xe9</comment>\n<entry key="caf\xe9">\u4e2d\u6587</entry>\n</properties>\n	caf\xe9	\u4e2d\u6587
+1	1	caf\xe9	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>caf\xe9</comment>\n<entry key="caf\xe9">\u4e2d\u6587</entry>\n</properties>\n	caf\xe9	\u4e2d\u6587
+1	0		0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<entry key="">x</entry>\n</properties>\n		x
+1	0		1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<entry key="">x</entry>\n</properties>\n		x
+1	1		0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment></comment>\n<entry key="">x</entry>\n</properties>\n		x
+1	1		1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment></comment>\n<entry key="">x</entry>\n</properties>\n		x
+1	1	hi	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>hi</comment>\n<entry key="">x</entry>\n</properties>\n		x
+1	1	hi	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>hi</comment>\n<entry key="">x</entry>\n</properties>\n		x
+1	1	one\ntwo	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>one\ntwo</comment>\n<entry key="">x</entry>\n</properties>\n		x
+1	1	one\ntwo	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>one\ntwo</comment>\n<entry key="">x</entry>\n</properties>\n		x
+1	1	a&b<c>d	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>a&amp;b&lt;c&gt;d</comment>\n<entry key="">x</entry>\n</properties>\n		x
+1	1	a&b<c>d	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>a&amp;b&lt;c&gt;d</comment>\n<entry key="">x</entry>\n</properties>\n		x
+1	1	caf\xe9	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>caf\xe9</comment>\n<entry key="">x</entry>\n</properties>\n		x
+1	1	caf\xe9	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>caf\xe9</comment>\n<entry key="">x</entry>\n</properties>\n		x
+1	0		0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<entry key="k"></entry>\n</properties>\n	k	
+1	0		1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<entry key="k"></entry>\n</properties>\n	k	
+1	1		0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment></comment>\n<entry key="k"></entry>\n</properties>\n	k	
+1	1		1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment></comment>\n<entry key="k"></entry>\n</properties>\n	k	
+1	1	hi	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>hi</comment>\n<entry key="k"></entry>\n</properties>\n	k	
+1	1	hi	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>hi</comment>\n<entry key="k"></entry>\n</properties>\n	k	
+1	1	one\ntwo	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>one\ntwo</comment>\n<entry key="k"></entry>\n</properties>\n	k	
+1	1	one\ntwo	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>one\ntwo</comment>\n<entry key="k"></entry>\n</properties>\n	k	
+1	1	a&b<c>d	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>a&amp;b&lt;c&gt;d</comment>\n<entry key="k"></entry>\n</properties>\n	k	
+1	1	a&b<c>d	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>a&amp;b&lt;c&gt;d</comment>\n<entry key="k"></entry>\n</properties>\n	k	
+1	1	caf\xe9	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>caf\xe9</comment>\n<entry key="k"></entry>\n</properties>\n	k	
+1	1	caf\xe9	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>caf\xe9</comment>\n<entry key="k"></entry>\n</properties>\n	k	
+2	0		0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<entry key="dup">1</entry>\n<entry key="dup">2</entry>\n</properties>\n	dup	1	dup	2
+2	0		1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<entry key="dup">1</entry>\n<entry key="dup">2</entry>\n</properties>\n	dup	1	dup	2
+2	1		0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment></comment>\n<entry key="dup">1</entry>\n<entry key="dup">2</entry>\n</properties>\n	dup	1	dup	2
+2	1		1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment></comment>\n<entry key="dup">1</entry>\n<entry key="dup">2</entry>\n</properties>\n	dup	1	dup	2
+2	1	hi	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>hi</comment>\n<entry key="dup">1</entry>\n<entry key="dup">2</entry>\n</properties>\n	dup	1	dup	2
+2	1	hi	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>hi</comment>\n<entry key="dup">1</entry>\n<entry key="dup">2</entry>\n</properties>\n	dup	1	dup	2
+2	1	one\ntwo	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>one\ntwo</comment>\n<entry key="dup">1</entry>\n<entry key="dup">2</entry>\n</properties>\n	dup	1	dup	2
+2	1	one\ntwo	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>one\ntwo</comment>\n<entry key="dup">1</entry>\n<entry key="dup">2</entry>\n</properties>\n	dup	1	dup	2
+2	1	a&b<c>d	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>a&amp;b&lt;c&gt;d</comment>\n<entry key="dup">1</entry>\n<entry key="dup">2</entry>\n</properties>\n	dup	1	dup	2
+2	1	a&b<c>d	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>a&amp;b&lt;c&gt;d</comment>\n<entry key="dup">1</entry>\n<entry key="dup">2</entry>\n</properties>\n	dup	1	dup	2
+2	1	caf\xe9	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>caf\xe9</comment>\n<entry key="dup">1</entry>\n<entry key="dup">2</entry>\n</properties>\n	dup	1	dup	2
+2	1	caf\xe9	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>caf\xe9</comment>\n<entry key="dup">1</entry>\n<entry key="dup">2</entry>\n</properties>\n	dup	1	dup	2
+0	0		0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n</properties>\n
+0	0		1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n</properties>\n
+0	1		0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment></comment>\n</properties>\n
+0	1		1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment></comment>\n</properties>\n
+0	1	hi	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>hi</comment>\n</properties>\n
+0	1	hi	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>hi</comment>\n</properties>\n
+0	1	one\ntwo	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>one\ntwo</comment>\n</properties>\n
+0	1	one\ntwo	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>one\ntwo</comment>\n</properties>\n
+0	1	a&b<c>d	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>a&amp;b&lt;c&gt;d</comment>\n</properties>\n
+0	1	a&b<c>d	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>a&amp;b&lt;c&gt;d</comment>\n</properties>\n
+0	1	caf\xe9	0	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>caf\xe9</comment>\n</properties>\n
+0	1	caf\xe9	1	<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties>\n<comment>caf\xe9</comment>\n</properties>\n

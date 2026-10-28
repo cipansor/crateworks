@@ -21,6 +21,12 @@ pub enum Error {
     },
     /// The input could not be read from the stream.
     Io,
+    /// An XML document whose root element is not `<properties>`.
+    NotPropertiesRoot,
+    /// An XML `<entry>` element with no `key` attribute.
+    MissingEntryKey,
+    /// An XML document that could not be read as the properties format.
+    MalformedXml,
 }
 
 impl Error {
@@ -29,7 +35,7 @@ impl Error {
     pub fn escape(&self) -> Option<&str> {
         match self {
             Self::BadEscape { escape } => Some(escape),
-            Self::Io => None,
+            Self::Io | Self::NotPropertiesRoot | Self::MissingEntryKey | Self::MalformedXml => None,
         }
     }
 }
@@ -41,6 +47,9 @@ impl fmt::Display for Error {
                 write!(f, "invalid \\u escape sequence: {escape}")
             }
             Self::Io => f.write_str("could not read the properties input"),
+            Self::NotPropertiesRoot => f.write_str("XML tree is not rooted at <properties>"),
+            Self::MissingEntryKey => f.write_str(r#"<entry> is missing "key" attribute"#),
+            Self::MalformedXml => f.write_str("malformed XML properties document"),
         }
     }
 }

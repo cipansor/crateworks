@@ -99,6 +99,37 @@ it in the local timezone, reading the host's; this crate has no timezone databas
 and takes no dependency, so it renders UTC and says so, which is why the function
 is `java_timestamp_utc` rather than a silent `java_timestamp`.
 
+## The XML format
+
+`java.util.Properties` has a second representation, reached through
+`loadFromXML` and `storeToXML`, which carries the same key/value data as an XML
+document. It is used where the data has to travel as XML: a configuration
+fragment inside a larger document, or an attachment.
+
+```rust
+use javaproperties::{dumps_xml, loads_xml};
+
+let xml = dumps_xml(
+    &[("name".to_string(), "cipansor".to_string())],
+    Some("a note"),
+    false,
+);
+assert!(xml.starts_with("<!DOCTYPE properties"));
+assert_eq!(
+    loads_xml(&xml).unwrap(),
+    vec![("name".to_string(), "cipansor".to_string())],
+);
+```
+
+The shape is fixed: a `properties` root, an optional `comment` element, and one
+`entry` element per pair, each with a `key` attribute. The escaping is XML's, not
+the backslash escaping of the line-based format, so this is a separate module
+with its own rules. A value escapes `&`, `<` and `>`; a key is quoted with
+whichever of `'` and `"` the key does not contain, and a tab, newline or carriage
+return in a key is written as a numeric reference so the reader cannot normalise
+it away. The `Properties::from_xml` and `Properties::to_xml` methods are the same
+two operations on the type.
+
 ## How it is checked
 
 Against Python's `javaproperties` package, which replicates
@@ -131,6 +162,16 @@ and the cases where two rules meet are the ones it exists for: a key that ends i
 a backslash just before a comment, a `\uXXXX` split across a continuation, a
 separator that is also an escaped character. Those are where the obvious
 implementation and the reference part ways.
+
+The XML format is checked by `scripts/fuzz/javaproperties/gen_xml.py`, which asks
+the reference's `loads_xml` and `dumps_xml` for their answers and records them:
+**513 documents to read and 216 pairs to write**, every expectation the
+reference's own. That corpus caught a rule the XML parser underneath this crate
+had wrong and no other crate had exercised: XML 1.0 end-of-line handling, where a
+literal carriage return - and a carriage-return/line-feed pair - is normalised to
+a single line feed before anything else sees it, and the same whitespace in an
+attribute value becomes a space. The fix is in `xmlkit`, and `xml_oracle.rs`
+keeps it from coming back.
 
 Part of the [crateworks](https://github.com/cipansor/crateworks)
 workspace. Licensed under the Apache License, Version 2.0, copyright Yayasan
