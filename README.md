@@ -1,7 +1,7 @@
 # crateworks
 
 [![CI](https://github.com/cipansor/crateworks/actions/workflows/ci.yml/badge.svg)](https://github.com/cipansor/crateworks/actions/workflows/ci.yml)
-[![crates.io](https://img.shields.io/badge/crates.io-21%20crates-orange.svg)](https://crates.io/crates/xmlkit)
+[![crates.io](https://img.shields.io/badge/crates.io-26%20crates-orange.svg)](https://crates.io/crates/xmlkit)
 
 A workspace of small, single-purpose Rust crates that fill gaps where the
 JavaScript and Python ecosystems have mature libraries and Rust does not.
@@ -40,7 +40,7 @@ the rest depend only on `xmlkit` or `pdfa` from this same workspace.
 
 | Crate | What it does | Why it exists |
 | --- | --- | --- |
-| [`stdnum-rs`](crates/stdnum-rs) | IBAN, ISBN, EAN/UPC, Luhn and national ID validation | Rust has only fragmented per-country crates and no shared entry point |
+| [`stdnum-rs`](crates/stdnum-rs) | IBAN, ISBN, EAN/UPC, Luhn, Damm and Verhoeff, and national ID validation | Rust has only fragmented per-country crates and no shared entry point |
 | [`eu-vat`](crates/eu-vat) | EU VAT number validation, 27 member states plus Northern Ireland | The `vat` crate stopped in 2016 and nothing replaced it |
 | [`iso6346`](crates/iso6346) | Shipping container codes: parse, validate and generate the check digit | The npm `container-validator` is downloaded twenty thousand times a month and crates.io has no crate for the standard at all |
 
@@ -59,7 +59,7 @@ the rest depend only on `xmlkit` or `pdfa` from this same workspace.
 | --- | --- | --- |
 | [`spreadsheet-formula`](crates/spreadsheet-formula) | Spreadsheet formula parser and evaluator | The existing engines are unmaintained and tied to a file format |
 | [`iso8583-msg`](crates/iso8583-msg) | ISO 8583 card transaction messages | PyPI `pyiso8583` is downloaded 400,000 times a month; the Rust crates are all abandoned |
-| [`javaproperties`](crates/javaproperties) | Java `.properties`: escapes, continuations, ISO-8859-1 default | npm `properties` is downloaded 300,000 times a week; the Rust `java-properties` has not moved since 2023 |
+| [`javaproperties`](crates/javaproperties) | Java `.properties`: line format and XML format, escapes, continuations, ISO-8859-1 default | npm `properties` is downloaded 300,000 times a week; the Rust `java-properties` has not moved since 2023 |
 | [`object-hash`](crates/object-hash) | A stable hash of a structured value, order-independent | npm `object-hash` is downloaded over 40 million times a week; the name is free and the only Rust equivalent has 58 recent downloads |
 | [`mllp`](crates/mllp) | MLLP framing for HL7 v2 messages, with a streaming decoder | PyPI `hl7apy` is downloaded 758,000 times a month; the Rust HL7 crates are leaderless and none validates |
 | [`cssprint`](crates/cssprint) | Lay out HTML and CSS for paged output: the box model, block layout and inline layout | WeasyPrint on PyPI and `pdfmake` on npm (1,864,382 downloads a week) carry the demand, while the six Rust crates that attempt it are all under 5,100 recent downloads and none is complete; the usual answer is to ship a headless Chromium |

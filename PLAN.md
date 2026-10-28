@@ -58,10 +58,10 @@ Rust equivalent.
 
 **Covers today.** IBAN (78 countries, MOD-97, check-digit generation), ISBN-10
 and ISBN-13 with conversion, EAN-8/EAN-13/UPC-A with UPC-to-EAN conversion,
-Luhn with check-digit generation, nineteen international identifiers (ISIN,
-CUSIP, FIGI, LEI, BIC, GRID, ISSN, ISRC, IMEI, ISMN, ISNI, CAS number, ISO
-11649 creditor reference, IMO number, MEID, ISAN, a Bitcoin address, a MAC
-address and an ISIL), and
+Luhn, Damm and Verhoeff with check-digit generation, nineteen international
+identifiers (ISIN, CUSIP, FIGI, LEI, BIC, GRID, ISSN, ISRC, IMEI, ISMN, ISNI,
+CAS number, ISO 11649 creditor reference, IMO number, MEID, ISAN, a Bitcoin
+address, a MAC address and an ISIL), and
 **112 national identifiers across 90 countries**, reached through
 `Country::ALL`. Every one of `python-stdnum`'s 89 national modules now has a
 counterpart. The four newest need no registry: the IMO number is a seven-digit
@@ -507,12 +507,12 @@ python3 scripts/publish.py --publish  # upload, in order, stopping at the first 
 
 ## Verification
 
-The counts below are for the whole workspace, all 25 crates, and they drift as
+The counts below are for the whole workspace, all 26 crates, and they drift as
 crates are added; they are here as an order of magnitude, not as a contract.
 
 ```sh
-cargo test --workspace --all-targets      # 1288 unit and README tests
-cargo test --workspace --doc              # 189 doctests, not covered by --all-targets
+cargo test --workspace --all-targets      # 1367 unit and README tests
+cargo test --workspace --doc              # 194 doctests, not covered by --all-targets
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all -- --check
 ```

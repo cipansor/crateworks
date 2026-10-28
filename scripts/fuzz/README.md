@@ -29,6 +29,7 @@ never a dependency of any crate.
 | `adhan` | `adhan/gen.js` | `adhan` npm 4.4.6 | `NODE_PATH=<modules> node adhan/gen.js [out]` |
 | `javaproperties` | `javaproperties/gen.py` | `javaproperties` PyPI 0.8.2 | `python3 javaproperties/gen.py [out]` |
 | `javaproperties` (writer) | `javaproperties/gen_writer.py` | `javaproperties` PyPI 0.8.2 | `TZ=UTC python3 javaproperties/gen_writer.py [out]` |
+| `javaproperties` (XML) | `javaproperties/gen_xml.py` | `javaproperties` PyPI 0.8.2 | `python3 javaproperties/gen_xml.py [out]` |
 | `iso6346` | `iso6346/gen.js` | `container-validator` npm 1.1.0 | `NODE_PATH=<modules> node iso6346/gen.js [out]` |
 | `address-parser` | `address-parser/gen.js` | `parse-address` npm 1.1.2 | `NODE_PATH=<modules> node address-parser/gen.js [out]` |
 
