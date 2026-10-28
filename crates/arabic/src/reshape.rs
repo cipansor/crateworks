@@ -15,6 +15,25 @@ pub enum Direction {
     RightToLeft,
 }
 
+/// Which presentation-form table to shape with.
+///
+/// The names match the `language` values of the reference library, and the
+/// tables are the same three.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Language {
+    /// The default table, for Arabic, Urdu and Farsi. Every letter is replaced
+    /// by its contextual presentation form.
+    #[default]
+    Arabic,
+    /// Leaves a letter that stands alone in its base form, so the text renders
+    /// in fonts that carry no Arabic presentation block. Use it only when the
+    /// default table produces missing glyphs.
+    ArabicV2,
+    /// [`Language::ArabicV2`] with the heh shaped as a single form, for the
+    /// Kurdish Sarchia font.
+    Kurdish,
+}
+
 /// How shaping should treat marks, tatweel and ligatures.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Options {
@@ -26,6 +45,8 @@ pub struct Options {
     pub ligatures: bool,
     /// Treat the zero-width joiner as meaningful rather than removing it.
     pub support_zwj: bool,
+    /// Which presentation-form table to shape with.
+    pub language: Language,
 }
 
 impl Default for Options {
@@ -35,6 +56,7 @@ impl Default for Options {
             keep_tatweel: true,
             ligatures: true,
             support_zwj: false,
+            language: Language::Arabic,
         }
     }
 }
@@ -48,6 +70,7 @@ impl Options {
             keep_tatweel: true,
             ligatures: true,
             support_zwj: false,
+            language: Language::Arabic,
         }
     }
 
@@ -60,6 +83,7 @@ impl Options {
             keep_tatweel: false,
             ligatures: true,
             support_zwj: false,
+            language: Language::Arabic,
         }
     }
 }
@@ -97,6 +121,25 @@ pub fn reshape(text: &str, direction: Direction) -> String {
 /// Non-Arabic characters pass through unchanged, and a character with no Arabic
 /// shape breaks the joining chain, which is why Latin text inside an Arabic
 /// sentence does not join to it.
+///
+/// Which letters count as shapeable, and which form each takes, comes from
+/// [`Options::language`]. The default, [`Language::Arabic`], shapes every letter
+/// in the table; the other two leave a standalone letter in its base form.
+///
+/// ```
+/// use arabic::{Direction, Language, Options, reshape_with};
+///
+/// // A lone beh keeps its base form under ArabicV2 but not under the default.
+/// let v2 = Options {
+///     language: Language::ArabicV2,
+///     ..Options::default()
+/// };
+/// assert_eq!(reshape_with("\u{0628}", Direction::Logical, v2), "\u{0628}");
+/// assert_eq!(
+///     reshape_with("\u{0628}", Direction::Logical, Options::default()),
+///     "\u{fe8f}",
+/// );
+/// ```
 #[must_use]
 pub fn reshape_with(text: &str, direction: Direction, options: Options) -> String {
     if text.is_empty() {
@@ -133,41 +176,56 @@ pub fn reshape_with(text: &str, direction: Direction, options: Options) -> Strin
     }
 
     let bases: Vec<Option<char>> = clusters.iter().map(|c| c.base).collect();
-    let mut shaped: Vec<String> = Vec::with_capacity(clusters.len());
+    // Each cluster rendered as characters, and for a shaped letter the letter and
+    // the index of the shape it took. The ligature pass needs the index rather
+    // than the character, because a table may give a letter the same character
+    // for several shapes (Kurdish does this for heh), and the character alone
+    // cannot then say whether it was final or medial.
+    let mut rendered: Vec<Vec<crate::ligatures::Shaped>> = Vec::with_capacity(clusters.len());
     for (index, cluster) in clusters.iter().enumerate() {
         let Some(base) = cluster.base else {
-            shaped.push(cluster.text());
+            rendered.push(cluster.text().chars().map(|c| (c, None)).collect());
             continue;
         };
-        let Some(shapes) = forms::lookup(base) else {
-            shaped.push(cluster.text());
+        let Some(shapes) = forms::lookup(base, options.language) else {
+            rendered.push(cluster.text().chars().map(|c| (c, None)).collect());
             continue;
         };
 
         let joins_previous = matches!(
             neighbour_before(&bases, index, options),
-            Some(previous) if previous == ZWJ || forms::joins_after(previous)
+            Some(previous) if previous == ZWJ || forms::joins_after(previous, options.language)
         );
         let joins_next = matches!(
             neighbour_after(&bases, index, options),
-            Some(next) if next == ZWJ || forms::joins_before(next)
+            Some(next) if next == ZWJ || forms::joins_before(next, options.language)
         );
 
-        let mut rendered = String::new();
-        rendered.push(select_shape(shapes, joins_previous, joins_next, base));
-        rendered.extend(cluster.marks.iter());
-        shaped.push(rendered);
+        let requested = select_shape(shapes, joins_previous, joins_next);
+        // A letter that cannot take the requested shape falls back to its
+        // isolated form; the recorded shape has to be the one actually used, or
+        // the ligature pass would compare against a shape the letter never had.
+        let shape = if shapes[requested].is_some() {
+            requested
+        } else {
+            ISOLATED
+        };
+        let letter = shapes[shape].unwrap_or(base);
+        let mut chars = vec![(letter, Some((base, shape)))];
+        chars.extend(cluster.marks.iter().map(|c| (*c, None)));
+        rendered.push(chars);
     }
 
+    // Reversing clusters, not characters, keeps each mark with its letter.
     if direction == Direction::RightToLeft {
-        shaped.reverse();
+        rendered.reverse();
     }
+    let output: Vec<crate::ligatures::Shaped> = rendered.concat();
 
-    let joined: String = shaped.concat();
     if options.ligatures {
-        crate::ligatures::apply(&joined)
+        crate::ligatures::apply(&output)
     } else {
-        joined
+        output.into_iter().map(|(c, _)| c).collect()
     }
 }
 
@@ -195,24 +253,18 @@ fn neighbour_after(bases: &[Option<char>], index: usize, options: Options) -> Op
     None
 }
 
-/// Picks the presentation form for a letter.
+/// Picks the index of the presentation form for a letter.
 ///
 /// A letter that cannot take a medial shape still connects on whichever side it
 /// can, which is why the medial case falls back to the final shape.
-fn select_shape(
-    shapes: forms::Shapes,
-    joins_previous: bool,
-    joins_next: bool,
-    letter: char,
-) -> char {
-    let index = match (joins_previous, joins_next) {
+fn select_shape(shapes: forms::Shapes, joins_previous: bool, joins_next: bool) -> usize {
+    match (joins_previous, joins_next) {
         (true, true) if shapes[MEDIAL].is_some() => MEDIAL,
         (true, true) => FINAL,
         (true, false) => FINAL,
         (false, true) => INITIAL,
         (false, false) => ISOLATED,
-    };
-    shapes[index].or(shapes[ISOLATED]).unwrap_or(letter)
+    }
 }
 
 #[cfg(test)]
@@ -302,6 +354,56 @@ mod tests {
     #[test]
     fn lam_alef_becomes_a_single_ligature() {
         assert_eq!(reshape("\u{0644}\u{0627}", Direction::Logical), "\u{fefb}");
+    }
+
+    #[test]
+    fn the_default_language_is_arabic() {
+        assert_eq!(Options::default().language, Language::Arabic);
+        assert_eq!(Language::default(), Language::Arabic);
+    }
+
+    #[test]
+    fn v2_keeps_a_standalone_letter_in_its_base_form() {
+        // Beh alone is a presentation form under Arabic and the base letter
+        // under ArabicV2, which is the whole point of the second table.
+        let v2 = Options {
+            language: Language::ArabicV2,
+            ..Options::default()
+        };
+        assert_eq!(reshape_with("\u{0628}", Direction::Logical, v2), "\u{0628}");
+        assert_eq!(reshape("\u{0628}", Direction::Logical), "\u{fe8f}");
+    }
+
+    #[test]
+    fn v2_still_joins_two_letters() {
+        // Only the standalone form changes; a letter between two others is
+        // still replaced by a presentation form.
+        let v2 = Options {
+            language: Language::ArabicV2,
+            ..Options::default()
+        };
+        assert_eq!(
+            reshape_with("\u{0628}\u{0628}", Direction::Logical, v2),
+            "\u{fe91}\u{fe90}"
+        );
+    }
+
+    #[test]
+    fn kurdish_shapes_heh_where_v2_leaves_it_unshaped() {
+        // Heh is the one entry Kurdish and ArabicV2 disagree on.
+        let kurdish = Options {
+            language: Language::Kurdish,
+            ..Options::default()
+        };
+        let v2 = Options {
+            language: Language::ArabicV2,
+            ..Options::default()
+        };
+        assert_eq!(
+            reshape_with("\u{0647}", Direction::Logical, kurdish),
+            "\u{fbab}"
+        );
+        assert_eq!(reshape_with("\u{0647}", Direction::Logical, v2), "\u{0647}");
     }
 
     #[test]

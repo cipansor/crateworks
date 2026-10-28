@@ -42,12 +42,38 @@ text.
 ## Options
 
 `reshape_with` takes an `Options` value. `Options::default()` keeps combining
-marks and tatweel and applies the standard ligatures; `Options::plain()` drops
-marks and tatweel for displays that cannot position them.
+marks and tatweel, applies the standard ligatures, and shapes with the `Arabic`
+table; `Options::plain()` drops marks and tatweel for displays that cannot
+position them.
 
 Only the ligatures in ordinary use are applied: the four lam-alef combinations
 and the word Allah. Unicode defines hundreds more, but substituting them by
 default produces text that most fonts cannot render.
+
+### Letter tables
+
+Three presentation-form tables are available, matching the `language` values of
+the reference library, and chosen through `Options::language`:
+
+- `Language::Arabic`, the default, is for Arabic, Urdu and Farsi and replaces
+  every letter with its contextual presentation form.
+- `Language::ArabicV2` leaves a letter that stands alone in its base form. Use
+  it when the default table produces missing glyphs, which happens with fonts
+  that carry no Arabic presentation block.
+- `Language::Kurdish` is `ArabicV2` with the heh shaped as a single form, for
+  the Kurdish Sarchia font.
+
+```rust
+use arabic::{Direction, Language, Options, reshape_with};
+
+let options = Options {
+    language: Language::ArabicV2,
+    ..Options::default()
+};
+// A lone beh keeps its base form under ArabicV2; the default shapes it.
+assert_eq!(reshape_with("ب", Direction::Logical, options), "ب");
+assert_eq!(reshape_with("ب", Direction::Logical, Options::default()), "ﺏ");
+```
 
 ## What shaping is for
 

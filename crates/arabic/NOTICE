@@ -4,10 +4,13 @@ Copyright 2026 Yayasan Pesantren Cipansor and contributors
 This product includes software developed by Yayasan Pesantren Cipansor and
 contributors (https://github.com/cipansor/crateworks).
 
-The presentation-form table and the test fixtures were checked against the
+The presentation-form tables and the test fixtures were checked against the
 arabic-reshaper library by Abdullah Diab and contributors
 (https://github.com/mpcabd/python-arabic-reshaper), which is distributed under
-the MIT licence. The presentation forms themselves are defined by the Unicode
-standard; this crate is an independent reimplementation for Rust.
+the MIT licence. All three of its tables - the default, `ArabicV2` and
+`Kurdish` - are carried here and generated from it by
+`research/tools/gen_arabic_tables.py`. The presentation forms themselves are
+defined by the Unicode standard; this crate is an independent reimplementation
+for Rust.
 
 Licensed under the Apache License, Version 2.0 (see LICENSE).

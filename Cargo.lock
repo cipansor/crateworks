@@ -12,7 +12,7 @@ version = "0.1.9"
 
 [[package]]
 name = "arabic"
-version = "0.1.9"
+version = "0.2.0"
 
 [[package]]
 name = "aviation-data"

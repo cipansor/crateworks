@@ -7,7 +7,7 @@ mod normalize;
 mod reshape;
 
 pub use normalize::{normalize, strip_harakat, strip_tatweel};
-pub use reshape::{Direction, Options, reshape, reshape_with};
+pub use reshape::{Direction, Language, Options, reshape, reshape_with};
 
 /// The tatweel, a stretching character that joins letters without carrying
 /// meaning.
@@ -39,7 +39,7 @@ pub fn is_harakat(c: char) -> bool {
 /// Whether a character is an Arabic letter this crate can shape.
 #[must_use]
 pub fn is_arabic_letter(c: char) -> bool {
-    forms::lookup(c).is_some()
+    forms::is_letter(c)
 }
 
 #[cfg(test)]
