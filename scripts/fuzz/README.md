@@ -37,6 +37,8 @@ never a dependency of any crate.
 | `iso8583-msg` | `iso8583-msg/gen.py` | `pyiso8583` PyPI 4.0.1 | `python3 iso8583-msg/gen.py [out]` |
 | `factur-x` | `factur-x/gen.py` | `factur-x` PyPI 7.8 | `python3 factur-x/gen.py [out-dir]` |
 | `pdfa` | `pdfa/gen.py` | `factur-x` PyPI 7.8 + `pypdf` | `python3 pdfa/gen.py [fixture-dir]` |
+| `ebics` (RSA + response) | `ebics/gen.py` | `cryptography` PyPI | `python3 ebics/gen.py [fixture-dir]` |
+| `ebics` (request) | `ebics/gen.js` | `ebics-client` npm 5.0.0 | `NODE_PATH=<modules> node ebics/gen.js [fixture-dir]` |
 
 With no `out` argument each writes to the crate's own fixture, which is the path
 you want when rebuilding it in place. The recorded versions are the ones the
@@ -136,6 +138,15 @@ to write down.
   optional fields are written; the reference's own CII output is not valid
   against its XSD, so the generator renders with `check_xsd=False` and the crate
   models what the reference writes.
+- `ebics` — not a corpus of random inputs but the four committed oracle fixtures,
+  which were made with a reference and committed without a generator, so they
+  could not be rebuilt. Two references are involved: Python's `cryptography` and
+  `zlib` produced the RSA key fixture and the encrypted bank response, and the
+  npm `ebics-client` produced the HPB request whose digest the crate reproduces.
+  The generator had to learn that the request fixture's signature was over a key
+  drawn fresh each run, which is why the fixture originally could not be checked
+  end to end; pinning the key and committing the public half turns the
+  `AuthSignature` into a second, independent check that the crate now passes.
 
 ## Companion extractors
 

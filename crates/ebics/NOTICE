@@ -1,2 +1,14 @@
 crateworks
 Copyright 2026 Yayasan Pesantren Cipansor and contributors
+
+This product includes software developed by Yayasan Pesantren Cipansor and
+contributors (https://github.com/cipansor/crateworks).
+
+The canonical-XML and signature rules reproduce those of the node-ebics-client
+package by the node-ebics project (https://github.com/node-ebics/node-ebics-client),
+which is distributed under the MIT licence. The crate is an independent
+reimplementation in Rust and shares no code with it; a request that package
+generated is committed as a fixture, and the crate reproduces its digest and
+verifies its signature.
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).

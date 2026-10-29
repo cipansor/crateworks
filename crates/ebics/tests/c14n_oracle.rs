@@ -7,17 +7,21 @@
 //! namespace injection and SHA-256 together, against an independent
 //! implementation's output.
 //!
-//! The `AuthSignature` in the fixture is over the same canonical bytes, so
-//! verifying it with the public key that is also in the fixture would be a
-//! second independent check. That key is not in this repository, so the digest
-//! is where the test stops.
+//! The `AuthSignature` in the fixture is over the same canonical bytes, and the
+//! public half of the key that made it is committed as `hpb_pubkey.txt`, so the
+//! signature is a second independent check. It was not checkable when the
+//! fixture was first committed, because the reference drew a fresh key each run;
+//! `scripts/fuzz/ebics/gen.js` now pins the key and writes the public half.
 
 use ebics::base64;
 use ebics::c14n::{canonicalize_in_document, root_namespaces};
+use ebics::message::verify;
+use ebics::rsa::PublicKey;
 use ebics::sha256::Sha256;
 use xmlkit::{Element, Node};
 
 const REQUEST: &str = include_str!("fixtures/hpb_request.xml");
+const PUBKEY: &str = include_str!("fixtures/hpb_pubkey.txt");
 
 fn parse(text: &str) -> Element {
     xmlkit::parse(text).expect("the fixture parses")
@@ -104,4 +108,17 @@ fn the_canonical_form_uses_no_short_tags() {
         !canonical.contains("/>"),
         "found a short tag in {canonical}"
     );
+}
+
+/// The reference's own signature must verify here, over the same key that made
+/// it. This is the end-to-end check the digest alone cannot give: a canonical
+/// form that agreed on the digest but differed anywhere the signature covers
+/// would pass the test above and fail this one.
+#[test]
+fn the_reference_signature_verifies() {
+    let mut lines = PUBKEY.lines();
+    let modulus = lines.next().expect("a modulus line");
+    let exponent = lines.next().expect("an exponent line");
+    let key = PublicKey::from_base64(modulus, exponent).expect("the key parses");
+    verify(REQUEST, &key).expect("the reference client's signature verifies");
 }

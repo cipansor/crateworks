@@ -84,3 +84,7 @@ marker = "SheetJS/bessel"
 [[upstream]]
 project = "python-holidays by the vacanza organisation and contributors"
 marker = "python-holidays"
+
+[[upstream]]
+project = "node-ebics-client by the node-ebics project"
+marker = "node-ebics-client"
