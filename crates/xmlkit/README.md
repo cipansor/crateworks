@@ -53,6 +53,29 @@ assert_eq!(attribute_namespaced(&doc, body, XML_NAMESPACE, "lang"), Some("en"));
 An unbound prefix names nothing rather than "no namespace", so a document cannot
 pass off `<evil:Body>` as an un-namespaced `Body` by leaving `evil` undeclared.
 
+## Well-formedness
+
+The parser enforces the XML 1.0 grammar rather than accepting whatever it can
+read. It checks names against `NameStartChar`/`NameChar`, requires whitespace
+between attributes, rejects `<` in an attribute value, rejects `--` or a
+trailing `-` in a comment, rejects an unescaped `]]>` in content, validates the
+XML declaration and the DOCTYPE structure, and rejects a character reference
+outside the XML character range.
+`crates/xmlkit/tests/fixtures/wellformed.tsv` is a corpus of 7,916 documents -
+half valid, half a single mutation of one - whose well-formedness was decided by
+Python's `expat`, and the crate agrees with expat on every one.
+
+A document is a prolog, one root element, and then `Misc` (whitespace, comments,
+processing instructions), so `<a/><!-- done -->` parses and `<a/><b/>` does not.
+A byte-order mark at the start is skipped, as XML 1.0 section 4.3.3 allows.
+
+One case is deliberately looser than expat. An ampersand that begins no entity
+is kept as a literal `&` rather than rejected, so `<a>Tom & Jerry</a>` reads as
+the text `Tom & Jerry`. This matches the npm `@xmldom/xmldom` parser that most
+SOAP and ISO 20022 tooling runs on, and it is the behaviour this crate's
+consumers depend on. The five predefined entities, `&#n;` and `&#xn;` are all
+decoded; an out-of-range reference is an error, not silently dropped.
+
 ## Whitespace and line endings
 
 Two normalisations happen before any text or attribute value is handed out, and

@@ -276,8 +276,20 @@ fn normalize_attribute(s: &str) -> String {
     out
 }
 
-/// Decodes the predefined entities and numeric character references.
-fn unescape(s: &str) -> String {
+/// Expands the entities in `s`.
+///
+/// A character reference must name a legal XML character: one of the five
+/// predefined entities, or `&#n;`/`&#xn;` in the XML 1.0 character range (no
+/// surrogate, no `0`, no `FFFE`/`FFFF`). A reference outside that range is an
+/// error, because the alternative - keeping it as written - is how a document
+/// could smuggle a code point past a consumer that expects text.
+///
+/// An ampersand that begins no entity at all, such as the one in `Tom & Jerry`,
+/// is a literal, which is the lenient behaviour the npm `@xmldom/xmldom` parser
+/// has and this crate's SOAP and ISO 20022 consumers depend on. A named entity
+/// that is not one of the five predefined ones is not an error here either,
+/// because this crate does not read the internal subset that would define it.
+fn unescape(s: &str, base: usize) -> Result<String> {
     let mut out = String::with_capacity(s.len());
     let bytes = s.as_bytes();
     let mut i = 0;
@@ -303,13 +315,31 @@ fn unescape(s: &str) -> String {
             "quot" => Some('"'),
             "apos" => Some('\''),
             _ if entity.starts_with("#x") || entity.starts_with("#X") => {
-                u32::from_str_radix(&entity[2..], 16)
-                    .ok()
-                    .and_then(char::from_u32)
+                match u32::from_str_radix(&entity[2..], 16) {
+                    Ok(code) => Some(legal_char(code).ok_or_else(|| Error {
+                        offset: base + i,
+                        message: format!("&#{entity}; is not a legal XML character"),
+                    })?),
+                    Err(_) => {
+                        return Err(Error {
+                            offset: base + i,
+                            message: format!("&#{entity}; is not a valid character reference"),
+                        });
+                    }
+                }
             }
-            _ if entity.starts_with('#') => {
-                entity[1..].parse::<u32>().ok().and_then(char::from_u32)
-            }
+            _ if entity.starts_with('#') => match entity[1..].parse::<u32>() {
+                Ok(code) => Some(legal_char(code).ok_or_else(|| Error {
+                    offset: base + i,
+                    message: format!("&{entity}; is not a legal XML character"),
+                })?),
+                Err(_) => {
+                    return Err(Error {
+                        offset: base + i,
+                        message: format!("&{entity}; is not a valid character reference"),
+                    });
+                }
+            },
             _ => None,
         };
         if let Some(c) = decoded {
@@ -320,7 +350,49 @@ fn unescape(s: &str) -> String {
             i += 1;
         }
     }
-    out
+    Ok(out)
+}
+
+/// The character a code point names, or `None` if XML forbids it.
+///
+/// The XML 1.0 `Char` production allows tab, line feed, carriage return, the
+/// range `20`-`D7FF`, `E000`-`FFFD` and `10000`-`10FFFF`. That excludes the
+/// other C0 controls, the surrogates (which are not characters), `FFFE`/`FFFF`
+/// and anything above `10FFFF`.
+fn legal_char(code: u32) -> Option<char> {
+    let allowed = matches!(code, 0x9 | 0xA | 0xD)
+        || (0x20..=0xD7FF).contains(&code)
+        || (0xE000..=0xFFFD).contains(&code)
+        || (0x1_0000..=0x10_FFFF).contains(&code);
+    if allowed { char::from_u32(code) } else { None }
+}
+
+/// Whether `c` may begin an element or attribute name (XML 1.0 `NameStartChar`).
+///
+/// The colon is allowed, so a qualified name such as `ns:Doc` is one name; this
+/// crate matches on the local name rather than validating the prefix.
+fn is_name_start_char(c: char) -> bool {
+    matches!(c, ':' | '_' | 'A'..='Z' | 'a'..='z')
+        || matches!(c,
+            '\u{C0}'..='\u{D6}'
+            | '\u{D8}'..='\u{F6}'
+            | '\u{F8}'..='\u{2FF}'
+            | '\u{370}'..='\u{37D}'
+            | '\u{37F}'..='\u{1FFF}'
+            | '\u{200C}'..='\u{200D}'
+            | '\u{2070}'..='\u{218F}'
+            | '\u{2C00}'..='\u{2FEF}'
+            | '\u{3001}'..='\u{D7FF}'
+            | '\u{F900}'..='\u{FDCF}'
+            | '\u{FDF0}'..='\u{FFFD}'
+            | '\u{1_0000}'..='\u{E_FFFF}')
+}
+
+/// Whether `c` may continue an element or attribute name (XML 1.0 `NameChar`).
+fn is_name_char(c: char) -> bool {
+    is_name_start_char(c)
+        || matches!(c, '-' | '.' | '0'..='9' | '\u{B7}')
+        || matches!(c, '\u{300}'..='\u{36F}' | '\u{203F}'..='\u{2040}')
 }
 
 /// One open element: its name, its attributes, and the children read so far.
@@ -376,30 +448,63 @@ impl<'a> Parser<'a> {
 
     fn parse_name(&mut self) -> Result<String> {
         let start = self.pos;
+        match self.peek() {
+            Some(c) if is_name_start_char(c) => self.pos += c.len_utf8(),
+            _ => return self.err("expected element or attribute name"),
+        }
         while let Some(c) = self.peek() {
-            if c.is_alphanumeric() || matches!(c, '_' | '-' | '.' | ':') {
+            if is_name_char(c) {
                 self.pos += c.len_utf8();
             } else {
                 break;
             }
-        }
-        if self.pos == start {
-            return self.err("expected element or attribute name");
         }
         Ok(self.src[start..self.pos].to_string())
     }
 
     fn skip_comment(&mut self) -> Result<()> {
         self.expect("<!--")?;
+        let body_start = self.pos;
         let Some(end) = self.src[self.pos..].find("-->") else {
             return self.err("unterminated comment");
         };
+        // XML 1.0 section 2.5: the content of a comment cannot contain `--` and
+        // cannot end with `-`, because either would make the terminator
+        // ambiguous. `<!-- a -- b -->` and `<!--a--->` are both ill-formed.
+        let body = &self.src[body_start..body_start + end];
+        if body.contains("--") || body.ends_with('-') {
+            return self.err("comment content must not contain '--' or end with '-'");
+        }
         self.pos += end + 3;
         Ok(())
     }
 
     fn skip_pi(&mut self) -> Result<()> {
+        // The target `xml` is reserved for the XML declaration, so a processing
+        // instruction cannot use it; expat rejects `<?xml ... ?>` anywhere but
+        // the start of the document, which is handled before this is reached.
+        if self.is_xml_declaration() {
+            return self.err("the target 'xml' is reserved for the XML declaration");
+        }
+        self.skip_pi_body()
+    }
+
+    /// Advances past `<? ... ?>` without the reserved-target check.
+    ///
+    /// Used for the XML declaration itself, which is the one place `<?xml` is
+    /// allowed. XML 1.0 `PI ::= '<?' PITarget (S (Char* - (Char* '?>' Char*)))? '?>'`,
+    /// so the target must be a name and anything after it must be separated by
+    /// whitespace; `<?pi<>?>` is ill-formed.
+    fn skip_pi_body(&mut self) -> Result<()> {
         self.expect("<?")?;
+        if self.parse_name().is_err() {
+            return self.err("expected a processing instruction target");
+        }
+        match self.peek() {
+            Some('?') if self.starts_with("?>") => {}
+            Some(c) if c.is_whitespace() => {}
+            _ => return self.err("expected whitespace after the processing instruction target"),
+        }
         let Some(end) = self.src[self.pos..].find("?>") else {
             return self.err("unterminated processing instruction");
         };
@@ -407,21 +512,177 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn skip_doctype(&mut self) -> Result<()> {
-        // Skips a DOCTYPE declaration, including an internal subset. External
-        // entities are never resolved, so this only advances past the text.
-        self.expect("<!DOCTYPE")?;
-        let mut depth = 0usize;
-        while let Some(c) = self.peek() {
-            self.pos += c.len_utf8();
-            match c {
-                '[' => depth += 1,
-                ']' => depth = depth.saturating_sub(1),
-                '>' if depth == 0 => return Ok(()),
-                _ => {}
-            }
+    /// Whether the cursor is on `<?xml` followed by whitespace or `?`.
+    ///
+    /// `<?xml-stylesheet` is an ordinary processing instruction; only the exact
+    /// target `xml` is reserved.
+    fn is_xml_declaration(&self) -> bool {
+        self.starts_with("<?xml")
+            && matches!(self.src[self.pos + 5..].chars().next(), Some(c) if c.is_whitespace() || c == '?')
+    }
+
+    /// Parses the XML declaration, which is only valid as the first thing in a
+    /// document. The grammar is XML 1.0 `XMLDecl`, and every part of it is
+    /// checked, because a declaration that does not match is not well-formed.
+    fn skip_xml_declaration(&mut self) -> Result<()> {
+        self.expect("<?xml")?;
+        if !self.skip_ws_if_any() {
+            return self.err("expected whitespace in the XML declaration");
         }
-        self.err("unterminated DOCTYPE")
+        self.expect_word("version")?;
+        self.expect_eq()?;
+        let version = self.parse_quoted()?;
+        // XML 1.0 says `VersionNum ::= '1.' [0-9]+`, but expat accepts a wider
+        // token and matching the reference parser is what this crate's
+        // consumers need. What expat does reject is whitespace and the markup
+        // characters that cannot appear in a version token.
+        if version
+            .chars()
+            .any(|c| c.is_whitespace() || matches!(c, '<' | '>' | '&' | '"' | '\'' | ';' | '='))
+        {
+            return self.err("the XML version contains an illegal character");
+        }
+        let save = self.pos;
+        self.skip_ws();
+        if self.peek_word("encoding") {
+            self.expect_word("encoding")?;
+            self.expect_eq()?;
+            let encoding = self.parse_quoted()?;
+            let valid = encoding
+                .chars()
+                .next()
+                .is_some_and(|c| c.is_ascii_alphabetic())
+                && encoding
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'));
+            if !valid {
+                return self.err("invalid encoding name in the XML declaration");
+            }
+        } else {
+            self.pos = save;
+        }
+        let save = self.pos;
+        self.skip_ws();
+        if self.peek_word("standalone") {
+            self.expect_word("standalone")?;
+            self.expect_eq()?;
+            let standalone = self.parse_quoted()?;
+            if standalone != "yes" && standalone != "no" {
+                return self.err("standalone must be 'yes' or 'no'");
+            }
+        } else {
+            self.pos = save;
+        }
+        self.skip_ws();
+        if !self.starts_with("?>") {
+            return self.err("expected '?>' to end the XML declaration");
+        }
+        self.pos += 2;
+        Ok(())
+    }
+
+    /// Skips whitespace and reports whether any was skipped.
+    fn skip_ws_if_any(&mut self) -> bool {
+        let before = self.pos;
+        self.skip_ws();
+        self.pos != before
+    }
+
+    /// Consumes `word` exactly, or errors.
+    fn expect_word(&mut self, word: &str) -> Result<()> {
+        if self.starts_with(word) {
+            self.pos += word.len();
+            Ok(())
+        } else {
+            self.err(format!("expected '{word}' in the XML declaration"))
+        }
+    }
+
+    /// Whether the cursor is on `word` followed by a non-name character.
+    fn peek_word(&self, word: &str) -> bool {
+        self.starts_with(word)
+            && !matches!(self.src[self.pos + word.len()..].chars().next(), Some(c) if is_name_char(c))
+    }
+
+    /// Consumes optional whitespace, then `=`, then optional whitespace.
+    fn expect_eq(&mut self) -> Result<()> {
+        self.skip_ws();
+        self.expect("=")?;
+        self.skip_ws();
+        Ok(())
+    }
+
+    /// Reads a quoted value and returns its content.
+    fn parse_quoted(&mut self) -> Result<String> {
+        let quote = self
+            .peek()
+            .filter(|c| *c == '"' || *c == '\'')
+            .ok_or_else(|| Error {
+                offset: self.pos,
+                message: "expected a quoted value".into(),
+            })?;
+        self.pos += quote.len_utf8();
+        let start = self.pos;
+        while let Some(c) = self.peek() {
+            if c == quote {
+                let value = self.src[start..self.pos].to_string();
+                self.pos += quote.len_utf8();
+                return Ok(value);
+            }
+            self.pos += c.len_utf8();
+        }
+        self.err("unterminated quoted value")
+    }
+
+    fn skip_doctype(&mut self) -> Result<()> {
+        // Skips a DOCTYPE declaration. XML 1.0 section 2.8:
+        //   doctypedecl ::= '<!DOCTYPE' S Name (S ExternalID)? S? ('[' intSubset ']' S?)? '>'
+        // The internal subset is skipped, not read, so an entity it defines is
+        // never resolved; that is what keeps this crate free of external entity
+        // (XXE) handling.
+        self.expect("<!DOCTYPE")?;
+        if !matches!(self.peek(), Some(c) if c.is_whitespace()) {
+            return self.err("expected whitespace after DOCTYPE");
+        }
+        self.skip_ws();
+        self.parse_name()?;
+        let had_ws = self.skip_ws_if_any();
+        if self.peek_word("SYSTEM") || self.peek_word("PUBLIC") {
+            if !had_ws {
+                return self.err("expected whitespace before the external identifier");
+            }
+            self.skip_external_id()?;
+            self.skip_ws();
+        }
+        if self.starts_with("[") {
+            self.pos += 1;
+            let Some(end) = self.src[self.pos..].find(']') else {
+                return self.err("unterminated DOCTYPE internal subset");
+            };
+            self.pos += end + 1;
+            self.skip_ws();
+        }
+        if !self.starts_with(">") {
+            return self.err("expected '>' to end the DOCTYPE declaration");
+        }
+        self.pos += 1;
+        Ok(())
+    }
+
+    /// Skips `SYSTEM SystemLiteral` or `PUBLIC PubidLiteral SystemLiteral`.
+    fn skip_external_id(&mut self) -> Result<()> {
+        if self.peek_word("SYSTEM") {
+            self.expect_word("SYSTEM")?;
+            self.skip_ws();
+            self.parse_quoted()?;
+            return Ok(());
+        }
+        self.expect_word("PUBLIC")?;
+        self.skip_ws();
+        self.parse_quoted()?;
+        self.skip_ws();
+        self.parse_quoted()?;
+        Ok(())
     }
 
     fn parse_attributes(&mut self) -> Result<BTreeMap<String, String>> {
@@ -449,6 +710,11 @@ impl<'a> Parser<'a> {
                 if c == quote {
                     break;
                 }
+                // XML 1.0 section 3.1: `<` is not allowed in an attribute value,
+                // because a parser could not tell it from the start of a tag.
+                if c == '<' {
+                    return self.err("'<' is not allowed in an attribute value");
+                }
                 self.pos += c.len_utf8();
             }
             if self.peek().is_none() {
@@ -456,7 +722,15 @@ impl<'a> Parser<'a> {
             }
             let raw = &self.src[start..self.pos];
             self.pos += quote.len_utf8();
-            attrs.insert(name, unescape(&normalize_attribute(raw)));
+            attrs.insert(name, unescape(&normalize_attribute(raw), start)?);
+            // XML requires whitespace between the element name, each attribute
+            // and the end of the tag, so `<a x="1"y="2">` is ill-formed.
+            if !matches!(self.peek(), Some(c) if c.is_whitespace()) {
+                match self.peek() {
+                    Some('>') | Some('/') | None => return Ok(attrs),
+                    _ => return self.err("expected whitespace before attribute"),
+                }
+            }
         }
     }
 
@@ -568,7 +842,13 @@ impl<'a> Parser<'a> {
                 }
                 self.pos += c.len_utf8();
             }
-            let text = unescape(&normalize_newlines(&self.src[start..self.pos]));
+            let raw = &self.src[start..self.pos];
+            // XML 1.0 section 2.4: `]]>` in content must be escaped, because a
+            // reader could otherwise take it for the end of a CDATA section.
+            if raw.contains("]]>") {
+                return self.err("']]>' must be escaped in content");
+            }
+            let text = unescape(&normalize_newlines(raw), start)?;
             let children = self.children_mut(&mut stack);
             push_text(children, text);
         }
@@ -636,14 +916,34 @@ fn push_text(children: &mut Vec<Node>, text: String) {
 /// assert!(parse("<a/><b/>").is_err());
 /// ```
 pub fn parse(text: &str) -> Result<Element> {
+    // XML 1.0 section 4.3.3: a byte-order mark may open a document, and it is not
+    // part of the content. A file read from disk or the network often carries
+    // one, and every other parser skips it, so refusing it would reject ordinary
+    // input.
+    let text = text.strip_prefix('\u{feff}').unwrap_or(text);
     let mut p = Parser { src: text, pos: 0 };
+    let mut seen_doctype = false;
     loop {
         p.skip_ws();
         if p.starts_with("<?") {
-            p.skip_pi()?;
+            // `<?xml ... ?>` is the XML declaration, which the grammar allows
+            // only at the very start of the document; the target `xml` is
+            // reserved, so anywhere else it is not a processing instruction.
+            if p.is_xml_declaration() {
+                if p.pos != 0 {
+                    return p.err("XML declaration is only allowed at the start");
+                }
+                p.skip_xml_declaration()?;
+            } else {
+                p.skip_pi()?;
+            }
         } else if p.starts_with("<!--") {
             p.skip_comment()?;
         } else if p.starts_with("<!DOCTYPE") {
+            if seen_doctype {
+                return p.err("only one DOCTYPE declaration is allowed");
+            }
+            seen_doctype = true;
             p.skip_doctype()?;
         } else {
             break;
@@ -653,7 +953,23 @@ pub fn parse(text: &str) -> Result<Element> {
         return p.err("expected root element");
     }
     let root = p.parse_element()?;
-    p.skip_ws();
+    // XML 1.0 `document ::= prolog element Misc*`, so whitespace, comments and
+    // processing instructions may follow the root element and the document is
+    // still well-formed. expat and `@xmldom/xmldom` both accept one; rejecting
+    // it here would refuse a document a caller's other tools take.
+    loop {
+        p.skip_ws();
+        if p.starts_with("<!--") {
+            p.skip_comment()?;
+        } else if p.starts_with("<?") {
+            if p.is_xml_declaration() {
+                return p.err("XML declaration is only allowed at the start");
+            }
+            p.skip_pi()?;
+        } else {
+            break;
+        }
+    }
     if p.pos != p.src.len() {
         return p.err("trailing content after root element");
     }
@@ -735,6 +1051,30 @@ mod tests {
     fn deep_text_walks_descendants() {
         let root = parse("<a>x<b>y<c>z</c></b></a>").unwrap();
         assert_eq!(root.deep_text(), "xyz");
+    }
+
+    #[test]
+    fn a_comment_or_pi_may_follow_the_root_element() {
+        // XML 1.0 `document ::= prolog element Misc*`, so a trailing comment or
+        // processing instruction is well-formed; expat and @xmldom/xmldom both
+        // accept one. A second *element* still is not.
+        assert!(parse("<a/><!-- done -->").is_ok());
+        assert!(parse("<a/><?done?>").is_ok());
+        assert!(parse("<a/>\n<!-- one -->\n<?two?>\n").is_ok());
+        assert_eq!(parse("<a>hi</a><!-- x -->").unwrap().text(), "hi");
+        assert!(parse("<a/><b/>").is_err());
+        assert!(parse("<a/><!-- unterminated").is_err());
+    }
+
+    #[test]
+    fn a_bare_ampersand_is_kept_as_text() {
+        // The lenient behaviour the npm @xmldom/xmldom parser has and this
+        // crate's consumers rely on: an ampersand that begins no entity is a
+        // literal. A strict parser rejects the same input.
+        assert_eq!(parse("<a>Tom & Jerry</a>").unwrap().text(), "Tom & Jerry");
+        assert_eq!(parse("<a>&#38;</a>").unwrap().text(), "&");
+        assert_eq!(parse("<a>&amp;</a>").unwrap().text(), "&");
+        assert_eq!(parse("<a>x &</a>").unwrap().text(), "x &");
     }
 
     #[test]
