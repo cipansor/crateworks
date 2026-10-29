@@ -1,7 +1,7 @@
 [package]
 name = "aviation-data"
 description = "Airport reference data: look up airports by IATA, ICAO, GPS or local code, search them, and measure the distance between them."
-version = "0.1.10"
+version = "0.1.11"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true

@@ -106,7 +106,7 @@ fn table_shape_is_stable() {
     // Pinned to the generated snapshot. OurAirports is maintained continuously,
     // so this moves when the table is regenerated; the aviation gate is what
     // decides whether the new number is right.
-    assert_eq!(count(), 11_888);
+    assert_eq!(count(), 11_887);
     // Sorted by ident, and idents are unique, so a binary search would work.
     let mut previous = "";
     for airport in all() {
