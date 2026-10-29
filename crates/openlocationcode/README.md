@@ -84,4 +84,4 @@ is no geocoding, no place names, and no network access.
 
 ## License
 
-Apache-2.0. See [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).
+Apache-2.0. See `LICENSE` and `NOTICE`.
