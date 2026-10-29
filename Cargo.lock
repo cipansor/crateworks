@@ -35,7 +35,7 @@ version = "0.1.10"
 
 [[package]]
 name = "factur-x"
-version = "0.1.10"
+version = "0.2.0"
 dependencies = [
  "xmlkit",
 ]
@@ -95,7 +95,7 @@ dependencies = [
 
 [[package]]
 name = "pdfa"
-version = "0.1.10"
+version = "0.1.9"
 dependencies = [
  "xmlkit",
 ]
@@ -117,11 +117,11 @@ dependencies = [
 
 [[package]]
 name = "spreadsheet-formula"
-version = "0.3.0"
+version = "0.3.1"
 
 [[package]]
 name = "stdnum-rs"
-version = "0.6.0"
+version = "0.7.0"
 
 [[package]]
 name = "wssec"
