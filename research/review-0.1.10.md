@@ -33,6 +33,7 @@ gate results come first.
 | `verify_openlocationcode.py` | PyPI `openlocationcode` 1.0.1 | 1,389 rows agree |
 | `verify_iso20022.py` | the official ISO 20022 XSD | generated pacs.008 and pain.001 validate |
 | `verify_proxy_addr.py` | npm `proxy-addr` 2.0.8 | 12,216 rows agree |
+| `tests/oracle.rs` (fast-redact) | npm `fast-redact` 3.5.0 | 6,000 redactions and 90 path verdicts agree |
 
 No gate regressed. The aviation gate was red on entry, and for the honest
 reason: OurAirports is maintained continuously and the table had drifted. It was
@@ -110,6 +111,19 @@ The gate grew from 1,028 to 1,068 cases and all 1,068 agree. `PLAN.md`'s "not
 covered" note was rewritten to say exactly what the 38 names are, so the count
 is explained rather than asserted.
 
+**`fast-redact` 0.1.0, a new crate.** This round also added a crate rather than
+only extending one. npm `fast-redact`, which is what the `pino` logger uses to
+keep cookies and tokens out of log lines, takes the locations of the secret
+fields as paths and replaces the values at them. The redaction crates on
+crates.io are regex- or serde-rule-based and none walks a path through the
+document, so the port fills a gap the other reviews did not cover. It carries
+its own JSON reader and writer, because the output has to be byte-for-byte what
+`JSON.stringify` produces, and it is checked against the npm package over 6,000
+generated redactions and 90 path verdicts. That corpus pinned the one shape
+worth knowing: a path is split at its first `*`, so a run of stars does not nest
+the way it reads, which the reference's own tests exercise and the crate now
+reproduces.
+
 ## Coverage: every crate, its reference, and where the check lives
 
 The gate table above is the set of crates whose reference is a *program* that can
@@ -148,6 +162,7 @@ in this workspace is reviewed by reading alone.
 | `openlocationcode` | google/open-location-code | `verify_openlocationcode.py` |
 | `proxy-addr` | npm `proxy-addr` (jshttp) | `scripts/fuzz/proxy-addr/gen.js` -> `tests/fixtures/oracle.tsv`, replayed by `tests/oracle.rs`, and `verify_proxy_addr.py` |
 | `iso8583-msg` | PyPI `pyiso8583` | `tests/oracle.rs` |
+| `fast-redact` | npm `fast-redact` (pino's redactor) | `scripts/fuzz/fast-redact/gen.js` -> `tests/fixtures/`, replayed by `tests/oracle.rs` |
 
 Two crates have no runnable reference and are checked against the specification
 itself: `soap-client` (the SOAP and WSDL documents) and `pades` (RFC 5652 and the
@@ -170,6 +185,10 @@ where to look.
   doctest count from 210 to 213.
 * `research/tools/README.md` and the gate itself describe the five-function
   coverage and the widened spreadsheet case set.
+
+* `crates/fast-redact/README.md`, which is the crate's `#![doc]` and therefore
+  the docs.rs front page, documents the path syntax, the three censor forms and
+  the JSON fidelity the writer guarantees.
 
 ## What is deliberately not done
 
