@@ -102,6 +102,26 @@ let query = "los angeles dodgers vs san francisco giants";
 assert!(extract_one(query, unrelated, 50, Scorer::WRatio).is_none());
 ```
 
+`extract_bests` is `extract` with a cutoff, and `extract_without_order` is the
+unranked form underneath both - it keeps the input order and only drops what
+falls below the cutoff. Both mirror the `fuzzywuzzy.process` functions of the
+same names.
+
+```rust
+use fuzzy_score::{Scorer, extract_bests, extract_without_order};
+
+let teams = ["braves vs mets", "new york mets vs chicago cubs"];
+
+// Only matches at or above the cutoff, best first.
+let ranked = extract_bests("braves vs mets", teams, 40, Some(2), Scorer::WRatio);
+assert_eq!(ranked[0].0, "braves vs mets");
+
+// Input order kept, cutoff applied.
+let raw = extract_without_order("braves vs mets", teams, 40, Scorer::WRatio);
+assert_eq!(raw[0].0, "braves vs mets");
+assert_eq!(raw[0].1, 100);
+```
+
 `dedupe` removes near-duplicates, keeping the longest spelling of each, on the
 grounds that it carries the most information.
 
@@ -172,8 +192,9 @@ means a divergence from the reference, not from someone's opinion.
 `fuzzywuzzy` itself. `research/tools/verify_fuzzy_score.py` is the regression
 gate: it runs the crate and the reference over a generated corpus and exits
 non-zero on any difference. The gate covers the ten `fuzz` scorers *and* the
-three `process` functions (`extract`, `extract_one`, `dedupe`) over a second
-corpus of 2,000 query-and-choices cases.
+five `process` functions (`extract`, `extract_bests`, `extract_one`,
+`extract_without_order`, `dedupe`) over a second corpus of 2,000
+query-and-choices cases.
 
 That second corpus found a divergence the scorer corpus could not: the
 reference runs the *query* through `full_process` twice - once as the default

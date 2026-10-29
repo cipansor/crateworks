@@ -143,8 +143,55 @@ pub fn extract_one<S: AsRef<str>>(
         })
 }
 
-/// `fuzzywuzzy.process.extractWithoutOrder`.
-fn extract_without_order<S: AsRef<str>>(
+/// Port of `fuzzywuzzy.process.extractBests`.
+///
+/// Like [`extract`], but it also takes a `score_cutoff`, so a poor match is
+/// dropped rather than returned as the best of a bad lot. With `limit` set to
+/// `Some(n)` only the best `n` survive the cutoff.
+///
+/// ```
+/// use fuzzy_score::{Scorer, extract_bests};
+///
+/// let teams = ["new york mets vs chicago cubs", "braves vs mets"];
+/// let query = "new york mets at chicago cubs";
+/// assert_eq!(extract_bests(query, teams, 0, Some(1), Scorer::WRatio).len(), 1);
+///
+/// // Nothing reaches the cutoff, so nothing comes back.
+/// let unrelated = "los angeles dodgers vs san francisco giants";
+/// assert!(extract_bests(unrelated, teams, 90, None, Scorer::WRatio).is_empty());
+/// ```
+pub fn extract_bests<S: AsRef<str>>(
+    query: &str,
+    choices: impl IntoIterator<Item = S>,
+    score_cutoff: u8,
+    limit: Option<usize>,
+    scorer: Scorer,
+) -> Vec<(String, u8)> {
+    let mut scored = extract_without_order(query, choices, score_cutoff, scorer);
+    scored.sort_by_key(|(_, score)| std::cmp::Reverse(*score));
+    if let Some(n) = limit {
+        scored.truncate(n);
+    }
+    scored
+}
+
+/// Port of `fuzzywuzzy.process.extractWithoutOrder`.
+///
+/// Every choice with a score at or above `score_cutoff`, in the order the
+/// choices were given, as `(choice, score)` pairs. The reference returns a
+/// generator here and leaves the ordering to its callers; this returns the
+/// collected list, which is the same sequence.
+///
+/// ```
+/// use fuzzy_score::{Scorer, extract_without_order};
+///
+/// let teams = ["braves vs mets", "new york mets vs chicago cubs"];
+/// let scored = extract_without_order("braves vs mets", teams, 0, Scorer::WRatio);
+/// // Input order is kept, not sorted by score.
+/// assert_eq!(scored[0].0, "braves vs mets");
+/// assert_eq!(scored[0].1, 100);
+/// ```
+pub fn extract_without_order<S: AsRef<str>>(
     query: &str,
     choices: impl IntoIterator<Item = S>,
     score_cutoff: u8,

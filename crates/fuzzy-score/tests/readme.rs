@@ -4,7 +4,7 @@
 //! they rot. This test is what keeps them true: if a score in the README stops
 //! matching, this fails rather than the README quietly lying.
 
-use fuzzy_score::{Scorer, dedupe, extract, extract_one};
+use fuzzy_score::{Scorer, dedupe, extract, extract_bests, extract_one, extract_without_order};
 use fuzzy_score::{partial_ratio, ratio, token_set_ratio, token_sort_ratio, w_ratio};
 
 #[test]
@@ -52,6 +52,13 @@ fn readme() {
     ];
     let query = "los angeles dodgers vs san francisco giants";
     assert!(extract_one(query, unrelated, 50, Scorer::WRatio).is_none());
+
+    let short_teams = ["braves vs mets", "new york mets vs chicago cubs"];
+    let ranked = extract_bests("braves vs mets", short_teams, 40, Some(2), Scorer::WRatio);
+    assert_eq!(ranked[0].0, "braves vs mets");
+    let raw = extract_without_order("braves vs mets", short_teams, 40, Scorer::WRatio);
+    assert_eq!(raw[0].0, "braves vs mets");
+    assert_eq!(raw[0].1, 100);
 
     let names = [
         "Frodo Baggin",

@@ -15,5 +15,5 @@ pub use fuzz::{
     ratio, token_set_ratio, token_set_ratio_with_options, token_sort_ratio,
     token_sort_ratio_with_options, uq_ratio, uw_ratio, w_ratio,
 };
-pub use process::{Scorer, dedupe, extract, extract_one};
+pub use process::{Scorer, dedupe, extract, extract_bests, extract_one, extract_without_order};
 pub use utils::full_process;
