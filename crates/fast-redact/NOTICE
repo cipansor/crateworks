@@ -1,0 +1,13 @@
+crateworks
+Copyright 2026 Yayasan Pesantren Cipansor and contributors
+
+This product includes software developed by Yayasan Pesantren Cipansor and
+contributors (https://github.com/cipansor/crateworks).
+
+The redaction this crate performs is the behaviour of the npm `fast-redact`
+package by David Mark Clements
+(https://github.com/davidmarkclements/fast-redact), which is distributed under
+the MIT License. This crate is an independent reimplementation for Rust and
+shares no code with it.
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).

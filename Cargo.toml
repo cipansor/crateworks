@@ -29,6 +29,7 @@ members = [
     "crates/cssprint",
     "crates/openlocationcode",
     "crates/proxy-addr",
+    "crates/fast-redact",
 ]
 
 [workspace.package]

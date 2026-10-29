@@ -104,3 +104,7 @@ marker = "jshttp/forwarded"
 [[upstream]]
 project = "ipaddr.js by whitequark"
 marker = "whitequark/ipaddr.js"
+
+[[upstream]]
+project = "fast-redact (npm) by David Mark Clements"
+marker = "davidmarkclements/fast-redact"

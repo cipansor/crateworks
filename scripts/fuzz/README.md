@@ -43,6 +43,7 @@ never a dependency of any crate.
 | `proxy-addr` | `proxy-addr/gen.js` | `proxy-addr` npm 2.0.8 | `NODE_PATH=<modules> node proxy-addr/gen.js` |
 | `xmlkit` | `xmlkit/gen.py` | Python `expat` (stdlib) | `python3 xmlkit/gen.py [out]` |
 | `wssec` | `wssec/gen.py` | Python `hashlib` and `base64` (stdlib) | `python3 wssec/gen.py <fixture-dir>` |
+| `fast-redact` | `fast-redact/gen.js` | `fast-redact` npm 3.5.0 | `NODE_PATH=<modules> node fast-redact/gen.js [fixture-dir]` |
 
 With no `out` argument each writes to the crate's own fixture, which is the path
 you want when rebuilding it in place. The recorded versions are the ones the
@@ -172,6 +173,15 @@ to write down.
   that begins no entity is a literal `&`, the npm `@xmldom/xmldom` behaviour the
   SOAP and ISO 20022 consumers need - is normalised by the generator before expat
   is asked, so it is excluded from the count rather than hidden in it.
+
+- `fast-redact` — 6,000 redactions (a random document, one or two random or
+  fixed paths, with and without `remove`) and 90 path-acceptance verdicts. It
+  confirmed the two shapes the crate was built around and pinned a third that
+  would have been missed by hand: a path is split at its *first* `*`, so a run of
+  stars (`*.*.*`) does not nest the way it reads. The reference's own tests
+  exercise that shape, so it is behaviour rather than a bug, and the crate now
+  reproduces it; the corpus is what made that visible, because the first version
+  of the walk descended one level too far and the curated cases agreed with it.
 
 ## Companion extractors
 

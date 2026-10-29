@@ -622,6 +622,32 @@ no request type, so wiring it to a particular web framework is the caller's job.
 The `forwarded` *header* (RFC 7239) is a different input from the
 `X-Forwarded-For` list and is not parsed.
 
+## 29. `fast-redact`
+
+**Why.** A log line is a JSON document, and the fields that must never be
+written to disk — a cookie, an `Authorization` header, a password — sit at known
+locations in it. npm `fast-redact`, which is what the `pino` logger uses, takes
+those locations as paths and replaces the values at them. There is no Rust
+equivalent: the redaction crates on crates.io are regex- or serde-rule-based and
+none walks a path through the document, which is what a log line needs.
+
+**Covers today.** Dot paths, bracket paths for keys that are not identifiers,
+array indices, and `*` wildcards, validated when the redactor is built. The
+replacement is a fixed value (`"[REDACTED]"` by default), a removal, or a
+function of the value and its path. The document is read, a copy is redacted, and
+the copy is written; the input is never modified. It carries its own JSON reader
+and writer, because the output has to be byte-for-byte what `JSON.stringify`
+produces, and it is checked against the npm package itself:
+`scripts/fuzz/fast-redact/gen.js` drives the reference over 6,000 generated
+redactions and 90 path verdicts and writes `tests/fixtures/`, which
+`tests/oracle.rs` replays in CI.
+
+**Not covered.** A general glob: as in the reference, a path is split at its
+first `*`, and a second `*` does not nest the way it reads. Streaming over a
+document larger than memory, and any JSON feature outside the data model (no
+comments, no trailing commas), are out of scope; the reader accepts exactly what
+`JSON.parse` accepts.
+
 ## Publishing order
 
 Each crate carries its own version, and a release publishes only the crates that
@@ -647,7 +673,7 @@ resolving the dependency rather than in building it.
    `hijridate`, `stdnum-rs`, `spreadsheet-formula`, `eu-vat`, `iso8583-msg`,
    `arabic`, `adhan`, `object-hash`, `javaproperties`, `mllp`, `pdfmake`,
    `iso6346`, `fuzzy-score`, `address-parser`, `aviation-data`, `cssprint`,
-   `runits`, `openlocationcode`, `proxy-addr`.
+   `runits`, `openlocationcode`, `proxy-addr`, `fast-redact`.
 
 The other rule is that a published version cannot be overwritten. `0.1.0` is
 spent the moment it is uploaded, so a mistake in the first upload of a crate
@@ -665,7 +691,7 @@ python3 scripts/publish.py --publish  # upload, in order, stopping at the first 
 
 ## Verification
 
-The counts below are for the whole workspace, all 28 crates, and they drift as
+The counts below are for the whole workspace, all 29 crates, and they drift as
 crates are added; they are here as an order of magnitude, not as a contract.
 
 ```sh

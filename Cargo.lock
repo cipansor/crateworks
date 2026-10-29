@@ -41,6 +41,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "fast-redact"
+version = "0.1.0"
+
+[[package]]
 name = "fuzzy-score"
 version = "0.2.0"
 

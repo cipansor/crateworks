@@ -1,0 +1,24 @@
+[package]
+name = "fast-redact"
+description = "Redact secrets from a JSON document before logging it: replace the values at named paths, with wildcards."
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation = "https://docs.rs/fast-redact"
+authors.workspace = true
+keywords = ["redact", "log", "json", "secret", "pii"]
+categories = ["encoding", "development-tools::debugging"]
+readme = "README.md"
+
+[package.metadata.docs.rs]
+# docs.rs builds every feature so nothing is missing from the published docs.
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+
+[lints]
+workspace = true
