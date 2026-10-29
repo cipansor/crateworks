@@ -239,6 +239,59 @@ class ReleaseWorthiness(unittest.TestCase):
         )
 
 
+class FirstRelease(unittest.TestCase):
+    """A crate with no tag publishes the version in its manifest, not one above.
+
+    The bump exists to move past a version that is already on crates.io; a crate
+    that has never been published has no such version, so `0.1.0` is the release.
+    `openlocationcode` went out as `0.1.0`, and showing `0.1.1` here would spend a
+    number nobody asked for.
+    """
+
+    def render(self, entry: dict) -> str:
+        return release_plan.render_text([entry], 1)
+
+    def entry(self, **overrides) -> dict:
+        base = {
+            "crate": "newcrate",
+            "version": "0.1.0",
+            "next": "0.1.0",
+            "level": None,
+            "first_release": True,
+            "last_tag": None,
+            "released_version": None,
+            "uncommitted": [],
+            "bumped": False,
+            "commits": [],
+            "dependencies_moved": [],
+        }
+        base.update(overrides)
+        return base
+
+    def test_first_release_shows_no_bump(self):
+        text = self.render(self.entry())
+        self.assertIn("newcrate 0.1.0 (first release)", text)
+        self.assertNotIn("->", text)
+
+    def test_first_release_says_no_bump_is_needed(self):
+        text = self.render(self.entry())
+        self.assertIn("A first release needs no bump", text)
+
+    def test_a_later_release_still_shows_the_bump(self):
+        text = self.render(
+            self.entry(
+                version="0.1.9",
+                next="0.1.10",
+                level="patch",
+                first_release=False,
+                last_tag="newcrate-v0.1.9",
+                released_version="0.1.9",
+            )
+        )
+        self.assertIn("newcrate 0.1.9 -> 0.1.10 (patch)", text)
+        self.assertNotIn("A first release needs no bump", text)
+
+
 class Grouping(unittest.TestCase):
     """Nothing may be dropped from the notes, however the subject is written."""
 

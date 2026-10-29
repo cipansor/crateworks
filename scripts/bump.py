@@ -145,6 +145,17 @@ def main() -> int:
         )
         return 1
 
+    # A crate that has never been published has no version to move past, so its
+    # first release is the version already in the manifest. Bumping it would
+    # spend a number nobody asked for and leave `0.1.0` unused forever.
+    if entries.get(args.crate, {}).get("first_release"):
+        print(
+            f"{args.crate} has never been released, so its first release is "
+            f"{current} (the version in its manifest); no bump is needed.",
+            file=sys.stderr,
+        )
+        return 1
+
     if next_version == current:
         print(f"{args.crate} is already at {current}; nothing to do")
         return 0

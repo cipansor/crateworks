@@ -201,12 +201,17 @@ def plan(crates: list[str], manifests: dict[str, dict]) -> list[dict]:
         if not changed:
             continue
         level = suggested_level(commits)
+        # A crate with no tag has never been published, so its first release is
+        # the version already in its manifest - there is no prior version to bump
+        # past. `openlocationcode` went out as `0.1.0`, not `0.1.1`.
+        first_release = tag is None
         entries.append(
             {
                 "crate": crate,
                 "version": current,
-                "next": publish.next_version(current, level),
-                "level": level,
+                "next": current if first_release else publish.next_version(current, level),
+                "level": None if first_release else level,
+                "first_release": first_release,
                 "last_tag": tag,
                 "released_version": tagged_version,
                 "uncommitted": uncommitted,
@@ -226,11 +231,13 @@ def render_text(entries: list[dict], total: int) -> str:
         )
     lines = [f"{len(entries)} of {total} crates are due for a release:", ""]
     for entry in entries:
-        head = (
-            f"{entry['crate']} {entry['version']} -> {entry['next']} "
-            f"({entry['level']})"
-        )
-        lines.append(head)
+        if entry["first_release"]:
+            lines.append(f"{entry['crate']} {entry['version']} (first release)")
+        else:
+            lines.append(
+                f"{entry['crate']} {entry['version']} -> {entry['next']} "
+                f"({entry['level']})"
+            )
         if entry["last_tag"]:
             lines.append(f"    since {entry['last_tag']}")
         else:
@@ -250,6 +257,11 @@ def render_text(entries: list[dict], total: int) -> str:
         for commit in entry["commits"]:
             lines.append(f"    {commit['hash']} {commit['subject']}")
         lines.append("")
+    if any(entry["first_release"] for entry in entries):
+        lines.append(
+            "A first release needs no bump: its manifest version is the version to "
+            "publish."
+        )
     lines.append("Release each one on its own: scripts/bump.py <crate> <level>")
     lines.append("then tag and push <crate>-v<version>. See scripts/README.md.")
     return "\n".join(lines) + "\n"

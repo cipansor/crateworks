@@ -129,6 +129,11 @@ release" from it is the costlier mistake.
 The suggested level comes from the commit subjects: any `feat` or `!` breaking
 marker asks for a minor, otherwise a patch. It is a suggestion to confirm.
 
+A crate with no tag has never been published, so its first release is the version
+already in its manifest and no bump is suggested - there is no published version
+to move past. `openlocationcode` went out as `0.1.0`; the plan prints it as
+`(first release)` and says so in the footer.
+
 A dependency only makes a dependent due when the new version falls outside `^`.
 `^0.1.9` accepts `0.1.10`, so a patch bump of `xmlkit` needs no dependent
 release; `0.2.0` does not, so every dependent is due whether or not its own code
