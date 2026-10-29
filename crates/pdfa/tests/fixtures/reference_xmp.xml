@@ -1,11 +1,11 @@
 <?xpacket begin="﻿" id="W5M0MpCehiHzreSzNTczkc9d"?>
-<x:xmpmeta xmlns:x="adobe:ns:meta/">
-  <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
-    <rdf:Description xmlns:pdfaid="http://www.aiim.org/pdfa/ns/id/" rdf:about="">
+<x:xmpmeta xmlns:x="adobe:ns:meta/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:pdfaid="http://www.aiim.org/pdfa/ns/id/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:pdfaExtension="http://www.aiim.org/pdfa/ns/extension/" xmlns:pdfaSchema="http://www.aiim.org/pdfa/ns/schema#" xmlns:pdfaProperty="http://www.aiim.org/pdfa/ns/property#" xmlns:pdf="http://ns.adobe.com/pdf/1.3/" xmlns:xmp="http://ns.adobe.com/xap/1.0/" xmlns:fx="urn:factur-x:pdfa:CrossIndustryDocument:invoice:1p0#">
+  <rdf:RDF>
+    <rdf:Description>
       <pdfaid:part>3</pdfaid:part>
       <pdfaid:conformance>B</pdfaid:conformance>
     </rdf:Description>
-    <rdf:Description xmlns:dc="http://purl.org/dc/elements/1.1/" rdf:about="">
+    <rdf:Description>
       <dc:title>
         <rdf:Alt>
           <rdf:li xml:lang="x-default">Seller GmbH: Invoice INV-2026-0001</rdf:li>
@@ -22,15 +22,15 @@
         </rdf:Alt>
       </dc:description>
     </rdf:Description>
-    <rdf:Description xmlns:pdf="http://ns.adobe.com/pdf/1.3/" rdf:about="">
+    <rdf:Description>
       <pdf:Producer>pypdf</pdf:Producer>
     </rdf:Description>
-    <rdf:Description xmlns:xmp="http://ns.adobe.com/xap/1.0/" rdf:about="">
-      <xmp:CreatorTool>factur-x Python lib v7.7 by Alexis de Lattre</xmp:CreatorTool>
+    <rdf:Description>
+      <xmp:CreatorTool>factur-x Python lib v7.8 by Alexis de Lattre</xmp:CreatorTool>
       <xmp:CreateDate>2026-10-21T14:47:53+00:00</xmp:CreateDate>
       <xmp:ModifyDate>2026-10-21T14:47:53+00:00</xmp:ModifyDate>
     </rdf:Description>
-    <rdf:Description xmlns:pdfaExtension="http://www.aiim.org/pdfa/ns/extension/" xmlns:pdfaSchema="http://www.aiim.org/pdfa/ns/schema#" xmlns:pdfaProperty="http://www.aiim.org/pdfa/ns/property#" rdf:about="">
+    <rdf:Description>
       <pdfaExtension:schemas>
         <rdf:Bag>
           <rdf:li rdf:parseType="Resource">
@@ -69,7 +69,7 @@
         </rdf:Bag>
       </pdfaExtension:schemas>
     </rdf:Description>
-    <rdf:Description xmlns:fx="urn:factur-x:pdfa:CrossIndustryDocument:invoice:1p0#" rdf:about="">
+    <rdf:Description>
       <fx:DocumentType>INVOICE</fx:DocumentType>
       <fx:DocumentFileName>factur-x.xml</fx:DocumentFileName>
       <fx:Version>1.0</fx:Version>

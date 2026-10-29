@@ -36,6 +36,7 @@ never a dependency of any crate.
 | `eu-vat` | `eu-vat/gen.py` | `python-stdnum` PyPI 2.2 | `python3 eu-vat/gen.py [out]` |
 | `iso8583-msg` | `iso8583-msg/gen.py` | `pyiso8583` PyPI 4.0.1 | `python3 iso8583-msg/gen.py [out]` |
 | `factur-x` | `factur-x/gen.py` | `factur-x` PyPI 7.8 | `python3 factur-x/gen.py [out-dir]` |
+| `pdfa` | `pdfa/gen.py` | `factur-x` PyPI 7.8 + `pypdf` | `python3 pdfa/gen.py [fixture-dir]` |
 
 With no `out` argument each writes to the crate's own fixture, which is the path
 you want when rebuilding it in place. The recorded versions are the ones the
@@ -47,6 +48,14 @@ argument or a constant; `adhan/gen.js` writes straight to the crate fixture. Not
 the one thing the npm scripts need: `NODE_PATH` has to point at a `node_modules`
 holding the reference package, because the script is run from a directory where
 it is not installed.
+
+`pdfa/gen.py` is the one generator that does not build random inputs. It rebuilds
+a fixed pair of reference fixtures - a Factur-X container and its XMP packet -
+from two committed inputs (`blank.pdf` and `reference_embedded.xml`) that do not
+change, because the `pdfa` tests check the container as a whole rather than
+answer a question per case. The reference stamps its output with the wall clock,
+so the generator pins the two timestamp functions to a fixed instant to keep the
+result reproducible.
 
 ## Determinism
 

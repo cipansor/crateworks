@@ -88,6 +88,12 @@ against streams Python's `zlib` produced. Writing stays simple: the attachment
 this crate adds is a zlib stream with *stored* blocks, which is valid, which any
 reader inflates, and which costs only a few bytes per sixty-five thousand.
 
+The container the tests compare against is one the `factur-x` Python package
+built, not one of ours, because the reference is the thing a tax authority's
+validator was built to accept. It is committed under `tests/fixtures` and can be
+rebuilt with `scripts/fuzz/pdfa/gen.py`, which reproduces the PDF and extracts
+its XMP packet.
+
 ## What it does not do
 
 It is not a renderer and not a general PDF library. It does not decrypt, and it
