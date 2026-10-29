@@ -1,4 +1,4 @@
-# Review of every crate against its mature comparison package (2026-10-27)
+# Review of every crate against its mature comparison package (2026-10-29)
 
 This is the follow-up to `review-0.1.11.md`. That round re-asked "of what we
 have, where does a mature package in another ecosystem do more, and is that
