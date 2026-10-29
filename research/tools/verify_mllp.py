@@ -116,7 +116,7 @@ def rust_parse(corpus: list[str]) -> tuple[list[dict], list[str]]:
     crate produces and not only the fields it reads.
     """
     driver = r'''
-use mllp::{AckCode, AckContext, Message, build_ack};
+use mllp::{AckCode, AckContext, ErrorDetail, Message, Severity, build_ack, build_ack_enhanced};
 use std::io::Read;
 
 fn main() {
@@ -145,6 +145,19 @@ fn main() {
             message.separators(),
         );
         println!("ACK\t{index}\t{}", ack.replace('\r', "\\r"));
+
+        // The enhanced reply: an application error explained with MSA-4 and an
+        // ERR segment. The error condition is fixed so the gate can name it.
+        let error = ErrorDetail::new("207", "Application internal error", Severity::Error);
+        let enhanced = build_ack_enhanced(
+            &context,
+            AckCode::Error,
+            &format!("ERR{index:04}"),
+            "bad patient",
+            &error,
+            message.separators(),
+        );
+        println!("ENH\t{index}\t{}", enhanced.replace('\r', "\\r"));
     }
 }
 '''
@@ -183,16 +196,20 @@ fn main() {
 
     parsed: list[dict[str, str]] = [{} for _ in corpus]
     acks: list[str] = ["" for _ in corpus]
+    enhanced: list[str] = ["" for _ in corpus]
     for line in out.splitlines():
         parts = line.split("\t")
         if parts[0] == "ACK" and len(parts) == 3:
             acks[int(parts[1])] = parts[2].replace("\\r", "\r")
             continue
+        if parts[0] == "ENH" and len(parts) == 3:
+            enhanced[int(parts[1])] = parts[2].replace("\\r", "\r")
+            continue
         if len(parts) != 3:
             continue
         index, reference, text = parts
         parsed[int(index)][reference] = text
-    return parsed, acks
+    return parsed, acks, enhanced
 
 
 def check_ack(raw: str, ack: str, index: int) -> int:
@@ -233,6 +250,66 @@ def check_ack(raw: str, ack: str, index: int) -> int:
     return problems
 
 
+def check_enhanced(raw: str, enhanced: str, index: int) -> int:
+    """Read the crate's enhanced ACK back with hl7apy and assert the contract.
+
+    The enhanced mode is the same reply plus MSA-4 and an ERR segment. hl7apy
+    reads the ERR segment and its CWE component, so the check is that the
+    reference parser finds the error condition where the standard puts it, not
+    only that the crate wrote the text it meant to.
+    """
+    from hl7apy.parser import parse_message
+
+    original = reference_parse(raw)
+    reply = reference_parse(enhanced)
+    problems = 0
+
+    def expect(reference: str, value: str, why: str) -> None:
+        nonlocal problems
+        got = reply.get(reference) or ""
+        if got != value:
+            print(f"  enh {index}: {reference} is {got!r}, expected {value!r} ({why})")
+            problems += 1
+
+    # The reply uses the original's delimiters, so the component separator is
+    # read from MSH-2 rather than assumed to be `^`. MSH-1 is at index 3 and
+    # MSH-2 begins at index 4, whatever the field separator is. Message 5 of the
+    # corpus uses `*`, and the reference returns ERR-3 in that encoding.
+    component = enhanced[4]
+
+    expect("MSA-1", "AE", "error code")
+    expect("MSA-2", original.get("MSH-10") or "", "echoed control id")
+    # MSA-4 repeats the ERR-3.1 code, which is what ties the summary to the
+    # segment that explains it.
+    expect("MSA-4", "207", "error condition code")
+    expect(
+        "ERR-3",
+        f"207{component}Application internal error{component}HL70357",
+        "error condition (CWE)",
+    )
+    expect("ERR-4", "E", "severity")
+    # hl7apy exposes ERR-3 as a CWE: component 1 the code, 2 the text, 3 the
+    # coding system. Read them individually so a shifted component is caught.
+    try:
+        message = parse_message(enhanced)
+        err = message.err
+        cwe = err.err_3
+        for component, value in (
+            ("CWE_1", "207"),
+            ("CWE_2", "Application internal error"),
+            ("CWE_3", "HL70357"),
+        ):
+            got = getattr(cwe, component, None)
+            got = got.value if got is not None else ""
+            if got != value:
+                print(f"  enh {index}: ERR-3.{component} is {got!r}, expected {value!r}")
+                problems += 1
+    except Exception as error:  # noqa: BLE001
+        print(f"  enh {index}: hl7apy could not read the ERR segment: {error}")
+        problems += 1
+    return problems
+
+
 def main() -> int:
     try:
         from hl7apy.parser import parse_message  # noqa: F401
@@ -240,7 +317,7 @@ def main() -> int:
         print("needs: pip install hl7apy==1.3.5")
         return 2
 
-    rust, acks = rust_parse(CORPUS)
+    rust, acks, enhanced = rust_parse(CORPUS)
     mismatches = 0
     compared = 0
 
@@ -266,8 +343,15 @@ def main() -> int:
         ack_problems += check_ack(raw, acks[index], index)
     print(f"{len(CORPUS) - ack_problems}/{len(CORPUS)} ACK replies agree with hl7apy")
 
-    if mismatches or ack_problems:
-        print(f"{mismatches + ack_problems} MISMATCH(ES)")
+    enhanced_problems = 0
+    for index, raw in enumerate(CORPUS):
+        enhanced_problems += check_enhanced(raw, enhanced[index], index)
+    print(
+        f"{len(CORPUS) - enhanced_problems}/{len(CORPUS)} enhanced ACK replies agree with hl7apy"
+    )
+
+    if mismatches or ack_problems or enhanced_problems:
+        print(f"{mismatches + ack_problems + enhanced_problems} MISMATCH(ES)")
         return 1
     return 0
 

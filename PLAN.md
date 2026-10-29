@@ -375,13 +375,17 @@ the pair `0x1C 0x0D`, never a lone `0x0D`, because HL7 v2 ends every segment wit
 a carriage return. A message can be read into its segments and fields with
 `Message`, and answered with `ack::build`, which writes the `MSA` acknowledgement
 an interface must send back - swapping the sender and receiver and echoing the
-control id, in the delimiters the received message used. `verify_mllp.py` checks
-both the parse and the reply against `hl7apy`.
+control id, in the delimiters the received message used. When the reply has to
+explain a failure, `ack::build_enhanced` writes the enhanced form: MSA-4 carries
+the error condition code and an `ERR` segment repeats it as a CWE value with its
+text and an ERR-4 severity. `verify_mllp.py` checks the parse, the minimal reply
+and the enhanced reply against `hl7apy`.
 
-**Not covered.** The enhanced acknowledgement mode (the `ERR` segment and
-`MSA-4`), validation against a message profile, opening sockets, TLS, and the
-newer block-based MLLP over HTTPS. A frame that never terminates stops at 16 MiB
-rather than growing the buffer without bound.
+**Not covered.** ERR-1 and ERR-2, which name the segment and field the error is
+in; the caller knows those and sets them after the builder runs. Validation
+against a message profile, opening sockets, TLS, and the newer block-based MLLP
+over HTTPS are also out. A frame that never terminates stops at 16 MiB rather
+than growing the buffer without bound.
 
 ## 19. `ebics`
 

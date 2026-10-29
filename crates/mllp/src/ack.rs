@@ -8,6 +8,10 @@
 //! Only the fields a receiver must fill are set. An `ACK` is deliberately
 //! minimal: it carries the sending and receiving facilities swapped, so the
 //! original sender can match it, and the standard's defaults everywhere else.
+//!
+//! When an application error needs to be explained, the *enhanced* form adds an
+//! `ERR` segment and fills MSA-4 with the same error condition code, which is
+//! what [`build_enhanced`] writes.
 
 use std::fmt::Write as _;
 
@@ -16,8 +20,8 @@ use crate::message::Separators;
 /// The MSA-1 code: what happened to the message being acknowledged.
 ///
 /// The three application codes are the ones a receiver sends. The two
-/// commit-level codes (`CA`/`CE`) exist in the standard but are only meaningful
-/// with the enhanced acknowledgement mode, which this crate does not build.
+/// commit-level codes (`CA`/`CE`) belong to the two-message commit protocol,
+/// which is a separate feature this crate does not build.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AckCode {
     /// `AA` - the message was accepted.
@@ -87,6 +91,69 @@ impl AckContext {
     }
 }
 
+/// The ERR-4 severity: how serious the error the `ERR` segment describes is.
+///
+/// The three values are HL7 table 0516. A receiver that reports an `AE` or an
+/// `AR` normally sends [`Severity::Error`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Severity {
+    /// `W` - a warning; the message was still processed.
+    Warning,
+    /// `E` - an error; the message was not processed.
+    Error,
+    /// `F` - a fatal error; the connection is unusable.
+    Fatal,
+}
+
+impl Severity {
+    /// The single-letter code as it appears in ERR-4.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Warning => "W",
+            Self::Error => "E",
+            Self::Fatal => "F",
+        }
+    }
+}
+
+impl std::fmt::Display for Severity {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+/// The error condition an enhanced acknowledgement reports.
+///
+/// It is written into ERR-3 as a coded-with-exceptions (CWE) value and its code
+/// is repeated in MSA-4, which is how the enhanced mode ties the reply's summary
+/// to the segment that explains it. The codes are HL7 table 0357; `207`, for
+/// example, is "application internal error".
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ErrorDetail {
+    /// ERR-3.1 and MSA-4: the error condition code, HL7 table 0357.
+    pub code: String,
+    /// ERR-3.2: the human-readable text for the code.
+    pub text: String,
+    /// ERR-3.3: the coding system the code belongs to, normally `HL70357`.
+    pub coding_system: String,
+    /// ERR-4: the severity.
+    pub severity: Severity,
+}
+
+impl ErrorDetail {
+    /// An error condition with the standard coding system `HL70357`.
+    #[must_use]
+    pub fn new(code: impl Into<String>, text: impl Into<String>, severity: Severity) -> Self {
+        Self {
+            code: code.into(),
+            text: text.into(),
+            coding_system: "HL70357".into(),
+            severity,
+        }
+    }
+}
+
 /// Builds the ER7 text of an `ACK` answering `context`.
 ///
 /// `control_id` is the new message's own MSH-10, which the original sender uses
@@ -104,6 +171,58 @@ pub fn build(
     text: &str,
     separators: Separators,
 ) -> String {
+    let mut out = String::with_capacity(128);
+    write_header(&mut out, context, control_id, separators);
+    write_msa(&mut out, code, context, text, None, separators);
+    out
+}
+
+/// Builds the ER7 text of an *enhanced* `ACK`, which explains an error.
+///
+/// The enhanced mode is what a receiver sends when it has to say more than
+/// "rejected": it fills MSA-4 with the error condition code and appends an `ERR`
+/// segment carrying the same code with its text and severity. The code is
+/// written to both places because MSA-4 is what a simple reader looks at and
+/// ERR-3 is what carries the detail.
+///
+/// `code` should be [`AckCode::Error`] or [`AckCode::Reject`]; a caller that
+/// passes [`AckCode::Accept`] gets the enhanced structure with an accept code,
+/// which is legal but unusual.
+#[must_use]
+pub fn build_enhanced(
+    context: &AckContext,
+    code: AckCode,
+    control_id: &str,
+    text: &str,
+    error: &ErrorDetail,
+    separators: Separators,
+) -> String {
+    let mut out = String::with_capacity(192);
+    write_header(&mut out, context, control_id, separators);
+    write_msa(&mut out, code, context, text, Some(&error.code), separators);
+    // ERR-1 (error location) and ERR-2 (error location, alternate) are empty:
+    // they name the segment and field the error is in, which the caller knows
+    // but this builder is not told. ERR-3 is the code, ERR-4 the severity.
+    let _ = write!(
+        out,
+        "ERR{field}{field}{field}{code}{component}{text}{component}{system}{field}{severity}\r",
+        field = separators.field,
+        component = separators.component,
+        code = error.code,
+        text = error.text,
+        system = error.coding_system,
+        severity = error.severity.as_str(),
+    );
+    out
+}
+
+/// Writes the MSH segment every acknowledgement starts with.
+///
+/// MSH-1 and MSH-2 are written without a leading separator: the encoding
+/// characters follow the field separator directly. Every later field is
+/// preceded by one. Building the list explicitly keeps the numbering honest
+/// rather than relying on a hand-counted format string.
+fn write_header(out: &mut String, context: &AckContext, control_id: &str, separators: Separators) {
     let version = if context.version.is_empty() {
         "2.5.1"
     } else {
@@ -114,11 +233,6 @@ pub fn build(
         separators.component, separators.repetition, separators.escape, separators.subcomponent
     );
 
-    let mut out = String::with_capacity(128);
-    // MSH-1 and MSH-2 are written without a leading separator: the encoding
-    // characters follow the field separator directly. Every later field is
-    // preceded by one. Building the list explicitly keeps the numbering honest
-    // rather than relying on a hand-counted format string.
     out.push_str("MSH");
     out.push(separators.field);
     out.push_str(&encoding);
@@ -141,15 +255,30 @@ pub fn build(
         out.push_str(value);
     }
     out.push('\r');
+}
 
+/// Writes the MSA segment, with MSA-4 present only in the enhanced mode.
+fn write_msa(
+    out: &mut String,
+    code: AckCode,
+    context: &AckContext,
+    text: &str,
+    condition: Option<&str>,
+    separators: Separators,
+) {
+    let field = separators.field;
     let _ = write!(
         out,
-        "MSA{field}{code}{field}{original}{field}{text}\r",
-        field = separators.field,
+        "MSA{field}{code}{field}{original}{field}{text}",
         code = code.as_str(),
         original = context.control_id,
     );
-    out
+    // A minimal ACK stops at MSA-3. The enhanced one appends MSA-4, the error
+    // condition code.
+    if let Some(condition) = condition {
+        let _ = write!(out, "{field}{condition}");
+    }
+    out.push('\r');
 }
 
 #[cfg(test)]
@@ -234,5 +363,73 @@ mod tests {
         assert_eq!(AckCode::Accept.as_str(), "AA");
         assert_eq!(AckCode::Error.to_string(), "AE");
         assert_eq!(AckCode::Reject.to_string(), "AR");
+    }
+
+    #[test]
+    fn a_minimal_ack_has_no_msa_4_or_err() {
+        let message = Message::parse(ADT).unwrap();
+        let context = AckContext::from_message(&message);
+        let ack = build(&context, AckCode::Error, "A1", "bad", Separators::default());
+        let reply = Message::parse(&ack).unwrap();
+        assert!(reply.value("MSA-4").is_none());
+        assert!(reply.segment("ERR").is_none());
+    }
+
+    #[test]
+    fn the_enhanced_ack_carries_msa_4_and_an_err_segment() {
+        let message = Message::parse(ADT).unwrap();
+        let context = AckContext::from_message(&message);
+        let error = ErrorDetail::new("207", "Application internal error", Severity::Error);
+        let ack = build_enhanced(
+            &context,
+            AckCode::Error,
+            "ACK0003",
+            "bad patient",
+            &error,
+            Separators::default(),
+        );
+
+        // The whole MSA and ERR text, because the field positions are the
+        // easiest thing to get wrong.
+        let lines: Vec<&str> = ack.split('\r').collect();
+        assert_eq!(lines[1], "MSA|AE|MSG0001|bad patient|207");
+        assert_eq!(lines[2], "ERR|||207^Application internal error^HL70357|E");
+
+        let reply = Message::parse(&ack).unwrap();
+        assert_eq!(reply.value("MSA-4").unwrap(), "207");
+        // ERR-3 is a CWE: the code repeats in MSA-4, the text and system follow.
+        let err3 = reply.value("ERR-3").unwrap();
+        assert_eq!(err3, "207^Application internal error^HL70357");
+        assert_eq!(reply.value("ERR-4").unwrap(), "E");
+    }
+
+    #[test]
+    fn the_enhanced_ack_uses_the_separators_of_the_original() {
+        let message =
+            Message::parse("MSH#*~\\&#SEND#FAC#R#F#20260101##ADT*A01#M1#P#2.5.1\rPID#1\r").unwrap();
+        let context = AckContext::from_message(&message);
+        let error = ErrorDetail::new("100", "Segment sequence error", Severity::Error);
+        let ack = build_enhanced(
+            &context,
+            AckCode::Reject,
+            "A2",
+            "",
+            &error,
+            message.separators(),
+        );
+        let lines: Vec<&str> = ack.split('\r').collect();
+        assert_eq!(lines[1], "MSA#AR#M1##100");
+        assert_eq!(lines[2], "ERR###100*Segment sequence error*HL70357#E");
+    }
+
+    #[test]
+    fn the_severity_renders_as_its_letter() {
+        assert_eq!(Severity::Warning.as_str(), "W");
+        assert_eq!(Severity::Error.to_string(), "E");
+        assert_eq!(Severity::Fatal.to_string(), "F");
+        assert_eq!(
+            ErrorDetail::new("207", "x", Severity::Error).coding_system,
+            "HL70357"
+        );
     }
 }

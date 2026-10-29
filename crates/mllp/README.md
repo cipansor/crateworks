@@ -137,14 +137,49 @@ reply is written with the delimiters of the message it answers, so a peer that
 uses `#` as its field separator gets a reply it can read. MSH-7, the build time,
 is left empty; a caller that wants it sets it afterwards.
 
+## Explaining an error
+
+An `AE` or an `AR` can say what went wrong. The *enhanced* acknowledgement fills
+MSA-4 with an error condition code and appends an `ERR` segment carrying the
+same code with its text and severity, which is what [`build_ack_enhanced`] writes.
+
+```rust
+use mllp::{AckCode, AckContext, ErrorDetail, Message, Severity, build_ack_enhanced};
+
+let received = Message::parse(
+    "MSH|^~\\&|SEND|FAC|RECV|FAC|20260101||ADT^A01|MSG0001|P|2.5.1\rPID|1||12345\r",
+).unwrap();
+let context = AckContext::from_message(&received);
+
+// The error condition is HL7 table 0357: 207 is "application internal error".
+let error = ErrorDetail::new("207", "Application internal error", Severity::Error);
+let ack = build_ack_enhanced(
+    &context,
+    AckCode::Error,
+    "ACK0002",
+    "bad patient",
+    &error,
+    received.separators(),
+);
+
+let reply = Message::parse(&ack).unwrap();
+assert_eq!(reply.value("MSA-4").unwrap(), "207"); // the code, repeated
+assert_eq!(reply.value("ERR-3").unwrap(), "207^Application internal error^HL70357");
+assert_eq!(reply.value("ERR-4").unwrap(), "E"); // the severity
+```
+
+`Severity` is the ERR-4 code from HL7 table 0516: `Warning` (`W`), `Error` (`E`)
+and `Fatal` (`F`). `ErrorDetail` writes `HL70357` as the coding system unless the
+caller sets another. ERR-1 and ERR-2, which name the segment and field the error
+is in, are left empty.
+
 ## What it does not do
 
 `Message` reads the structure of a message; it does not validate one. It does not
 know which fields a message type requires, and it does not check a field against
-a table. `build_ack` writes the `MSA` an interface needs to reply, but it does
-not build the enhanced acknowledgement mode (`MSA-4`, the error condition, and
-the `ERR` segment that describes it); that is a larger structure and is left to
-the caller.
+a table. `build_ack` and `build_ack_enhanced` write the reply an interface needs
+to send, but they do not fill ERR-1 and ERR-2, which point at the offending
+segment and field: the caller knows where the error is and sets those after.
 
 The framing layer does not open sockets, retry, or decide how long to wait for a
 reply, and it does not implement TLS or the newer, block-based MLLP (MLLP over
