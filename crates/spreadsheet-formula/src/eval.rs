@@ -580,6 +580,21 @@ mod tests {
     }
 
     #[test]
+    fn the_evaluator_only_functions_are_advertised() {
+        // `IF` and `IFERROR` are handled here rather than in the function
+        // library, so they were missing from `FUNCTION_NAMES` even though the
+        // README names them as members: a caller validating a formula against
+        // the published list rejected a working function. This keeps the two in
+        // step.
+        for name in ["IF", "IFERROR", "SWITCH"] {
+            assert!(
+                crate::FUNCTION_NAMES.contains(&name),
+                "{name} is evaluated but not advertised in FUNCTION_NAMES"
+            );
+        }
+    }
+
+    #[test]
     fn percent_and_unary() {
         let g = grid();
         let mut e = Evaluator::new(&g);

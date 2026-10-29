@@ -1085,6 +1085,20 @@ pub(crate) fn call_from(
             // With no matching cell the answer is 0, as in a spreadsheet.
             Ok(Value::Number(best.unwrap_or(0.0)))
         }
+        // `IF`, `IFERROR` and `SWITCH` are evaluated by the evaluator, not here,
+        // because they must not evaluate every argument. These arms exist only
+        // so the name is dispatched rather than reported unknown; the evaluator
+        // intercepts them before this function is reached.
+        "IF" => Err(Error::WrongArity {
+            name: name.to_string(),
+            given: args.len(),
+            expected: "3",
+        }),
+        "IFERROR" => Err(Error::WrongArity {
+            name: name.to_string(),
+            given: args.len(),
+            expected: "2",
+        }),
         "SWITCH" => Err(Error::WrongArity {
             name: name.to_string(),
             given: args.len(),
@@ -4485,6 +4499,8 @@ pub const FUNCTION_NAMES: &[&str] = &[
     "HOUR",
     "HYPGEOMDIST",
     "HYPGEOM.DIST",
+    "IF",
+    "IFERROR",
     "IFNA",
     "IFS",
     "IMABS",
@@ -4558,6 +4574,7 @@ pub const FUNCTION_NAMES: &[&str] = &[
     "MINUTE",
     "MIRR",
     "MOD",
+    "MODE",
     "MODESNGL",
     "MODE.SNGL",
     "MONTH",
