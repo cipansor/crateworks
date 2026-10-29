@@ -40,6 +40,7 @@ never a dependency of any crate.
 | `ebics` (RSA + response) | `ebics/gen.py` | `cryptography` PyPI | `python3 ebics/gen.py [fixture-dir]` |
 | `ebics` (request) | `ebics/gen.js` | `ebics-client` npm 5.0.0 | `NODE_PATH=<modules> node ebics/gen.js [fixture-dir]` |
 | `openlocationcode` | `openlocationcode/gen.py` | `openlocationcode` PyPI 1.0.1 | `python3 openlocationcode/gen.py [out]` |
+| `xmlkit` | `xmlkit/gen.py` | Python `expat` (stdlib) | `python3 xmlkit/gen.py [out]` |
 
 With no `out` argument each writes to the crate's own fixture, which is the path
 you want when rebuilding it in place. The recorded versions are the ones the
@@ -148,6 +149,19 @@ to write down.
   drawn fresh each run, which is why the fixture originally could not be checked
   end to end; pinning the key and committing the public half turns the
   `AuthSignature` into a second, independent check that the crate now passes.
+- `xmlkit` — 7,916 documents, each valid by construction or a single mutation of
+  one, with the verdict taken from Python's `expat`. The crate first accepted
+  nearly five hundred documents expat rejected; those were not one bug but a
+  family, and closing them meant enforcing the grammar instead of reading what it
+  could: names checked against `NameStartChar`/`NameChar`, whitespace required
+  between attributes, `<` rejected in an attribute value, `--` and a trailing `-`
+  rejected in a comment, an unescaped `]]>` rejected in content, and the XML
+  declaration and DOCTYPE parsed rather than skipped. Two false-rejects the corpus
+  found were real: a leading BOM was not stripped, and `Misc` after the root
+  element was refused. The one deliberate leniency that remains - an ampersand
+  that begins no entity is a literal `&`, the npm `@xmldom/xmldom` behaviour the
+  SOAP and ISO 20022 consumers need - is normalised by the generator before expat
+  is asked, so it is excluded from the count rather than hidden in it.
 
 ## Companion extractors
 
