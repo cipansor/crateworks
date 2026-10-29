@@ -41,6 +41,7 @@ never a dependency of any crate.
 | `ebics` (request) | `ebics/gen.js` | `ebics-client` npm 5.0.0 | `NODE_PATH=<modules> node ebics/gen.js [fixture-dir]` |
 | `openlocationcode` | `openlocationcode/gen.py` | `openlocationcode` PyPI 1.0.1 | `python3 openlocationcode/gen.py [out]` |
 | `xmlkit` | `xmlkit/gen.py` | Python `expat` (stdlib) | `python3 xmlkit/gen.py [out]` |
+| `wssec` | `wssec/gen.py` | Python `hashlib` and `base64` (stdlib) | `python3 wssec/gen.py <fixture-dir>` |
 
 With no `out` argument each writes to the crate's own fixture, which is the path
 you want when rebuilding it in place. The recorded versions are the ones the
