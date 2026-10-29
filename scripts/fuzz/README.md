@@ -34,6 +34,7 @@ never a dependency of any crate.
 | `iso6346` | `iso6346/gen.js` | `container-validator` npm 1.1.0 | `NODE_PATH=<modules> node iso6346/gen.js [out]` |
 | `address-parser` | `address-parser/gen.js` | `parse-address` npm 1.1.2 | `NODE_PATH=<modules> node address-parser/gen.js [out]` |
 | `eu-vat` | `eu-vat/gen.py` | `python-stdnum` PyPI 2.2 | `python3 eu-vat/gen.py [out]` |
+| `iso8583-msg` | `iso8583-msg/gen.py` | `pyiso8583` PyPI 4.0.1 | `python3 iso8583-msg/gen.py [out]` |
 
 With no `out` argument each writes to the crate's own fixture, which is the path
 you want when rebuilding it in place. The recorded versions are the ones the
@@ -105,6 +106,14 @@ to write down.
   always report `type1` and `type2` even when empty, a whitespace-only capture is
   a present-but-empty field rather than an absent one, and the direction rewrite
   in the city changes only the direction word, not the case of the rest.
+- `iso8583-msg` — 500 random messages over the reference's own `default_ascii`
+  specification. Found a real bug in the crate's field table the 400 curated
+  cases had passed over: fields 28 to 31, the transaction and settlement fee
+  amounts, were capped at eight digits while both ISO 8583:1987 and `pyiso8583`
+  define them as nine. The generator also had to learn that field 65 is the
+  extended bitmap rather than data, and that the crate models an empty value as
+  "field absent" while the reference encodes a zero-length variable field — the
+  corpus uses non-empty variable fields and the crate's README says why.
 
 ## Companion extractors
 

@@ -50,6 +50,21 @@ points. `default_ascii` matches the widely used
 test fixtures in this crate are generated from that library, so the bytes this
 crate produces are byte-for-byte what it produces.
 
+The differential corpus behind that claim lives in `tests/fixtures/oracle.tsv`
+and is rebuilt by `scripts/fuzz/iso8583-msg/gen.py`; each row is a random
+message over the reference's own specification and the exact bytes it encoded
+to. The gate is `tests/oracle.rs`, which both re-encodes each case and reads it
+back.
+
+## An empty field
+
+`Message::set` treats an empty string as "field absent" and removes the field,
+so a variable field cannot be present with zero length. `pyiso8583` instead
+encodes such a field as a zero-length prefix. The corpus therefore uses
+non-empty values for variable fields; a present-but-empty variable field is not
+representable here and is left out rather than given an expectation the crate
+cannot meet. Fixed-length fields are unaffected.
+
 ## What it does not do
 
 Field contents are opaque strings. What a processing code or a response code

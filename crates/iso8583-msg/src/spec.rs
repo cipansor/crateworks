@@ -181,10 +181,10 @@ fn table() -> Vec<(u8, FieldSpec)> {
         (25, fixed(2)),
         (26, fixed(2)),
         (27, fixed(1)),
-        (28, fixed(8)),
-        (29, fixed(8)),
-        (30, fixed(8)),
-        (31, fixed(8)),
+        (28, fixed(9)),
+        (29, fixed(9)),
+        (30, fixed(9)),
+        (31, fixed(9)),
         (32, llvar(11)),
         (33, llvar(11)),
         (34, llvar(28)),
@@ -389,10 +389,10 @@ fn base(data: DataEncoding, length: LengthEncoding) -> Spec {
         (25, fixed(2)),     // Point of service condition code
         (26, fixed(2)),     // Point of service capture code
         (27, fixed(1)),     // Authorising identification response length
-        (28, fixed(8)),     // Amount, transaction fee
-        (29, fixed(8)),     // Amount, settlement fee
-        (30, fixed(8)),     // Amount, transaction processing fee
-        (31, fixed(8)),     // Amount, settlement processing fee
+        (28, fixed(9)),     // Amount, transaction fee
+        (29, fixed(9)),     // Amount, settlement fee
+        (30, fixed(9)),     // Amount, transaction processing fee
+        (31, fixed(9)),     // Amount, settlement processing fee
         (32, llvar(11)),    // Acquiring institution identification code
         (33, llvar(11)),    // Forwarding institution identification code
         (34, llvar(28)),    // Primary account number, extended
