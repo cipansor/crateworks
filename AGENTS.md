@@ -10,7 +10,7 @@ published to crates.io independently. There is no umbrella crate.
 
 Crates are grouped by domain in the root `README.md`. `CONTRIBUTING.md` states
 the rules a contribution must keep — read it before changing behaviour.
-`PLAN.md` records the build history and per-crate scope. It covers all 27
+`PLAN.md` records the build history and per-crate scope. It covers all 28
 crates now, but a crate's own `README.md` remains the current statement of what
 it covers, and `PLAN.md` summarises it.
 
