@@ -5,6 +5,7 @@ mod bessel;
 mod complex;
 mod convert;
 mod convert_table;
+mod database;
 mod datetime;
 mod eval;
 mod financial;

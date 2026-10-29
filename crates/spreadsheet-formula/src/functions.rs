@@ -13,6 +13,7 @@
 use crate::Error;
 use crate::bessel;
 use crate::complex::Complex;
+use crate::database;
 use crate::datetime;
 use crate::financial;
 use crate::lookup::{self, Axis, MatchMode};
@@ -963,6 +964,26 @@ pub(crate) fn call_from(
             Ok(Value::Number(
                 values.iter().fold(f64::INFINITY, |a, b| a.min(*b)),
             ))
+        }
+        // --- database --------------------------------------------------------
+        // The `D...` family aggregates one field of a database over the records
+        // a criteria range selects. `database` and `criteria` are grids, so they
+        // need their width to be read as rows and columns.
+        "DSUM" | "DAVERAGE" | "DCOUNT" | "DCOUNTA" | "DGET" | "DMAX" | "DMIN" | "DPRODUCT"
+        | "DSTDEV" | "DSTDEVP" | "DVAR" | "DVARP" => {
+            require_arity(name, args, 3)?;
+            let aggregate = database::Aggregate::for_name(name)
+                .expect("the match arm names a database function");
+            let (database_values, width) = database_grid(name, &args[0])?;
+            let (criteria_values, criteria_width) = database_grid(name, &args[2])?;
+            database::evaluate(
+                aggregate,
+                &database_values,
+                width,
+                &first_value(&args[1]),
+                &criteria_values,
+                criteria_width,
+            )
         }
         "COUNTIF" => {
             require_arity(name, args, 2)?;
@@ -3407,7 +3428,7 @@ fn binomial(n: f64, k: f64) -> f64 {
 
 /// The sample variance, dividing by `n - 1`. An empty or single-value input has
 /// no sample variance, which the reference reports as zero.
-fn sample_variance(values: &[f64]) -> f64 {
+pub(crate) fn sample_variance(values: &[f64]) -> f64 {
     if values.len() < 2 {
         return 0.0;
     }
@@ -3417,7 +3438,7 @@ fn sample_variance(values: &[f64]) -> f64 {
 }
 
 /// The population variance, dividing by `n`.
-fn population_variance(values: &[f64]) -> f64 {
+pub(crate) fn population_variance(values: &[f64]) -> f64 {
     if values.is_empty() {
         return 0.0;
     }
@@ -4128,6 +4149,20 @@ fn first_value(arg: &Arg) -> Value {
     arg.values.first().cloned().unwrap_or(Value::Empty)
 }
 
+/// A database or criteria argument as a row-major grid and its column count.
+///
+/// The `D...` functions need the shape of both grids, and a scalar argument has
+/// none, so one is a type error rather than a one-cell grid.
+fn database_grid(name: &str, arg: &Arg) -> Result<(Vec<Value>, usize), Error> {
+    match arg.shape() {
+        Some((_, width)) => Ok((arg.values.clone(), width)),
+        None => Err(Error::TypeError {
+            operation: name.to_string(),
+            found: first_value(arg),
+        }),
+    }
+}
+
 /// Whether a value satisfies a criterion that may be text, a number, or a
 /// comparison such as `">3"`.
 ///
@@ -4183,7 +4218,7 @@ fn criterion(value: &Value, criterion_arg: &Arg) -> bool {
 
 /// Splits a criterion into its comparison operator and the value to compare
 /// against. A criterion with no operator is an equality test.
-fn split_operator(raw: &str) -> (&str, &str) {
+pub(crate) fn split_operator(raw: &str) -> (&str, &str) {
     match raw.as_bytes().first() {
         Some(b'<') if raw.starts_with("<=") => ("<=", &raw[2..]),
         Some(b'>') if raw.starts_with(">=") => (">=", &raw[2..]),
@@ -4430,6 +4465,18 @@ pub const FUNCTION_NAMES: &[&str] = &[
     "DAY",
     "DAYS",
     "DAYS360",
+    "DAVERAGE",
+    "DCOUNT",
+    "DCOUNTA",
+    "DGET",
+    "DMAX",
+    "DMIN",
+    "DPRODUCT",
+    "DSTDEV",
+    "DSTDEVP",
+    "DSUM",
+    "DVAR",
+    "DVARP",
     "DB",
     "DDB",
     "DEC2BIN",

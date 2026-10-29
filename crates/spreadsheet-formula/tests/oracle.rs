@@ -27,7 +27,9 @@ impl Grid {
                 .bytes()
                 .fold(0u32, |acc, b| acc * 26 + u32::from(b - b'A' + 1))
                 - 1;
-            let value = if let Ok(n) = raw.parse::<f64>() {
+            let value = if raw.is_empty() {
+                Value::Empty
+            } else if let Ok(n) = raw.parse::<f64>() {
                 Value::Number(n)
             } else if raw == "TRUE" {
                 Value::Bool(true)
@@ -630,4 +632,68 @@ fn aggregate_runs_the_selected_aggregate() {
     assert!(eval("A1=1;A2=2;A3=3", "=AGGREGATE(0,0,A1:A3)").is_err());
     assert!(eval("A1=1;A2=2;A3=3", "=AGGREGATE(20,0,A1:A3)").is_err());
     assert!(eval("A1=1;A2=2;A3=3", "=AGGREGATE(1.5,0,A1:A3)").is_err());
+}
+
+/// The database the reference's own test suite uses, laid out so its first row
+/// is at `A1`. The values of a field run across a row, because the first cell
+/// of every row names the field.
+const DB: &str = "A1=Tree;B1=Apple;C1=Pear;D1=Cherry;E1=Apple;F1=Pear;G1=Apple;\
+A2=Height;B2=18;C2=12;D2=13;E2=14;F2=9;G2=8;\
+A3=Age;B3=20;C3=12;D3=14;E3=15;F3=8;G3=9;\
+A4=Yield;B4=14;C4=10;D4=9;E4=10;F4=8;G4=6";
+
+/// A criteria block that names `Height` and `Age`, both to be satisfied: a
+/// conjunction. Its first cell is at `I1`.
+const CRIT_AND: &str = "I1=Height;J1=>10;I2=Age;J2=>14";
+
+/// The same, with a second test in the `Height` row: a disjunction.
+const CRIT_OR: &str = "I1=Height;J1=>10;K1=>9;I2=Age;J2=>14";
+
+#[test]
+fn database_functions_aggregate_the_matching_records() {
+    // The reference's published values: only records 1 and 4 (zero-based 0 and
+    // 3) satisfy both criteria, so Yield sums to 24 and averages to 12.
+    let both = format!("{DB};{CRIT_AND}");
+    assert_eq!(num(&both, "=DSUM(A1:G4,\"Yield\",I1:J2)"), 24.0);
+    assert_eq!(num(&both, "=DAVERAGE(A1:G4,\"Yield\",I1:J2)"), 12.0);
+    assert_eq!(num(&both, "=DMAX(A1:G4,\"Yield\",I1:J2)"), 14.0);
+    assert_eq!(num(&both, "=DMIN(A1:G4,\"Yield\",I1:J2)"), 10.0);
+    assert_eq!(num(&both, "=DPRODUCT(A1:G4,\"Yield\",I1:J2)"), 140.0);
+    assert_eq!(num(&both, "=DCOUNT(A1:G4,\"Yield\",I1:J2)"), 2.0);
+    assert_eq!(num(&both, "=DCOUNTA(A1:G4,\"Yield\",I1:J2)"), 2.0);
+    assert_eq!(num(&both, "=DVAR(A1:G4,\"Yield\",I1:J2)"), 8.0);
+    assert_eq!(num(&both, "=DVARP(A1:G4,\"Yield\",I1:J2)"), 4.0);
+    // A field may be named by its zero-based row index instead of its name.
+    assert_eq!(num(&both, "=DSUM(A1:G4,3,I1:J2)"), 24.0);
+}
+
+#[test]
+fn a_second_test_in_one_criteria_row_is_a_disjunction() {
+    // `>10` alone selects records 1, 4 and 5 (Height 18, 14, 12), so Yield sums
+    // to 24 with `Age>14` and to 43 once the `>9` alternative admits the rest.
+    let or = format!("{DB};{CRIT_OR}");
+    assert_eq!(num(&or, "=DSUM(A1:G4,\"Yield\",I1:K2)"), 43.0);
+    assert_eq!(num(&or, "=DAVERAGE(A1:G4,\"Yield\",I1:K2)"), 10.75);
+}
+
+#[test]
+fn database_standard_deviations_and_get_errors() {
+    // A single criterion row is enough; these are the reference's values.
+    let height = format!("{DB};I1=Height;J1=>10");
+    let stdev = num(&height, "=DSTDEV(A1:G4,\"Yield\",I1:J2)");
+    let stdevp = num(&height, "=DSTDEVP(A1:G4,\"Yield\",I1:J2)");
+    assert!((stdev - 2.217_355_782_608_345).abs() < 1e-12, "{stdev}");
+    assert!((stdevp - 1.920_286_436_967_152).abs() < 1e-12, "{stdevp}");
+    // `DGET` is the single matching value; none or several is an error.
+    assert!(eval(&height, "=DGET(A1:G4,\"Yield\",I1:J2)").is_err());
+    let one = format!("{DB};I1=Age;J1=>16");
+    assert_eq!(num(&one, "=DGET(A1:G4,\"Yield\",I1:J2)"), 14.0);
+}
+
+#[test]
+fn a_database_argument_must_be_a_grid() {
+    // A scalar has no shape, so it cannot be read as a database.
+    assert!(eval("", "=DSUM(1,\"Yield\",1)").is_err());
+    // An unknown field name is an error rather than an empty result.
+    assert!(eval(&format!("{DB};{CRIT_AND}"), "=DSUM(A1:G4,\"Nope\",I1:J2)").is_err());
 }

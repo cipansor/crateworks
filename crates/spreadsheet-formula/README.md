@@ -22,7 +22,7 @@ impl Sheet for Grid {
 assert_eq!(Evaluator::new(&Grid).eval("=SUM(A1:A2)*2").unwrap(), Value::Number(10.0));
 ```
 
-408 function names - 342 flat and 66 dotted modern spellings that share an
+427 function names - 361 flat and 66 dotted modern spellings that share an
 implementation with their flat alias - plus `IF` and `IFERROR`, which are
 evaluated lazily along with
 `SWITCH`. Cell and range references, absolute references, sheet qualifiers, text
@@ -32,7 +32,7 @@ gamma and error functions, integer number theory and combinatorics, descriptive 
 the statistical distributions, regression and correlation, base conversion and
 bitwise operations, roman numerals, text case, search and formatting, date and
 time, complex numbers, financial and depreciation calculations, lookup and
-reference, and the conditional aggregates.
+reference, the conditional aggregates, and the database functions.
 
 The crate is deliberately independent of any file format. It takes a formula
 string and a way to resolve cell references, so it can be used with `xlsx`,
@@ -105,7 +105,10 @@ string and a way to resolve cell references, so it can be used with `xlsx`,
   `MODE.SNGL`, `LARGE`, `SMALL`, `PERCENTILE.INC`, `QUARTILE.INC`,
   `PERCENTILE.EXC` and `QUARTILE.EXC` - selected by number, with an `options`
   argument that says what to skip. Nothing in this evaluator is hidden or an
-  error value, so `options` is accepted rather than acted on.
+  error value, so `options` is accepted rather than acted on. The `D`-prefixed
+  database functions - `DSUM`, `DAVERAGE`, `DCOUNT`, `DCOUNTA`, `DGET`, `DMAX`,
+  `DMIN`, `DPRODUCT`, `DSTDEV`, `DSTDEVP`, `DVAR`, `DVARP` - are described under
+  [Database functions](#database-functions).
 * Text - `CONCAT`, `CONCATENATE`, `LEFT`, `RIGHT`, `MID`, `LEN`, `LOWER`,
   `UPPER`, `PROPER`, `TRIM`, `REPT`, `SUBSTITUTE`, `REPLACE`, `FIND`, `SEARCH`,
   `EXACT`, `TEXTJOIN`, `CHAR`, `CODE`, `UNICHAR`, `UNICODE`, `CLEAN`, `TEXT`,
@@ -205,6 +208,53 @@ empty product `1`, and `AVERAGE` and `MEDIAN` report an error, matching Excel's
 Criteria follow the same type rules: a numeric criterion such as `">2"` matches
 numbers only, a text criterion never matches a number, and `COUNTIF`, `SUMIF` and
 `AVERAGEIF` understand the `*` and `?` wildcards, case-insensitively.
+
+### Database functions
+
+The `D`-prefixed functions - `DSUM`, `DAVERAGE`, `DCOUNT`, `DCOUNTA`, `DGET`,
+`DMAX`, `DMIN`, `DPRODUCT`, `DSTDEV`, `DSTDEVP`, `DVAR`, `DVARP` - aggregate one
+field of a database over the records a criteria range selects. A database is a
+rectangular range in which the first cell of every row names the field, so a
+field's values run across a row rather than down a column; a criteria range has
+the same shape, with a field name in the first cell of each row followed by its
+tests. A record matches when every criteria row that names one of its fields
+holds, so two criteria rows are a conjunction and two tests in one row are a
+disjunction:
+
+```rust
+# use spreadsheet_formula::{CellRef, Evaluator, Sheet, Value};
+# struct Grid;
+# impl Sheet for Grid {
+#     fn value(&self, cell: CellRef) -> Value {
+#         match (cell.column, cell.row) {
+#             (0, 0) => Value::Text("Tree".into()),
+#             (1, 0) => Value::Text("Apple".into()),
+#             (0, 1) => Value::Text("Yield".into()),
+#             (1, 1) => Value::Number(14.0),
+#             (0, 2) => Value::Text("Height".into()),
+#             (1, 2) => Value::Number(18.0),
+#             (2, 0) => Value::Text("Height".into()),
+#             (3, 0) => Value::Text(">10".into()),
+#             _ => Value::Empty,
+#         }
+#     }
+# }
+// The database is `A1:B3`, with `Tree` and `Yield` and `Height` naming the
+// rows. The field is `Yield` and the criteria range `C1:D1` asks for
+// `Height > 10`, which the single record satisfies.
+let grid = Grid;
+assert_eq!(Evaluator::new(&grid).eval("=DSUM(A1:B3,\"Yield\",C1:D1)").unwrap(), Value::Number(14.0));
+```
+
+A field is named by the text in the first cell of its row, or by its zero-based
+row index. The matching rule and the aggregations follow the JavaScript
+`@formulajs/formulajs` library, this crate's reference for the spreadsheet
+functions: a numeric criterion matches only numeric cells and a text criterion is
+compared exactly, a criterion of `*` or a blank cell matches every record, and
+`DGET` is the one matching value, reporting an error when the criteria select
+none or more than one. `DCOUNT` counts the numeric cells of the field, while
+`DCOUNTA` counts the non-blank ones, so a blank field value is counted by the
+second and not the first.
 
 
 Part of the [crateworks](https://github.com/cipansor/crateworks)
