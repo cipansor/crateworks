@@ -1,7 +1,7 @@
 # crateworks
 
 [![CI](https://github.com/cipansor/crateworks/actions/workflows/ci.yml/badge.svg)](https://github.com/cipansor/crateworks/actions/workflows/ci.yml)
-[![crates.io](https://img.shields.io/badge/crates.io-26%20crates-orange.svg)](https://crates.io/crates/xmlkit)
+[![crates.io](https://img.shields.io/badge/crates.io-27%20crates-orange.svg)](https://crates.io/crates/xmlkit)
 
 A workspace of small, single-purpose Rust crates that fill gaps where the
 JavaScript and Python ecosystems have mature libraries and Rust does not.
@@ -19,7 +19,7 @@ Every crate here follows the same rules:
 
 ## Crates
 
-Twenty-five crates, published independently. Most have no dependencies at all;
+Twenty-seven crates, published independently. Most have no dependencies at all;
 the rest depend only on `xmlkit` or `pdfa` from this same workspace.
 
 ### XML and the document stacks built on it
