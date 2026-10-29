@@ -7,9 +7,11 @@ worth closing", and the answer was ten more `holidays-rs` countries, from 55 to
 
 This round re-asks it once more. Every gate was re-run first, then each crate's
 public surface was diffed against its reference. Three candidates came out of
-that pass and all three are settled here: one was closed, one was already
-covered under a different name, and one is blocked by a licence rather than by
-effort.
+that pass: two were closed - the missing `fuzzywuzzy.process` functions and a
+`TIMEVALUE` parsing defect the widened spreadsheet gate caught - and the third,
+the `python-stdnum` data tables, is blocked by a licence rather than by effort.
+The remaining spreadsheet names were shown to be naming differences or
+out-of-scope features rather than gaps.
 
 ## Correctness first: the differential gates were re-run
 
@@ -21,7 +23,7 @@ gate results come first.
 | --- | --- | --- |
 | `verify_holidays.py` | PyPI `holidays` | 0 undocumented defects, 86 calendars |
 | `gen_stdnum_vectors.py` | PyPI `python-stdnum` | 85,713 vectors agree |
-| `verify_spreadsheet.py` | npm `@formulajs/formulajs` | 1,028/1,028 cases agree |
+| `verify_spreadsheet.py` | npm `@formulajs/formulajs` | 1,068/1,068 cases agree |
 | `verify_aviation.py` | OurAirports `airports.csv` | 11,887 rows and 46,456 lookups agree |
 | `verify_arabic.py` | PyPI `arabic-reshaper` 3.0.0 | 6,558/6,558 agree (per language) |
 | `verify_hijri_locales.py` | PyPI `hijridate` 2.6.0 | 132/132 names agree |
@@ -68,7 +70,7 @@ published lists (SIX, GS1), which is a data-sourcing project rather than a port.
 The same logic closed `casrn` already, and it is why the gate's `NOTICE` names
 `python-stdnum` without lifting from it.
 
-**`spreadsheet-formula`: the remaining names are three kinds, none closable.** A
+**`spreadsheet-formula`: the gate was widened, and it caught a real bug.** The
 name-level diff against `@formulajs/formulajs` leaves 38 names. They are the
 volatile functions (`NOW`, `RAND`, `RANDBETWEEN`, `TODAY`), the dynamic-array and
 matrix family (`MMULT`, `TRANSPOSE`, `HSTACK`, `VSTACK`, `DROP`, `TAKE`,
@@ -76,11 +78,36 @@ matrix family (`MMULT`, `TRANSPOSE`, `HSTACK`, `VSTACK`, `DROP`, `TAKE`,
 `LINEST`, `LOGEST`, `TREND`, `GROWTH`), and a set of namespace objects
 (`BETA.DIST`, `NORM.INV`, `POISSON.DIST`, `Z.TEST`, `ISO.CEILING`,
 `ERROR.TYPE`). The first group is documented as out of scope, the second returns
-array objects this scalar evaluator does not model, and the third is a naming
-difference rather than a missing function: the crate already serves `BETADIST`,
-`NORMINV`, `POISSONDIST`, `ZTEST`, `ISO`-style `CEILING` and `ERROR`-style
-`TYPE` under their unsuffixed spellings. `PLAN.md`'s "not covered" note was
-rewritten to say exactly that, so the count is explained rather than asserted.
+array objects this scalar evaluator does not model, and most of the third is a
+naming difference rather than a missing function: the crate already serves
+`BETADIST`, `NORMINV`, `POISSONDIST`, `ZTEST` and `ISO`-style `CEILING` under
+their unsuffixed spellings, and the gate mirrors each dotted name from its flat
+spelling so both are checked.
+
+`ERROR.TYPE` is the one genuine member of that group, and it stays out: it is the
+only way to recover an error code, and this crate reports a failure as a Rust
+`Result` with no error value inside the expression language, so there is nothing
+for the argument to evaluate to. The reference's own `ERROR.TYPE` returns `#N/A`
+for every input that is not one of its internal sentinels - `ERROR.TYPE(1)` and
+`ERROR.TYPE(new Error('#DIV/0!'))` both answer `#N/A` - so it is not a behaviour
+a caller could rely on either.
+
+Widening the gate to the lookup and control-flow family (`VLOOKUP`, `HLOOKUP`,
+`INDEX`, `MATCH`, `LOOKUP`, `IF`, `IFS`, `SWITCH`, `IFERROR`, the right-tail
+distributions, `WORKDAY`, `WORKDAY.INTL`, `TIMEVALUE`, `XNPV`) is what turned up
+this round's second development. It also exposed a hole in the harness: the JS
+driver mapped every object result to `error`, so a date-returning function the
+reference does not serialise looked like a mismatch. Teaching it to read a `Date`
+back as a serial made `WORKDAY` and `WORKDAY.INTL` gateable, and left one real
+defect standing: **`TIMEVALUE` rejected a full date-time string.** Excel and
+`formulajs` both accept `TIMEVALUE("2024-01-01 12:00")` and return `0.5`; the
+crate parsed only a bare clock time and returned an error. `parse_time` now
+accepts a date half separated by a space or an ISO 8601 `T`, keeps the clock
+time, and treats a bare date as midnight, which is what both references do.
+
+The gate grew from 1,028 to 1,068 cases and all 1,068 agree. `PLAN.md`'s "not
+covered" note was rewritten to say exactly what the 38 names are, so the count
+is explained rather than asserted.
 
 ## Coverage: every crate, its reference, and where the check lives
 
@@ -132,23 +159,33 @@ where to look.
   the docs.rs front page, documents `extract_bests` and `extract_without_order`
   beside `extract`, and its "how it is checked" paragraph moves from three
   process functions to five.
+* `crates/spreadsheet-formula/README.md` gains a paragraph in *Scope* naming the
+  text forms `DATEVALUE` and `TIMEVALUE` accept, including the date-time form
+  this round fixed.
 * `PLAN.md`'s `fuzzy-score` section lists the five process functions, its
   `spreadsheet-formula` section explains the 38 missing names in three groups
   rather than as an unexplained count, and its verification block moves the
   doctest count from 210 to 213.
 * `research/tools/README.md` and the gate itself describe the five-function
-  coverage.
+  coverage and the widened spreadsheet case set.
 
 ## What is deliberately not done
 
 The `cfi`, `imsi` and `gs1_128` tables, for the licence reason above. The 38
-`formulajs` names, for the three reasons above. Neither is a gap left by
+`formulajs` names, for the three reasons above, of which only `ERROR.TYPE` is a
+genuinely missing function rather than a naming difference or an out-of-scope
+feature. Neither is a gap left by
 oversight; both are recorded so the next round does not re-open them.
 
 ## Method
 
 The gates are the review: each one is a reference implementation driven over a
 corpus, so "does this crate do what the mature package does" is a pass/fail
-rather than a reading exercise. The one development this round, the two missing
-`fuzzywuzzy.process` functions, was found by diffing the crate's public surface
-against the reference's rather than by reading either one's documentation.
+rather than a reading exercise. Both developments this round came out of that
+loop rather than out of reading documentation: the two missing
+`fuzzywuzzy.process` functions were found by diffing the crate's public surface
+against the reference's, and the `TIMEVALUE` defect surfaced only once the
+spreadsheet gate was widened to cover the functions that had been checked by a
+hand-written test alone. That is the argument for the gate over the test: a case
+someone wrote down records what the implementation did, while a case generated
+from the reference records what the reference does.

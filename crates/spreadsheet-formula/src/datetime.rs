@@ -341,7 +341,22 @@ pub(crate) fn datedif(start: i64, end: i64, unit: &str) -> Option<f64> {
 
 /// A parsed wall-clock time, in seconds since midnight.
 pub(crate) fn parse_time(text: &str) -> Option<f64> {
-    let mut parts = text.trim().split(':');
+    let text = text.trim();
+    // A date-time is accepted, as Excel's `TIMEVALUE` accepts one: the date
+    // half is dropped and only the clock time is kept. A bare date is midnight,
+    // so it is zero. The separator is a space or an ISO 8601 `T`.
+    let clock = match text.split_once([' ', 'T']) {
+        Some((date, clock)) => {
+            parse_date(date)?;
+            clock.trim()
+        }
+        None if parse_date(text).is_some() => return Some(0.0),
+        None => text,
+    };
+    if clock.is_empty() {
+        return Some(0.0);
+    }
+    let mut parts = clock.split(':');
     let h: f64 = parts.next()?.trim().parse().ok()?;
     let m: f64 = parts.next()?.trim().parse().ok()?;
     let s: f64 = match parts.next() {
@@ -600,6 +615,10 @@ mod tests {
         assert_eq!(parse_time("12:30"), Some(45_000.0));
         assert_eq!(parse_time("00:00"), Some(0.0));
         assert_eq!(parse_time("nonsense"), None);
+        // A date-time keeps only its clock time; a bare date is midnight.
+        assert_eq!(parse_time("2024-01-15 12:30"), Some(45_000.0));
+        assert_eq!(parse_time("2024-01-15T06:00"), Some(21_600.0));
+        assert_eq!(parse_time("2024-01-15"), Some(0.0));
         assert_eq!(parse_date("2024-01-15"), Some(45_306));
         assert_eq!(parse_date("2024-13-01"), None);
     }

@@ -126,6 +126,11 @@ a fixed ten-digit field, so a ten-character binary, octal or hexadecimal string
 whose leading digit is at or above half the base is a negative number. `BASE`
 accepts a radix from 2 to 36, and `DECIMAL` parses one.
 
+`DATEVALUE` reads the `YYYY-MM-DD` form, and `TIMEVALUE` reads a clock time
+(`HH:MM` or `HH:MM:SS`). `TIMEVALUE` also accepts a date-time separated by a
+space or an ISO 8601 `T`, as Excel does, keeping only the clock time; a bare
+date is midnight.
+
 ### CONVERT
 
 `CONVERT(value, from, to)` expresses a value in one unit as another. The units

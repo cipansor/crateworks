@@ -130,8 +130,12 @@ matrix family (`MMULT`, `TRANSPOSE`, `HSTACK`, `VSTACK`, `DROP`, `TAKE`,
 this scalar evaluator does not model; and the namespace objects `formulajs`
 exposes as dotted aliases (`BETA.DIST`, `NORM.INV`, `POISSON.DIST`, `Z.TEST` and
 the like), which the crate already serves under their unsuffixed spellings
-(`BETADIST`, `NORMINV`, `POISSONDIST`, `ZTEST`). `research/tools/verify_spreadsheet.py`
-is the gate over the rest.
+(`BETADIST`, `NORMINV`, `POISSONDIST`, `ZTEST`). The one exception is
+`ERROR.TYPE`, which has no unsuffixed counterpart and stays out: this crate
+reports a failure as a `Result` with no error value inside the expression
+language for the function to inspect. `research/tools/verify_spreadsheet.py` is
+the gate over the rest, and it mirrors every dotted name from its flat spelling,
+so the two spellings cannot drift apart.
 
 ## 5. `hijridate`
 
