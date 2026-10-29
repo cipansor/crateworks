@@ -13,7 +13,9 @@ effort.
 
 ## Correctness first: the differential gates were re-run
 
-Every crate with an independent reference was re-checked against it.
+Every gate was re-run, and then every crate's public surface was diffed against
+its reference. The full mapping, crate by crate, is in *Coverage* below; the
+gate results come first.
 
 | Gate | Reference | Result |
 | --- | --- | --- |
@@ -79,6 +81,50 @@ difference rather than a missing function: the crate already serves `BETADIST`,
 `NORMINV`, `POISSONDIST`, `ZTEST`, `ISO`-style `CEILING` and `ERROR`-style
 `TYPE` under their unsuffixed spellings. `PLAN.md`'s "not covered" note was
 rewritten to say exactly that, so the count is explained rather than asserted.
+
+## Coverage: every crate, its reference, and where the check lives
+
+The gate table above is the set of crates whose reference is a *program* that can
+be driven over a corpus. The rest are checked by a committed fixture built from
+the reference, or by a test that names the specification, because their reference
+is a data set or a document rather than a runnable package. Either way, no crate
+in this workspace is reviewed by reading alone.
+
+| Crate | Reference | Where the check lives |
+| --- | --- | --- |
+| `xmlkit` | Python's `expat` (well-formedness) | `scripts/fuzz/xmlkit/gen.py` -> `tests/fixtures/wellformed.tsv`, replayed by `tests/wellformed.rs` |
+| `iso20022-rs` | the official ISO 20022 XSD | `verify_iso20022.py` |
+| `ebics` | node-ebics-client; Python `cryptography` for the crypto | `tests/rsa_interop.rs`, `signature_oracle.rs`, `c14n_oracle.rs`, `response_oracle.rs` |
+| `soap-client` | the SOAP 1.1/1.2 and WSDL specifications | inline tests, 32 of them, plus the README example |
+| `wssec` | OASIS UsernameToken Profile 1.1; `zeep` | `tests/fixtures.rs` against `zeep`'s structural paths |
+| `factur-x` | the official `factur-x` package (akretion) | `tests/oracle.rs` |
+| `pdfa` | PDF/A-3 and Factur-X specifications; reference PDFs | `tests/reference.rs`, `tests/incremental.rs` |
+| `pdfmake` | the pdfmake JS model; Adobe AFM metrics via `reportlab`/`pdfminer.six` | inline tests, 68 of them, plus `tests/readme.rs` |
+| `pades` | RFC 5652 (CMS) and the PAdES baseline profiles | `tests/verify.rs` over the signed-PDF fixtures |
+| `stdnum-rs` | PyPI `python-stdnum` | `gen_stdnum_vectors.py`, 85,713 vectors |
+| `eu-vat` | PyPI `python-stdnum` | `tests/oracle.rs` over the derived fixture |
+| `iso6346` | npm `container-validator` (sameershemna) | `tests/oracle.rs` |
+| `holidays-rs` | PyPI `holidays` | `verify_holidays.py` |
+| `hijridate` | PyPI `hijridate` | `verify_hijri_locales.py`, `gen_hijri_table.py` |
+| `adhan` | JS `adhan` (batoulapps) | `tests/oracle.rs`, `reference.rs`, `qibla_sunnah.rs`, `navigation.rs` |
+| `arabic` | PyPI `arabic-reshaper` | `verify_arabic.py` |
+| `spreadsheet-formula` | npm `@formulajs/formulajs`, `jStat`, `bessel` | `verify_spreadsheet.py`, `gen_convert_units.py` |
+| `runits` | PyPI `pint` | `verify_units.py`, `gen_units_arithmetic.py` |
+| `object-hash` | npm `object-hash` (puleos) | `tests/oracle.rs`, `fuzz.rs`, `numbers.rs` |
+| `javaproperties` | PyPI `javaproperties` (jwodder) | `tests/oracle.rs`, `writer_oracle.rs`, `xml_oracle.rs` |
+| `mllp` | PyPI `hl7apy` | `verify_mllp.py` |
+| `fuzzy-score` | PyPI `fuzzywuzzy` | `verify_fuzzy_score.py` |
+| `address-parser` | npm `parse-address` (hassansin) | `tests/oracle.rs` |
+| `aviation-data` | OurAirports `airports.csv` | `verify_aviation.py` |
+| `cssprint` | WeasyPrint (Kozea) | `gen_weasyprint_layout.py` -> `tests/fixtures/layout.tsv`, replayed by `tests/layout.rs` |
+| `openlocationcode` | google/open-location-code | `verify_openlocationcode.py` |
+| `iso8583-msg` | PyPI `pyiso8583` | `tests/oracle.rs` |
+
+Two crates have no runnable reference and are checked against the specification
+itself: `soap-client` (the SOAP and WSDL documents) and `pades` (RFC 5652 and the
+PAdES baseline profiles), each with fixtures that a conforming implementation
+produced. Neither difference is a gap; both are named so the next round knows
+where to look.
 
 ## Documentation
 
