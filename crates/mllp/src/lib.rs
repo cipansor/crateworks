@@ -7,7 +7,7 @@ mod frame;
 mod message;
 
 pub use ack::{
-    AckCode, AckContext, ErrorDetail, Severity, build as build_ack,
+    AckCode, AckContext, ErrorDetail, ErrorLocation, Severity, build as build_ack,
     build_enhanced as build_ack_enhanced,
 };
 pub use decoder::Decoder;

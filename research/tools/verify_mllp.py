@@ -116,7 +116,7 @@ def rust_parse(corpus: list[str]) -> tuple[list[dict], list[str]]:
     crate produces and not only the fields it reads.
     """
     driver = r'''
-use mllp::{AckCode, AckContext, ErrorDetail, Message, Severity, build_ack, build_ack_enhanced};
+use mllp::{AckCode, AckContext, ErrorDetail, ErrorLocation, Message, Severity, build_ack, build_ack_enhanced};
 use std::io::Read;
 
 fn main() {
@@ -146,9 +146,11 @@ fn main() {
         );
         println!("ACK\t{index}\t{}", ack.replace('\r', "\\r"));
 
-        // The enhanced reply: an application error explained with MSA-4 and an
-        // ERR segment. The error condition is fixed so the gate can name it.
-        let error = ErrorDetail::new("207", "Application internal error", Severity::Error);
+        // The enhanced reply: an application error explained with MSA-4, ERR-2
+        // (the location) and an ERR segment. The error condition is fixed so the
+        // gate can name it, and the location points at PID-3, component 1.
+        let error = ErrorDetail::new("207", "Application internal error", Severity::Error)
+            .at(ErrorLocation::field("PID", 2, 3).with_component(1));
         let enhanced = build_ack_enhanced(
             &context,
             AckCode::Error,
@@ -282,6 +284,10 @@ def check_enhanced(raw: str, enhanced: str, index: int) -> int:
     # MSA-4 repeats the ERR-3.1 code, which is what ties the summary to the
     # segment that explains it.
     expect("MSA-4", "207", "error condition code")
+    # ERR-2 is the location: the segment, its sequence and the field, then the
+    # component. The component is ERL-5, so the repetition it skips is an empty
+    # ERL-4, which is why there are two separators before the component.
+    expect("ERR-2", f"PID{component}2{component}3{component}{component}1", "error location")
     expect(
         "ERR-3",
         f"207{component}Application internal error{component}HL70357",
@@ -303,6 +309,20 @@ def check_enhanced(raw: str, enhanced: str, index: int) -> int:
             got = got.value if got is not None else ""
             if got != value:
                 print(f"  enh {index}: ERR-3.{component} is {got!r}, expected {value!r}")
+                problems += 1
+        # ERR-2 is an ERL. Read its components so a location put in the wrong
+        # place is caught even if the raw text happens to match.
+        erl = err.err_2
+        for component_name, value in (
+            ("ERL_1", "PID"),
+            ("ERL_2", "2"),
+            ("ERL_3", "3"),
+            ("ERL_5", "1"),
+        ):
+            got = getattr(erl, component_name, None)
+            got = got.value if got is not None else ""
+            if got != value:
+                print(f"  enh {index}: ERR-2.{component_name} is {got!r}, expected {value!r}")
                 problems += 1
     except Exception as error:  # noqa: BLE001
         print(f"  enh {index}: hl7apy could not read the ERR segment: {error}")

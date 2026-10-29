@@ -123,6 +123,104 @@ impl std::fmt::Display for Severity {
     }
 }
 
+/// Where in the message an error was found: ERR-2, the error location.
+///
+/// The enhanced acknowledgement can say not only what went wrong but where. ERR-2
+/// carries that as an ERL value: the segment's id, the segment's one-based
+/// position in the message, the field's one-based position within the segment,
+/// and - when the error is narrower than a whole field - the repetition,
+/// component and subcomponent inside it.
+///
+/// The three leading parts are required and the three trailing ones are optional,
+/// because a receiver that only knows the field sets the first three and stops.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ErrorLocation {
+    /// ERL-1: the segment id, such as `PID`.
+    pub segment_id: String,
+    /// ERL-2: the segment's one-based position in the message.
+    pub segment_sequence: u32,
+    /// ERL-3: the field's one-based position within the segment.
+    pub field_position: u32,
+    /// ERL-4: the field repetition, when the field repeats.
+    pub field_repetition: Option<u32>,
+    /// ERL-5: the component within the field.
+    pub component_number: Option<u32>,
+    /// ERL-6: the subcomponent within the component.
+    pub subcomponent_number: Option<u32>,
+}
+
+impl ErrorLocation {
+    /// The location of an error in a whole field: segment, sequence and field.
+    ///
+    /// The repetition, component and subcomponent are left unset; add them with
+    /// [`ErrorLocation::with_component`] when the error is narrower.
+    #[must_use]
+    pub fn field(
+        segment_id: impl Into<String>,
+        segment_sequence: u32,
+        field_position: u32,
+    ) -> Self {
+        Self {
+            segment_id: segment_id.into(),
+            segment_sequence,
+            field_position,
+            field_repetition: None,
+            component_number: None,
+            subcomponent_number: None,
+        }
+    }
+
+    /// Narrows the location to one repetition of the field.
+    #[must_use]
+    pub fn with_repetition(mut self, repetition: u32) -> Self {
+        self.field_repetition = Some(repetition);
+        self
+    }
+
+    /// Narrows the location to one component of the field.
+    #[must_use]
+    pub fn with_component(mut self, component: u32) -> Self {
+        self.component_number = Some(component);
+        self
+    }
+
+    /// Narrows the location to one subcomponent of the component.
+    #[must_use]
+    pub fn with_subcomponent(mut self, subcomponent: u32) -> Self {
+        self.subcomponent_number = Some(subcomponent);
+        self
+    }
+
+    /// The ERL value as ER7 text, using `component` as the separator.
+    ///
+    /// A part that is unset but followed by a set one becomes an empty component,
+    /// so the position is preserved; trailing unset parts are dropped, so a
+    /// location that stops at the field is `PID^1^3` and never `PID^1^3^^^`.
+    fn to_er7(&self, component: char) -> String {
+        let optional = [
+            self.field_repetition,
+            self.component_number,
+            self.subcomponent_number,
+        ];
+        // Keep up to the last set part; anything after it is dropped.
+        let last_set = optional
+            .iter()
+            .rposition(Option::is_some)
+            .map_or(0, |i| i + 1);
+        let mut parts = vec![
+            self.segment_id.clone(),
+            self.segment_sequence.to_string(),
+            self.field_position.to_string(),
+        ];
+        parts.extend(
+            optional[..last_set]
+                .iter()
+                .map(|part| part.map_or_else(String::new, |number| number.to_string())),
+        );
+        parts.join(&component.to_string())
+    }
+}
+
 /// The error condition an enhanced acknowledgement reports.
 ///
 /// It is written into ERR-3 as a coded-with-exceptions (CWE) value and its code
@@ -139,10 +237,15 @@ pub struct ErrorDetail {
     pub coding_system: String,
     /// ERR-4: the severity.
     pub severity: Severity,
+    /// ERR-2: where the error is, when the caller knows. Empty otherwise.
+    pub location: Option<ErrorLocation>,
 }
 
 impl ErrorDetail {
     /// An error condition with the standard coding system `HL70357`.
+    ///
+    /// The location is unset; add it with [`ErrorDetail::at`] when the caller
+    /// knows which segment and field the error is in.
     #[must_use]
     pub fn new(code: impl Into<String>, text: impl Into<String>, severity: Severity) -> Self {
         Self {
@@ -150,7 +253,15 @@ impl ErrorDetail {
             text: text.into(),
             coding_system: "HL70357".into(),
             severity,
+            location: None,
         }
+    }
+
+    /// Sets ERR-2, the error location.
+    #[must_use]
+    pub fn at(mut self, location: ErrorLocation) -> Self {
+        self.location = Some(location);
+        self
     }
 }
 
@@ -185,6 +296,9 @@ pub fn build(
 /// written to both places because MSA-4 is what a simple reader looks at and
 /// ERR-3 is what carries the detail.
 ///
+/// When [`ErrorDetail::location`] is set, ERR-2 names the segment and field the
+/// error is in, so a reader is told where to look as well as what was wrong.
+///
 /// `code` should be [`AckCode::Error`] or [`AckCode::Reject`]; a caller that
 /// passes [`AckCode::Accept`] gets the enhanced structure with an accept code,
 /// which is legal but unusual.
@@ -200,12 +314,16 @@ pub fn build_enhanced(
     let mut out = String::with_capacity(192);
     write_header(&mut out, context, control_id, separators);
     write_msa(&mut out, code, context, text, Some(&error.code), separators);
-    // ERR-1 (error location) and ERR-2 (error location, alternate) are empty:
-    // they name the segment and field the error is in, which the caller knows
-    // but this builder is not told. ERR-3 is the code, ERR-4 the severity.
+    // ERR-1 (the deprecated "error code and location") is left empty; ERR-2 is
+    // the location, ERR-3 the code, ERR-4 the severity. ERR-2 is only written
+    // when the caller supplied a location.
+    let location = error
+        .location
+        .as_ref()
+        .map_or(String::new(), |l| l.to_er7(separators.component));
     let _ = write!(
         out,
-        "ERR{field}{field}{field}{code}{component}{text}{component}{system}{field}{severity}\r",
+        "ERR{field}{field}{location}{field}{code}{component}{text}{component}{system}{field}{severity}\r",
         field = separators.field,
         component = separators.component,
         code = error.code,
@@ -430,6 +548,85 @@ mod tests {
         assert_eq!(
             ErrorDetail::new("207", "x", Severity::Error).coding_system,
             "HL70357"
+        );
+    }
+
+    #[test]
+    fn a_location_without_narrowing_is_segment_sequence_and_field() {
+        let location = ErrorLocation::field("PID", 2, 5);
+        assert_eq!(location.to_er7('^'), "PID^2^5");
+    }
+
+    #[test]
+    fn a_narrowed_location_keeps_the_empty_components_it_skips() {
+        // A component with no repetition before it: the repetition is an empty
+        // component, so the component lands in the right position (ERL-5).
+        let location = ErrorLocation::field("PID", 1, 3).with_component(4);
+        assert_eq!(location.to_er7('^'), "PID^1^3^^4");
+
+        // A subcomponent with neither repetition nor component set.
+        let location = ErrorLocation::field("PID", 1, 3).with_subcomponent(2);
+        assert_eq!(location.to_er7('^'), "PID^1^3^^^2");
+
+        // Everything set, in order.
+        let location = ErrorLocation::field("OBX", 3, 5)
+            .with_repetition(1)
+            .with_component(2)
+            .with_subcomponent(3);
+        assert_eq!(location.to_er7('^'), "OBX^3^5^1^2^3");
+    }
+
+    #[test]
+    fn a_location_uses_the_component_separator_of_the_message() {
+        assert_eq!(ErrorLocation::field("PID", 1, 3).to_er7('*'), "PID*1*3");
+    }
+
+    #[test]
+    fn the_enhanced_ack_writes_err_2_when_a_location_is_given() {
+        let message = Message::parse(ADT).unwrap();
+        let context = AckContext::from_message(&message);
+        let error = ErrorDetail::new("101", "Required field missing", Severity::Error)
+            .at(ErrorLocation::field("PID", 2, 3).with_component(1));
+        let ack = build_enhanced(
+            &context,
+            AckCode::Error,
+            "ACK0004",
+            "bad patient",
+            &error,
+            Separators::default(),
+        );
+
+        let lines: Vec<&str> = ack.split('\r').collect();
+        // ERR-1 empty, ERR-2 the location, ERR-3 the code, ERR-4 the severity.
+        // The component is ERL-5, so the repetition it skips is an empty ERL-4.
+        assert_eq!(
+            lines[2],
+            "ERR||PID^2^3^^1|101^Required field missing^HL70357|E"
+        );
+
+        let reply = Message::parse(&ack).unwrap();
+        assert_eq!(reply.value("ERR-2").unwrap(), "PID^2^3^^1");
+    }
+
+    #[test]
+    fn an_error_without_a_location_leaves_err_2_empty() {
+        let message = Message::parse(ADT).unwrap();
+        let context = AckContext::from_message(&message);
+        let error = ErrorDetail::new("207", "Application internal error", Severity::Error);
+        let ack = build_enhanced(
+            &context,
+            AckCode::Error,
+            "ACK0005",
+            "bad",
+            &error,
+            Separators::default(),
+        );
+        let reply = Message::parse(&ack).unwrap();
+        // ERR-2 is present but empty, the way the crate writes an unset field.
+        assert_eq!(reply.value("ERR-2").unwrap_or_default(), "");
+        assert_eq!(
+            reply.value("ERR-3").unwrap(),
+            "207^Application internal error^HL70357"
         );
     }
 }

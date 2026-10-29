@@ -378,14 +378,19 @@ an interface must send back - swapping the sender and receiver and echoing the
 control id, in the delimiters the received message used. When the reply has to
 explain a failure, `ack::build_enhanced` writes the enhanced form: MSA-4 carries
 the error condition code and an `ERR` segment repeats it as a CWE value with its
-text and an ERR-4 severity. `verify_mllp.py` checks the parse, the minimal reply
-and the enhanced reply against `hl7apy`.
+text and an ERR-4 severity. When the caller knows where the error is, `ERR-2`
+carries the location as an ERL value (`ErrorLocation`: the segment, its sequence,
+the field, and optionally the repetition, component and subcomponent).
+`verify_mllp.py` checks the parse, the minimal reply and the enhanced reply
+against `hl7apy`.
 
-**Not covered.** ERR-1 and ERR-2, which name the segment and field the error is
-in; the caller knows those and sets them after the builder runs. Validation
-against a message profile, opening sockets, TLS, and the newer block-based MLLP
-over HTTPS are also out. A frame that never terminates stops at 16 MiB rather
-than growing the buffer without bound.
+**Not covered.** ERR-1, the deprecated "error code and location" field, is left
+empty; ERR-2 carries the location and is the field a reader looks at. The builder
+does not read the message to find the offending field on its own - what counts as
+an error, and where, is the application's judgement - so the caller supplies the
+`ErrorLocation`. Validation against a message profile, opening sockets, TLS, and
+the newer block-based MLLP over HTTPS are also out. A frame that never terminates
+stops at 16 MiB rather than growing the buffer without bound.
 
 ## 19. `ebics`
 

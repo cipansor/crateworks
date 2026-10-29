@@ -144,7 +144,7 @@ MSA-4 with an error condition code and appends an `ERR` segment carrying the
 same code with its text and severity, which is what [`build_ack_enhanced`] writes.
 
 ```rust
-use mllp::{AckCode, AckContext, ErrorDetail, Message, Severity, build_ack_enhanced};
+use mllp::{AckCode, AckContext, ErrorDetail, ErrorLocation, Message, Severity, build_ack_enhanced};
 
 let received = Message::parse(
     "MSH|^~\\&|SEND|FAC|RECV|FAC|20260101||ADT^A01|MSG0001|P|2.5.1\rPID|1||12345\r",
@@ -152,7 +152,9 @@ let received = Message::parse(
 let context = AckContext::from_message(&received);
 
 // The error condition is HL7 table 0357: 207 is "application internal error".
-let error = ErrorDetail::new("207", "Application internal error", Severity::Error);
+// The location says where it is: PID, the second segment, its third field.
+let error = ErrorDetail::new("207", "Application internal error", Severity::Error)
+    .at(ErrorLocation::field("PID", 2, 3));
 let ack = build_ack_enhanced(
     &context,
     AckCode::Error,
@@ -164,22 +166,33 @@ let ack = build_ack_enhanced(
 
 let reply = Message::parse(&ack).unwrap();
 assert_eq!(reply.value("MSA-4").unwrap(), "207"); // the code, repeated
+assert_eq!(reply.value("ERR-2").unwrap(), "PID^2^3"); // the location
 assert_eq!(reply.value("ERR-3").unwrap(), "207^Application internal error^HL70357");
 assert_eq!(reply.value("ERR-4").unwrap(), "E"); // the severity
 ```
 
 `Severity` is the ERR-4 code from HL7 table 0516: `Warning` (`W`), `Error` (`E`)
 and `Fatal` (`F`). `ErrorDetail` writes `HL70357` as the coding system unless the
-caller sets another. ERR-1 and ERR-2, which name the segment and field the error
-is in, are left empty.
+caller sets another.
+
+`ErrorLocation` is the ERR-2 location, an ERL value: the segment id, its one-based
+position in the message, the field's one-based position, and then the repetition,
+component and subcomponent when the error is narrower than a field. Only the
+first three are required, so a caller that knows the field and stops writes
+`PID^2^3`; `with_component`, `with_repetition` and `with_subcomponent` narrow it
+further and keep the empty components they skip, so a component that comes after
+an unset repetition lands in the position a reader expects.
 
 ## What it does not do
 
 `Message` reads the structure of a message; it does not validate one. It does not
 know which fields a message type requires, and it does not check a field against
 a table. `build_ack` and `build_ack_enhanced` write the reply an interface needs
-to send, but they do not fill ERR-1 and ERR-2, which point at the offending
-segment and field: the caller knows where the error is and sets those after.
+to send; the enhanced form carries the error condition and, when the caller
+supplies it, the location in ERR-2. The caller still decides *what* the error is
+and *where* it is - the builder does not read the message to find the offending
+field, because what counts as an error is the application's judgement, not the
+parser's.
 
 The framing layer does not open sockets, retry, or decide how long to wait for a
 reply, and it does not implement TLS or the newer, block-based MLLP (MLLP over
