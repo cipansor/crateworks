@@ -25,3 +25,11 @@ fn readme_validation_example() {
     assert!(!report.is_valid());
     assert!(report.rules().contains(&"BR-CO-17"));
 }
+
+#[test]
+fn readme_profile_example() {
+    use factur_x::{Profile, Syntax, generate, profile_of};
+
+    let xml = generate(&factur_x::test_support::sample_invoice(), Syntax::Cii);
+    assert_eq!(profile_of(&xml).unwrap(), Profile::En16931);
+}

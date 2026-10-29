@@ -276,12 +276,16 @@ package is downloaded hundreds of thousands of times a month. The Rust crates in
 the area have a few thousand downloads and model only one syntax.
 
 **Covers today.** EN 16931 modelled once and written or read as either CII or
-UBL, with `detect_syntax` to tell them apart, and `validate` for the standard's
-arithmetic rules (`BR-01`..`BR-06`, `BR-09`, `BR-16`, `BR-CO-10`..`BR-CO-18`,
-`BR-S-08`). Fields carry the standard's own numbers (`BT-1`, `BG-25`).
+UBL, with `detect_syntax` to tell them apart, `profile_of` to read the profile
+the specification identifier (BT-24) names (`minimum` through `en16931` and
+`extended`, the French `extended-ctc-fr`, and Order-X's `comfort`), and
+`validate` for the standard's arithmetic rules (`BR-01`..`BR-06`, `BR-09`,
+`BR-16`, `BR-CO-10`..`BR-CO-18`, `BR-S-08`). Fields carry the standard's own
+numbers (`BT-1`, `BG-25`).
 
 **Not covered.** Embedding the XML in a PDF - that is `pdfa` - and code list
-validation and country profiles such as XRechnung, which extend EN 16931.
+validation and the extra rules the country profiles such as XRechnung add. The
+crate reads which profile a document claims; it does not enforce the profile.
 
 ## 13. `wssec`
 

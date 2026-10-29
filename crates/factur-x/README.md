@@ -78,13 +78,35 @@ assert!(report.rules().contains(&"BR-CO-17"));
 The rules checked are `BR-01` to `BR-06`, `BR-09`, `BR-16`, and the `BR-CO-10`
 to `BR-CO-18` and `BR-S-08` arithmetic.
 
+## Which profile a document claims
+
+Every Factur-X, ZUGFeRD and Order-X document names a profile in its
+specification identifier (BT-24): `minimum`, `basicwl`, `basic`, `en16931`,
+`extended`, the French `extended-ctc-fr`, or Order-X's `comfort`. `profile_of`
+reads it from the element the syntax puts it in and returns the profile:
+
+```rust
+use factur_x::{Profile, Syntax, generate, profile_of};
+
+let xml = generate(&factur_x::test_support::sample_invoice(), Syntax::Cii);
+assert_eq!(profile_of(&xml).unwrap(), Profile::En16931);
+```
+
+The identifier is a URN, and the profile is its last segment; a qualified URN
+such as `urn:cen.eu:en16931:2017#compliant#urn:factur-x.eu:1p0:basic` still
+names `basic`, because the text after the first `#` is ignored. An identifier
+that names no known profile is an error rather than a guess, which is what the
+reference does.
+
 ## What it does not do
 
 This crate works on the XML. Embedding it in a PDF, and reading it back out,
 is a separate job that needs a PDF library; `generate` gives you the XML to
 embed. Code list validation and the country profiles that extend EN 16931,
-such as XRechnung and the French CTC profile, are also out of scope. See
-`validate::validate` for exactly which rules are checked.
+such as XRechnung and the French CTC profile, are also out of scope: the crate
+reads *which* profile a document claims, but does not enforce the extra rules
+that profile adds. See `validate::validate` for exactly which rules are
+checked.
 
 Part of the [crateworks](https://github.com/cipansor/crateworks)
 workspace. Licensed under the Apache License, Version 2.0, copyright Yayasan

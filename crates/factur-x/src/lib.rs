@@ -3,6 +3,7 @@
 
 pub mod cii;
 pub mod model;
+pub mod profile;
 pub mod ubl;
 pub mod validate;
 
@@ -13,6 +14,7 @@ pub mod test_support;
 
 pub use amount::{Amount, Currency};
 pub use model::Invoice;
+pub use profile::Profile;
 pub use validate::{Report, Violation, validate};
 
 use xmlkit::Element;
@@ -32,6 +34,11 @@ pub enum Error {
         /// What was found.
         found: String,
     },
+    /// The specification identifier does not name a known profile.
+    UnknownProfile {
+        /// The specification identifier that was read.
+        guideline: String,
+    },
     /// The XML itself was not well formed.
     Xml(String),
 }
@@ -42,6 +49,12 @@ impl std::fmt::Display for Error {
             Self::MissingElement { name } => write!(f, "missing required element {name}"),
             Self::InvalidValue { field, found } => {
                 write!(f, "{field} has an invalid value {found:?}")
+            }
+            Self::UnknownProfile { guideline } => {
+                write!(
+                    f,
+                    "the specification identifier {guideline:?} names no known profile"
+                )
             }
             Self::Xml(message) => write!(f, "{message}"),
         }
@@ -130,6 +143,62 @@ pub fn parse(xml: &str, syntax: Syntax) -> Result<Invoice> {
         Syntax::Cii => cii::parse(&root),
         Syntax::Ubl => ubl::parse(&root),
     }
+}
+
+/// Reads the profile a document claims to follow.
+///
+/// The profile is the last segment of the specification identifier (BT-24),
+/// read in the element the syntax puts it in. This is the reference's
+/// `get_facturx_level` / `get_level`.
+///
+/// # Errors
+///
+/// Returns [`Error::Xml`] if the text is not well-formed XML, and
+/// [`Error::UnknownProfile`] if the identifier names no known profile.
+///
+/// # Example
+///
+/// ```
+/// use factur_x::{Profile, Syntax, generate, profile_of};
+///
+/// let xml = generate(&factur_x::test_support::sample_invoice(), Syntax::Cii);
+/// assert_eq!(profile_of(&xml).unwrap(), Profile::En16931);
+/// ```
+pub fn profile_of(xml: &str) -> Result<Profile> {
+    let root = xmlkit::parse(xml)?;
+    let guideline = match xmlkit::local_name(&root.name) {
+        "CrossIndustryInvoice" | "CrossIndustryDocument" => {
+            local_child(&root, "ExchangedDocumentContext")
+                .and_then(|c| local_child(c, "GuidelineSpecifiedDocumentContextParameter"))
+                .and_then(|p| local_child(p, "ID"))
+                .map(Element::text)
+        }
+        "Invoice" | "CreditNote" => local_child(&root, "CustomizationID").map(Element::text),
+        other => {
+            return Err(Error::InvalidValue {
+                field: "root element".to_string(),
+                found: other.to_string(),
+            });
+        }
+    };
+    let guideline =
+        guideline
+            .filter(|text| !text.is_empty())
+            .ok_or_else(|| Error::MissingElement {
+                name: "GuidelineSpecifiedDocumentContextParameter".to_string(),
+            })?;
+    Profile::parse(&guideline)
+}
+
+/// Finds a direct child by local name, ignoring any namespace prefix.
+///
+/// [`Element::child`] matches the full name, so `child(el, "ID")` misses
+/// `ram:ID`; the profile identifier is always prefixed.
+fn local_child<'a>(element: &'a Element, name: &str) -> Option<&'a Element> {
+    element.children.iter().find_map(|node| match node {
+        xmlkit::Node::Element(e) if xmlkit::local_name(&e.name) == name => Some(e),
+        _ => None,
+    })
 }
 
 /// Detects the syntax from a document's root element name.
