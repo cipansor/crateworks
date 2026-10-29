@@ -39,6 +39,7 @@ never a dependency of any crate.
 | `pdfa` | `pdfa/gen.py` | `factur-x` PyPI 7.8 + `pypdf` | `python3 pdfa/gen.py [fixture-dir]` |
 | `ebics` (RSA + response) | `ebics/gen.py` | `cryptography` PyPI | `python3 ebics/gen.py [fixture-dir]` |
 | `ebics` (request) | `ebics/gen.js` | `ebics-client` npm 5.0.0 | `NODE_PATH=<modules> node ebics/gen.js [fixture-dir]` |
+| `openlocationcode` | `openlocationcode/gen.py` | `openlocationcode` PyPI 1.0.1 | `python3 openlocationcode/gen.py [out]` |
 
 With no `out` argument each writes to the crate's own fixture, which is the path
 you want when rebuilding it in place. The recorded versions are the ones the

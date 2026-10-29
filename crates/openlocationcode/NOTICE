@@ -1,0 +1,14 @@
+crateworks
+Copyright 2026 Yayasan Pesantren Cipansor and contributors
+
+This product includes software developed by Yayasan Pesantren Cipansor and
+contributors (https://github.com/cipansor/crateworks).
+
+The Open Location Code algorithm and the test fixtures are derived from the
+Open Location Code project by Google
+(https://github.com/google/open-location-code), which is distributed under the
+Apache License, Version 2.0. The algorithm itself is the one published in that
+project; this crate is an independent reimplementation for Rust and shares no
+code with it.
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).

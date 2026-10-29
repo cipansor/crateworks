@@ -70,6 +70,7 @@ the rest depend only on `xmlkit` or `pdfa` from this same workspace.
 | --- | --- | --- |
 | [`address-parser`](crates/address-parser) | Parse free-text US postal addresses into their components | npm `parse-address` is downloaded tens of thousands of times a week; the Rust crates in the area are either thin bindings to the C `libpostal`, which needs a gigabyte model and a C toolchain, or abandoned single-country regular expressions |
 | [`aviation-data`](crates/aviation-data) | Airport reference data: lookup by IATA/ICAO code, search, and distance | The one Rust crate with volume (`airports`, 875,000 recent downloads) maps an IATA code to a timezone and nothing else, and the only complete crate is unadopted and CC-BY-4.0; the public-domain OurAirports table is shipped by no permissive crate |
+| [`openlocationcode`](crates/openlocationcode) | Open Location Codes (Plus Codes): encode a latitude and longitude, decode a code, and shorten or recover one against a reference location | PyPI `openlocationcode` is downloaded about 97,000 times a month and the npm package about 39,000 times a week; the leading Rust crate is a 2018 v0.1.0 whose entire published test suite fails, and the newer `pluscodes` has no shortening or recovery |
 
 ### Search and matching
 

@@ -1,0 +1,19 @@
+[package]
+name = "openlocationcode"
+description = "Open Location Codes (Plus Codes): encode a latitude and longitude, decode a code, and shorten or recover one against a reference location."
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation = "https://docs.rs/openlocationcode"
+authors.workspace = true
+keywords = ["plus-codes", "open-location-code", "geocoding", "coordinates", "olc"]
+categories = ["encoding", "science"]
+readme = "README.md"
+
+[dependencies]
+
+[lints]
+workspace = true

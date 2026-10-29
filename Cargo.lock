@@ -83,6 +83,10 @@ name = "object-hash"
 version = "0.4.0"
 
 [[package]]
+name = "openlocationcode"
+version = "0.1.0"
+
+[[package]]
 name = "pades"
 version = "0.1.9"
 dependencies = [

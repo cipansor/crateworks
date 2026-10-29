@@ -27,6 +27,7 @@ members = [
     "crates/aviation-data",
     "crates/runits",
     "crates/cssprint",
+    "crates/openlocationcode",
 ]
 
 [workspace.package]

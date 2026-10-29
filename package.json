@@ -1,7 +1,11 @@
 {
   "dependencies": {
     "@formulajs/formulajs": "^4.6.1",
+    "adhan": "^4.4.6",
+    "container-validator": "^1.1.0",
+    "convert-units": "^2.3.4",
     "ebics-client": "^5.0.0",
-    "object-hash": "^3.0.0"
+    "object-hash": "^3.0.0",
+    "parse-address": "^1.1.2"
   }
 }

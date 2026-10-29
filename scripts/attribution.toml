@@ -88,3 +88,7 @@ marker = "python-holidays"
 [[upstream]]
 project = "node-ebics-client by the node-ebics project"
 marker = "node-ebics-client"
+
+[[upstream]]
+project = "Open Location Code by Google"
+marker = "google/open-location-code"
