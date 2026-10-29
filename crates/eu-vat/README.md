@@ -29,6 +29,15 @@ passes may still be deregistered. Confirming that a number is *live* requires
 the European Commission's VIES service, which this crate deliberately does not
 contact; there is no network access anywhere in it.
 
+## Separators
+
+`Vat::parse` drops spaces, non-breaking spaces, dots, hyphens, slashes, colons
+and parentheses before it validates, and upper-cases what remains, so a number
+copied out of an invoice can be passed as-is. This is a little more forgiving
+than `python-stdnum`, which keeps some of those characters and rejects a number
+that contains them; the check that follows is the same on both sides. A comma
+is not a separator and makes the number invalid.
+
 ## Greece, Northern Ireland and the United Kingdom
 
 Greece uses `EL` as its VAT prefix even though its ISO 3166 code is `GR`. Both

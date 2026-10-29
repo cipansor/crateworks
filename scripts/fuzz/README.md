@@ -33,6 +33,7 @@ never a dependency of any crate.
 | `javaproperties` (XML) | `javaproperties/gen_xml.py` | `javaproperties` PyPI 0.8.2 | `python3 javaproperties/gen_xml.py [out]` |
 | `iso6346` | `iso6346/gen.js` | `container-validator` npm 1.1.0 | `NODE_PATH=<modules> node iso6346/gen.js [out]` |
 | `address-parser` | `address-parser/gen.js` | `parse-address` npm 1.1.2 | `NODE_PATH=<modules> node address-parser/gen.js [out]` |
+| `eu-vat` | `eu-vat/gen.py` | `python-stdnum` PyPI 2.2 | `python3 eu-vat/gen.py [out]` |
 
 With no `out` argument each writes to the crate's own fixture, which is the path
 you want when rebuilding it in place. The recorded versions are the ones the

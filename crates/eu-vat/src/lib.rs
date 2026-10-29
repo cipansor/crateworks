@@ -253,9 +253,9 @@ pub struct Vat {
 impl Vat {
     /// Parses and validates a VAT number.
     ///
-    /// Separators (spaces, dots, hyphens, slashes, colons, commas and
-    /// parentheses) are ignored and the input is upper-cased, so a number
-    /// copied out of an invoice can be passed as-is.
+    /// Separators (spaces, dots, hyphens, slashes, colons and parentheses) are
+    /// ignored and the input is upper-cased, so a number copied out of an
+    /// invoice can be passed as-is. A comma is not treated as a separator.
     ///
     /// # Errors
     ///
