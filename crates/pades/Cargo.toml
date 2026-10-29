@@ -13,6 +13,11 @@ keywords = ["pades", "pdf", "signature", "cades", "ltv"]
 categories = ["parser-implementations", "cryptography", "encoding"]
 readme = "README.md"
 
+[package.metadata.docs.rs]
+# docs.rs builds every feature so nothing is missing from the published docs.
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [dependencies]
 pdfa.workspace = true
 

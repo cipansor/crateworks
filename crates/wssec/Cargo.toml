@@ -13,6 +13,11 @@ keywords = ["soap", "ws-security", "wsse", "authentication", "xml"]
 categories = ["web-programming", "authentication"]
 readme = "README.md"
 
+[package.metadata.docs.rs]
+# docs.rs builds every feature so nothing is missing from the published docs.
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [dependencies]
 xmlkit.workspace = true
 

@@ -13,6 +13,11 @@ keywords = ["pdf", "pdfa", "xmp", "factur-x", "einvoice"]
 categories = ["parser-implementations", "encoding"]
 readme = "README.md"
 
+[package.metadata.docs.rs]
+# docs.rs builds every feature so nothing is missing from the published docs.
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [dependencies]
 xmlkit.workspace = true
 

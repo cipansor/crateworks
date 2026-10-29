@@ -16,6 +16,13 @@ fn readme_examples() {
     let speed = Quantity::parse("60 km/h").unwrap();
     assert!((speed.to("m/s").unwrap().value() - 16.666).abs() < 0.001);
 
+    // Quantities of the same dimension add and subtract, in the left unit.
+    let total = Quantity::parse("3.5 kg")
+        .unwrap()
+        .add(Quantity::parse("500 g").unwrap())
+        .unwrap();
+    assert!((total.value() - 4.0).abs() < 1e-9);
+
     // A one-line conversion between two named units.
     assert_eq!(convert(1.0, "m", "cm").unwrap(), 100.0);
 }

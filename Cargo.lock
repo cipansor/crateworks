@@ -80,7 +80,7 @@ version = "0.1.9"
 
 [[package]]
 name = "object-hash"
-version = "0.4.0"
+version = "0.4.1"
 
 [[package]]
 name = "openlocationcode"
@@ -106,7 +106,7 @@ version = "0.1.9"
 
 [[package]]
 name = "runits"
-version = "0.1.9"
+version = "0.1.10"
 
 [[package]]
 name = "soap-client"
@@ -117,7 +117,7 @@ dependencies = [
 
 [[package]]
 name = "spreadsheet-formula"
-version = "0.3.1"
+version = "0.3.2"
 
 [[package]]
 name = "stdnum-rs"

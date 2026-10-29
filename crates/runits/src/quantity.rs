@@ -120,6 +120,58 @@ impl Quantity {
             Unit::from_parts(factor, dimension),
         ))
     }
+
+    /// Add another quantity, keeping this one's unit.
+    ///
+    /// The right operand is first expressed in the left one's unit, so
+    /// `3.5 kg + 500 g` is `4 kg`. The two must measure the same dimension, and
+    /// neither may be an affine scale such as `degC`, whose offset has no
+    /// meaning in a sum.
+    ///
+    /// ```
+    /// use runits::Quantity;
+    ///
+    /// let total = Quantity::parse("3.5 kg")
+    ///     .unwrap()
+    ///     .add(Quantity::parse("500 g").unwrap())
+    ///     .unwrap();
+    /// assert!((total.value() - 4.0).abs() < 1e-9);
+    /// ```
+    pub fn add(&self, other: Self) -> Result<Self, ArithmeticError> {
+        self.shifted_by(other, 1.0)
+    }
+
+    /// Subtract another quantity, keeping this one's unit.
+    ///
+    /// The mirror of [`Quantity::add`], with the same rules.
+    ///
+    /// ```
+    /// use runits::Quantity;
+    ///
+    /// let left = Quantity::parse("1 m")
+    ///     .unwrap()
+    ///     .subtract(Quantity::parse("25 cm").unwrap())
+    ///     .unwrap();
+    /// assert!((left.value() - 0.75).abs() < 1e-9);
+    /// ```
+    pub fn subtract(&self, other: Self) -> Result<Self, ArithmeticError> {
+        self.shifted_by(other, -1.0)
+    }
+
+    /// `self + sign * other`, with `other` converted into `self`'s unit.
+    fn shifted_by(&self, other: Self, sign: f64) -> Result<Self, ArithmeticError> {
+        if self.unit.is_affine() || other.unit.is_affine() {
+            return Err(ArithmeticError::AffineUnit);
+        }
+        if self.dimension() != other.dimension() {
+            return Err(ArithmeticError::DimensionMismatch {
+                left: self.dimension(),
+                right: other.dimension(),
+            });
+        }
+        let in_self = sign * other.value * other.unit.factor() / self.unit.factor();
+        Ok(Self::new(self.value + in_self, self.unit))
+    }
 }
 
 fn combine(left: Dimension, right: Dimension, sign: i32) -> Result<Dimension, ArithmeticError> {
@@ -184,17 +236,27 @@ pub enum ArithmeticError {
     DivideByZero,
     /// The resulting exponent does not fit in the `i8` the table stores.
     DimensionOverflow,
+    /// A sum or difference of two quantities that measure different things.
+    DimensionMismatch {
+        /// The dimension of the left operand, whose unit the result keeps.
+        left: Dimension,
+        /// The dimension of the right operand.
+        right: Dimension,
+    },
 }
 
 impl fmt::Display for ArithmeticError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::AffineUnit => {
-                formatter.write_str("an affine unit such as degC cannot be multiplied or divided")
+                formatter.write_str("an affine unit such as degC cannot be combined with another")
             }
             Self::DivideByZero => formatter.write_str("division by zero"),
             Self::DimensionOverflow => {
                 formatter.write_str("the resulting dimension exponent is out of range")
+            }
+            Self::DimensionMismatch { left, right } => {
+                write!(formatter, "cannot add or subtract {left} and {right}")
             }
         }
     }

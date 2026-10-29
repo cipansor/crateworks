@@ -13,6 +13,11 @@ keywords = ["mllp", "hl7", "hl7v2", "healthcare", "framing"]
 categories = ["encoding", "parser-implementations", "network-programming"]
 readme = "README.md"
 
+[package.metadata.docs.rs]
+# docs.rs builds every feature so nothing is missing from the published docs.
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [dependencies]
 
 [lints]

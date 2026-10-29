@@ -59,7 +59,9 @@ string and a way to resolve cell references, so it can be used with `xlsx`,
   `LARGE`, `SMALL`, `MODE`, `MODESNGL`, `TRIMMEAN`, `PERCENTILE`, `PERCENTILEINC`,
   `PERCENTILEEXC`, `QUARTILE`, `QUARTILEINC`, `QUARTILEEXC`, `RANK`, `RANKEQ`,
   `RANKAVG`, `PERCENTRANKINC`, `PERCENTRANKEXC`, `SERIESSUM`, `SUMX2MY2`,
-  `SUMX2PY2`, `SUMXMY2`, `PROB`.
+  `SUMX2PY2`, `SUMXMY2`, `PROB`. The legacy flat spellings Excel still accepts
+  are aliases of the modern ones: `STDEV` (`STDEV.S`), `VAR` (`VAR.S`),
+  `PERCENTRANK` (`PERCENTRANK.INC`) and `COVARIANCE` (`COVARIANCE.P`).
 * Statistical distributions - `NORMDIST`, `NORMSDIST`, `NORMINV`, `NORMSINV`,
   `LOGNORMDIST`, `LOGNORMINV`, `LOGINV`, `TDIST`, `TINV`, `CHIDIST`, `CHIINV`, `FDIST`,
   `FINV`, `BINOMDIST`, `CRITBINOM`, `POISSONDIST`, `EXPONDIST`, `WEIBULLDIST`,

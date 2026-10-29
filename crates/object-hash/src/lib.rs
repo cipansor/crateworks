@@ -42,6 +42,12 @@ pub enum Algorithm {
 /// The reference package calls this `encoding`. Hexadecimal is its default and
 /// the one a cache key is normally written in; base64 is shorter, and raw bytes
 /// are what a caller wants when the digest is fed to something else.
+///
+/// The reference's four names map onto these three: `'hex'` is [`Self::Hex`],
+/// `'base64'` is [`Self::Base64`], and both `'binary'` and `'buffer'` are the
+/// same digest bytes. [`Self::Raw`] is the bytes as a `String` of one Latin-1
+/// character each, which is the reference's `'binary'`; [`raw_hash_with`] is the
+/// bytes on their own, which is its `'buffer'`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[non_exhaustive]
 pub enum Encoding {
@@ -50,7 +56,8 @@ pub enum Encoding {
     Hex,
     /// Standard base64 with `+` and `/`, padded with `=`.
     Base64,
-    /// The raw digest bytes.
+    /// The raw digest bytes, one Latin-1 character each. The reference's
+    /// `'binary'`; for the bytes themselves use [`raw_hash_with`].
     Raw,
 }
 

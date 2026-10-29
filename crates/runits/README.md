@@ -23,6 +23,13 @@ assert!((boiling.to("degF").unwrap().value() - 212.0).abs() < 1e-9);
 let speed = Quantity::parse("60 km/h").unwrap();
 assert!((speed.to("m/s").unwrap().value() - 16.666).abs() < 0.001);
 
+// Quantities of the same dimension add and subtract, in the left unit.
+let total = Quantity::parse("3.5 kg")
+    .unwrap()
+    .add(Quantity::parse("500 g").unwrap())
+    .unwrap();
+assert!((total.value() - 4.0).abs() < 1e-9);
+
 // A one-line conversion between two named units.
 assert_eq!(convert(1.0, "m", "cm").unwrap(), 100.0);
 ```
@@ -45,6 +52,11 @@ the binary.
   temperature scales, where the offset matters.
 * **Combine** units by multiplication and division, so `kg*m/s^2` and `N` are
   the same quantity.
+* **Add and subtract** quantities of the same dimension. The right operand is
+  converted into the left one's unit and the result keeps that unit, which is
+  what Pint does: `3.5 kg + 500 g` is `4 kg`, and `1 m - 25 cm` is `0.75 m`.
+  Adding two different dimensions, or any affine scale such as `degC`, is an
+  error rather than a silently wrong number.
 
 ## Scope
 
@@ -85,6 +97,15 @@ not covered          87
 Every name the crate does not resolve has a reason that is checked against
 Pint's data, so coverage cannot shrink quietly, and the gate exits non-zero if a
 name ever resolves by prefix decomposition when it should not.
+
+Arithmetic has its own oracle. `research/tools/gen_units_arithmetic.py` asks
+Pint to add two quantities and records the number it returns in the left
+operand's unit, which is the unit Pint keeps. The 1,209 rows in
+`tests/fixtures/pint_arithmetic.tsv` cover every dimension the crate knows,
+magnitudes from micro to mega, and 112 pairs Pint refuses - a dimension
+mismatch, or an affine scale such as `degC` - where the crate must refuse them
+too. `tests/pint.rs` replays each row as both a sum and a difference, so the two
+operations are pinned by the same corpus.
 
 ## Data provenance
 

@@ -791,7 +791,7 @@ pub(crate) fn call_from(
             let denominator: f64 = values.iter().map(|v| 1.0 / v).sum();
             Ok(Value::Number(values.len() as f64 / denominator))
         }
-        "VARS" => {
+        "VARS" | "VAR" => {
             let values = numbers_of(name, args)?;
             Ok(Value::Number(sample_variance(&values)))
         }
@@ -799,7 +799,7 @@ pub(crate) fn call_from(
             let values = numbers_of(name, args)?;
             Ok(Value::Number(population_variance(&values)))
         }
-        "STDEVS" => {
+        "STDEVS" | "STDEV" => {
             let values = numbers_of(name, args)?;
             Ok(Value::Number(sample_variance(&values).sqrt()))
         }
@@ -2950,7 +2950,7 @@ pub(crate) fn call_from(
             let xs = numbers_of_arg(name, &args[2])?;
             Ok(Value::Number(stats::forecast(x, &ys, &xs)))
         }
-        "COVAR" | "COVARIANCEP" => {
+        "COVAR" | "COVARIANCEP" | "COVARIANCE" => {
             require_arity(name, args, 2)?;
             let a = numbers_of_arg(name, &args[0])?;
             let b = numbers_of_arg(name, &args[1])?;
@@ -2962,7 +2962,7 @@ pub(crate) fn call_from(
             let b = numbers_of_arg(name, &args[1])?;
             Ok(Value::Number(stats::covariance_sample(&a, &b)))
         }
-        "PERCENTRANKINC" | "PERCENTRANKEXC" => {
+        "PERCENTRANKINC" | "PERCENTRANKEXC" | "PERCENTRANK" => {
             require_between(name, args, 2, 3)?;
             let mut array = numbers_of_arg(name, &args[0])?;
             let x = first_number(name, &args[1])?;
@@ -4414,6 +4414,7 @@ pub const FUNCTION_NAMES: &[&str] = &[
     "COUNTIFS",
     "COUPDAYS",
     "COVAR",
+    "COVARIANCE",
     "COVARIANCEP",
     "COVARIANCE.P",
     "COVARIANCES",
@@ -4612,6 +4613,7 @@ pub const FUNCTION_NAMES: &[&str] = &[
     "PERCENTILE.EXC",
     "PERCENTILEINC",
     "PERCENTILE.INC",
+    "PERCENTRANK",
     "PERCENTRANKEXC",
     "PERCENTRANK.EXC",
     "PERCENTRANKINC",
@@ -4671,6 +4673,7 @@ pub const FUNCTION_NAMES: &[&str] = &[
     "SQRT",
     "SQRTPI",
     "STANDARDIZE",
+    "STDEV",
     "STDEVA",
     "STDEVP",
     "STDEV.P",
@@ -4719,6 +4722,7 @@ pub const FUNCTION_NAMES: &[&str] = &[
     "UNICODE",
     "UPPER",
     "VALUE",
+    "VAR",
     "VARA",
     "VARP",
     "VAR.P",
@@ -5034,6 +5038,47 @@ mod tests {
             )
             .unwrap(),
             -1.200_000_000_000_002
+        ));
+        // The legacy flat names Excel still accepts are the modern ones; the
+        // reference exposes both spellings and they must agree.
+        assert!(close(
+            call("STDEV", std::slice::from_ref(&range)).unwrap(),
+            1.290_994_448_735_805_6
+        ));
+        assert!(close(
+            call("VAR", std::slice::from_ref(&range)).unwrap(),
+            1.666_666_666_666_666_7
+        ));
+        assert!(close(
+            call("PERCENTRANK", &[range.clone(), n(2.0)]).unwrap(),
+            0.333
+        ));
+        assert!(close(
+            call("PERCENTRANK", &[range.clone(), n(2.5)]).unwrap(),
+            0.5
+        ));
+        assert!(close(
+            call(
+                "COVARIANCE",
+                &[
+                    Arg::reference(vec![
+                        Value::Number(3.0),
+                        Value::Number(2.0),
+                        Value::Number(4.0),
+                        Value::Number(5.0),
+                        Value::Number(6.0),
+                    ]),
+                    Arg::reference(vec![
+                        Value::Number(9.0),
+                        Value::Number(7.0),
+                        Value::Number(12.0),
+                        Value::Number(15.0),
+                        Value::Number(17.0),
+                    ]),
+                ]
+            )
+            .unwrap(),
+            5.2
         ));
     }
 

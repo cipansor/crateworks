@@ -1,7 +1,7 @@
 [package]
 name = "spreadsheet-formula"
 description = "Parser and evaluator for spreadsheet formulas, independent of any particular file format."
-version = "0.3.1"
+version = "0.3.2"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -12,6 +12,11 @@ authors.workspace = true
 keywords = ["excel", "spreadsheet", "formula", "parser", "evaluator"]
 categories = ["parser-implementations", "text-processing"]
 readme = "README.md"
+
+[package.metadata.docs.rs]
+# docs.rs builds every feature so nothing is missing from the published docs.
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 
