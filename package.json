@@ -6,6 +6,7 @@
     "convert-units": "^2.3.4",
     "ebics-client": "^5.0.0",
     "object-hash": "^3.0.0",
-    "parse-address": "^1.1.2"
+    "parse-address": "^1.1.2",
+    "proxy-addr": "^2.0.8"
   }
 }

@@ -28,6 +28,7 @@ members = [
     "crates/runits",
     "crates/cssprint",
     "crates/openlocationcode",
+    "crates/proxy-addr",
 ]
 
 [workspace.package]

@@ -40,6 +40,7 @@ never a dependency of any crate.
 | `ebics` (RSA + response) | `ebics/gen.py` | `cryptography` PyPI | `python3 ebics/gen.py [fixture-dir]` |
 | `ebics` (request) | `ebics/gen.js` | `ebics-client` npm 5.0.0 | `NODE_PATH=<modules> node ebics/gen.js [fixture-dir]` |
 | `openlocationcode` | `openlocationcode/gen.py` | `openlocationcode` PyPI 1.0.1 | `python3 openlocationcode/gen.py [out]` |
+| `proxy-addr` | `proxy-addr/gen.js` | `proxy-addr` npm 2.0.8 | `NODE_PATH=<modules> node proxy-addr/gen.js` |
 | `xmlkit` | `xmlkit/gen.py` | Python `expat` (stdlib) | `python3 xmlkit/gen.py [out]` |
 | `wssec` | `wssec/gen.py` | Python `hashlib` and `base64` (stdlib) | `python3 wssec/gen.py <fixture-dir>` |
 
@@ -150,6 +151,14 @@ to write down.
   drawn fresh each run, which is why the fixture originally could not be checked
   end to end; pinning the key and committing the public half turns the
   `AuthSignature` into a second, independent check that the crate now passes.
+- `proxy-addr` — 12,216 cases: the raw forwarded list over every peer and header
+  shape, the trust resolution over random CIDR lists, and named corners for
+  IPv4-mapped matching, netmasks and single-bit prefixes. Found one real gap the
+  curated cases passed over: `ipaddr.js` accepts an IPv6 zone identifier
+  (`fe80::1%eth0`) and ignores it when matching, which Rust's own parser rejects,
+  so the crate was treating a zoned address as unparseable and ending the walk
+  early. The crate now splits the zone off before parsing, and the corpus carries
+  the shapes that would catch it again.
 - `xmlkit` — 7,916 documents, each valid by construction or a single mutation of
   one, with the verdict taken from Python's `expat`. The crate first accepted
   nearly five hundred documents expat rejected; those were not one bug but a

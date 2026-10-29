@@ -105,6 +105,10 @@ name = "pdfmake"
 version = "0.1.9"
 
 [[package]]
+name = "proxy-addr"
+version = "0.1.0"
+
+[[package]]
 name = "runits"
 version = "0.1.10"
 

@@ -92,3 +92,15 @@ marker = "node-ebics-client"
 [[upstream]]
 project = "Open Location Code by Google"
 marker = "google/open-location-code"
+
+[[upstream]]
+project = "proxy-addr (npm) by Douglas Christopher Wilson"
+marker = "jshttp/proxy-addr"
+
+[[upstream]]
+project = "forwarded (npm) by Douglas Christopher Wilson"
+marker = "jshttp/forwarded"
+
+[[upstream]]
+project = "ipaddr.js by whitequark"
+marker = "whitequark/ipaddr.js"

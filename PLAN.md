@@ -597,6 +597,31 @@ cases, 19 short codes, and 23,918 fuzz cases from
 **Not covered.** Lookups: there is no geocoding, no place names and no network
 access. The crate computes codes from coordinates and nothing else.
 
+## 28. `proxy-addr`
+
+**Why.** A server behind a load balancer, an ingress or a CDN sees the proxy's
+address as its TCP peer, so the client's address has to come from
+`X-Forwarded-For`. npm `proxy-addr`, downloaded over 130 million times a week
+and used by Express for `trust proxy`, does this by naming the proxies you
+operate and walking the header from the right. The Rust crates in the area are
+framework-bound extractors (`axum-client-ip` and its kind) that read the header
+without the trusted-proxy walk, so a caller can choose the address recorded.
+
+**Covers today.** `forwarded` returns the raw list, peer first; `all` returns the
+chain up to the first untrusted hop; `addr` returns the address to attribute the
+request to. A `Trust` is compiled from addresses, CIDR blocks, IPv4 netmasks, or
+the range names `loopback`, `linklocal` and `uniquelocal`. The peer is a
+`std::net::IpAddr` and the header a `&str`, so the crate fits any HTTP stack. It
+is checked against npm `proxy-addr` itself: `scripts/fuzz/proxy-addr/gen.js`
+drives the reference over a generated corpus and writes
+`tests/fixtures/oracle.tsv`, which `tests/oracle.rs` replays in CI, and
+`research/tools/verify_proxy_addr.py` reruns the two against a fresh corpus.
+
+**Not covered.** Framework integration: the crate resolves an address and takes
+no request type, so wiring it to a particular web framework is the caller's job.
+The `forwarded` *header* (RFC 7239) is a different input from the
+`X-Forwarded-For` list and is not parsed.
+
 ## Publishing order
 
 Each crate carries its own version, and a release publishes only the crates that
@@ -622,7 +647,7 @@ resolving the dependency rather than in building it.
    `hijridate`, `stdnum-rs`, `spreadsheet-formula`, `eu-vat`, `iso8583-msg`,
    `arabic`, `adhan`, `object-hash`, `javaproperties`, `mllp`, `pdfmake`,
    `iso6346`, `fuzzy-score`, `address-parser`, `aviation-data`, `cssprint`,
-   `runits`, `openlocationcode`.
+   `runits`, `openlocationcode`, `proxy-addr`.
 
 The other rule is that a published version cannot be overwritten. `0.1.0` is
 spent the moment it is uploaded, so a mistake in the first upload of a crate
@@ -640,12 +665,12 @@ python3 scripts/publish.py --publish  # upload, in order, stopping at the first 
 
 ## Verification
 
-The counts below are for the whole workspace, all 27 crates, and they drift as
+The counts below are for the whole workspace, all 28 crates, and they drift as
 crates are added; they are here as an order of magnitude, not as a contract.
 
 ```sh
-cargo test --workspace --all-targets      # 1467 unit and README tests
-cargo test --workspace --doc              # 213 doctests, not covered by --all-targets
+cargo test --workspace --all-targets      # 1470 unit and README tests
+cargo test --workspace --doc              # 221 doctests, not covered by --all-targets
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all -- --check
 ```

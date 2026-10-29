@@ -1,0 +1,15 @@
+crateworks
+Copyright 2026 Yayasan Pesantren Cipansor and contributors
+
+This product includes software developed by Yayasan Pesantren Cipansor and
+contributors (https://github.com/cipansor/crateworks).
+
+The client-address resolution this crate performs is the behaviour of the npm
+`proxy-addr` package by Douglas Christopher Wilson
+(https://github.com/jshttp/proxy-addr), together with the `forwarded` package
+(https://github.com/jshttp/forwarded) and the `ipaddr.js` library
+(https://github.com/whitequark/ipaddr.js) it is built on. All three are
+distributed under the MIT License. This crate is an independent
+reimplementation for Rust and shares no code with them.
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).

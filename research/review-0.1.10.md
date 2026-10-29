@@ -32,6 +32,7 @@ gate results come first.
 | `verify_mllp.py` | PyPI `hl7apy` | 135/135 fields, 8/8 ACK replies agree |
 | `verify_openlocationcode.py` | PyPI `openlocationcode` 1.0.1 | 1,389 rows agree |
 | `verify_iso20022.py` | the official ISO 20022 XSD | generated pacs.008 and pain.001 validate |
+| `verify_proxy_addr.py` | npm `proxy-addr` 2.0.8 | 12,216 rows agree |
 
 No gate regressed. The aviation gate was red on entry, and for the honest
 reason: OurAirports is maintained continuously and the table had drifted. It was
@@ -145,6 +146,7 @@ in this workspace is reviewed by reading alone.
 | `aviation-data` | OurAirports `airports.csv` | `verify_aviation.py` |
 | `cssprint` | WeasyPrint (Kozea) | `gen_weasyprint_layout.py` -> `tests/fixtures/layout.tsv`, replayed by `tests/layout.rs` |
 | `openlocationcode` | google/open-location-code | `verify_openlocationcode.py` |
+| `proxy-addr` | npm `proxy-addr` (jshttp) | `scripts/fuzz/proxy-addr/gen.js` -> `tests/fixtures/oracle.tsv`, replayed by `tests/oracle.rs`, and `verify_proxy_addr.py` |
 | `iso8583-msg` | PyPI `pyiso8583` | `tests/oracle.rs` |
 
 Two crates have no runnable reference and are checked against the specification

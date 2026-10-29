@@ -1,0 +1,24 @@
+[package]
+name = "proxy-addr"
+description = "Determine the client address behind a reverse proxy: walk X-Forwarded-For from the right, trusting only the proxies you name."
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation = "https://docs.rs/proxy-addr"
+authors.workspace = true
+keywords = ["proxy", "x-forwarded-for", "client-ip", "forwarded", "http"]
+categories = ["network-programming", "web-programming"]
+readme = "README.md"
+
+[package.metadata.docs.rs]
+# docs.rs builds every feature so nothing is missing from the published docs.
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+
+[lints]
+workspace = true
