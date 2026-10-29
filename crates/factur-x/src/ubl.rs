@@ -22,9 +22,31 @@ pub const CAC: &str = "urn:oasis:names:specification:ubl:schema:xsd:CommonAggreg
 pub const UBL_VERSION: &str = "2.1";
 
 /// Builds the UBL document for an invoice.
+///
+/// A credit note - a type code in [`crate::is_credit_note`] - gets UBL's
+/// `CreditNote` root, `CreditNoteTypeCode`, `CreditNoteLine` and
+/// `CreditedQuantity`, which is what the reference writes and what a UBL reader
+/// expects. Everything else about the document is the same.
 #[must_use]
 pub fn generate(invoice: &Invoice) -> Element {
-    let mut root = Element::new("Invoice");
+    let credit = crate::is_credit_note(&invoice.type_code);
+    let (root_name, type_code_element, line_element_name, quantity_element_name) = if credit {
+        (
+            "CreditNote",
+            "cbc:CreditNoteTypeCode",
+            "cac:CreditNoteLine",
+            "cbc:CreditedQuantity",
+        )
+    } else {
+        (
+            "Invoice",
+            "cbc:InvoiceTypeCode",
+            "cac:InvoiceLine",
+            "cbc:InvoicedQuantity",
+        )
+    };
+
+    let mut root = Element::new(root_name);
     root.set_attr("xmlns", INVOICE);
     root.set_attr("xmlns:cbc", CBC);
     root.set_attr("xmlns:cac", CAC);
@@ -39,7 +61,7 @@ pub fn generate(invoice: &Invoice) -> Element {
     if let Some(due) = &invoice.due_date {
         root.push_text_element("cbc:DueDate", due);
     }
-    root.push_text_element("cbc:InvoiceTypeCode", &invoice.type_code);
+    root.push_text_element(type_code_element, &invoice.type_code);
     for note in &invoice.notes {
         root.push_text_element("cbc:Note", &encode_note(note));
     }
@@ -79,7 +101,12 @@ pub fn generate(invoice: &Invoice) -> Element {
     root.push(totals_element(&invoice.totals, invoice.currency.as_str()));
 
     for line in &invoice.lines {
-        root.push(line_element(line, invoice.currency.as_str()));
+        root.push(line_element(
+            line,
+            invoice.currency.as_str(),
+            line_element_name,
+            quantity_element_name,
+        ));
     }
 
     root
@@ -261,16 +288,11 @@ fn totals_element(totals: &Totals, currency: &str) -> Element {
     element
 }
 
-/// `cac:InvoiceLine`.
-fn line_element(line: &Line, currency: &str) -> Element {
-    let mut element = Element::new("cac:InvoiceLine");
+/// A `cac:InvoiceLine`, or a `cac:CreditNoteLine` in a credit note.
+fn line_element(line: &Line, currency: &str, element_name: &str, quantity_name: &str) -> Element {
+    let mut element = Element::new(element_name);
     element.push_text_element("cbc:ID", &line.id);
-    element.push_text_element_with_attr(
-        "cbc:InvoicedQuantity",
-        "unitCode",
-        &line.unit,
-        &line.quantity,
-    );
+    element.push_text_element_with_attr(quantity_name, "unitCode", &line.unit, &line.quantity);
     element.push_text_element_with_attr(
         "cbc:LineExtensionAmount",
         "currencyID",
@@ -317,7 +339,10 @@ pub fn parse(root: &Element) -> Result<Invoice> {
     let number = text_of(root, "ID")?;
     let issue_date = text_of(root, "IssueDate")?;
     let due_date = optional_text(root, "DueDate");
-    let type_code = text_of(root, "InvoiceTypeCode")?;
+    // A credit note carries `CreditNoteTypeCode` where an invoice carries
+    // `InvoiceTypeCode`; accept either so both roots parse.
+    let type_code =
+        text_of(root, "InvoiceTypeCode").or_else(|_| text_of(root, "CreditNoteTypeCode"))?;
     let currency = Currency::parse(&text_of(root, "DocumentCurrencyCode")?)?;
     let tax_currency = optional_text(root, "TaxCurrencyCode")
         .map(|c| Currency::parse(&c))
@@ -337,7 +362,7 @@ pub fn parse(root: &Element) -> Result<Invoice> {
         .ok_or_else(|| missing("AccountingCustomerParty"))?;
 
     let mut lines = Vec::new();
-    for item in children(root, "InvoiceLine") {
+    for item in children(root, "InvoiceLine").chain(children(root, "CreditNoteLine")) {
         lines.push(line_from(item)?);
     }
 
@@ -402,7 +427,9 @@ fn line_from(element: &Element) -> Result<Line> {
     let category =
         child(item, "ClassifiedTaxCategory").ok_or_else(|| missing("ClassifiedTaxCategory"))?;
     let price = child(element, "Price").ok_or_else(|| missing("Price"))?;
-    let quantity = child(element, "InvoicedQuantity").ok_or_else(|| missing("InvoicedQuantity"))?;
+    let quantity = child(element, "InvoicedQuantity")
+        .or_else(|| child(element, "CreditedQuantity"))
+        .ok_or_else(|| missing("InvoicedQuantity"))?;
 
     Ok(Line {
         id: text_of(element, "ID")?,
@@ -602,6 +629,32 @@ mod tests {
         let parsed = xmlkit::parse(&text).unwrap();
         let back = parse(&parsed).unwrap();
         assert_eq!(back, invoice);
+    }
+
+    #[test]
+    fn a_credit_note_uses_the_credit_note_element_names() {
+        let mut invoice = sample_invoice();
+        invoice.type_code = "381".to_string();
+        let root = generate(&invoice);
+        assert_eq!(root.name, "CreditNote");
+        assert!(root.child("cbc:CreditNoteTypeCode").is_some());
+        assert!(root.child("cbc:InvoiceTypeCode").is_none());
+        assert!(root.child("cac:CreditNoteLine").is_some());
+        assert!(root.child("cac:InvoiceLine").is_none());
+        // A credit note still round-trips.
+        let text = root.to_string();
+        let back = parse(&xmlkit::parse(&text).unwrap()).unwrap();
+        assert_eq!(back, invoice);
+    }
+
+    #[test]
+    fn a_credit_note_line_carries_a_credited_quantity() {
+        let mut invoice = sample_invoice();
+        invoice.type_code = "381".to_string();
+        let root = generate(&invoice);
+        let line = root.child("cac:CreditNoteLine").expect("a line");
+        assert!(line.child("cbc:CreditedQuantity").is_some());
+        assert!(line.child("cbc:InvoicedQuantity").is_none());
     }
 
     #[test]

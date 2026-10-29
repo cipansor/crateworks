@@ -35,6 +35,7 @@ never a dependency of any crate.
 | `address-parser` | `address-parser/gen.js` | `parse-address` npm 1.1.2 | `NODE_PATH=<modules> node address-parser/gen.js [out]` |
 | `eu-vat` | `eu-vat/gen.py` | `python-stdnum` PyPI 2.2 | `python3 eu-vat/gen.py [out]` |
 | `iso8583-msg` | `iso8583-msg/gen.py` | `pyiso8583` PyPI 4.0.1 | `python3 iso8583-msg/gen.py [out]` |
+| `factur-x` | `factur-x/gen.py` | `factur-x` PyPI 7.8 | `python3 factur-x/gen.py [out-dir]` |
 
 With no `out` argument each writes to the crate's own fixture, which is the path
 you want when rebuilding it in place. The recorded versions are the ones the
@@ -114,6 +115,18 @@ to write down.
   extended bitmap rather than data, and that the crate models an empty value as
   "field absent" while the reference encodes a zero-length variable field — the
   corpus uses non-empty variable fields and the crate's README says why.
+- `factur-x` — 500 documents (250 random invoices, each rendered as CII and as
+  UBL) from the official `factur-x` package. Found a real feature gap the four
+  hand-written fixtures had passed over: the reference renders a credit note as
+  UBL's `CreditNote` root, with `CreditNoteTypeCode`, `CreditNoteLine` and
+  `CreditedQuantity` where an invoice has `Invoice`, `InvoiceTypeCode`,
+  `InvoiceLine` and `InvoicedQuantity`. The crate only ever wrote `<Invoice>`,
+  so it could not read a credit note back and `detect_syntax` returned `None`
+  for one. The gate parses each recorded document, regenerates it and compares
+  the set of element paths, so it also holds the crate to the reference on which
+  optional fields are written; the reference's own CII output is not valid
+  against its XSD, so the generator renders with `check_xsd=False` and the crate
+  models what the reference writes.
 
 ## Companion extractors
 

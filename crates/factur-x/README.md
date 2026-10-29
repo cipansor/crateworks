@@ -32,6 +32,33 @@ invoice number and `BG-25` for the group of invoice lines, because those numbers
 are the only way to talk about the data across two syntaxes that use completely
 different element names for the same thing.
 
+## Credit notes
+
+A credit note is the same EN 16931 data with a document type code that says so.
+CII keeps one root for both, but UBL gives a credit note a different root and
+different element names, so the crate switches on the type code:
+
+```rust
+use factur_x::{Syntax, detect_syntax, generate, is_credit_note, parse};
+
+let mut invoice = factur_x::test_support::sample_invoice();
+invoice.type_code = "381".to_string();
+assert!(is_credit_note(&invoice.type_code));
+
+let xml = generate(&invoice, Syntax::Ubl);
+assert!(xml.contains("<CreditNote "));
+assert!(xml.contains("cbc:CreditNoteTypeCode"));
+assert!(xml.contains("cac:CreditNoteLine"));
+
+// A credit note is detected as UBL and reads back like any other document.
+assert_eq!(detect_syntax(&xml), Some(Syntax::Ubl));
+assert_eq!(parse(&xml, Syntax::Ubl).unwrap(), invoice);
+```
+
+The type codes that mean a credit note are the ones in
+[`is_credit_note`](crate::is_credit_note); `380` is an invoice and `381` a credit
+note.
+
 ## Checking an invoice
 
 `validate` implements the arithmetic rules of the standard, which are the ones

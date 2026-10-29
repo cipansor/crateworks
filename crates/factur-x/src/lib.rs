@@ -114,11 +114,13 @@ pub fn generate(invoice: &Invoice, syntax: Syntax) -> String {
 /// is absent.
 pub fn parse(xml: &str, syntax: Syntax) -> Result<Invoice> {
     let root = xmlkit::parse(xml)?;
-    let expected = match syntax {
-        Syntax::Cii => "CrossIndustryInvoice",
-        Syntax::Ubl => "Invoice",
+    let name = xmlkit::local_name(&root.name);
+    let matches_syntax = match syntax {
+        Syntax::Cii => name == "CrossIndustryInvoice",
+        // A UBL credit note has `CreditNote` as its root; it is still UBL.
+        Syntax::Ubl => name == "Invoice" || name == "CreditNote",
     };
-    if xmlkit::local_name(&root.name) != expected {
+    if !matches_syntax {
         return Err(Error::InvalidValue {
             field: "root element".to_string(),
             found: root.name.clone(),
@@ -136,9 +138,33 @@ pub fn detect_syntax(xml: &str) -> Option<Syntax> {
     let root = xmlkit::parse(xml).ok()?;
     match xmlkit::local_name(&root.name) {
         "CrossIndustryInvoice" => Some(Syntax::Cii),
-        "Invoice" => Some(Syntax::Ubl),
+        "Invoice" | "CreditNote" => Some(Syntax::Ubl),
         _ => None,
     }
+}
+
+/// Whether a document type code means a credit note rather than an invoice.
+///
+/// EN 16931 defines several such codes, and UBL gives the document a different
+/// root element and different element names when one is used. The list is the
+/// reference implementation's, so the two agree on which codes switch.
+#[must_use]
+pub fn is_credit_note(type_code: &str) -> bool {
+    matches!(
+        type_code,
+        "81" | "83"
+            | "261"
+            | "262"
+            | "296"
+            | "308"
+            | "381"
+            | "396"
+            | "420"
+            | "458"
+            | "502"
+            | "503"
+            | "532"
+    )
 }
 
 /// The CII document for an invoice, without the XML declaration.
