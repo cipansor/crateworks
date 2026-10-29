@@ -73,6 +73,22 @@ impl Isbn {
         Ok(sum.is_multiple_of(11))
     }
 
+    /// The ISBN-10 check character for the nine digits before it.
+    ///
+    /// Weights run from 1 to 9, the reference's convention; a remainder of ten
+    /// is written `X`.
+    fn isbn10_check_character(body: &str) -> Result<char> {
+        let mut sum = 0u32;
+        for (i, c) in body.chars().enumerate() {
+            let digit = c.to_digit(10).ok_or(Error::InvalidCharacter(c))?;
+            sum += (i as u32 + 1) * digit;
+        }
+        Ok(match sum % 11 {
+            10 => 'X',
+            r => char::from(b'0' + r as u8),
+        })
+    }
+
     /// The normalised identifier.
     #[must_use]
     pub fn as_str(&self) -> &str {
@@ -100,6 +116,28 @@ impl Isbn {
         let digits = checksum::digits_only(&payload)?;
         let check = checksum::gs1_check_digit(&digits);
         Self::parse(&format!("{payload}{check}"))
+    }
+
+    /// Converts an ISBN-13 to its ISBN-10 equivalent.
+    ///
+    /// Only the `978` Bookland prefix has a ten-digit form; a `979` ISBN-13
+    /// does not, and is rejected.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidPrefix`] if this is not a `978` ISBN-13, or an
+    /// error from validation if the constructed number is rejected, which
+    /// cannot happen for an already-valid ISBN-13.
+    pub fn to_isbn10(&self) -> Result<Self> {
+        if !self.isbn13 {
+            return Self::parse(&self.digits);
+        }
+        if !self.digits.starts_with("978") {
+            return Err(Error::InvalidPrefix);
+        }
+        let body = &self.digits[3..12];
+        let check = Self::isbn10_check_character(body)?;
+        Self::parse(&format!("{body}{check}"))
     }
 
     /// The registration group element, roughly the language area.
@@ -177,5 +215,41 @@ mod tests {
     fn converting_isbn13_is_idempotent() {
         let i = Isbn::parse("9780306406157").unwrap();
         assert_eq!(i.to_isbn13().unwrap().as_str(), "9780306406157");
+    }
+
+    #[test]
+    fn isbn13_converts_to_isbn10() {
+        let thirteen = Isbn::parse("9780306406157").unwrap();
+        let ten = thirteen.to_isbn10().unwrap();
+        assert_eq!(ten.as_str(), "0306406152");
+        assert!(!ten.is_isbn13());
+    }
+
+    #[test]
+    fn converting_isbn10_to_ten_is_idempotent() {
+        let ten = Isbn::parse("0306406152").unwrap();
+        assert_eq!(ten.to_isbn10().unwrap().as_str(), "0306406152");
+    }
+
+    #[test]
+    fn isbn10_check_character_may_be_x() {
+        // 9780975229804 has an ISBN-10 form whose check character is X.
+        let thirteen = Isbn::parse("9780975229804").unwrap();
+        assert_eq!(thirteen.to_isbn10().unwrap().as_str(), "097522980X");
+    }
+
+    #[test]
+    fn a_979_isbn13_has_no_isbn10_form() {
+        let thirteen = Isbn::parse("9791234567896").unwrap();
+        assert_eq!(thirteen.to_isbn10(), Err(Error::InvalidPrefix));
+    }
+
+    #[test]
+    fn the_two_conversions_round_trip() {
+        for code in ["9780306406157", "9780975229804", "9783161484100"] {
+            let thirteen = Isbn::parse(code).unwrap();
+            let ten = thirteen.to_isbn10().unwrap();
+            assert_eq!(ten.to_isbn13().unwrap().as_str(), code);
+        }
     }
 }

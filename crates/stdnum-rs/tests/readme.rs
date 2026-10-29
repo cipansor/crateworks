@@ -291,3 +291,55 @@ fn country_named(name: &str) -> Option<Country> {
         _ => return None,
     })
 }
+
+/// `Isbn::to_isbn10` and `Isbn::to_isbn13` against the reference.
+///
+/// The validation fixture can only record a verdict; a conversion has an
+/// output, so it needs its own oracle. Every row was produced by python-stdnum
+/// through `gen_isbn_conversions.py`, and a row whose expected value is `-` is
+/// one the reference refuses, so the crate must refuse it too.
+#[test]
+fn isbn_conversions_agree_with_python_stdnum() {
+    use stdnum_rs::Isbn;
+
+    let fixture = include_str!("fixtures/isbn_conversions.tsv");
+    let mut agree = 0u32;
+    let mut disagreements = Vec::new();
+    for line in fixture.lines() {
+        let mut fields = line.split('\t');
+        let (Some(kind), Some(input), Some(expected)) =
+            (fields.next(), fields.next(), fields.next())
+        else {
+            continue;
+        };
+        let isbn = match Isbn::parse(input) {
+            Ok(isbn) => isbn,
+            Err(e) => {
+                disagreements.push(format!("{kind} {input:?}: parse failed: {e}"));
+                continue;
+            }
+        };
+        let got = match kind {
+            "to_isbn10" => isbn.to_isbn10().map(|i| i.as_str().to_string()),
+            "to_isbn13" => isbn.to_isbn13().map(|i| i.as_str().to_string()),
+            other => unreachable!("unknown conversion {other:?}"),
+        };
+        let matches = match (got, expected) {
+            (Ok(value), want) => value == want,
+            (Err(_), "-") => true,
+            (Err(_), _) => false,
+        };
+        if matches {
+            agree += 1;
+        } else {
+            disagreements.push(format!("{kind} {input:?}"));
+        }
+    }
+    assert!(agree > 9_000, "only {agree} conversions were compared");
+    assert!(
+        disagreements.is_empty(),
+        "{} ISBN conversions disagree with python-stdnum: {:?}",
+        disagreements.len(),
+        &disagreements[..disagreements.len().min(20)]
+    );
+}
