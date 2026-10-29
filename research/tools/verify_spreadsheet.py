@@ -9,7 +9,10 @@ answers are compared. A difference is a bug in one of the two.
 The Rust side is exercised through the public `Evaluator`, not the internal
 `call`, so the gate covers the parser and the evaluator as well as the function
 library: each case is a formula string, and the JS side calls the same function
-with the same values.
+with the same values. A case may carry a `Grid` instead of a number, which the
+gate lays into the generated sheet as a rectangular block of typed cells; this is
+what lets the database functions, whose arguments are two grids, be driven
+through the same comparison.
 
 Run:  python3 research/tools/verify_spreadsheet.py [--verbose]
 Needs: npm install @formulajs/formulajs
