@@ -346,20 +346,27 @@ fn normalize(input: &str) -> String {
 
 /// Splits a cleaned number into its jurisdiction and national part.
 fn split(cleaned: &str) -> Result<(Country, String)> {
-    if cleaned.len() < 2 {
+    // The prefix is two characters, not two bytes: the separators have already
+    // been removed, so a non-ASCII character can land here, and slicing `[..2]`
+    // would panic on a byte that is not a character boundary. The reference
+    // (`python-stdnum`) indexes by character, and a character that is not an
+    // ASCII letter is then an unknown country rather than a crash.
+    let mut boundaries = cleaned.char_indices().map(|(index, _)| index);
+    let (Some(_), Some(_)) = (boundaries.next(), boundaries.next()) else {
         return Err(Error::WrongLength {
             expected: 2,
-            found: cleaned.len(),
+            found: cleaned.chars().count(),
         });
-    }
-    let prefix = &cleaned[..2];
+    };
+    let national_start = boundaries.next().unwrap_or(cleaned.len());
+    let prefix = &cleaned[..national_start];
     let country =
         Country::from_code(prefix).ok_or_else(|| Error::UnknownCountry(prefix.to_string()))?;
-    let national = cleaned[2..].to_string();
+    let national = &cleaned[national_start..];
     if national.is_empty() {
         return Err(Error::Empty);
     }
-    Ok((country, national))
+    Ok((country, national.to_string()))
 }
 
 /// Shared check-digit arithmetic.
@@ -519,6 +526,32 @@ mod tests {
             Err(Error::UnknownCountry("ZZ".to_string()))
         );
         assert_eq!(Vat::parse("NL"), Err(Error::Empty));
+    }
+
+    #[test]
+    fn a_non_ascii_prefix_is_an_error_not_a_panic() {
+        // The prefix is taken by character, so a non-ASCII character that the
+        // separator list does not strip cannot split a multi-byte character.
+        // Slicing `[..2]` used to panic here, and `python-stdnum` reports an
+        // unknown component rather than crashing.
+        assert_eq!(
+            Vat::parse("\u{3000}"),
+            Err(Error::WrongLength {
+                expected: 2,
+                found: 1
+            })
+        );
+        assert_eq!(
+            Vat::parse("\u{3000}ATU13585627"),
+            Err(Error::UnknownCountry("\u{3000}A".to_string()))
+        );
+        assert_eq!(
+            Vat::parse("A\u{3000}TU13585627"),
+            Err(Error::UnknownCountry("A\u{3000}".to_string()))
+        );
+        // A no-break space is a separator, so it is stripped and the number is
+        // the same as without it.
+        assert!(Vat::parse("\u{a0}ATU13585627").is_ok());
     }
 
     #[test]
