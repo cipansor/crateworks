@@ -3125,10 +3125,16 @@ fn numbers_of_arg(name: &str, arg: &Arg) -> Result<Vec<f64>, Error> {
 /// `n - 1`. Both truncate toward zero at the requested significance.
 fn percent_rank(array: &[f64], x: f64, significance: f64, exclusive: bool) -> f64 {
     let n = array.len();
+    // `array` is sorted ascending, so equal values are adjacent: a value is
+    // new when it differs from the last kept one, and its run starts at the
+    // index where it was first seen. Recording that index once keeps the
+    // lookup below linear instead of re-scanning `array` per unique value.
     let mut uniques: Vec<f64> = Vec::new();
-    for value in array {
-        if !uniques.contains(value) {
+    let mut first_index: Vec<usize> = Vec::new();
+    for (index, value) in array.iter().enumerate() {
+        if uniques.last() != Some(value) {
             uniques.push(*value);
+            first_index.push(index);
         }
     }
     let m = uniques.len();
@@ -3137,7 +3143,7 @@ fn percent_rank(array: &[f64], x: f64, significance: f64, exclusive: bool) -> f6
     let mut i = 0;
     while i < m {
         if x == uniques[i] {
-            let index = array.iter().position(|v| *v == uniques[i]).unwrap();
+            let index = first_index[i];
             result = if exclusive {
                 (index + 1) as f64 / (n + 1) as f64
             } else {
@@ -3145,7 +3151,7 @@ fn percent_rank(array: &[f64], x: f64, significance: f64, exclusive: bool) -> f6
             };
             break;
         } else if x >= uniques[i] && (i + 1 >= m || x < uniques[i + 1]) {
-            let index = array.iter().position(|v| *v == uniques[i]).unwrap();
+            let index = first_index[i];
             let next = if i + 1 < m {
                 uniques[i + 1]
             } else {
