@@ -107,9 +107,6 @@ dependencies = [
 [[package]]
 name = "pdfmake"
 version = "0.1.9"
-dependencies = [
- "pdfa",
-]
 
 [[package]]
 name = "proxy-addr"

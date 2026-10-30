@@ -79,6 +79,13 @@ Content streams are compressed with a DEFLATE encoder written for this crate
 (fixed Huffman, RFC 1951). It is not the smallest possible output; it is small,
 and it is one less dependency.
 
+There is no size at which compression stops working. A document of a few
+hundred paragraphs produces a content stream of tens of kilobytes, and a much
+larger document produces one of megabytes; both are compressed and written.
+The encoder's match-finding state is sized by the stream, so a large document
+costs memory in proportion to its size rather than crossing a fixed limit and
+failing.
+
 Part of the [crateworks](https://github.com/cipansor/crateworks) workspace.
 Licensed under the Apache License, Version 2.0, copyright Yayasan Pesantren
 Cipansor and contributors.

@@ -7,9 +7,11 @@
 //! so the crash is reachable with ordinary input.
 //!
 //! The fix is only half the check: the compressed stream is decompressed again
-//! with the inflater in the `pdfa` crate, which is an independent implementation,
-//! so the test proves the output is still a stream a reader can decode rather
-//! than merely that the panic is gone.
+//! with the inflater in `tests/common`, which is the test's own and checked
+//! against Python's `zlib` in `tests/zlib.rs`, so the test proves the output is
+//! still a stream a reader can decode rather than merely that the panic is gone.
+
+mod common;
 
 use pdfmake::{Document, Paragraph};
 
@@ -51,7 +53,7 @@ fn a_content_stream_past_the_hash_table_size_still_compresses() {
 
     let mut decoded = Vec::new();
     for payload in payloads {
-        let inflated = pdfa::flate::inflate(payload).expect("a FlateDecode stream must inflate");
+        let inflated = common::inflate(payload).expect("a FlateDecode stream must inflate");
         decoded.extend_from_slice(&inflated);
     }
 

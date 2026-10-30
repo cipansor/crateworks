@@ -20,8 +20,5 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 
-[dev-dependencies]
-pdfa = { path = "../pdfa" }
-
 [lints]
 workspace = true

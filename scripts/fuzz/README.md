@@ -44,6 +44,7 @@ never a dependency of any crate.
 | `xmlkit` | `xmlkit/gen.py` | Python `expat` (stdlib) | `python3 xmlkit/gen.py [out]` |
 | `wssec` | `wssec/gen.py` | Python `hashlib` and `base64` (stdlib) | `python3 wssec/gen.py <fixture-dir>` |
 | `fast-redact` | `fast-redact/gen.js` | `fast-redact` npm 3.5.0 | `NODE_PATH=<modules> node fast-redact/gen.js [fixture-dir]` |
+| `pdfmake` | `pdfmake/gen_zlib_vectors.py` | Python `zlib` (stdlib) | `python3 pdfmake/gen_zlib_vectors.py [out]` |
 
 With no `out` argument each writes to the crate's own fixture, which is the path
 you want when rebuilding it in place. The recorded versions are the ones the
