@@ -404,9 +404,11 @@ impl Parser<'_> {
                     return Err(self.error("unescaped control character in string"));
                 }
                 _ => {
-                    // Copy the run up to the next byte that ends it in one go.
-                    // Validating a slice from here to the end of the document
-                    // once per character is what made this quadratic.
+                    // The delimiters `"`, `\` and the control characters are
+                    // all ASCII, so none can appear inside a UTF-8 multibyte
+                    // sequence: the run to the next delimiter is a whole number
+                    // of characters. Copy it in one go and let `from_utf8`
+                    // validate it, rather than checking each character.
                     let start = self.pos;
                     let mut end = self.pos;
                     while let Some(&byte) = self.bytes.get(end) {
