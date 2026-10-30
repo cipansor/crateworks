@@ -181,11 +181,17 @@ The only crate on crates.io is from 2020 and unmaintained.
 credit/debit sign, counterparty, remittance and value date; closing balance
 either as reported or computed from the entries. `pain.001` payment initiation:
 read and generate, with the control sum and transaction count computed from the
-transfers so the output cannot disagree with itself.
+transfers so the output cannot disagree with itself. `pacs.008` interbank
+customer credit transfers, read and generate. `pacs.002` payment status reports,
+the answer to a `pacs.008`: group and per-transaction status, with the reason
+codes kept as written. Generated `pacs.008` and `pacs.002` documents are checked
+against the official schemas.
 
-**Not covered.** `pacs` clearing messages, other `camt` variants, schema
-validation, and the full generated type set. Amounts use `f64` with the original
-decimal text preserved in `Amount::text`.
+**Not covered.** The other `pacs` and `camt` variants, schema validation inside
+the crate, and the full generated type set. Amounts use `f64` with the original
+decimal text preserved in `Amount::text`. Status and reason codes are `String`s
+rather than enums, because the external code lists are large and grow without a
+schema change.
 
 ## 7. `soap-client`
 
@@ -345,9 +351,10 @@ in an unspecified order.
 
 **Covers today.** A canonical form identical to the npm package's byte for byte,
 so a Rust service and a Node service agree on a cache key. SHA-1 by default, with
-SHA-256 and MD5 selectable; all three are written out here, so the crate still
-has no dependencies. Number formatting follows the ECMAScript rules rather than
-Rust's `Display`, and entries sort by UTF-16 code unit.
+SHA-224/256/384/512, MD5 and the four SHA-3 members selectable; all ten are
+written out here, so the crate still has no dependencies. Number formatting
+follows the ECMAScript rules rather than Rust's `Display`, and entries sort by
+UTF-16 code unit.
 
 **Not covered.** JavaScript prototypes and constructors, which the reference
 mixes into its hash. A Rust caller has no prototype to respect, so `Value::Map`
