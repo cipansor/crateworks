@@ -53,6 +53,9 @@ COUNTRIES = {
     "Micronesia": "FM", "NorthernMarianaIslands": "MP", "Palau": "PW",
     "SaoTomeAndPrincipe": "ST", "UnitedStatesMinorOutlyingIslands": "UM",
     "UnitedStatesVirginIslands": "VI",
+    # Added in 0.5.0.
+    "Aruba": "AW", "AlandIslands": "AX", "CaribbeanNetherlands": "BQ",
+    "Curacao": "CW", "Namibia": "NA", "SintMaarten": "SX",
 }
 
 # Countries whose holiday *set* already differs from the reference in a way
@@ -98,6 +101,8 @@ EXCLUDED = {
     "SaoTomeAndPrincipe": "reference carries '(observed)' duplicate dates",
     "UnitedStatesMinorOutlyingIslands": "reference carries '(observed)' duplicate dates",
     "UnitedStatesVirginIslands": "reference carries '(observed)' duplicate dates",
+    # Added in 0.5.0.
+    "Namibia": "reference carries '(observed)' duplicate dates",
 }
 
 YEARS = list(range(2018, 2034))

@@ -271,6 +271,49 @@ def observed_shift(byyear, observed, years):
     return None
 
 
+def inline_observed_fit(byyear):
+    """Fit a holiday whose reference reports the OBSERVED date under its own
+    name, with no "(observed)" partner entry.
+
+    Aruba's "Dia di Obrero" is 1 May, or 2 May when the 1st is a Sunday, and
+    the reference lists only the moved date. The crate expresses this as an
+    `ObservedShift` over a fixed base, so try every date the holiday ever falls
+    on as the base and look for a single year boundary `from` and a
+    weekday -> days table that reproduce the dates: before `from` the date is
+    unmoved, from `from` on it moves by the table (a weekday absent from the
+    table is not moved). Returns `((month, day), from, table)` or `None`.
+    """
+    ys = sorted(byyear)
+    seen = []
+    for y in ys:
+        key = (byyear[y].month, byyear[y].day)
+        if key not in seen:
+            seen.append(key)
+    for month, day in seen:
+        natural = {y: datetime.date(y, month, day) for y in ys}
+        delta = {y: (byyear[y] - natural[y]).days for y in ys}
+        if any(abs(d) > 7 for d in delta.values()):
+            continue
+        for frm in ys + [LAST + 1]:
+            table: dict = {}
+            ok = True
+            for y in ys:
+                d = delta[y]
+                if y < frm:
+                    if d != 0:
+                        ok = False
+                        break
+                    continue
+                wd = crate_weekday(natural[y])
+                if wd in table and table[wd] != d:
+                    ok = False
+                    break
+                table[wd] = d
+            if ok and any(table.values()):
+                return (month, day), frm, {k: v for k, v in table.items() if v}
+    return None
+
+
 def derive(code):
     ref = pyholidays.country_holidays(code, years=range(FIRST, LAST + 1))
     byname = collections.defaultdict(dict)
@@ -292,7 +335,15 @@ def derive(code):
                 shape = candidate
                 break
         if shape is None:
-            return None, f"unexpressible: {name}"
+            inline = inline_observed_fit(byyear)
+            if inline is None:
+                return None, f"unexpressible: {name}"
+            (month, day), shift_from, table = inline
+            shape = ("fixed", month, day)
+            shifts = (shift_from, table)
+            for frm, to in runs:
+                entries.append((frm, name, shape, frm, to, shifts))
+            continue
         shifts = None
         if name in observed:
             shifts = observed_shift(byyear, observed[name], sorted(years))
