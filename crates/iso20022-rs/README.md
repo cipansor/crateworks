@@ -3,8 +3,8 @@
 [![crates.io](https://img.shields.io/crates/v/iso20022-rs.svg)](https://crates.io/crates/iso20022-rs)
 [![docs.rs](https://docs.rs/iso20022-rs/badge.svg)](https://docs.rs/iso20022-rs)
 
-ISO 20022 payment messages: `pacs` interbank credit transfers, `camt` bank
-statements and `pain` payment initiation.
+ISO 20022 payment messages: `pacs` interbank credit transfers and payment
+status reports, `camt` bank statements and `pain` payment initiation.
 
 ```rust
 use iso20022_rs::camt::BankStatement;
@@ -48,6 +48,32 @@ let transfer = CreditTransfer::parse(xml).unwrap();
 assert_eq!(transfer.total(), 100.0);
 assert!(transfer.control_sum_matches());
 ```
+
+`pacs.002` is the payment status report, the answer to a `pacs.008`. It says
+whether a transfer, or a whole batch, was accepted or rejected, and why. It can
+be read and generated:
+
+```rust
+use iso20022_rs::pacs::PaymentStatusReport;
+
+let xml = r#"<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pacs.002.001.10">
+  <FIToFIPmtStsRpt>
+    <GrpHdr><MsgId>S1</MsgId><CreDtTm>2026-01-01T00:00:00Z</CreDtTm></GrpHdr>
+    <TxInfAndSts>
+      <OrgnlEndToEndId>E2E-1</OrgnlEndToEndId>
+      <TxSts>ACSC</TxSts>
+    </TxInfAndSts>
+  </FIToFIPmtStsRpt>
+</Document>"#;
+
+let report = PaymentStatusReport::parse(xml).unwrap();
+assert_eq!(report.statuses[0].transaction_status.as_deref(), Some("ACSC"));
+```
+
+Status codes (`TxSts`, `GrpSts`) and reason codes (`Rsn/Cd`) are kept as written
+rather than mapped to an enum, because the ISO 20022 external code lists are
+large and grow without a schema change; a caller that needs to recognise a code
+compares the string.
 
 `pain.001` can be read and generated, with the control sum and transaction count
 computed from the transfers so the output is internally consistent. Generating

@@ -97,6 +97,47 @@ PAIN001 = """<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pain.001.001.09">
   </CstmrCdtTrfInitn>
 </Document>"""
 
+PACS002 = """<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pacs.002.001.10">
+  <FIToFIPmtStsRpt>
+    <GrpHdr>
+      <MsgId>STS-001</MsgId>
+      <CreDtTm>2026-10-21T09:35:00Z</CreDtTm>
+      <InstgAgt><FinInstnId><BICFI>DEUTDEFFXXX</BICFI></FinInstnId></InstgAgt>
+      <InstdAgt><FinInstnId><BICFI>COBADEFFXXX</BICFI></FinInstnId></InstdAgt>
+    </GrpHdr>
+    <OrgnlGrpInfAndSts>
+      <OrgnlMsgId>MSG-001</OrgnlMsgId>
+      <OrgnlMsgNmId>pacs.008.001.08</OrgnlMsgNmId>
+      <OrgnlNbOfTxs>2</OrgnlNbOfTxs>
+      <OrgnlCtrlSum>150.00</OrgnlCtrlSum>
+      <GrpSts>ACSP</GrpSts>
+    </OrgnlGrpInfAndSts>
+    <TxInfAndSts>
+      <StsId>STS-1</StsId>
+      <OrgnlGrpInf>
+        <OrgnlMsgId>MSG-001</OrgnlMsgId>
+        <OrgnlMsgNmId>pacs.008.001.08</OrgnlMsgNmId>
+      </OrgnlGrpInf>
+      <OrgnlInstrId>INSTR-1</OrgnlInstrId>
+      <OrgnlEndToEndId>E2E-1</OrgnlEndToEndId>
+      <OrgnlUETR>8a562c67-ca16-48ba-b074-65581be6f501</OrgnlUETR>
+      <TxSts>ACSC</TxSts>
+      <AccptncDtTm>2026-10-21T09:35:00Z</AccptncDtTm>
+      <AcctSvcrRef>ACCT-REF-1</AcctSvcrRef>
+      <ClrSysRef>CLR-1</ClrSysRef>
+    </TxInfAndSts>
+    <TxInfAndSts>
+      <OrgnlEndToEndId>E2E-2</OrgnlEndToEndId>
+      <TxSts>RJCT</TxSts>
+      <StsRsnInf>
+        <Rsn><Cd>AC01</Cd></Rsn>
+        <AddtlInf>Account identifier invalid</AddtlInf>
+      </StsRsnInf>
+    </TxInfAndSts>
+  </FIToFIPmtStsRpt>
+</Document>"""
+
 # message key -> (schema URL, crate type, fixture)
 CASES = {
     "pacs008": (
@@ -108,6 +149,11 @@ CASES = {
         f"{BASE}/pain/schemas/pain.001.001.09.xsd",
         "iso20022_rs::pain::CreditTransferInitiation",
         PAIN001,
+    ),
+    "pacs002": (
+        f"{BASE}/pacs/schemas/pacs.002.001.10.xsd",
+        "iso20022_rs::pacs::PaymentStatusReport",
+        PACS002,
     ),
 }
 

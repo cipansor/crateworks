@@ -39,3 +39,24 @@ fn readme_pacs_example() {
     assert_eq!(transfer.total(), 100.0);
     assert!(transfer.control_sum_matches());
 }
+
+#[test]
+fn readme_pacs002_example() {
+    use iso20022_rs::pacs::PaymentStatusReport;
+
+    let xml = r#"<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pacs.002.001.10">
+  <FIToFIPmtStsRpt>
+    <GrpHdr><MsgId>S1</MsgId><CreDtTm>2026-01-01T00:00:00Z</CreDtTm></GrpHdr>
+    <TxInfAndSts>
+      <OrgnlEndToEndId>E2E-1</OrgnlEndToEndId>
+      <TxSts>ACSC</TxSts>
+    </TxInfAndSts>
+  </FIToFIPmtStsRpt>
+</Document>"#;
+
+    let report = PaymentStatusReport::parse(xml).unwrap();
+    assert_eq!(
+        report.statuses[0].transaction_status.as_deref(),
+        Some("ACSC")
+    );
+}
