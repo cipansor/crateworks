@@ -18,6 +18,10 @@ struct Case {
     base64: String,
     sha384: String,
     sha224: String,
+    sha3_256: String,
+    sha3_224: String,
+    sha3_512: String,
+    sha3_384: String,
 }
 
 /// Reads the fixture, which is tab separated to avoid a JSON dependency.
@@ -38,6 +42,10 @@ fn cases() -> Vec<Case> {
                 base64: fields[6].to_string(),
                 sha384: fields[7].to_string(),
                 sha224: fields[8].to_string(),
+                sha3_256: fields[9].to_string(),
+                sha3_224: fields[10].to_string(),
+                sha3_512: fields[11].to_string(),
+                sha3_384: fields[12].to_string(),
             }
         })
         .collect()
@@ -260,6 +268,10 @@ fn every_fixture_case_has_the_same_canonical_form_and_digest() {
             (Algorithm::Sha512, &case.sha512),
             (Algorithm::Sha384, &case.sha384),
             (Algorithm::Md5, &case.md5),
+            (Algorithm::Sha3_256, &case.sha3_256),
+            (Algorithm::Sha3_224, &case.sha3_224),
+            (Algorithm::Sha3_512, &case.sha3_512),
+            (Algorithm::Sha3_384, &case.sha3_384),
         ] {
             let got = hash_with(&value, algorithm);
             if &got != expected {

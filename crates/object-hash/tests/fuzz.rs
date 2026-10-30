@@ -26,18 +26,20 @@ use support::Reader;
 
 const CORPUS: &str = include_str!("fixtures/fuzz.tsv");
 
-/// Each line is a description, the reference's canonical form, and its digest.
-fn corpus() -> Vec<(String, String, String)> {
+/// Each line is a description, the reference's canonical form, its default
+/// SHA-1 digest, and the reference's SHA3-256 digest of the same bytes.
+fn corpus() -> Vec<(String, String, String, String)> {
     CORPUS
         .lines()
         .filter(|line| !line.trim().is_empty())
         .map(|line| {
             let fields: Vec<&str> = line.split('\t').collect();
-            assert_eq!(fields.len(), 3, "malformed line: {line:?}");
+            assert_eq!(fields.len(), 4, "malformed line: {line:?}");
             (
                 fields[0].to_string(),
                 fields[1].to_string(),
                 fields[2].to_string(),
+                fields[3].to_string(),
             )
         })
         .collect()
@@ -49,7 +51,7 @@ fn every_random_value_matches_the_reference() {
     assert!(cases.len() >= 4000, "only {} cases", cases.len());
 
     let mut failures = Vec::new();
-    for (description, canonical_form, digest) in &cases {
+    for (description, canonical_form, digest, sha3_256) in &cases {
         let mut reader = Reader::new(description);
         let value = reader.value();
         assert_eq!(
@@ -69,6 +71,15 @@ fn every_random_value_matches_the_reference() {
         if got_digest != *digest {
             failures.push(format!(
                 "{description}\n  digest\n    expected {digest}\n    got      {got_digest}"
+            ));
+        }
+        // SHA3-256 over the same canonical bytes, so a varied corpus exercises
+        // the sponge's absorb loop at many lengths, not only the two the
+        // published vectors cover.
+        let got_sha3 = hash_with(&value, Algorithm::Sha3_256);
+        if got_sha3 != *sha3_256 {
+            failures.push(format!(
+                "{description}\n  sha3-256\n    expected {sha3_256}\n    got      {got_sha3}"
             ));
         }
         // The reference's `passthrough` algorithm, held to the same canonical

@@ -25,7 +25,7 @@ never a dependency of any crate.
 
 | Crate | Generator | Reference library | Run |
 | --- | --- | --- | --- |
-| `object-hash` | `object-hash/gen.js` | `object-hash` npm 3.0.0 | `NODE_PATH=<modules> node object-hash/gen.js <fuzz out> <objects out> [oracle to extend] [oracle to append objects to] [oracle to add sha512+base64 to] [oracle to add sha384 to]` |
+| `object-hash` | `object-hash/gen.js` | `object-hash` npm 3.0.0 | `NODE_PATH=<modules> node object-hash/gen.js <fuzz out> <objects out> [oracle to extend] [oracle to append objects to] [oracle to add sha512+base64 to] [oracle to add sha384 to] [oracle to add sha224 to] [oracle to add the SHA-3 family to]` |
 | `adhan` | `adhan/gen.js` | `adhan` npm 4.4.6 | `NODE_PATH=<modules> node adhan/gen.js [out]` |
 | `javaproperties` | `javaproperties/gen.py` | `javaproperties` PyPI 0.8.2 | `python3 javaproperties/gen.py [out]` |
 | `javaproperties` (writer) | `javaproperties/gen_writer.py` | `javaproperties` PyPI 0.8.2 | `TZ=UTC python3 javaproperties/gen_writer.py [out]` |

@@ -109,11 +109,24 @@ function optionsFor(value) {
   return needs ? { respectType: false } : {};
 }
 
+// Each fuzz row also carries the reference's SHA3-256 digest, so a varied
+// corpus exercises the SHA-3 sponge at many canonical lengths rather than only
+// the two the published vectors cover. Node computes it from the same bytes.
+const crypto = require('crypto');
 const rows = [];
 for (let i = 0; i < 4000; i++) {
   const value = randomValue(3);
   const options = optionsFor(value);
-  rows.push(tagged(value) + '\t' + canonical(value, options) + '\t' + objectHash(value, options));
+  const text = canonical(value, options);
+  rows.push(
+    tagged(value) +
+      '\t' +
+      text +
+      '\t' +
+      objectHash(value, options) +
+      '\t' +
+      crypto.createHash('sha3-256').update(Buffer.from(text, 'utf8')).digest('hex'),
+  );
 }
 
 // A second corpus of plain objects, since the first one reaches them only by
@@ -257,6 +270,32 @@ function extended224(path) {
   console.log('extended224', out.length - 1, 'rows in', path);
 }
 
+// Adds the four SHA-3 digests to each row, so the Rust side is held to the
+// reference's SHA-3 family. Node reaches SHA-3 through its own `crypto`, which
+// is where the reference gets it too, so the same bytes are hashed either way.
+function extendedSha3(path) {
+  const crypto = require('crypto');
+  const lines = require('fs').readFileSync(path, 'utf8').split('\n').filter((l) => l.length);
+  const out = [lines[0] + '\tsha3_256\tsha3_224\tsha3_512\tsha3_384'];
+  for (const line of lines.slice(1)) {
+    const canonical = line.split('\t')[1];
+    const buf = Buffer.from(canonical, 'utf8');
+    out.push(
+      line +
+        '\t' +
+        crypto.createHash('sha3-256').update(buf).digest('hex') +
+        '\t' +
+        crypto.createHash('sha3-224').update(buf).digest('hex') +
+        '\t' +
+        crypto.createHash('sha3-512').update(buf).digest('hex') +
+        '\t' +
+        crypto.createHash('sha3-384').update(buf).digest('hex'),
+    );
+  }
+  require('fs').writeFileSync(path, out.join('\n') + '\n');
+  console.log('extendedSha3', out.length - 1, 'rows in', path);
+}
+
 const target = process.argv[2];
 if (!target) {
   console.error('usage: node gen.js <fuzz.tsv> <objects.tsv> [oracle.tsv to extend] [oracle.tsv to append object cases to]');
@@ -274,3 +313,4 @@ if (process.argv[5]) appendObjectOracle(process.argv[5]);
 if (process.argv[6]) extended512(process.argv[6]);
 if (process.argv[7]) extended384(process.argv[7]);
 if (process.argv[8]) extended224(process.argv[8]);
+if (process.argv[9]) extendedSha3(process.argv[9]);

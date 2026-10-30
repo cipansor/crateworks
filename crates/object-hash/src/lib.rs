@@ -3,6 +3,7 @@ mod encode;
 mod md5;
 mod sha1;
 mod sha256;
+mod sha3;
 mod sha512;
 
 use std::fmt;
@@ -28,6 +29,14 @@ pub enum Algorithm {
     Sha384,
     /// MD5, 32 hexadecimal characters.
     Md5,
+    /// SHA3-256, 64 hexadecimal characters. The reference's `sha3-256`.
+    Sha3_256,
+    /// SHA3-224, 56 hexadecimal characters. The reference's `sha3-224`.
+    Sha3_224,
+    /// SHA3-512, 128 hexadecimal characters. The reference's `sha3-512`.
+    Sha3_512,
+    /// SHA3-384, 96 hexadecimal characters. The reference's `sha3-384`.
+    Sha3_384,
     /// No digest: the canonical form is returned as it stands.
     ///
     /// This is the reference's `passthrough`, and it is what it uses internally
@@ -324,6 +333,7 @@ pub fn hash(value: &Value) -> String {
 /// assert_eq!(hash_with(&value, Algorithm::Sha256).len(), 64);
 /// assert_eq!(hash_with(&value, Algorithm::Sha224).len(), 56);
 /// assert_eq!(hash_with(&value, Algorithm::Md5).len(), 32);
+/// assert_eq!(hash_with(&value, Algorithm::Sha3_256).len(), 64);
 /// // Passthrough is the canonical form, not a digest of it.
 /// assert_eq!(hash_with(&value, Algorithm::Passthrough), canonical(&value));
 /// ```
@@ -434,6 +444,10 @@ fn raw_digest(data: &[u8], algorithm: Algorithm) -> Vec<u8> {
         Algorithm::Sha512 => sha512::digest(data).to_vec(),
         Algorithm::Sha384 => sha512::digest384(data).to_vec(),
         Algorithm::Md5 => md5::digest(data).to_vec(),
+        Algorithm::Sha3_256 => sha3::digest256(data).to_vec(),
+        Algorithm::Sha3_224 => sha3::digest224(data).to_vec(),
+        Algorithm::Sha3_512 => sha3::digest512(data).to_vec(),
+        Algorithm::Sha3_384 => sha3::digest384(data).to_vec(),
         Algorithm::Passthrough => data.to_vec(),
     }
 }
