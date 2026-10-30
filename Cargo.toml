@@ -41,7 +41,7 @@ homepage = "https://github.com/cipansor/crateworks"
 authors = ["Yayasan Pesantren Cipansor and contributors"]
 
 [workspace.dependencies]
-xmlkit = { version = "0.1.10", path = "crates/xmlkit" }
+xmlkit = { version = "0.1.11", path = "crates/xmlkit" }
 pdfa = { version = "0.1.10", path = "crates/pdfa" }
 
 [workspace.lints.rust]
