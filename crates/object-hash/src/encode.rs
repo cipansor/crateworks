@@ -287,10 +287,11 @@ fn write_object(entries: &[(String, Value)], options: &WriteOptions, out: &mut S
     if options.unordered_objects {
         keys.sort_by(|a, b| utf16_cmp(a, b));
     }
-    // A repeated key keeps the last value: `Object.keys` lists a key once, and
-    // the lookup that follows finds the last assignment. A map from key to its
-    // last value makes both the de-duplication and the lookup constant time;
-    // scanning a Vec for each key is what made a wide object quadratic.
+    // `Object.keys` lists a repeated key once, in first-appearance order, and
+    // the lookup that follows finds its last assignment. Those are two different
+    // questions, so they need two indexes: `last` answers the value, `seen`
+    // answers the order. One index cannot do both, because the first occurrence
+    // fixes the position while the last fixes the value.
     let mut last: HashMap<&str, &Value> = HashMap::with_capacity(entries.len());
     for (key, value) in entries {
         last.insert(key.as_str(), value);
