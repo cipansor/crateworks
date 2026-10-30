@@ -177,15 +177,18 @@ fn read_stream(bytes: &[u8], offset: usize) -> Option<Xref> {
     }
     let size = integer_after(&dict, "/Size").unwrap_or(0);
     // `/Index` is a list of `start count` pairs and defaults to `[0 Size]`.
-    let mut index = integer_array(&dict, "/Index").unwrap_or_else(|| vec![0, size]);
+    let index = integer_array(&dict, "/Index").unwrap_or_else(|| vec![0, size]);
 
     let decoded = decoded_stream(bytes, offset)?;
 
     let mut entries = BTreeMap::new();
     let mut cursor = 0usize;
-    while index.len() >= 2 {
-        let first = index.remove(0) as u32;
-        let count = index.remove(0) as u32;
+    // Walk `/Index` as pairs rather than draining the front of the Vec: a pair
+    // removed from the front shifts every element after it, so a long `/Index`
+    // made this quadratic in the number of pairs.
+    for pair in index.as_chunks::<2>().0 {
+        let first = pair[0] as u32;
+        let count = pair[1] as u32;
         for number in first..first + count {
             let mut fields = [0u64; 3];
             for (slot, &width) in fields.iter_mut().zip(widths.iter()) {
@@ -510,5 +513,32 @@ startxref\n9\n%%EOF\n";
         // spin. The widths must consume at least one byte.
         let bytes = b"%PDF-1.5\nstartxref\n0\n%%EOF";
         assert!(read(bytes).is_none());
+    }
+
+    #[test]
+    fn a_long_index_pair_list_is_walked_in_order() {
+        // `/Index` holds `start count` pairs, and a pair is consumed two at a
+        // time. Draining them from the front of the Vec shifts every later pair
+        // and makes a long `/Index` quadratic; a pair with a count of zero reads
+        // no entries, so the walk itself is all the work this measures. The
+        // result must be the same either way: no entries, because every count is
+        // zero.
+        let pairs = 20_000;
+        let mut index = String::new();
+        for _ in 0..pairs {
+            index.push_str("0 0 ");
+        }
+        let payload = [0u8];
+        let compressed = flate::compress(&payload);
+        let mut bytes = b"%PDF-1.7\n7 0 obj\n<< /Type /XRef /Size 1 /W [1 1 1] /Index [ ".to_vec();
+        bytes.extend_from_slice(index.as_bytes());
+        bytes.extend_from_slice(format!("] /Length {} >>\nstream\n", compressed.len()).as_bytes());
+        let stream_offset = b"%PDF-1.7\n7 0 obj\n".len();
+        bytes.extend_from_slice(&compressed);
+        bytes.extend_from_slice(b"\nendstream\nendobj\n");
+        bytes.extend_from_slice(format!("startxref\n{stream_offset}\n%%EOF\n").as_bytes());
+
+        let xref = read(&bytes).expect("the xref stream parses");
+        assert!(xref.entries.is_empty());
     }
 }
