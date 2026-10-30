@@ -395,6 +395,18 @@ fn is_name_char(c: char) -> bool {
         || matches!(c, '\u{300}'..='\u{36F}' | '\u{203F}'..='\u{2040}')
 }
 
+/// Whether `c` is XML whitespace (XML 1.0 `S`): space, tab, carriage return or
+/// line feed, and nothing else.
+///
+/// `char::is_whitespace` is not a substitute: it also accepts `\u{a0}`,
+/// `\u{3000}` and the other Unicode spaces. The parser steps over whitespace one
+/// character at a time, so a multi-byte character it wrongly accepts is left
+/// half-consumed and the next slice indexes into the middle of it, which panics.
+/// expat, the reference for this crate, rejects those characters here too.
+fn is_xml_whitespace(c: char) -> bool {
+    matches!(c, ' ' | '\t' | '\r' | '\n')
+}
+
 /// One open element: its name, its attributes, and the children read so far.
 ///
 /// The parser's explicit stack is a list of these, which is what keeps it off the
@@ -432,7 +444,7 @@ impl<'a> Parser<'a> {
     }
 
     fn skip_ws(&mut self) {
-        while matches!(self.peek(), Some(c) if c.is_whitespace()) {
+        while matches!(self.peek(), Some(c) if is_xml_whitespace(c)) {
             self.pos += 1;
         }
     }
@@ -502,7 +514,7 @@ impl<'a> Parser<'a> {
         }
         match self.peek() {
             Some('?') if self.starts_with("?>") => {}
-            Some(c) if c.is_whitespace() => {}
+            Some(c) if is_xml_whitespace(c) => {}
             _ => return self.err("expected whitespace after the processing instruction target"),
         }
         let Some(end) = self.src[self.pos..].find("?>") else {
@@ -518,7 +530,7 @@ impl<'a> Parser<'a> {
     /// target `xml` is reserved.
     fn is_xml_declaration(&self) -> bool {
         self.starts_with("<?xml")
-            && matches!(self.src[self.pos + 5..].chars().next(), Some(c) if c.is_whitespace() || c == '?')
+            && matches!(self.src[self.pos + 5..].chars().next(), Some(c) if is_xml_whitespace(c) || c == '?')
     }
 
     /// Parses the XML declaration, which is only valid as the first thing in a
@@ -641,7 +653,7 @@ impl<'a> Parser<'a> {
         // never resolved; that is what keeps this crate free of external entity
         // (XXE) handling.
         self.expect("<!DOCTYPE")?;
-        if !matches!(self.peek(), Some(c) if c.is_whitespace()) {
+        if !matches!(self.peek(), Some(c) if is_xml_whitespace(c)) {
             return self.err("expected whitespace after DOCTYPE");
         }
         self.skip_ws();
@@ -725,7 +737,7 @@ impl<'a> Parser<'a> {
             attrs.insert(name, unescape(&normalize_attribute(raw), start)?);
             // XML requires whitespace between the element name, each attribute
             // and the end of the tag, so `<a x="1"y="2">` is ill-formed.
-            if !matches!(self.peek(), Some(c) if c.is_whitespace()) {
+            if !matches!(self.peek(), Some(c) if is_xml_whitespace(c)) {
                 match self.peek() {
                     Some('>') | Some('/') | None => return Ok(attrs),
                     _ => return self.err("expected whitespace before attribute"),
@@ -1004,6 +1016,26 @@ mod tests {
         assert_eq!(parse("<a x=\"p\nq\"/>").unwrap().attr("x"), Some("p q"));
         assert_eq!(parse("<a x=\"p\r\nq\"/>").unwrap().attr("x"), Some("p q"));
         assert_eq!(parse("<a x=\"p&#9;q\"/>").unwrap().attr("x"), Some("p\tq"));
+    }
+
+    #[test]
+    fn a_unicode_space_is_not_xml_whitespace() {
+        // XML whitespace is the four ASCII characters of XML 1.0 `S`. A no-break
+        // space or ideographic space is an ordinary character, so it cannot
+        // separate a name from an attribute and these documents are not
+        // well-formed, which is what expat says too. The parser used to accept
+        // them as whitespace and then step over one byte of the multi-byte
+        // character, leaving `pos` inside it and panicking on the next slice.
+        for bad in [
+            "<a\u{a0}b=\"1\"/>",
+            "<a \u{a0} b=\"1\"/>",
+            "<a\u{3000}b=\"1\"/>",
+            "<a\u{2009}b=\"1\"/>",
+        ] {
+            assert!(parse(bad).is_err(), "{bad:?} should be rejected");
+        }
+        // The four characters that are XML whitespace still separate attributes.
+        assert_eq!(parse("<a \t x=\"1\"/>").unwrap().attr("x"), Some("1"));
     }
 
     #[test]
