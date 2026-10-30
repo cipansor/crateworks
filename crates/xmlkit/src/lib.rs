@@ -1020,12 +1020,12 @@ mod tests {
 
     #[test]
     fn a_unicode_space_is_not_xml_whitespace() {
-        // XML whitespace is the four ASCII characters of XML 1.0 `S`. A no-break
-        // space or ideographic space is an ordinary character, so it cannot
-        // separate a name from an attribute and these documents are not
-        // well-formed, which is what expat says too. The parser used to accept
-        // them as whitespace and then step over one byte of the multi-byte
-        // character, leaving `pos` inside it and panicking on the next slice.
+        // Only the four ASCII characters of XML 1.0 `S` separate tokens, so a
+        // no-break space or ideographic space between a name and an attribute
+        // is an ordinary character and the document is not well-formed, which
+        // is what expat says too. Rejecting it also keeps the byte-wise
+        // whitespace skip from leaving the cursor inside a multi-byte
+        // character.
         for bad in [
             "<a\u{a0}b=\"1\"/>",
             "<a \u{a0} b=\"1\"/>",

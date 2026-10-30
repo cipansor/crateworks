@@ -89,6 +89,24 @@ resolved after them: `<a>x&#13;y</a>` really is `"x\ry"`, and `x="p&#9;q"` reall
 is `"p\tq"`. `javaproperties`'s XML reader depends on this, which is where the
 rule was found.
 
+Between markup, only the four characters XML 1.0 section 2.3 calls `S` separate
+tokens: space, tab, carriage return and line feed. A Unicode space - a no-break
+space `\u{a0}`, an ideographic space `\u{3000}`, or any other - is an ordinary
+character there, so it cannot separate a name from an attribute and such a
+document is not well-formed. In text and in an attribute value a Unicode space is
+just a character. The parser steps over whitespace one byte at a time, so
+accepting a multi-byte space as a separator would leave it inside the character;
+expat, the reference for this crate, rejects these documents too.
+
+```rust
+use xmlkit::parse;
+
+// A no-break space cannot separate a name from an attribute.
+assert!(parse("<a\u{a0}b=\"1\"/>").is_err());
+// In element content it is an ordinary character.
+assert_eq!(parse("<a>\u{a0}</a>").unwrap().text(), "\u{a0}");
+```
+
 ## Scope
 
 * `parse` builds an `Element` tree from a string.
