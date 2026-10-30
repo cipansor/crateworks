@@ -532,8 +532,7 @@ mod tests {
     fn a_non_ascii_prefix_is_an_error_not_a_panic() {
         // The prefix is taken by character, so a non-ASCII character that the
         // separator list does not strip cannot split a multi-byte character.
-        // Slicing `[..2]` used to panic here, and `python-stdnum` reports an
-        // unknown component rather than crashing.
+        // `python-stdnum` reports an unknown component rather than crashing.
         assert_eq!(
             Vat::parse("\u{3000}"),
             Err(Error::WrongLength {
