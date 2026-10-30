@@ -191,14 +191,26 @@ reason: its reference table shifts each holiday independently, while the crate
 holds one crate-wide `SubstituteStyle` per country. The countries that fit have
 all been added.
 
-**`stdnum-rs`: the six missing modules.** `python-stdnum` has pure-algorithmic
-modules the crate does not: `Casrn`, `Cfi`, `Imsi`, `Iso11649`, `Iso9362` and
-`Vatin`. `Iso9362` (BIC) is already the crate's `Bic`; the others are
-per-country or per-registry formats whose check algorithms overlap
-`CreditorReference`, `Isin` and `EuVat`. A CFI (ISO 10962) prototype was
-validated exactly against `python-stdnum`'s `numdb`/`cfi.dat`, but the data
-table is LGPL-2.1+, which cannot be copied into an Apache-2.0 crate, so it is
-shelved rather than shipped.
+**`stdnum-rs`: the six missing modules.** An earlier draft of this paragraph was
+wrong about which modules are missing, and is corrected here. `python-stdnum` has
+six modules the crate's public surface does not name: `Casrn`, `Cfi`, `Imsi`,
+`Iso11649`, `Iso9362` and `Vatin`. Two of those are false gaps - the crate
+already covers them under another name, and a name-based diff had missed it.
+`Casrn` is the crate's `CasNumber` (CAS registry numbers, same check digit) and
+`Iso11649` is its `CreditorReference` (the RF creditor reference, same
+mod-97-10); `Iso9362` is its `Bic`. Only three are genuinely absent: `Cfi`,
+`Imsi` and `Vatin`.
+
+All three are blocked by data, not by algorithm. `Cfi` (ISO 10962) needs the
+classification table; `Imsi` needs the MCC/MNC database (`split`/`validate`
+reject an unknown MCC, so a table-free IMSI would accept numbers the reference
+rejects and fail its own gate); `Vatin` is a dispatcher over per-country VAT
+modules, and the crate's per-country VAT lives in the separate `eu-vat` crate.
+Those tables ship in `python-stdnum` under LGPL-2.1+, which cannot be copied into
+an Apache-2.0 crate, so each is shelved rather than shipped. The distinction
+matters: it is a licence question to settle before the code, not a port to write
+after it, and the previous draft's two non-gaps would have sent the next round
+looking for work that was already done.
 
 **`hijridate` and `iso8583-msg`.** The surfaces match their references; the only
 differences are Rust-idiomatic shape (borrowed returns, iterators) rather than
