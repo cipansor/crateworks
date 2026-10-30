@@ -404,13 +404,21 @@ impl Parser<'_> {
                     return Err(self.error("unescaped control character in string"));
                 }
                 _ => {
+                    // Copy the run up to the next byte that ends it in one go.
+                    // Validating a slice from here to the end of the document
+                    // once per character is what made this quadratic.
                     let start = self.pos;
-                    // Copy one whole UTF-8 character.
-                    let text = std::str::from_utf8(&self.bytes[start..])
+                    let mut end = self.pos;
+                    while let Some(&byte) = self.bytes.get(end) {
+                        if byte == b'"' || byte == b'\\' || byte < 0x20 {
+                            break;
+                        }
+                        end += 1;
+                    }
+                    let text = std::str::from_utf8(&self.bytes[start..end])
                         .map_err(|_| self.error("invalid UTF-8 in string"))?;
-                    let ch = text.chars().next().expect("a character");
-                    out.push(ch);
-                    self.pos += ch.len_utf8();
+                    out.push_str(text);
+                    self.pos = end;
                 }
             }
         }
