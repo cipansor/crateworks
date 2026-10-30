@@ -6,11 +6,16 @@ difference worth closing", closed the `factur-x` profile reader, and recorded
 the remaining candidates with the reason each stays out.
 
 This round re-runs every gate first, then diffs each crate's public surface
-against its reference once more. Two candidates came out of that pass and were
+against its reference once more. Three candidates came out of that pass and were
 closed: the `object-hash` SHA-3 family, which `review-0.1.13.md` itself recorded
-as the npm reference's supported-but-unported set, and the `pacs.002` payment
-status report, the `iso20022-rs` gap its own README named. The other candidates
-that the diff surfaced are recorded below with the reason each stays out.
+as the npm reference's supported-but-unported set; the `pacs.002` payment status
+report, the `iso20022-rs` gap its own README named; and, when the first draft's
+claims about Node's hash list were checked and found false, the eight remaining
+Node `crypto` digests the reference offers and the crate did not (`ripemd160`,
+`sm3`, `sha512-224`, `sha512-256`, `blake2b512`, `blake2s256`, `shake128`,
+`shake256`). With those, every name in `crypto.getHashes()` is either computed
+here or an alias for one that is. The other candidates that the diff surfaced are
+recorded below with the reason each stays out.
 
 ## Correctness first: the differential gates were re-run
 
@@ -31,7 +36,7 @@ Every gate was re-run before any change. All were green on entry.
 | `verify_iso20022.py` | the official ISO 20022 XSD | generated pacs.008, pain.001 **and pacs.002** validate |
 | `verify_proxy_addr.py` | npm `proxy-addr` 2.0.8 | 12,216 rows agree |
 | `tests/oracle.rs` (fast-redact) | npm `fast-redact` 3.5.0 | 6,000 redactions and 90 path verdicts agree |
-| `tests/{fuzz,oracle}.rs` (object-hash) | npm `object-hash` 3.0.0 | 4,000 random values and 66 curated cases agree, all ten digests |
+| `tests/{fuzz,oracle}.rs` (object-hash) | npm `object-hash` 3.0.0 | 4,000 random values and 66 curated cases agree, all sixteen digests |
 
 No gate regressed.
 
@@ -67,6 +72,57 @@ the FIPS 202 `0x06` domain-separation byte, not the original Keccak `0x01`.
   `scripts/fuzz/object-hash/gen.js` gains the matching `extendedSha3` step so the
   columns can be rebuilt. All 66 rows agree.
 
+### `object-hash` 0.5.0 -> 0.6.0, the rest of Node's `crypto` digests
+
+The section above first recorded `ripemd160` and `sm3` as staying out, and
+`shake128`/`shake256` as unrepresentable, on two claims that were both wrong (see
+"the candidates the diff surfaced" below). The reference's `algorithm` option
+accepts any name in `crypto.getHashes()`, and eight of those names are digests
+this crate did not compute: `ripemd160`, `sm3`, `sha512-224`, `sha512-256`,
+`blake2b512`, `blake2s256`, `shake128` and `shake256`. A Node service naming any
+of them could not match a Rust one - exactly the gap the crate exists to close.
+They are now `Algorithm::Ripemd160`, `Sm3`, `Sha512_224`, `Sha512_256`,
+`Blake2b512`, `Blake2s256`, `Shake128` and `Shake256`.
+
+Two are truncations of a function already here: SHA-512/224 and SHA-512/256 are
+SHA-512 with their own FIPS 180-4 initial states and a shortened output, so they
+add two `digest512_224`/`digest512_256` entry points to `src/sha512.rs` and no
+new round code. Two more share the sponge `src/sha3.rs` already had: SHAKE128 and
+SHAKE256 are that sponge with the FIPS 202 `0x1f` domain-separation byte instead
+of `0x06` and their own rate, so the pad byte becomes a parameter and the four
+SHA-3 entry points are joined by two SHAKE ones. The remaining four are their own
+constructions and got their own modules: `src/ripemd160.rs` (two parallel lines
+over a block, five boolean functions, combined at the end), `src/sm3.rs`
+(SHA-256's shape with its own message expansion and constants) and
+`src/blake2.rs` (the ChaCha-derived ARX hash, in both its 64-bit/128-byte and
+32-bit/64-byte widths).
+
+SHAKE's output length is a caller parameter in FIPS 202, but the reference's
+`algorithm` is a fixed string with no place to put one, so both sides use Node's
+default for the bare name - 16 bytes for `shake128`, 32 for `shake256`. That
+fixed-length reading is what makes them gateable like any other digest.
+
+**How it is trusted.** Each is checked against its published vectors and against
+the reference over the whole corpus:
+
+* Published vectors in the module: RFC 7693 for BLAKE2b and BLAKE2s, the
+  RIPEMD-160 paper for the empty string, `abc` and one million `a`s,
+  GB/T 32905-2016 for SM3, and FIPS 202 for SHAKE. The exact-block cases (a full
+  BLAKE2 block, a SHAKE message filling its rate) are pinned too, because that is
+  where a wrong `chunks` split drops the final flag or the padding starts a fresh
+  block.
+* The `object-hash` reference. The curated oracle and the 4,000-row fuzz corpus
+  each gain eight columns, taken from Node's `crypto`, and the generator gains an
+  `extendedRare` step that rebuilds them.
+
+This is the part worth recording. The published vectors passed for RIPEMD-160
+while two whole rows of its step tables were still wrong, and BLAKE2's empty and
+`abc` vectors passed while its partial-block handling was wrong - each a
+transcription slip that a two-message vector set cannot see. The 4,000-length
+corpus caught both. It is the same lesson as the round-25 capability search: the
+answer comes from asking the reference, not from the two cases that were thought
+of.
+
 ### `iso20022-rs` 0.1.9 -> 0.2.0, the `pacs.002` payment status report
 
 The crate's own README said `pacs` clearing messages were not covered, and only
@@ -100,11 +156,28 @@ The public-surface diff against each reference left the following candidates.
 None is a gap left by oversight; each is recorded so the next round does not
 re-open it.
 
-**`object-hash`: the remaining digests.** SHA-3 is in now. `shake128`/`shake256`
-are extendable-output functions whose length is a caller parameter, which the
-reference's fixed-string algorithm name cannot express; `ripemd160` and `sm3`
-are not in Node's default TLS build on every platform, so the reference does not
-reliably offer them either. None is a cache key anyone names today.
+**`object-hash`: the remaining digests.** The first draft of this section was
+wrong and is corrected here. It claimed `ripemd160` and `sm3` are "not in Node's
+default TLS build on every platform, so the reference does not reliably offer
+them either". That is false: Node's `crypto.getHashes()` lists `ripemd160` and
+`sm3` (and `sha512-224`, `sha512-256`, `blake2b512`, `blake2s256`) on the
+toolchain the reference is measured against, and the reference's `algorithm`
+option accepts any name there. The six digests are therefore in the reference
+and were absent here - a real gap, not a footnote - and this round closed them;
+see the section below.
+
+`shake128`/`shake256` were the first draft's second error, and are also now
+closed. The draft claimed the reference "cannot ask for a specific `shake`
+output" because its `algorithm` is a fixed string. That is true and beside the
+point: the reference does not have to ask for a length, because Node supplies a
+default for the bare name, and the reference returns a fixed 16-byte or 32-byte
+digest like any other algorithm. Measured directly,
+`object-hash(x, { algorithm: 'shake128' })` returns a 32-hex-character digest and
+`'shake256'` a 64-hex-character one. So SHAKE was gateable all along and is now
+covered too; see the section above. Nothing in Node's `crypto.getHashes()` is
+left unrepresented: every other name there is an alias for a digest already
+here (`ripemd`/`rmd160` for `ripemd160`, `ssl3-sha1` for `sha1`, and so on) or a
+signature scheme, not a digest.
 
 **`spreadsheet-formula`: the dynamic-array and volatile family.** The volatile
 functions (`NOW`, `RAND`, `TODAY`) are non-deterministic and so cannot be gated

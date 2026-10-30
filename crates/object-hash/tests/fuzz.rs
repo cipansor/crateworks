@@ -27,20 +27,44 @@ use support::Reader;
 const CORPUS: &str = include_str!("fixtures/fuzz.tsv");
 
 /// Each line is a description, the reference's canonical form, its default
-/// SHA-1 digest, and the reference's SHA3-256 digest of the same bytes.
-fn corpus() -> Vec<(String, String, String, String)> {
+/// SHA-1 digest, and five more digests of the same bytes: SHA3-256 plus the six
+/// the crate ported by hand, which Node `crypto` also computes.
+struct Case {
+    description: String,
+    canonical: String,
+    sha1: String,
+    sha3_256: String,
+    sha512_224: String,
+    sha512_256: String,
+    ripemd160: String,
+    sm3: String,
+    blake2b512: String,
+    blake2s256: String,
+    shake128: String,
+    shake256: String,
+}
+
+fn corpus() -> Vec<Case> {
     CORPUS
         .lines()
         .filter(|line| !line.trim().is_empty())
         .map(|line| {
             let fields: Vec<&str> = line.split('\t').collect();
-            assert_eq!(fields.len(), 4, "malformed line: {line:?}");
-            (
-                fields[0].to_string(),
-                fields[1].to_string(),
-                fields[2].to_string(),
-                fields[3].to_string(),
-            )
+            assert_eq!(fields.len(), 12, "malformed line: {line:?}");
+            Case {
+                description: fields[0].to_string(),
+                canonical: fields[1].to_string(),
+                sha1: fields[2].to_string(),
+                sha3_256: fields[3].to_string(),
+                sha512_224: fields[4].to_string(),
+                sha512_256: fields[5].to_string(),
+                ripemd160: fields[6].to_string(),
+                sm3: fields[7].to_string(),
+                blake2b512: fields[8].to_string(),
+                blake2s256: fields[9].to_string(),
+                shake128: fields[10].to_string(),
+                shake256: fields[11].to_string(),
+            }
         })
         .collect()
 }
@@ -51,7 +75,9 @@ fn every_random_value_matches_the_reference() {
     assert!(cases.len() >= 4000, "only {} cases", cases.len());
 
     let mut failures = Vec::new();
-    for (description, canonical_form, digest, sha3_256) in &cases {
+    for case in &cases {
+        let description = &case.description;
+        let canonical_form = &case.canonical;
         let mut reader = Reader::new(description);
         let value = reader.value();
         assert_eq!(
@@ -68,19 +94,35 @@ fn every_random_value_matches_the_reference() {
             continue;
         }
         let got_digest = hash(&value);
-        if got_digest != *digest {
+        if got_digest != case.sha1 {
             failures.push(format!(
-                "{description}\n  digest\n    expected {digest}\n    got      {got_digest}"
+                "{description}\n  digest\n    expected {}\n    got      {got_digest}",
+                case.sha1
             ));
         }
-        // SHA3-256 over the same canonical bytes, so a varied corpus exercises
-        // the sponge's absorb loop at many lengths, not only the two the
-        // published vectors cover.
-        let got_sha3 = hash_with(&value, Algorithm::Sha3_256);
-        if got_sha3 != *sha3_256 {
-            failures.push(format!(
-                "{description}\n  sha3-256\n    expected {sha3_256}\n    got      {got_sha3}"
-            ));
+        // Every hand-ported digest over the same canonical bytes, so a varied
+        // corpus exercises each absorb loop at many lengths, not only the two
+        // the published vectors cover. SHA3-256 is here because the reference
+        // reaches it the same way; the other six because the crate ported them
+        // by hand and a wrong constant or rotation would show up somewhere in
+        // four thousand lengths.
+        for (algorithm, expected) in [
+            (Algorithm::Sha3_256, &case.sha3_256),
+            (Algorithm::Sha512_224, &case.sha512_224),
+            (Algorithm::Sha512_256, &case.sha512_256),
+            (Algorithm::Ripemd160, &case.ripemd160),
+            (Algorithm::Sm3, &case.sm3),
+            (Algorithm::Blake2b512, &case.blake2b512),
+            (Algorithm::Blake2s256, &case.blake2s256),
+            (Algorithm::Shake128, &case.shake128),
+            (Algorithm::Shake256, &case.shake256),
+        ] {
+            let got = hash_with(&value, algorithm);
+            if &got != expected {
+                failures.push(format!(
+                    "{description}\n  {algorithm:?}\n    expected {expected}\n    got      {got}"
+                ));
+            }
         }
         // The reference's `passthrough` algorithm, held to the same canonical
         // form. It is the identity, so it agrees with the reference for free,

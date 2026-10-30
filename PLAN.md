@@ -351,10 +351,13 @@ in an unspecified order.
 
 **Covers today.** A canonical form identical to the npm package's byte for byte,
 so a Rust service and a Node service agree on a cache key. SHA-1 by default, with
-SHA-224/256/384/512, MD5 and the four SHA-3 members selectable; all ten are
-written out here, so the crate still has no dependencies. Number formatting
-follows the ECMAScript rules rather than Rust's `Display`, and entries sort by
-UTF-16 code unit.
+SHA-224/256/384/512, MD5, the four SHA-3 members, the two SHA-512 truncations
+(SHA-512/224, SHA-512/256), RIPEMD-160, SM3, the two BLAKE2 widths (BLAKE2b-512,
+BLAKE2s-256) and the two SHAKE outputs (SHAKE128, SHAKE256) selectable - the
+whole set Node `crypto` offers and the reference's `algorithm` option therefore
+accepts. All eighteen are written out here, so the crate still has no
+dependencies. Number formatting follows the ECMAScript rules rather than Rust's
+`Display`, and entries sort by UTF-16 code unit.
 
 **Not covered.** JavaScript prototypes and constructors, which the reference
 mixes into its hash. A Rust caller has no prototype to respect, so `Value::Map`

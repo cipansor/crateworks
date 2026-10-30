@@ -296,6 +296,52 @@ function extendedSha3(path) {
   console.log('extendedSha3', out.length - 1, 'rows in', path);
 }
 
+// Adds the six digests the reference reaches through Node `crypto` that the
+// crate ported by hand: the two SHA-512 truncations, RIPEMD-160, SM3 and the
+// two BLAKE2 widths. Each is a transcription risk - a wrong round constant, a
+// wrong rotation, a wrong message schedule - and the published vectors cover
+// one or two messages, so pinning them over the whole corpus is what turns
+// "the vectors pass" into "the absorb loop is right at every length".
+// Column label, the Node `crypto` name (not always the same string) and an
+// optional output length. The two SHAKE names need a length, because Node only
+// defaults it; the reference's `algorithm` string cannot carry one, so it gets
+// Node's default too, which is what the crate reproduces.
+const RARE = [
+  ['sha512_224', 'sha512-224'],
+  ['sha512_256', 'sha512-256'],
+  ['ripemd160', 'ripemd160'],
+  ['sm3', 'sm3'],
+  ['blake2b512', 'blake2b512'],
+  ['blake2s256', 'blake2s256'],
+  ['shake128', 'shake128', 16],
+  ['shake256', 'shake256', 32],
+];
+
+function extendedRare(path) {
+  const crypto = require('crypto');
+  const lines = require('fs').readFileSync(path, 'utf8').split('\n').filter((l) => l.length);
+  // The fuzz corpus has no header row; the curated oracle does. Detect it the
+  // only way that is unambiguous here: its first field is the literal `name`.
+  const hasHeader = lines[0].split('\t')[0] === 'name';
+  const out = lines.map((line, index) => {
+    if (hasHeader && index === 0) return line + '\t' + RARE.map(([label]) => label).join('\t');
+    const canonical = line.split('\t')[1];
+    const buf = Buffer.from(canonical, 'utf8');
+    return (
+      line +
+      '\t' +
+      RARE.map(([, algo, length]) =>
+        crypto
+          .createHash(algo, length ? { outputLength: length } : undefined)
+          .update(buf)
+          .digest('hex'),
+      ).join('\t')
+    );
+  });
+  require('fs').writeFileSync(path, out.join('\n') + '\n');
+  console.log('extendedRare', out.length - (hasHeader ? 1 : 0), 'rows in', path);
+}
+
 const target = process.argv[2];
 if (!target) {
   console.error('usage: node gen.js <fuzz.tsv> <objects.tsv> [oracle.tsv to extend] [oracle.tsv to append object cases to]');
@@ -314,3 +360,4 @@ if (process.argv[6]) extended512(process.argv[6]);
 if (process.argv[7]) extended384(process.argv[7]);
 if (process.argv[8]) extended224(process.argv[8]);
 if (process.argv[9]) extendedSha3(process.argv[9]);
+if (process.argv[10]) extendedRare(process.argv[10]);

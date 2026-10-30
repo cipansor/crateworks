@@ -22,6 +22,14 @@ struct Case {
     sha3_224: String,
     sha3_512: String,
     sha3_384: String,
+    sha512_224: String,
+    sha512_256: String,
+    ripemd160: String,
+    sm3: String,
+    blake2b512: String,
+    blake2s256: String,
+    shake128: String,
+    shake256: String,
 }
 
 /// Reads the fixture, which is tab separated to avoid a JSON dependency.
@@ -46,6 +54,14 @@ fn cases() -> Vec<Case> {
                 sha3_224: fields[10].to_string(),
                 sha3_512: fields[11].to_string(),
                 sha3_384: fields[12].to_string(),
+                sha512_224: fields[13].to_string(),
+                sha512_256: fields[14].to_string(),
+                ripemd160: fields[15].to_string(),
+                sm3: fields[16].to_string(),
+                blake2b512: fields[17].to_string(),
+                blake2s256: fields[18].to_string(),
+                shake128: fields[19].to_string(),
+                shake256: fields[20].to_string(),
             }
         })
         .collect()
@@ -272,6 +288,14 @@ fn every_fixture_case_has_the_same_canonical_form_and_digest() {
             (Algorithm::Sha3_224, &case.sha3_224),
             (Algorithm::Sha3_512, &case.sha3_512),
             (Algorithm::Sha3_384, &case.sha3_384),
+            (Algorithm::Sha512_224, &case.sha512_224),
+            (Algorithm::Sha512_256, &case.sha512_256),
+            (Algorithm::Ripemd160, &case.ripemd160),
+            (Algorithm::Sm3, &case.sm3),
+            (Algorithm::Blake2b512, &case.blake2b512),
+            (Algorithm::Blake2s256, &case.blake2s256),
+            (Algorithm::Shake128, &case.shake128),
+            (Algorithm::Shake256, &case.shake256),
         ] {
             let got = hash_with(&value, algorithm);
             if &got != expected {

@@ -1,10 +1,13 @@
 #![doc = include_str!("../README.md")]
+mod blake2;
 mod encode;
 mod md5;
+mod ripemd160;
 mod sha1;
 mod sha256;
 mod sha3;
 mod sha512;
+mod sm3;
 
 use std::fmt;
 
@@ -37,6 +40,31 @@ pub enum Algorithm {
     Sha3_512,
     /// SHA3-384, 96 hexadecimal characters. The reference's `sha3-384`.
     Sha3_384,
+    /// SHA-512/224, 56 hexadecimal characters. The reference's `sha512-224`.
+    Sha512_224,
+    /// SHA-512/256, 64 hexadecimal characters. The reference's `sha512-256`.
+    Sha512_256,
+    /// RIPEMD-160, 40 hexadecimal characters. The reference's `ripemd160`.
+    ///
+    /// It names a value rather than protects it: RIPEMD-160 is not collision
+    /// resistant, and it is here so a digest can match a system that already
+    /// speaks it, not as a choice for new work.
+    Ripemd160,
+    /// SM3, 64 hexadecimal characters. The reference's `sm3`.
+    Sm3,
+    /// BLAKE2b-512, 128 hexadecimal characters. The reference's `blake2b512`.
+    Blake2b512,
+    /// BLAKE2s-256, 64 hexadecimal characters. The reference's `blake2s256`.
+    Blake2s256,
+    /// SHAKE128, 32 hexadecimal characters. The reference's `shake128`.
+    ///
+    /// SHAKE is the extendable-output member of the SHA-3 family. Its output
+    /// length is a caller parameter, but the reference's `algorithm` is a fixed
+    /// string, so Node's default length for the name - 16 bytes here, 32 for
+    /// [`Algorithm::Shake256`] - is what both sides produce.
+    Shake128,
+    /// SHAKE256, 64 hexadecimal characters. The reference's `shake256`.
+    Shake256,
     /// No digest: the canonical form is returned as it stands.
     ///
     /// This is the reference's `passthrough`, and it is what it uses internally
@@ -334,6 +362,10 @@ pub fn hash(value: &Value) -> String {
 /// assert_eq!(hash_with(&value, Algorithm::Sha224).len(), 56);
 /// assert_eq!(hash_with(&value, Algorithm::Md5).len(), 32);
 /// assert_eq!(hash_with(&value, Algorithm::Sha3_256).len(), 64);
+/// assert_eq!(hash_with(&value, Algorithm::Ripemd160).len(), 40);
+/// assert_eq!(hash_with(&value, Algorithm::Blake2b512).len(), 128);
+/// assert_eq!(hash_with(&value, Algorithm::Shake128).len(), 32);
+/// assert_eq!(hash_with(&value, Algorithm::Shake256).len(), 64);
 /// // Passthrough is the canonical form, not a digest of it.
 /// assert_eq!(hash_with(&value, Algorithm::Passthrough), canonical(&value));
 /// ```
@@ -448,6 +480,14 @@ fn raw_digest(data: &[u8], algorithm: Algorithm) -> Vec<u8> {
         Algorithm::Sha3_224 => sha3::digest224(data).to_vec(),
         Algorithm::Sha3_512 => sha3::digest512(data).to_vec(),
         Algorithm::Sha3_384 => sha3::digest384(data).to_vec(),
+        Algorithm::Sha512_224 => sha512::digest512_224(data).to_vec(),
+        Algorithm::Sha512_256 => sha512::digest512_256(data).to_vec(),
+        Algorithm::Ripemd160 => ripemd160::digest(data).to_vec(),
+        Algorithm::Sm3 => sm3::digest(data).to_vec(),
+        Algorithm::Blake2b512 => blake2::digest512(data).to_vec(),
+        Algorithm::Blake2s256 => blake2::digest256(data).to_vec(),
+        Algorithm::Shake128 => sha3::shake128(data).to_vec(),
+        Algorithm::Shake256 => sha3::shake256(data).to_vec(),
         Algorithm::Passthrough => data.to_vec(),
     }
 }

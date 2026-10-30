@@ -25,6 +25,24 @@ pub(crate) fn digest384(data: &[u8]) -> [u8; 48] {
     out
 }
 
+/// The SHA-512/224 digest of `data`: SHA-512 with its own initial state, cut to
+/// its first 28 bytes.
+pub(crate) fn digest512_224(data: &[u8]) -> [u8; 28] {
+    let full = digest_with(INIT_512_224, data);
+    let mut out = [0u8; 28];
+    out.copy_from_slice(&full[..28]);
+    out
+}
+
+/// The SHA-512/256 digest of `data`: SHA-512 with its own initial state, cut to
+/// its first 32 bytes.
+pub(crate) fn digest512_256(data: &[u8]) -> [u8; 32] {
+    let full = digest_with(INIT_512_256, data);
+    let mut out = [0u8; 32];
+    out.copy_from_slice(&full[..32]);
+    out
+}
+
 /// The initial hash value for SHA-512: the fractional parts of the square roots
 /// of the first eight primes, from FIPS 180-4.
 const INIT_512: [u64; 8] = [
@@ -49,6 +67,30 @@ const INIT_384: [u64; 8] = [
     0x8eb4_4a87_6858_1511,
     0xdb0c_2e0d_64f9_8fa7,
     0x47b5_481d_befa_4fa4,
+];
+
+/// The initial hash value for SHA-512/224, from FIPS 180-4 section 5.3.6.
+const INIT_512_224: [u64; 8] = [
+    0x8c3d_37c8_1954_4da2,
+    0x73e1_9966_89dc_d4d6,
+    0x1dfa_b7ae_32ff_9c82,
+    0x679d_d514_582f_9fcf,
+    0x0f6d_2b69_7bd4_4da8,
+    0x77e3_6f73_04c4_8942,
+    0x3f9d_85a8_6a1d_36c8,
+    0x1112_e6ad_91d6_92a1,
+];
+
+/// The initial hash value for SHA-512/256, from FIPS 180-4 section 5.3.6.
+const INIT_512_256: [u64; 8] = [
+    0x2231_2194_fc2b_f72c,
+    0x9f55_5fa3_c84c_64c2,
+    0x2393_b86b_6f53_b151,
+    0x9638_7719_5940_eabd,
+    0x9628_3ee2_a88e_ffe3,
+    0xbe5e_1e25_5386_3992,
+    0x2b01_99fc_2c85_b8aa,
+    0x0eb7_2ddc_81c5_2ca2,
 ];
 
 /// The full 64-byte digest of `data` under a SHA-512-family initial state.
@@ -276,6 +318,57 @@ mod tests {
             ),
             "09330c33f71147e83d192fc782cd1b4753111b173b3b05d22fa08086e3b0f712\
              fcc7c71a557e2db966c3e9fa91746039"
+        );
+    }
+
+    #[test]
+    fn the_sha512_truncation_vectors_match() {
+        // The FIPS 180-4 vectors for SHA-512/224 and SHA-512/256. Each is the
+        // SHA-512 round function with its own initial state, so a copy-paste of
+        // the plain SHA-512 initial state would still produce a plausible digest
+        // and only the published vector tells the two apart.
+        fn hex224(data: &[u8]) -> String {
+            let mut out = String::with_capacity(56);
+            for byte in digest512_224(data) {
+                out.push(char::from_digit(u32::from(byte >> 4), 16).expect("nibble"));
+                out.push(char::from_digit(u32::from(byte & 0x0f), 16).expect("nibble"));
+            }
+            out
+        }
+        fn hex256(data: &[u8]) -> String {
+            let mut out = String::with_capacity(64);
+            for byte in digest512_256(data) {
+                out.push(char::from_digit(u32::from(byte >> 4), 16).expect("nibble"));
+                out.push(char::from_digit(u32::from(byte & 0x0f), 16).expect("nibble"));
+            }
+            out
+        }
+        assert_eq!(
+            hex224(b""),
+            "6ed0dd02806fa89e25de060c19d3ac86cabb87d6a0ddd05c333b84f4"
+        );
+        assert_eq!(
+            hex224(b"abc"),
+            "4634270f707b6a54daae7530460842e20e37ed265ceee9a43e8924aa"
+        );
+        assert_eq!(
+            hex256(b""),
+            "c672b8d1ef56ed28ab87c3622c5114069bdd3ad7b8f9737498d0c01ecef0967a"
+        );
+        assert_eq!(
+            hex256(b"abc"),
+            "53048e2681941ef99b2e29b76b4c7dabe4c2d0c634fc6d46e0e2f13107e7af23"
+        );
+        // One million 'a', the FIPS long vector, which exercises the counter
+        // over many blocks.
+        let long = vec![b'a'; 1_000_000];
+        assert_eq!(
+            hex224(&long),
+            "37ab331d76f0d36de422bd0edeb22a28accd487b7a8453ae965dd287"
+        );
+        assert_eq!(
+            hex256(&long),
+            "9a59a052930187a97038cae692f30708aa6491923ef5194394dc68d56c74fb21"
         );
     }
 
