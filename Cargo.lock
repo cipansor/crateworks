@@ -54,7 +54,7 @@ version = "0.2.0"
 
 [[package]]
 name = "holidays-rs"
-version = "0.4.1"
+version = "0.5.0"
 
 [[package]]
 name = "iso20022-rs"

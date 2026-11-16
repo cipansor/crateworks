@@ -53,6 +53,11 @@ COUNTRIES = {
     "Micronesia": "FM", "NorthernMarianaIslands": "MP", "Palau": "PW",
     "SaoTomeAndPrincipe": "ST", "UnitedStatesMinorOutlyingIslands": "UM",
     "UnitedStatesVirginIslands": "VI",
+    # Added in 0.5.0.
+    "Armenia": "AM", "Aruba": "AW", "Barbados": "BB", "Belarus": "BY",
+    "Curacao": "CW", "Georgia": "GE", "Guatemala": "GT", "Honduras": "HN",
+    "Hungary": "HU", "Moldova": "MD", "Madagascar": "MG", "Namibia": "NA",
+    "Seychelles": "SC",
 }
 
 # Countries whose holiday *set* already differs from the reference in a way
@@ -98,6 +103,10 @@ EXCLUDED = {
     "SaoTomeAndPrincipe": "reference carries '(observed)' duplicate dates",
     "UnitedStatesMinorOutlyingIslands": "reference carries '(observed)' duplicate dates",
     "UnitedStatesVirginIslands": "reference carries '(observed)' duplicate dates",
+    # Added in 0.5.0. Same cause: each lists the raw date and the observed one.
+    "Barbados": "reference carries '(observed)' duplicate dates",
+    "Namibia": "reference carries '(observed)' duplicate dates",
+    "Seychelles": "reference carries '(observed)' duplicate dates",
 }
 
 YEARS = list(range(2018, 2034))

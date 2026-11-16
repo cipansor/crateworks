@@ -36,7 +36,9 @@ Mozambique, Saint Lucia, Monaco, Equatorial Guinea, Niue, Panama, Nauru, DR
 Congo, Botswana, the Falkland Islands, Malawi, Norfolk Island, American Samoa,
 Guam, Micronesia, the Northern Mariana Islands, Palau, Sao Tome and Principe,
 the United States Minor Outlying Islands, the United States Virgin Islands, the
-Pitcairn Islands, Tokelau and Samoa. `Country::ALL` lists them.
+Pitcairn Islands, Tokelau, Samoa, Armenia, Aruba, Barbados, Belarus, Curacao,
+Georgia, Guatemala, Honduras, Hungary, Madagascar, Moldova, Namibia and
+Seychelles. `Country::ALL` lists them.
 
 Greece, Cyprus and Romania keep the Orthodox calendar, so their movable feasts
 are computed from Orthodox Easter with `Rule::OrthodoxEasterOffset` rather than
@@ -103,7 +105,11 @@ and not on the raw one, which is the date a payroll or a calendar grid needs.
 
 Every country table is checked against the Python `holidays` package over
 2000-2050 by `research/tools/verify_holidays.py`, which exits non-zero on any
-difference that is not listed as deliberate. The deliberate differences are
+difference that is not listed as deliberate. `research/tools/derive_holidays.py`
+additionally re-resolves a fitted table over a held-out window (2051-2075) and
+refuses a table that stops agreeing there, so a calendar that only reproduces
+the fitted years is rejected as a lookup rather than shipped as a rule. The
+deliberate differences are
 Indonesia (Islamic and Chinese observances are set by annual decree and are
 available through `Calendar::with_extra`), Spain (a national holiday that falls
 on a Sunday is kept rather than dropped), Ireland (Saint Stephen's Day is
@@ -117,8 +123,8 @@ python3 research/tools/verify_holidays.py
 ```
 
 `closest_holiday` is checked separately against the same package by
-`research/tools/gen_holidays_closest.py` and the `closest` test: 21,200 rows over
-53 countries whose holiday set already matches the reference, three probes a
+`research/tools/gen_holidays_closest.py` and the `closest` test: 25,200 rows over
+63 countries whose holiday set already matches the reference, three probes a
 month for eleven years plus the year boundaries where the answer crosses into
 the next year. The countries it skips are the ones `verify_holidays.py` already
 marks as deliberate differences - a nearest-holiday query over a different set

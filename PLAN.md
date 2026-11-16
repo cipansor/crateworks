@@ -26,12 +26,13 @@ memory. Those belong to a dedicated parser.
 settlement dates, and ticket systems computing SLAs. The existing `holidays`
 crate has one release from 2023 and an abandoned repository.
 
-**Covers today.** 86 countries, from Indonesia and the United States through
-Europe (including the Orthodox-Easter calendars Cyprus, Greece and Romania, and
-Malta), Latin America (Mexico, Brazil, El Salvador, Nicaragua and Peru), the
-Caribbean and Pacific. Fixed-date rules, Easter-relative rules via both the
-Gregorian and the Orthodox computus, and *n*-th-weekday rules including "last
-Monday of the month".
+**Covers today.** 99 countries, from Indonesia and the United States through
+Europe (including the Orthodox-Easter calendars Belarus, Cyprus, Georgia,
+Greece, Moldova and Romania, and Malta), Latin America (Mexico, Brazil,
+El Salvador, Guatemala, Honduras, Nicaragua and Peru), the Caribbean and
+Pacific. Fixed-date rules, Easter-relative rules via both the Gregorian and the
+Orthodox computus, and *n*-th-weekday rules including "last Monday of the
+month".
 Weekend substitution per holiday rather than per country: a rule can carry its
 own shift table with `Rule::ObservedShift`, and a country-wide `SubstituteStyle`
 covers the holidays that share one, including the United States rule (Saturday
@@ -51,8 +52,9 @@ state holidays, United Kingdom local holidays) are out of scope. The reference
 obvious next step, and every one is checked against it by
 `research/tools/verify_holidays.py`. `research/tools/derive_holidays.py` fits a
 country to the `Rule` set and refuses to emit a table that disagrees with the
-reference, and `research/tools/fit_holidays.py` ranks the remaining countries by
-how well they fit, so the next additions are mechanical.
+reference *or* that stops agreeing outside the fitted window, so a fit is a rule
+rather than a lookup, and `research/tools/fit_holidays.py` ranks the remaining
+countries by how well they fit, so the next additions are mechanical.
 
 ## 3. `stdnum-rs`
 

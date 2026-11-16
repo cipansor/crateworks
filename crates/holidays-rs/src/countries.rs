@@ -217,6 +217,32 @@ pub enum Country {
     UnitedStatesMinorOutlyingIslands,
     /// United States Virgin Islands.
     UnitedStatesVirginIslands,
+    /// Armenia.
+    Armenia,
+    /// Aruba.
+    Aruba,
+    /// Barbados.
+    Barbados,
+    /// Belarus.
+    Belarus,
+    /// Curacao.
+    Curacao,
+    /// Georgia.
+    Georgia,
+    /// Guatemala.
+    Guatemala,
+    /// Honduras.
+    Honduras,
+    /// Hungary.
+    Hungary,
+    /// Moldova.
+    Moldova,
+    /// Madagascar.
+    Madagascar,
+    /// Namibia.
+    Namibia,
+    /// Seychelles.
+    Seychelles,
 }
 
 impl Country {
@@ -308,6 +334,19 @@ impl Country {
         Self::SaoTomeAndPrincipe,
         Self::UnitedStatesMinorOutlyingIslands,
         Self::UnitedStatesVirginIslands,
+        Self::Armenia,
+        Self::Aruba,
+        Self::Barbados,
+        Self::Belarus,
+        Self::Curacao,
+        Self::Georgia,
+        Self::Guatemala,
+        Self::Honduras,
+        Self::Hungary,
+        Self::Moldova,
+        Self::Madagascar,
+        Self::Namibia,
+        Self::Seychelles,
     ];
 
     /// The holiday rules for this country, in no particular order.
@@ -400,6 +439,19 @@ impl Country {
             Self::SaoTomeAndPrincipe => SAO_TOME_AND_PRINCIPE,
             Self::UnitedStatesMinorOutlyingIslands => UNITED_STATES_MINOR_OUTLYING_ISLANDS,
             Self::UnitedStatesVirginIslands => UNITED_STATES_VIRGIN_ISLANDS,
+            Self::Armenia => ARMENIA,
+            Self::Aruba => ARUBA,
+            Self::Barbados => BARBADOS,
+            Self::Belarus => BELARUS,
+            Self::Curacao => CURACAO,
+            Self::Georgia => GEORGIA,
+            Self::Guatemala => GUATEMALA,
+            Self::Honduras => HONDURAS,
+            Self::Hungary => HUNGARY,
+            Self::Moldova => MOLDOVA,
+            Self::Madagascar => MADAGASCAR,
+            Self::Namibia => NAMIBIA,
+            Self::Seychelles => SEYCHELLES,
         }
     }
 
@@ -490,6 +542,19 @@ impl Country {
             | Self::Palau
             | Self::SaoTomeAndPrincipe
             | Self::UnitedStatesMinorOutlyingIslands
+            | Self::Armenia
+            | Self::Aruba
+            | Self::Barbados
+            | Self::Belarus
+            | Self::Curacao
+            | Self::Georgia
+            | Self::Guatemala
+            | Self::Honduras
+            | Self::Hungary
+            | Self::Moldova
+            | Self::Madagascar
+            | Self::Namibia
+            | Self::Seychelles
             | Self::UnitedStatesVirginIslands => SubstituteStyle::None,
             // Latvia moves a weekend holiday to the next Monday from 2007; the
             // two holidays that do not are wrapped in `Rule::NeverSubstituted`.
@@ -587,6 +652,19 @@ impl Country {
             Self::SaoTomeAndPrincipe => "Sao Tome and Principe",
             Self::UnitedStatesMinorOutlyingIslands => "United States Minor Outlying Islands",
             Self::UnitedStatesVirginIslands => "United States Virgin Islands",
+            Self::Armenia => "Armenia",
+            Self::Aruba => "Aruba",
+            Self::Barbados => "Barbados",
+            Self::Belarus => "Belarus",
+            Self::Curacao => "Curacao",
+            Self::Georgia => "Georgia",
+            Self::Guatemala => "Guatemala",
+            Self::Honduras => "Honduras",
+            Self::Hungary => "Hungary",
+            Self::Moldova => "Moldova",
+            Self::Madagascar => "Madagascar",
+            Self::Namibia => "Namibia",
+            Self::Seychelles => "Seychelles",
         }
     }
 }
@@ -3269,6 +3347,30 @@ static BOTSWANA: &[Holiday] = &[
             day: 2,
         },
     ),
+    h(
+        "Public Holiday",
+        Rule::Once {
+            year: 2024,
+            month: 10,
+            day: 30,
+        },
+    ),
+    h(
+        "Public Holiday",
+        Rule::Once {
+            year: 2024,
+            month: 10,
+            day: 31,
+        },
+    ),
+    h(
+        "Public Holiday",
+        Rule::Once {
+            year: 2026,
+            month: 5,
+            day: 15,
+        },
+    ),
 ];
 
 /// Falkland Islands.
@@ -4717,6 +4819,3203 @@ static UNITED_STATES_VIRGIN_ISLANDS: &[Holiday] = &[
     h("Liberty Day", Rule::Fixed { month: 11, day: 1 }),
     h("Christmas Second Day", Rule::Fixed { month: 12, day: 26 }),
 ];
+/// Armenia.
+///
+/// Derived from the reference `holidays` package and verified against it by
+/// `research/tools/derive_holidays.py`.
+static ARMENIA: &[Holiday] = &[
+    h("Նոր տարվա օր", Rule::Fixed { month: 1, day: 1 }),
+    h("Նոր տարվա օր", Rule::Fixed { month: 1, day: 2 }),
+    h(
+        "Սուրբ Ծնունդ եւ Հայտնություն",
+        Rule::Fixed { month: 1, day: 6 },
+    ),
+    h(
+        "Հայրենիքի պաշտպանության համար զոհվածների հիշատակի օր",
+        Rule::Since {
+            year: 2026,
+            base: &Rule::Fixed { month: 1, day: 27 },
+        },
+    ),
+    h(
+        "Բանակի օր",
+        Rule::Since {
+            year: 2003,
+            base: &Rule::Fixed { month: 1, day: 28 },
+        },
+    ),
+    h(
+        "Կանանց տոն",
+        Rule::Since {
+            year: 2002,
+            base: &Rule::Fixed { month: 3, day: 8 },
+        },
+    ),
+    h(
+        "Հայոց ցեղասպանության զոհերի հիշատակի օր",
+        Rule::Since {
+            year: 2015,
+            base: &Rule::Fixed { month: 4, day: 24 },
+        },
+    ),
+    h(
+        "Աշխատանքի օր",
+        Rule::Since {
+            year: 2002,
+            base: &Rule::Fixed { month: 5, day: 1 },
+        },
+    ),
+    h(
+        "Հաղթանակի և Խաղաղության տոն",
+        Rule::Fixed { month: 5, day: 9 },
+    ),
+    h("Հանրապետության օր", Rule::Fixed { month: 5, day: 28 }),
+    h("Սահմանադրության օր", Rule::Fixed { month: 7, day: 5 }),
+    h("Անկախության օր", Rule::Fixed { month: 9, day: 21 }),
+    h("Նոր տարվա գիշեր", Rule::Fixed { month: 12, day: 31 }),
+    h(
+        "Մայրության և գեղեցկության տոն",
+        Rule::Until {
+            year: 2001,
+            base: &Rule::Fixed { month: 4, day: 7 },
+        },
+    ),
+    h(
+        "Ցեղասպանության զոհերի հիշատակի օր",
+        Rule::Until {
+            year: 2014,
+            base: &Rule::Fixed { month: 4, day: 24 },
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 06.05.2000 թվականից)",
+        Rule::Once {
+            year: 2000,
+            month: 5,
+            day: 8,
+        },
+    ),
+    h(
+        "Կանանց միջազգային օր",
+        Rule::Once {
+            year: 2001,
+            month: 3,
+            day: 8,
+        },
+    ),
+    h(
+        "Աշխատավորների համերաշխության միջազգային օր",
+        Rule::Once {
+            year: 2001,
+            month: 5,
+            day: 1,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 29.12.2002 թվականից)",
+        Rule::Once {
+            year: 2003,
+            month: 1,
+            day: 3,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 08.01.2005 թվականից)",
+        Rule::Once {
+            year: 2005,
+            month: 1,
+            day: 3,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 05.03.2005 թվականից)",
+        Rule::Once {
+            year: 2005,
+            month: 3,
+            day: 7,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 02.07.2005 թվականից)",
+        Rule::Once {
+            year: 2005,
+            month: 7,
+            day: 4,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 08.01.2006 թվականից)",
+        Rule::Once {
+            year: 2006,
+            month: 1,
+            day: 3,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 06.05.2006 թվականից)",
+        Rule::Once {
+            year: 2006,
+            month: 5,
+            day: 8,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 30.12.2006 թվականից)",
+        Rule::Once {
+            year: 2007,
+            month: 1,
+            day: 3,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 07.01.2007 թվականից)",
+        Rule::Once {
+            year: 2007,
+            month: 1,
+            day: 4,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 28.04.2007 թվականից)",
+        Rule::Once {
+            year: 2007,
+            month: 4,
+            day: 30,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 29.12.2007 թվականից)",
+        Rule::Once {
+            year: 2008,
+            month: 1,
+            day: 3,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 12.01.2008 թվականից)",
+        Rule::Once {
+            year: 2008,
+            month: 1,
+            day: 4,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 04.05.2008 թվականից)",
+        Rule::Once {
+            year: 2008,
+            month: 5,
+            day: 2,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 28.06.2008 թվականից)",
+        Rule::Once {
+            year: 2008,
+            month: 6,
+            day: 30,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 16.08.2008 թվականից)",
+        Rule::Once {
+            year: 2008,
+            month: 8,
+            day: 18,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 13.09.2008 թվականից)",
+        Rule::Once {
+            year: 2008,
+            month: 9,
+            day: 15,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 10.01.2009 թվականից)",
+        Rule::Once {
+            year: 2009,
+            month: 1,
+            day: 5,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 27.12.2008 թվականից)",
+        Rule::Once {
+            year: 2009,
+            month: 1,
+            day: 7,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 18.04.2009 թվականից)",
+        Rule::Once {
+            year: 2009,
+            month: 4,
+            day: 13,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 18.07.2009 թվականից)",
+        Rule::Once {
+            year: 2009,
+            month: 7,
+            day: 20,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 15.08.2009 թվականից)",
+        Rule::Once {
+            year: 2009,
+            month: 8,
+            day: 17,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 12.09.2009 թվականից)",
+        Rule::Once {
+            year: 2009,
+            month: 9,
+            day: 14,
+        },
+    ),
+    h(
+        "նախածննդյան տոներ",
+        Rule::Between {
+            from: 2010,
+            to: 2021,
+            base: &Rule::Fixed { month: 1, day: 3 },
+        },
+    ),
+    h(
+        "նախածննդյան տոներ",
+        Rule::Between {
+            from: 2010,
+            to: 2021,
+            base: &Rule::Fixed { month: 1, day: 4 },
+        },
+    ),
+    h(
+        "նախածննդյան տոներ",
+        Rule::Between {
+            from: 2010,
+            to: 2021,
+            base: &Rule::Fixed { month: 1, day: 5 },
+        },
+    ),
+    h(
+        "Մեռելոց հիշատակի օր",
+        Rule::Between {
+            from: 2010,
+            to: 2021,
+            base: &Rule::Fixed { month: 1, day: 7 },
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 26.12.2009 թվականից)",
+        Rule::Once {
+            year: 2010,
+            month: 1,
+            day: 8,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 10.04.2010 թվականից)",
+        Rule::Once {
+            year: 2010,
+            month: 4,
+            day: 5,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 17.07.2010 թվականից)",
+        Rule::Once {
+            year: 2010,
+            month: 7,
+            day: 12,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 21.08.2010 թվականից)",
+        Rule::Once {
+            year: 2010,
+            month: 8,
+            day: 16,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 18.09.2010 թվականից)",
+        Rule::Once {
+            year: 2010,
+            month: 9,
+            day: 13,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 11.09.2010 թվականից)",
+        Rule::Once {
+            year: 2010,
+            month: 9,
+            day: 20,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 12.03.2011 թվականից)",
+        Rule::Once {
+            year: 2011,
+            month: 3,
+            day: 7,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 30.04.2011 թվականից)",
+        Rule::Once {
+            year: 2011,
+            month: 4,
+            day: 25,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 09.07.2011 թվականից)",
+        Rule::Once {
+            year: 2011,
+            month: 7,
+            day: 4,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 06.08.2011 թվականից)",
+        Rule::Once {
+            year: 2011,
+            month: 8,
+            day: 1,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 20.08.2011 թվականից)",
+        Rule::Once {
+            year: 2011,
+            month: 8,
+            day: 15,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 17.09.2011 թվականից)",
+        Rule::Once {
+            year: 2011,
+            month: 9,
+            day: 12,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 24.03.2012 թվականից)",
+        Rule::Once {
+            year: 2012,
+            month: 3,
+            day: 9,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 14.04.2012 թվականից)",
+        Rule::Once {
+            year: 2012,
+            month: 4,
+            day: 9,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 28.04.2012 թվականից)",
+        Rule::Once {
+            year: 2012,
+            month: 4,
+            day: 30,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 14.07.2012 թվականից)",
+        Rule::Once {
+            year: 2012,
+            month: 7,
+            day: 6,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 21.07.2012 թվականից)",
+        Rule::Once {
+            year: 2012,
+            month: 7,
+            day: 16,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 18.08.2012 թվականից)",
+        Rule::Once {
+            year: 2012,
+            month: 8,
+            day: 13,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 29.09.2012 թվականից)",
+        Rule::Once {
+            year: 2012,
+            month: 9,
+            day: 17,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 13.04.2013 թվականից)",
+        Rule::Once {
+            year: 2013,
+            month: 4,
+            day: 1,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 18.05.2013 թվականից)",
+        Rule::Once {
+            year: 2013,
+            month: 5,
+            day: 10,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 01.06.2013 թվականից)",
+        Rule::Once {
+            year: 2013,
+            month: 5,
+            day: 27,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 13.07.2013 թվականից)",
+        Rule::Once {
+            year: 2013,
+            month: 7,
+            day: 8,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 24.08.2013 թվականից)",
+        Rule::Once {
+            year: 2013,
+            month: 8,
+            day: 19,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 28.09.2013 թվականից)",
+        Rule::Once {
+            year: 2013,
+            month: 9,
+            day: 16,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 28.12.2013 թվականից)",
+        Rule::Once {
+            year: 2013,
+            month: 12,
+            day: 30,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 01.02.2014 թվականից)",
+        Rule::Once {
+            year: 2014,
+            month: 1,
+            day: 27,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 26.04.2014 թվականից)",
+        Rule::Once {
+            year: 2014,
+            month: 4,
+            day: 21,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 31.05.2014 թվականից)",
+        Rule::Once {
+            year: 2014,
+            month: 5,
+            day: 2,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 02.08.2014 թվականից)",
+        Rule::Once {
+            year: 2014,
+            month: 7,
+            day: 28,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 23.08.2014 թվականից)",
+        Rule::Once {
+            year: 2014,
+            month: 8,
+            day: 18,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 27.09.2014 թվականից)",
+        Rule::Once {
+            year: 2014,
+            month: 9,
+            day: 15,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 20.12.2014 թվականից)",
+        Rule::Once {
+            year: 2015,
+            month: 1,
+            day: 8,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 27.12.2014 թվականից)",
+        Rule::Once {
+            year: 2015,
+            month: 1,
+            day: 9,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 11.04.2015 թվականից)",
+        Rule::Once {
+            year: 2015,
+            month: 4,
+            day: 6,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 18.04.2015 թվականից)",
+        Rule::Once {
+            year: 2015,
+            month: 4,
+            day: 23,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 18.07.2015 թվականից)",
+        Rule::Once {
+            year: 2015,
+            month: 7,
+            day: 13,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 19.09.2015 թվականից)",
+        Rule::Once {
+            year: 2015,
+            month: 9,
+            day: 14,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 12.03.2016 թվականից)",
+        Rule::Once {
+            year: 2016,
+            month: 3,
+            day: 7,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 02.04.2016 թվականից)",
+        Rule::Once {
+            year: 2016,
+            month: 3,
+            day: 28,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 24.09.2016 թվականից)",
+        Rule::Once {
+            year: 2016,
+            month: 9,
+            day: 12,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 06.05.2017 թվականից)",
+        Rule::Once {
+            year: 2017,
+            month: 4,
+            day: 17,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 20.05.2017 թվականից)",
+        Rule::Once {
+            year: 2017,
+            month: 5,
+            day: 8,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 23.09.2017 թվականից)",
+        Rule::Once {
+            year: 2017,
+            month: 9,
+            day: 18,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 17.03.2018 թվականից)",
+        Rule::Once {
+            year: 2018,
+            month: 3,
+            day: 9,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 07.04.2018 թվականից)",
+        Rule::Once {
+            year: 2018,
+            month: 4,
+            day: 2,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 05.05.2018 թվականից)",
+        Rule::Once {
+            year: 2018,
+            month: 4,
+            day: 30,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 27.10.2018 թվականից)",
+        Rule::Once {
+            year: 2018,
+            month: 10,
+            day: 11,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 03.11.2018 թվականից)",
+        Rule::Once {
+            year: 2018,
+            month: 10,
+            day: 12,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 01.02.2020 թվականից)",
+        Rule::Once {
+            year: 2020,
+            month: 1,
+            day: 27,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 23.05.2020 թվականից)",
+        Rule::Once {
+            year: 2020,
+            month: 5,
+            day: 29,
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 25.09.2021 թվականից)",
+        Rule::Once {
+            year: 2021,
+            month: 9,
+            day: 20,
+        },
+    ),
+];
+
+/// Aruba.
+///
+/// Derived from the reference `holidays` package and verified against it by
+/// `research/tools/derive_holidays.py`.
+static ARUBA: &[Holiday] = &[
+    h("Aña Nobo", Rule::Fixed { month: 1, day: 1 }),
+    h("Dia di Betico", Rule::Fixed { month: 1, day: 25 }),
+    h(
+        "Dialuna prome cu diaranson di shinish",
+        Rule::Since {
+            year: 2023,
+            base: &Rule::EasterOffset(-48),
+        },
+    ),
+    h("Dia di Himno y Bandera", Rule::Fixed { month: 3, day: 18 }),
+    h("Bierna Santo", Rule::EasterOffset(-2)),
+    h("Di dos dia di Pasco di Resureccion", Rule::EasterOffset(1)),
+    h(
+        "Dia di Obrero",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 5, day: 1 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Dia di Rey",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2021,
+                base: &Rule::Fixed { month: 4, day: 27 },
+            },
+            from: 2000,
+            shifts: &[(0, -1)],
+        },
+    ),
+    h("Dia di Asuncion", Rule::EasterOffset(39)),
+    h("Pasco di Nacemento", Rule::Fixed { month: 12, day: 25 }),
+    h(
+        "Di dos dia di Pasco di Nacemento",
+        Rule::Fixed { month: 12, day: 26 },
+    ),
+    h(
+        "Dialuna despues di Carnaval Grandi",
+        Rule::Until {
+            year: 2022,
+            base: &Rule::EasterOffset(-48),
+        },
+    ),
+    h(
+        "Aña di La Reina",
+        Rule::ObservedShift {
+            base: &Rule::Until {
+                year: 2013,
+                base: &Rule::Fixed { month: 4, day: 29 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],
+        },
+    ),
+    h(
+        "Aña di Rey",
+        Rule::ObservedShift {
+            base: &Rule::Between {
+                from: 2014,
+                to: 2020,
+                base: &Rule::Fixed { month: 4, day: 26 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (2, 1), (3, 1), (4, 1), (5, 1)],
+        },
+    ),
+];
+
+/// Barbados.
+///
+/// Derived from the reference `holidays` package and verified against it by
+/// `research/tools/derive_holidays.py`.
+static BARBADOS: &[Holiday] = &[
+    h(
+        "New Year's Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 1, day: 1 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Errol Barrow Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 1, day: 21 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h("Good Friday", Rule::EasterOffset(-2)),
+    h("Easter Monday", Rule::EasterOffset(1)),
+    h(
+        "National Heroes Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 4, day: 28 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "May Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 5, day: 1 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h("Whit Monday", Rule::EasterOffset(50)),
+    h(
+        "Emancipation Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 8, day: 1 },
+            from: 2000,
+            shifts: &[(0, 2), (1, 1)],
+        },
+    ),
+    h(
+        "Kadooment Day",
+        Rule::NthWeekday {
+            month: 8,
+            weekday: 1,
+            nth: 1,
+        },
+    ),
+    h(
+        "Independence Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 11, day: 30 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Christmas Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 25 },
+            from: 2000,
+            shifts: &[(0, 2)],
+        },
+    ),
+    h(
+        "Boxing Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 26 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Public Holiday",
+        Rule::Once {
+            year: 2021,
+            month: 1,
+            day: 4,
+        },
+    ),
+    h(
+        "Public Holiday",
+        Rule::Once {
+            year: 2021,
+            month: 1,
+            day: 5,
+        },
+    ),
+    h(
+        "50th Anniversary of CARICOM Holiday",
+        Rule::Once {
+            year: 2023,
+            month: 7,
+            day: 31,
+        },
+    ),
+];
+
+/// Belarus.
+///
+/// Derived from the reference `holidays` package and verified against it by
+/// `research/tools/derive_holidays.py`.
+static BELARUS: &[Holiday] = &[
+    h("Новы год", Rule::Fixed { month: 1, day: 1 }),
+    h(
+        "Новы год",
+        Rule::Since {
+            year: 2020,
+            base: &Rule::Fixed { month: 1, day: 2 },
+        },
+    ),
+    h(
+        "Нараджэнне Хрыстова (праваслаўнае Раство)",
+        Rule::Fixed { month: 1, day: 7 },
+    ),
+    h("Дзень жанчын", Rule::Fixed { month: 3, day: 8 }),
+    h("Свята працы", Rule::Fixed { month: 5, day: 1 }),
+    h("Дзень Перамогі", Rule::Fixed { month: 5, day: 9 }),
+    h("Радаўніца", Rule::OrthodoxEasterOffset(9)),
+    h(
+        "Дзень Незалежнасці Рэспублікі Беларусь (Дзень Рэспублікі)",
+        Rule::Fixed { month: 7, day: 3 },
+    ),
+    h(
+        "Дзень Кастрычніцкай рэвалюцыі",
+        Rule::Fixed { month: 11, day: 7 },
+    ),
+    h(
+        "Нараджэнне Хрыстова (каталіцкае Раство)",
+        Rule::Fixed { month: 12, day: 25 },
+    ),
+    h("Каталіцкі Вялікдзень", Rule::EasterOffset(0)),
+    h("Праваслаўны Вялікдзень", Rule::OrthodoxEasterOffset(0)),
+    h(
+        "Выходны (перанесены з 13.05.2000)",
+        Rule::Once {
+            year: 2000,
+            month: 5,
+            day: 8,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 11.11.2000)",
+        Rule::Once {
+            year: 2000,
+            month: 11,
+            day: 6,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 20.01.2001)",
+        Rule::Once {
+            year: 2001,
+            month: 1,
+            day: 2,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 03.03.2001)",
+        Rule::Once {
+            year: 2001,
+            month: 3,
+            day: 9,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 21.04.2001)",
+        Rule::Once {
+            year: 2001,
+            month: 4,
+            day: 23,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 28.04.2001)",
+        Rule::Once {
+            year: 2001,
+            month: 4,
+            day: 30,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 07.07.2001)",
+        Rule::Once {
+            year: 2001,
+            month: 7,
+            day: 2,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 22.12.2001)",
+        Rule::Once {
+            year: 2001,
+            month: 12,
+            day: 24,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 29.12.2001)",
+        Rule::Once {
+            year: 2001,
+            month: 12,
+            day: 31,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 05.01.2002)",
+        Rule::Once {
+            year: 2002,
+            month: 1,
+            day: 2,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 18.05.2002)",
+        Rule::Once {
+            year: 2002,
+            month: 5,
+            day: 10,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 16.11.2002)",
+        Rule::Once {
+            year: 2002,
+            month: 11,
+            day: 8,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 04.01.2003)",
+        Rule::Once {
+            year: 2003,
+            month: 1,
+            day: 6,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 03.05.2003)",
+        Rule::Once {
+            year: 2003,
+            month: 5,
+            day: 5,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 10.01.2004)",
+        Rule::Once {
+            year: 2004,
+            month: 1,
+            day: 2,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 17.01.2004)",
+        Rule::Once {
+            year: 2004,
+            month: 1,
+            day: 5,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 31.01.2004)",
+        Rule::Once {
+            year: 2004,
+            month: 1,
+            day: 6,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 17.04.2004)",
+        Rule::Once {
+            year: 2004,
+            month: 4,
+            day: 19,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 12.03.2005)",
+        Rule::Once {
+            year: 2005,
+            month: 3,
+            day: 7,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 21.01.2006)",
+        Rule::Once {
+            year: 2006,
+            month: 1,
+            day: 2,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 06.05.2006)",
+        Rule::Once {
+            year: 2006,
+            month: 5,
+            day: 8,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 04.11.2006)",
+        Rule::Once {
+            year: 2006,
+            month: 11,
+            day: 6,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 30.12.2006)",
+        Rule::Once {
+            year: 2007,
+            month: 1,
+            day: 2,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 17.03.2007)",
+        Rule::Once {
+            year: 2007,
+            month: 3,
+            day: 9,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 14.04.2007)",
+        Rule::Once {
+            year: 2007,
+            month: 4,
+            day: 16,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 05.05.2007)",
+        Rule::Once {
+            year: 2007,
+            month: 4,
+            day: 30,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 07.07.2007)",
+        Rule::Once {
+            year: 2007,
+            month: 7,
+            day: 2,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 22.12.2007)",
+        Rule::Once {
+            year: 2007,
+            month: 12,
+            day: 24,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 29.12.2007)",
+        Rule::Once {
+            year: 2007,
+            month: 12,
+            day: 31,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 12.01.2008)",
+        Rule::Once {
+            year: 2008,
+            month: 1,
+            day: 2,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 03.05.2008)",
+        Rule::Once {
+            year: 2008,
+            month: 5,
+            day: 5,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 28.06.2008)",
+        Rule::Once {
+            year: 2008,
+            month: 7,
+            day: 4,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 20.12.2008)",
+        Rule::Once {
+            year: 2008,
+            month: 12,
+            day: 26,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 10.01.2009)",
+        Rule::Once {
+            year: 2009,
+            month: 1,
+            day: 2,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 25.04.2009)",
+        Rule::Once {
+            year: 2009,
+            month: 4,
+            day: 27,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 23.01.2010)",
+        Rule::Once {
+            year: 2010,
+            month: 1,
+            day: 8,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 17.04.2010)",
+        Rule::Once {
+            year: 2010,
+            month: 4,
+            day: 12,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 15.05.2010)",
+        Rule::Once {
+            year: 2010,
+            month: 5,
+            day: 10,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 12.03.2011)",
+        Rule::Once {
+            year: 2011,
+            month: 3,
+            day: 7,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 14.05.2011)",
+        Rule::Once {
+            year: 2011,
+            month: 5,
+            day: 2,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 11.03.2012)",
+        Rule::Once {
+            year: 2012,
+            month: 3,
+            day: 9,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 28.04.2012)",
+        Rule::Once {
+            year: 2012,
+            month: 4,
+            day: 23,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 30.06.2012)",
+        Rule::Once {
+            year: 2012,
+            month: 7,
+            day: 2,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 22.12.2012)",
+        Rule::Once {
+            year: 2012,
+            month: 12,
+            day: 24,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 29.12.2012)",
+        Rule::Once {
+            year: 2012,
+            month: 12,
+            day: 31,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 05.01.2013)",
+        Rule::Once {
+            year: 2013,
+            month: 1,
+            day: 2,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 18.05.2013)",
+        Rule::Once {
+            year: 2013,
+            month: 5,
+            day: 10,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 04.01.2014)",
+        Rule::Once {
+            year: 2014,
+            month: 1,
+            day: 2,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 11.01.2014)",
+        Rule::Once {
+            year: 2014,
+            month: 1,
+            day: 6,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 03.05.2014)",
+        Rule::Once {
+            year: 2014,
+            month: 4,
+            day: 30,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 12.07.2014)",
+        Rule::Once {
+            year: 2014,
+            month: 7,
+            day: 4,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 20.12.2014)",
+        Rule::Once {
+            year: 2014,
+            month: 12,
+            day: 26,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 10.01.2015)",
+        Rule::Once {
+            year: 2015,
+            month: 1,
+            day: 2,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 25.04.2015)",
+        Rule::Once {
+            year: 2015,
+            month: 4,
+            day: 20,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 16.01.2016)",
+        Rule::Once {
+            year: 2016,
+            month: 1,
+            day: 8,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 05.03.2016)",
+        Rule::Once {
+            year: 2016,
+            month: 3,
+            day: 7,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 21.01.2017)",
+        Rule::Once {
+            year: 2017,
+            month: 1,
+            day: 2,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 29.04.2017)",
+        Rule::Once {
+            year: 2017,
+            month: 4,
+            day: 24,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 06.05.2017)",
+        Rule::Once {
+            year: 2017,
+            month: 5,
+            day: 8,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 04.11.2017)",
+        Rule::Once {
+            year: 2017,
+            month: 11,
+            day: 6,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 20.01.2018)",
+        Rule::Once {
+            year: 2018,
+            month: 1,
+            day: 2,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 03.03.2018)",
+        Rule::Once {
+            year: 2018,
+            month: 3,
+            day: 9,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 14.04.2018)",
+        Rule::Once {
+            year: 2018,
+            month: 4,
+            day: 16,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 28.04.2018)",
+        Rule::Once {
+            year: 2018,
+            month: 4,
+            day: 30,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 07.07.2018)",
+        Rule::Once {
+            year: 2018,
+            month: 7,
+            day: 2,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 22.12.2018)",
+        Rule::Once {
+            year: 2018,
+            month: 12,
+            day: 24,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 29.12.2018)",
+        Rule::Once {
+            year: 2018,
+            month: 12,
+            day: 31,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 04.05.2019)",
+        Rule::Once {
+            year: 2019,
+            month: 5,
+            day: 6,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 11.05.2019)",
+        Rule::Once {
+            year: 2019,
+            month: 5,
+            day: 8,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 16.11.2019)",
+        Rule::Once {
+            year: 2019,
+            month: 11,
+            day: 8,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 04.01.2020)",
+        Rule::Once {
+            year: 2020,
+            month: 1,
+            day: 6,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 04.04.2020)",
+        Rule::Once {
+            year: 2020,
+            month: 4,
+            day: 27,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 16.01.2021)",
+        Rule::Once {
+            year: 2021,
+            month: 1,
+            day: 8,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 15.05.2021)",
+        Rule::Once {
+            year: 2021,
+            month: 5,
+            day: 10,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 12.03.2022)",
+        Rule::Once {
+            year: 2022,
+            month: 3,
+            day: 7,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 14.05.2022)",
+        Rule::Once {
+            year: 2022,
+            month: 5,
+            day: 2,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 29.04.2023)",
+        Rule::Once {
+            year: 2023,
+            month: 4,
+            day: 24,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 13.05.2023)",
+        Rule::Once {
+            year: 2023,
+            month: 5,
+            day: 8,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 11.11.2023)",
+        Rule::Once {
+            year: 2023,
+            month: 11,
+            day: 6,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 18.05.2024)",
+        Rule::Once {
+            year: 2024,
+            month: 5,
+            day: 13,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 16.11.2024)",
+        Rule::Once {
+            year: 2024,
+            month: 11,
+            day: 8,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 11.01.2025)",
+        Rule::Once {
+            year: 2025,
+            month: 1,
+            day: 6,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 26.04.2025)",
+        Rule::Once {
+            year: 2025,
+            month: 4,
+            day: 28,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 12.07.2025)",
+        Rule::Once {
+            year: 2025,
+            month: 7,
+            day: 4,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 20.12.2025)",
+        Rule::Once {
+            year: 2025,
+            month: 12,
+            day: 26,
+        },
+    ),
+    h(
+        "Выходны (перанесены з 25.04.2026)",
+        Rule::Once {
+            year: 2026,
+            month: 4,
+            day: 20,
+        },
+    ),
+];
+
+/// Curacao.
+///
+/// Derived from the reference `holidays` package and verified against it by
+/// `research/tools/derive_holidays.py`.
+static CURACAO: &[Holiday] = &[
+    h("Aña Nobo", Rule::Fixed { month: 1, day: 1 }),
+    h(
+        "Dialuna despues di Carnaval Grandi",
+        Rule::EasterOffset(-48),
+    ),
+    h("Bièrnèsantu", Rule::EasterOffset(-2)),
+    h("Pasku di Resurekshon", Rule::EasterOffset(0)),
+    h("Di dos dia di Pasku di Resurekshon", Rule::EasterOffset(1)),
+    h(
+        "Dia di Obrero",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 5, day: 1 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Dia di Rey",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2014,
+                base: &Rule::Fixed { month: 4, day: 27 },
+            },
+            from: 2000,
+            shifts: &[(0, -1)],
+        },
+    ),
+    h("Dia di Asenshon", Rule::EasterOffset(39)),
+    h("Dia di Himno i Bandera", Rule::Fixed { month: 7, day: 2 }),
+    h(
+        "Dia di Pais Kòrsou",
+        Rule::Since {
+            year: 2010,
+            base: &Rule::Fixed { month: 10, day: 10 },
+        },
+    ),
+    h("Pasku di Nasementu", Rule::Fixed { month: 12, day: 25 }),
+    h(
+        "Di dos dia di Pasku di Nasementu",
+        Rule::Fixed { month: 12, day: 26 },
+    ),
+    h(
+        "Dia di la Reina",
+        Rule::ObservedShift {
+            base: &Rule::Until {
+                year: 2013,
+                base: &Rule::Fixed { month: 4, day: 29 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],
+        },
+    ),
+    h(
+        "Domingo di Pentekòstès",
+        Rule::Until {
+            year: 2009,
+            base: &Rule::EasterOffset(49),
+        },
+    ),
+    h(
+        "Dia di Reino",
+        Rule::Between {
+            from: 2008,
+            to: 2009,
+            base: &Rule::Fixed { month: 12, day: 15 },
+        },
+    ),
+];
+
+/// Georgia.
+///
+/// Derived from the reference `holidays` package and verified against it by
+/// `research/tools/derive_holidays.py`.
+static GEORGIA: &[Holiday] = &[
+    h("ახალი წელი", Rule::Fixed { month: 1, day: 1 }),
+    h("ახალი წელი", Rule::Fixed { month: 1, day: 2 }),
+    h("ქრისტეშობა", Rule::Fixed { month: 1, day: 7 }),
+    h("ნათლისღება", Rule::Fixed { month: 1, day: 19 }),
+    h("დედის დღე", Rule::Fixed { month: 3, day: 3 }),
+    h("ქალთა საერთაშორისო დღე", Rule::Fixed { month: 3, day: 8 }),
+    h("ეროვნული ერთიანობის დღე", Rule::Fixed { month: 4, day: 9 }),
+    h("წითელი პარასკევი", Rule::OrthodoxEasterOffset(-2)),
+    h("დიდი შაბათი", Rule::OrthodoxEasterOffset(-1)),
+    h("აღდგომა", Rule::OrthodoxEasterOffset(0)),
+    h("შავი ორშაბათი", Rule::OrthodoxEasterOffset(1)),
+    h("ფაშიზმზე გამარჯვების დღე", Rule::Fixed { month: 5, day: 9 }),
+    h(
+        "წმინდა ანდრია პირველწოდებულის დღე",
+        Rule::Fixed { month: 5, day: 12 },
+    ),
+    h(
+        "ოჯახის სიწმინდისა და მშობლების პატივისცემის დღე",
+        Rule::Since {
+            year: 2025,
+            base: &Rule::Fixed { month: 5, day: 17 },
+        },
+    ),
+    h("დამოუკიდებლობის დღე", Rule::Fixed { month: 5, day: 26 }),
+    h("მარიამობა", Rule::Fixed { month: 8, day: 28 }),
+    h("მცხეთობის", Rule::Fixed { month: 10, day: 14 }),
+    h("გიორგობა", Rule::Fixed { month: 11, day: 23 }),
+    h(
+        "უქმე დღე",
+        Rule::ObservedShift {
+            base: &Rule::Between {
+                from: 2024,
+                to: 2025,
+                base: &Rule::Fixed { month: 5, day: 17 },
+            },
+            from: 2000,
+            shifts: &[(6, 104)],
+        },
+    ),
+];
+
+/// Guatemala.
+///
+/// Derived from the reference `holidays` package and verified against it by
+/// `research/tools/derive_holidays.py`.
+static GUATEMALA: &[Holiday] = &[
+    h("Año Nuevo", Rule::Fixed { month: 1, day: 1 }),
+    h("Jueves Santo", Rule::EasterOffset(-3)),
+    h("Viernes Santo", Rule::EasterOffset(-2)),
+    h("Sábado Santo", Rule::EasterOffset(-1)),
+    h(
+        "Día del Trabajo",
+        Rule::Until {
+            year: 2018,
+            base: &Rule::Fixed { month: 5, day: 1 },
+        },
+    ),
+    h(
+        "Día del Trabajo",
+        Rule::Since {
+            year: 2020,
+            base: &Rule::Fixed { month: 5, day: 1 },
+        },
+    ),
+    h(
+        "Día del Trabajo",
+        Rule::Once {
+            year: 2019,
+            month: 4,
+            day: 29,
+        },
+    ),
+    h(
+        "Día del Ejército",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 6, day: 30 },
+            from: 2019,
+            shifts: &[(0, 1), (2, -1), (3, -2), (4, 4), (5, 3), (6, 2)],
+        },
+    ),
+    h("Día de la Asunción", Rule::Fixed { month: 8, day: 15 }),
+    h("Día de la Independencia", Rule::Fixed { month: 9, day: 15 }),
+    h(
+        "Día de la Revolución",
+        Rule::Until {
+            year: 2017,
+            base: &Rule::Fixed { month: 10, day: 20 },
+        },
+    ),
+    h(
+        "Día de la Revolución",
+        Rule::Since {
+            year: 2020,
+            base: &Rule::Fixed { month: 10, day: 20 },
+        },
+    ),
+    h(
+        "Día de la Revolución",
+        Rule::Between {
+            from: 2018,
+            to: 2019,
+            base: &Rule::WeekdayOnOrBefore {
+                month: 10,
+                day: 22,
+                weekday: 1,
+            },
+        },
+    ),
+    h("Día de Todos los Santos", Rule::Fixed { month: 11, day: 1 }),
+    h("Día de Navidad", Rule::Fixed { month: 12, day: 25 }),
+];
+
+/// Honduras.
+///
+/// Derived from the reference `holidays` package and verified against it by
+/// `research/tools/derive_holidays.py`.
+static HONDURAS: &[Holiday] = &[
+    h("Año Nuevo", Rule::Fixed { month: 1, day: 1 }),
+    h("Jueves Santo", Rule::EasterOffset(-3)),
+    h("Viernes Santo", Rule::EasterOffset(-2)),
+    h("Sábado de Gloria", Rule::EasterOffset(-1)),
+    h("Día de las Américas", Rule::Fixed { month: 4, day: 14 }),
+    h("Día del Trabajo", Rule::Fixed { month: 5, day: 1 }),
+    h("Día de la Independencia", Rule::Fixed { month: 9, day: 15 }),
+    h(
+        "Semana Morazánica",
+        Rule::Since {
+            year: 2015,
+            base: &Rule::NthWeekday {
+                month: 10,
+                weekday: 3,
+                nth: 1,
+            },
+        },
+    ),
+    h(
+        "Semana Morazánica",
+        Rule::Since {
+            year: 2015,
+            base: &Rule::WeekdayOnOrBefore {
+                month: 10,
+                day: 8,
+                weekday: 4,
+            },
+        },
+    ),
+    h(
+        "Semana Morazánica",
+        Rule::Since {
+            year: 2015,
+            base: &Rule::WeekdayOnOrBefore {
+                month: 10,
+                day: 9,
+                weekday: 5,
+            },
+        },
+    ),
+    h("Navidad", Rule::Fixed { month: 12, day: 25 }),
+    h(
+        "Día de Morazán",
+        Rule::Until {
+            year: 2014,
+            base: &Rule::Fixed { month: 10, day: 3 },
+        },
+    ),
+    h(
+        "Día de la Raza",
+        Rule::Until {
+            year: 2014,
+            base: &Rule::Fixed { month: 10, day: 12 },
+        },
+    ),
+    h(
+        "Día de las Fuerzas Armadas",
+        Rule::Until {
+            year: 2014,
+            base: &Rule::Fixed { month: 10, day: 21 },
+        },
+    ),
+];
+
+/// Hungary.
+///
+/// Derived from the reference `holidays` package and verified against it by
+/// `research/tools/derive_holidays.py`.
+static HUNGARY: &[Holiday] = &[
+    h("Újév", Rule::Fixed { month: 1, day: 1 }),
+    h("Nemzeti ünnep", Rule::Fixed { month: 3, day: 15 }),
+    h("Nemzeti ünnep", Rule::Fixed { month: 10, day: 23 }),
+    h(
+        "Nagypéntek",
+        Rule::Since {
+            year: 2017,
+            base: &Rule::EasterOffset(-2),
+        },
+    ),
+    h("Húsvét", Rule::EasterOffset(0)),
+    h("Húsvét Hétfő", Rule::EasterOffset(1)),
+    h("Pünkösd", Rule::EasterOffset(49)),
+    h("Pünkösdhétfő", Rule::EasterOffset(50)),
+    h("A Munka ünnepe", Rule::Fixed { month: 5, day: 1 }),
+    h("Az államalapítás ünnepe", Rule::Fixed { month: 8, day: 20 }),
+    h("Mindenszentek", Rule::Fixed { month: 11, day: 1 }),
+    h("Karácsony", Rule::Fixed { month: 12, day: 25 }),
+    h("Karácsony másnapja", Rule::Fixed { month: 12, day: 26 }),
+    h(
+        "Pihenőnap (2001. 03. 10.-től helyettesítve)",
+        Rule::Once {
+            year: 2001,
+            month: 3,
+            day: 16,
+        },
+    ),
+    h(
+        "Pihenőnap (2001. 04. 28.-től helyettesítve)",
+        Rule::Once {
+            year: 2001,
+            month: 4,
+            day: 30,
+        },
+    ),
+    h(
+        "Pihenőnap (2001. 10. 20.-től helyettesítve)",
+        Rule::Once {
+            year: 2001,
+            month: 10,
+            day: 22,
+        },
+    ),
+    h(
+        "Pihenőnap (2001. 10. 27.-től helyettesítve)",
+        Rule::Once {
+            year: 2001,
+            month: 11,
+            day: 2,
+        },
+    ),
+    h(
+        "Pihenőnap (2001. 12. 22.-től helyettesítve)",
+        Rule::Once {
+            year: 2001,
+            month: 12,
+            day: 24,
+        },
+    ),
+    h(
+        "Pihenőnap (2001. 12. 29.-től helyettesítve)",
+        Rule::Once {
+            year: 2001,
+            month: 12,
+            day: 31,
+        },
+    ),
+    h(
+        "Pihenőnap (2002. 08. 10.-től helyettesítve)",
+        Rule::Once {
+            year: 2002,
+            month: 8,
+            day: 19,
+        },
+    ),
+    h(
+        "Pihenőnap (2002. 12. 28.-től helyettesítve)",
+        Rule::Once {
+            year: 2002,
+            month: 12,
+            day: 24,
+        },
+    ),
+    h(
+        "Pihenőnap (2003. 04. 26.-től helyettesítve)",
+        Rule::Once {
+            year: 2003,
+            month: 5,
+            day: 2,
+        },
+    ),
+    h(
+        "Pihenőnap (2003. 10. 18.-től helyettesítve)",
+        Rule::Once {
+            year: 2003,
+            month: 10,
+            day: 24,
+        },
+    ),
+    h(
+        "Pihenőnap (2003. 12. 13.-től helyettesítve)",
+        Rule::Once {
+            year: 2003,
+            month: 12,
+            day: 24,
+        },
+    ),
+    h(
+        "Pihenőnap (2004. 01. 10.-től helyettesítve)",
+        Rule::Once {
+            year: 2004,
+            month: 1,
+            day: 2,
+        },
+    ),
+    h(
+        "Pihenőnap (2004. 12. 18.-től helyettesítve)",
+        Rule::Once {
+            year: 2004,
+            month: 12,
+            day: 24,
+        },
+    ),
+    h(
+        "Pihenőnap (2005. 03. 19.-től helyettesítve)",
+        Rule::Once {
+            year: 2005,
+            month: 3,
+            day: 14,
+        },
+    ),
+    h(
+        "Pihenőnap (2005. 11. 05.-től helyettesítve)",
+        Rule::Once {
+            year: 2005,
+            month: 10,
+            day: 31,
+        },
+    ),
+    h(
+        "Pihenőnap (2007. 03. 10.-től helyettesítve)",
+        Rule::Once {
+            year: 2007,
+            month: 3,
+            day: 16,
+        },
+    ),
+    h(
+        "Pihenőnap (2007. 04. 21.-től helyettesítve)",
+        Rule::Once {
+            year: 2007,
+            month: 4,
+            day: 30,
+        },
+    ),
+    h(
+        "Pihenőnap (2007. 10. 20.-től helyettesítve)",
+        Rule::Once {
+            year: 2007,
+            month: 10,
+            day: 22,
+        },
+    ),
+    h(
+        "Pihenőnap (2007. 10. 27.-től helyettesítve)",
+        Rule::Once {
+            year: 2007,
+            month: 11,
+            day: 2,
+        },
+    ),
+    h(
+        "Pihenőnap (2007. 12. 22.-től helyettesítve)",
+        Rule::Once {
+            year: 2007,
+            month: 12,
+            day: 24,
+        },
+    ),
+    h(
+        "Pihenőnap (2007. 12. 29.-től helyettesítve)",
+        Rule::Once {
+            year: 2007,
+            month: 12,
+            day: 31,
+        },
+    ),
+    h(
+        "Pihenőnap (2008. 04. 26.-től helyettesítve)",
+        Rule::Once {
+            year: 2008,
+            month: 5,
+            day: 2,
+        },
+    ),
+    h(
+        "Pihenőnap (2008. 10. 18.-től helyettesítve)",
+        Rule::Once {
+            year: 2008,
+            month: 10,
+            day: 24,
+        },
+    ),
+    h(
+        "Pihenőnap (2008. 12. 20.-től helyettesítve)",
+        Rule::Once {
+            year: 2008,
+            month: 12,
+            day: 24,
+        },
+    ),
+    h(
+        "Pihenőnap (2009. 03. 28.-től helyettesítve)",
+        Rule::Once {
+            year: 2009,
+            month: 1,
+            day: 2,
+        },
+    ),
+    h(
+        "Pihenőnap (2009. 08. 29.-től helyettesítve)",
+        Rule::Once {
+            year: 2009,
+            month: 8,
+            day: 21,
+        },
+    ),
+    h(
+        "Pihenőnap (2009. 12. 19.-től helyettesítve)",
+        Rule::Once {
+            year: 2009,
+            month: 12,
+            day: 24,
+        },
+    ),
+    h(
+        "Pihenőnap (2010. 12. 11.-től helyettesítve)",
+        Rule::Once {
+            year: 2010,
+            month: 12,
+            day: 24,
+        },
+    ),
+    h(
+        "Pihenőnap (2011. 03. 19.-től helyettesítve)",
+        Rule::Once {
+            year: 2011,
+            month: 3,
+            day: 14,
+        },
+    ),
+    h(
+        "Pihenőnap (2011. 11. 05.-től helyettesítve)",
+        Rule::Once {
+            year: 2011,
+            month: 10,
+            day: 31,
+        },
+    ),
+    h(
+        "Pihenőnap (2012. 03. 24.-től helyettesítve)",
+        Rule::Once {
+            year: 2012,
+            month: 3,
+            day: 16,
+        },
+    ),
+    h(
+        "Pihenőnap (2012. 04. 21.-től helyettesítve)",
+        Rule::Once {
+            year: 2012,
+            month: 4,
+            day: 30,
+        },
+    ),
+    h(
+        "Pihenőnap (2012. 10. 27.-től helyettesítve)",
+        Rule::Once {
+            year: 2012,
+            month: 10,
+            day: 22,
+        },
+    ),
+    h(
+        "Pihenőnap (2012. 11. 10.-től helyettesítve)",
+        Rule::Once {
+            year: 2012,
+            month: 11,
+            day: 2,
+        },
+    ),
+    h(
+        "Pihenőnap (2012. 12. 15.-től helyettesítve)",
+        Rule::Once {
+            year: 2012,
+            month: 12,
+            day: 24,
+        },
+    ),
+    h(
+        "Pihenőnap (2012. 12. 01.-től helyettesítve)",
+        Rule::Once {
+            year: 2012,
+            month: 12,
+            day: 31,
+        },
+    ),
+    h(
+        "Pihenőnap (2013. 08. 24.-től helyettesítve)",
+        Rule::Once {
+            year: 2013,
+            month: 8,
+            day: 19,
+        },
+    ),
+    h(
+        "Pihenőnap (2013. 12. 07.-től helyettesítve)",
+        Rule::Once {
+            year: 2013,
+            month: 12,
+            day: 24,
+        },
+    ),
+    h(
+        "Pihenőnap (2013. 12. 21.-től helyettesítve)",
+        Rule::Once {
+            year: 2013,
+            month: 12,
+            day: 27,
+        },
+    ),
+    h(
+        "Pihenőnap (2014. 05. 10.-től helyettesítve)",
+        Rule::Once {
+            year: 2014,
+            month: 5,
+            day: 2,
+        },
+    ),
+    h(
+        "Pihenőnap (2014. 10. 18.-től helyettesítve)",
+        Rule::Once {
+            year: 2014,
+            month: 10,
+            day: 24,
+        },
+    ),
+    h(
+        "Pihenőnap (2014. 12. 13.-től helyettesítve)",
+        Rule::Once {
+            year: 2014,
+            month: 12,
+            day: 24,
+        },
+    ),
+    h(
+        "Pihenőnap (2015. 01. 10.-től helyettesítve)",
+        Rule::Once {
+            year: 2015,
+            month: 1,
+            day: 2,
+        },
+    ),
+    h(
+        "Pihenőnap (2015. 08. 08.-től helyettesítve)",
+        Rule::Once {
+            year: 2015,
+            month: 8,
+            day: 21,
+        },
+    ),
+    h(
+        "Pihenőnap (2015. 12. 12.-től helyettesítve)",
+        Rule::Once {
+            year: 2015,
+            month: 12,
+            day: 24,
+        },
+    ),
+    h(
+        "Pihenőnap (2016. 03. 05.-től helyettesítve)",
+        Rule::Once {
+            year: 2016,
+            month: 3,
+            day: 14,
+        },
+    ),
+    h(
+        "Pihenőnap (2016. 10. 15.-től helyettesítve)",
+        Rule::Once {
+            year: 2016,
+            month: 10,
+            day: 31,
+        },
+    ),
+    h(
+        "Pihenőnap (2018. 03. 10.-től helyettesítve)",
+        Rule::Once {
+            year: 2018,
+            month: 3,
+            day: 16,
+        },
+    ),
+    h(
+        "Pihenőnap (2018. 04. 21.-től helyettesítve)",
+        Rule::Once {
+            year: 2018,
+            month: 4,
+            day: 30,
+        },
+    ),
+    h(
+        "Pihenőnap (2018. 10. 13.-től helyettesítve)",
+        Rule::Once {
+            year: 2018,
+            month: 10,
+            day: 22,
+        },
+    ),
+    h(
+        "Pihenőnap (2018. 11. 10.-től helyettesítve)",
+        Rule::Once {
+            year: 2018,
+            month: 11,
+            day: 2,
+        },
+    ),
+    h(
+        "Pihenőnap (2018. 12. 01.-től helyettesítve)",
+        Rule::Once {
+            year: 2018,
+            month: 12,
+            day: 24,
+        },
+    ),
+    h(
+        "Pihenőnap (2018. 12. 15.-től helyettesítve)",
+        Rule::Once {
+            year: 2018,
+            month: 12,
+            day: 31,
+        },
+    ),
+    h(
+        "Pihenőnap (2019. 08. 10.-től helyettesítve)",
+        Rule::Once {
+            year: 2019,
+            month: 8,
+            day: 19,
+        },
+    ),
+    h(
+        "Pihenőnap (2019. 12. 07.-től helyettesítve)",
+        Rule::Once {
+            year: 2019,
+            month: 12,
+            day: 24,
+        },
+    ),
+    h(
+        "Pihenőnap (2019. 12. 14.-től helyettesítve)",
+        Rule::Once {
+            year: 2019,
+            month: 12,
+            day: 27,
+        },
+    ),
+    h(
+        "Pihenőnap (2020. 08. 29.-től helyettesítve)",
+        Rule::Once {
+            year: 2020,
+            month: 8,
+            day: 21,
+        },
+    ),
+    h(
+        "Pihenőnap (2020. 12. 12.-től helyettesítve)",
+        Rule::Once {
+            year: 2020,
+            month: 12,
+            day: 24,
+        },
+    ),
+    h(
+        "Pihenőnap (2021. 12. 11.-től helyettesítve)",
+        Rule::Once {
+            year: 2021,
+            month: 12,
+            day: 24,
+        },
+    ),
+    h(
+        "Pihenőnap (2022. 03. 26.-től helyettesítve)",
+        Rule::Once {
+            year: 2022,
+            month: 3,
+            day: 14,
+        },
+    ),
+    h(
+        "Pihenőnap (2022. 10. 15.-től helyettesítve)",
+        Rule::Once {
+            year: 2022,
+            month: 10,
+            day: 31,
+        },
+    ),
+    h(
+        "Pihenőnap (2024. 08. 03.-től helyettesítve)",
+        Rule::Once {
+            year: 2024,
+            month: 8,
+            day: 19,
+        },
+    ),
+    h(
+        "Pihenőnap (2024. 12. 07.-től helyettesítve)",
+        Rule::Once {
+            year: 2024,
+            month: 12,
+            day: 24,
+        },
+    ),
+    h(
+        "Pihenőnap (2024. 12. 14.-től helyettesítve)",
+        Rule::Once {
+            year: 2024,
+            month: 12,
+            day: 27,
+        },
+    ),
+    h(
+        "Pihenőnap (2025. 05. 17.-től helyettesítve)",
+        Rule::Once {
+            year: 2025,
+            month: 5,
+            day: 2,
+        },
+    ),
+    h(
+        "Pihenőnap (2025. 10. 18.-től helyettesítve)",
+        Rule::Once {
+            year: 2025,
+            month: 10,
+            day: 24,
+        },
+    ),
+    h(
+        "Pihenőnap (2025. 12. 13.-től helyettesítve)",
+        Rule::Once {
+            year: 2025,
+            month: 12,
+            day: 24,
+        },
+    ),
+    h(
+        "Pihenőnap (2026. 01. 10.-től helyettesítve)",
+        Rule::Once {
+            year: 2026,
+            month: 1,
+            day: 2,
+        },
+    ),
+    h(
+        "Pihenőnap (2026. 08. 08.-től helyettesítve)",
+        Rule::Once {
+            year: 2026,
+            month: 8,
+            day: 21,
+        },
+    ),
+    h(
+        "Pihenőnap (2026. 12. 12.-től helyettesítve)",
+        Rule::Once {
+            year: 2026,
+            month: 12,
+            day: 24,
+        },
+    ),
+];
+
+/// Moldova.
+///
+/// Derived from the reference `holidays` package and verified against it by
+/// `research/tools/derive_holidays.py`.
+static MOLDOVA: &[Holiday] = &[
+    h("Anul Nou", Rule::Fixed { month: 1, day: 1 }),
+    h(
+        "Nașterea lui Iisus Hristos (Crăciunul pe stil vechi)",
+        Rule::Since {
+            year: 2014,
+            base: &Rule::Fixed { month: 1, day: 7 },
+        },
+    ),
+    h(
+        "Nașterea lui Iisus Hristos (Crăciunul pe stil vechi)",
+        Rule::Since {
+            year: 2014,
+            base: &Rule::Fixed { month: 1, day: 8 },
+        },
+    ),
+    h(
+        "Ziua internațională a femeii",
+        Rule::Fixed { month: 3, day: 8 },
+    ),
+    h("Paștele", Rule::OrthodoxEasterOffset(0)),
+    h("Paștele", Rule::OrthodoxEasterOffset(1)),
+    h("Paștele blajinilor", Rule::OrthodoxEasterOffset(8)),
+    h(
+        "Ziua internațională a solidarității oamenilor muncii",
+        Rule::Fixed { month: 5, day: 1 },
+    ),
+    h(
+        "Ziua Europei",
+        Rule::Since {
+            year: 2017,
+            base: &Rule::Fixed { month: 5, day: 9 },
+        },
+    ),
+    h(
+        "Ziua Victoriei și a comemorării eroilor căzuți pentru Independența Patriei",
+        Rule::Fixed { month: 5, day: 9 },
+    ),
+    h(
+        "Ziua Ocrotirii Copilului",
+        Rule::Since {
+            year: 2016,
+            base: &Rule::Fixed { month: 6, day: 1 },
+        },
+    ),
+    h(
+        "Ziua independenței Republicii Moldova",
+        Rule::Fixed { month: 8, day: 27 },
+    ),
+    h("Limba noastră", Rule::Fixed { month: 8, day: 31 }),
+    h(
+        "Nașterea lui Iisus Hristos (Crăciunul pe stil nou)",
+        Rule::Since {
+            year: 2013,
+            base: &Rule::Fixed { month: 12, day: 25 },
+        },
+    ),
+    h(
+        "Nașterea lui Iisus Hristos (Crăciunul)",
+        Rule::Until {
+            year: 2013,
+            base: &Rule::Fixed { month: 1, day: 7 },
+        },
+    ),
+    h(
+        "Nașterea lui Iisus Hristos (Crăciunul)",
+        Rule::Until {
+            year: 2013,
+            base: &Rule::Fixed { month: 1, day: 8 },
+        },
+    ),
+];
+
+/// Madagascar.
+///
+/// Derived from the reference `holidays` package and verified against it by
+/// `research/tools/derive_holidays.py`.
+static MADAGASCAR: &[Holiday] = &[
+    h("Taom-baovao", Rule::Fixed { month: 1, day: 1 }),
+    h("Fetin'ny vehivavy", Rule::Fixed { month: 3, day: 8 }),
+    h("Fetin'ny mahery fo", Rule::Fixed { month: 3, day: 29 }),
+    h("Fetin'ny paska", Rule::EasterOffset(0)),
+    h("Alatsinain'ny paska", Rule::EasterOffset(1)),
+    h("Fetin'ny asa", Rule::Fixed { month: 5, day: 1 }),
+    h(
+        "Fiakaran'ny Jesosy kristy tany an-danitra",
+        Rule::EasterOffset(39),
+    ),
+    h("Pentekosta", Rule::EasterOffset(49)),
+    h("Alatsinain'ny pentekosta", Rule::EasterOffset(50)),
+    h(
+        "Fetin'ny reny",
+        Rule::Until {
+            year: 2003,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 5,
+                day: 25,
+                weekday: 0,
+            },
+        },
+    ),
+    h(
+        "Fetin'ny reny",
+        Rule::Between {
+            from: 2005,
+            to: 2006,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 5,
+                day: 25,
+                weekday: 0,
+            },
+        },
+    ),
+    h(
+        "Fetin'ny reny",
+        Rule::Between {
+            from: 2008,
+            to: 2008,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 5,
+                day: 25,
+                weekday: 0,
+            },
+        },
+    ),
+    h(
+        "Fetin'ny reny",
+        Rule::Between {
+            from: 2010,
+            to: 2011,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 5,
+                day: 25,
+                weekday: 0,
+            },
+        },
+    ),
+    h(
+        "Fetin'ny reny",
+        Rule::Between {
+            from: 2013,
+            to: 2019,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 5,
+                day: 25,
+                weekday: 0,
+            },
+        },
+    ),
+    h(
+        "Fetin'ny reny",
+        Rule::Between {
+            from: 2021,
+            to: 2022,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 5,
+                day: 25,
+                weekday: 0,
+            },
+        },
+    ),
+    h(
+        "Fetin'ny reny",
+        Rule::Between {
+            from: 2024,
+            to: 2033,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 5,
+                day: 25,
+                weekday: 0,
+            },
+        },
+    ),
+    h(
+        "Fetin'ny reny",
+        Rule::Between {
+            from: 2035,
+            to: 2038,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 5,
+                day: 25,
+                weekday: 0,
+            },
+        },
+    ),
+    h(
+        "Fetin'ny reny",
+        Rule::Between {
+            from: 2040,
+            to: 2041,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 5,
+                day: 25,
+                weekday: 0,
+            },
+        },
+    ),
+    h(
+        "Fetin'ny reny",
+        Rule::Between {
+            from: 2043,
+            to: 2044,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 5,
+                day: 25,
+                weekday: 0,
+            },
+        },
+    ),
+    h(
+        "Fetin'ny reny",
+        Rule::Between {
+            from: 2046,
+            to: 2049,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 5,
+                day: 25,
+                weekday: 0,
+            },
+        },
+    ),
+    h(
+        "Fetin'ny reny",
+        Rule::Between {
+            from: 2004,
+            to: 2004,
+            base: &Rule::EasterOffset(56),
+        },
+    ),
+    h(
+        "Fetin'ny reny",
+        Rule::Between {
+            from: 2007,
+            to: 2007,
+            base: &Rule::EasterOffset(56),
+        },
+    ),
+    h(
+        "Fetin'ny reny",
+        Rule::Between {
+            from: 2009,
+            to: 2009,
+            base: &Rule::EasterOffset(56),
+        },
+    ),
+    h(
+        "Fetin'ny reny",
+        Rule::Between {
+            from: 2012,
+            to: 2012,
+            base: &Rule::EasterOffset(56),
+        },
+    ),
+    h(
+        "Fetin'ny reny",
+        Rule::Between {
+            from: 2020,
+            to: 2020,
+            base: &Rule::EasterOffset(56),
+        },
+    ),
+    h(
+        "Fetin'ny reny",
+        Rule::Between {
+            from: 2023,
+            to: 2023,
+            base: &Rule::EasterOffset(56),
+        },
+    ),
+    h(
+        "Fetin'ny reny",
+        Rule::Between {
+            from: 2034,
+            to: 2034,
+            base: &Rule::EasterOffset(56),
+        },
+    ),
+    h(
+        "Fetin'ny reny",
+        Rule::Between {
+            from: 2039,
+            to: 2039,
+            base: &Rule::EasterOffset(56),
+        },
+    ),
+    h(
+        "Fetin'ny reny",
+        Rule::Between {
+            from: 2042,
+            to: 2042,
+            base: &Rule::EasterOffset(56),
+        },
+    ),
+    h(
+        "Fetin'ny reny",
+        Rule::Between {
+            from: 2045,
+            to: 2045,
+            base: &Rule::EasterOffset(56),
+        },
+    ),
+    h(
+        "Fetin'ny reny",
+        Rule::Since {
+            year: 2050,
+            base: &Rule::EasterOffset(56),
+        },
+    ),
+    h(
+        "Fetin'ny ray",
+        Rule::NthWeekday {
+            month: 6,
+            weekday: 0,
+            nth: 3,
+        },
+    ),
+    h("Fetin'ny fahaleovantena", Rule::Fixed { month: 6, day: 26 }),
+    h(
+        "Fiakaran'ny Masina Maria tany an-danitra",
+        Rule::Fixed { month: 8, day: 15 },
+    ),
+    h("Fetin'ny olo-masina", Rule::Fixed { month: 11, day: 1 }),
+    h(
+        "Fetin'ny Repoblika",
+        Rule::Since {
+            year: 2011,
+            base: &Rule::Fixed { month: 12, day: 11 },
+        },
+    ),
+    h("Fetin'ny noely", Rule::Fixed { month: 12, day: 25 }),
+];
+
+/// Namibia.
+///
+/// Derived from the reference `holidays` package and verified against it by
+/// `research/tools/derive_holidays.py`.
+static NAMIBIA: &[Holiday] = &[
+    h(
+        "New Year's Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 1, day: 1 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Independence Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 3, day: 21 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h("Good Friday", Rule::EasterOffset(-2)),
+    h("Easter Monday", Rule::EasterOffset(1)),
+    h(
+        "Workers' Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 5, day: 1 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Cassinga Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 5, day: 4 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Africa Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 5, day: 25 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Genocide Remembrance Day",
+        Rule::Since {
+            year: 2025,
+            base: &Rule::Fixed { month: 5, day: 28 },
+        },
+    ),
+    h("Ascension Day", Rule::EasterOffset(39)),
+    h(
+        "Heroes' Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 8, day: 26 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Day of the Namibian Women and International Human Rights Day",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2005,
+                base: &Rule::Fixed { month: 9, day: 10 },
+            },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h("Christmas Day", Rule::Fixed { month: 12, day: 25 }),
+    h(
+        "Family Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 26 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "International Human Rights Day",
+        Rule::ObservedShift {
+            base: &Rule::Until {
+                year: 2004,
+                base: &Rule::Fixed { month: 9, day: 10 },
+            },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Y2K changeover",
+        Rule::Once {
+            year: 2000,
+            month: 1,
+            day: 3,
+        },
+    ),
+    h(
+        "General Election Day",
+        Rule::ObservedShift {
+            base: &Rule::Once {
+                year: 2014,
+                month: 11,
+                day: 28,
+            },
+            from: 2000,
+            shifts: &[(4, -1)],
+        },
+    ),
+    h(
+        "General Election Day",
+        Rule::ObservedShift {
+            base: &Rule::Once {
+                year: 2019,
+                month: 11,
+                day: 28,
+            },
+            from: 2000,
+            shifts: &[(4, -1)],
+        },
+    ),
+    h(
+        "General Election Day",
+        Rule::ObservedShift {
+            base: &Rule::Once {
+                year: 2024,
+                month: 11,
+                day: 28,
+            },
+            from: 2000,
+            shifts: &[(4, -1)],
+        },
+    ),
+    h(
+        "Regional Election Day",
+        Rule::ObservedShift {
+            base: &Rule::Once {
+                year: 2015,
+                month: 11,
+                day: 27,
+            },
+            from: 2016,
+            shifts: &[(4, -1), (5, -2)],
+        },
+    ),
+    h(
+        "Regional Election Day",
+        Rule::ObservedShift {
+            base: &Rule::Once {
+                year: 2020,
+                month: 11,
+                day: 27,
+            },
+            from: 2016,
+            shifts: &[(4, -1), (5, -2)],
+        },
+    ),
+    h(
+        "Regional Election Day",
+        Rule::ObservedShift {
+            base: &Rule::Once {
+                year: 2025,
+                month: 11,
+                day: 27,
+            },
+            from: 2016,
+            shifts: &[(4, -1), (5, -2)],
+        },
+    ),
+    h(
+        "Burial ceremony of Dr. Hage Gottfried Geingob",
+        Rule::Once {
+            year: 2024,
+            month: 2,
+            day: 25,
+        },
+    ),
+    h(
+        "Burial ceremony of Dr. Sam Shafiishuna Nujoma",
+        Rule::Once {
+            year: 2025,
+            month: 3,
+            day: 1,
+        },
+    ),
+];
+
+/// Seychelles.
+///
+/// Derived from the reference `holidays` package and verified against it by
+/// `research/tools/derive_holidays.py`.
+static SEYCHELLES: &[Holiday] = &[
+    h("New Year's Day", Rule::Fixed { month: 1, day: 1 }),
+    h(
+        "New Year Holiday",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 1, day: 2 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h("Good Friday", Rule::EasterOffset(-2)),
+    h("Easter Saturday", Rule::EasterOffset(-1)),
+    h(
+        "Easter Monday",
+        Rule::Since {
+            year: 2017,
+            base: &Rule::EasterOffset(1),
+        },
+    ),
+    h(
+        "Labour Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 5, day: 1 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h("The Fete Dieu", Rule::EasterOffset(60)),
+    h(
+        "Constitution Day",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2015,
+                base: &Rule::Fixed { month: 6, day: 18 },
+            },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Independence (National) Day",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2015,
+                base: &Rule::Fixed { month: 6, day: 29 },
+            },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Assumption Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 8, day: 15 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "All Saints Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 11, day: 1 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "The Feast of the Immaculate Conception",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 8 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Christmas Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 25 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Liberation Day",
+        Rule::ObservedShift {
+            base: &Rule::Until {
+                year: 2016,
+                base: &Rule::Fixed { month: 6, day: 5 },
+            },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "National Day",
+        Rule::ObservedShift {
+            base: &Rule::Until {
+                year: 2014,
+                base: &Rule::Fixed { month: 6, day: 18 },
+            },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Independence Day",
+        Rule::ObservedShift {
+            base: &Rule::Until {
+                year: 2014,
+                base: &Rule::Fixed { month: 6, day: 29 },
+            },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Presidential Election Day",
+        Rule::Once {
+            year: 2007,
+            month: 5,
+            day: 12,
+        },
+    ),
+    h(
+        "Presidential Election Day",
+        Rule::Once {
+            year: 2011,
+            month: 5,
+            day: 21,
+        },
+    ),
+    h(
+        "Presidential Election Day",
+        Rule::Once {
+            year: 2015,
+            month: 12,
+            day: 5,
+        },
+    ),
+    h(
+        "Presidential Election Day",
+        Rule::Once {
+            year: 2015,
+            month: 12,
+            day: 18,
+        },
+    ),
+    h(
+        "Parliamentary Election Day",
+        Rule::ObservedShift {
+            base: &Rule::Once {
+                year: 2011,
+                month: 10,
+                day: 1,
+            },
+            from: 2012,
+            shifts: &[(6, -21)],
+        },
+    ),
+    h(
+        "Parliamentary Election Day",
+        Rule::ObservedShift {
+            base: &Rule::Once {
+                year: 2016,
+                month: 10,
+                day: 1,
+            },
+            from: 2012,
+            shifts: &[(6, -21)],
+        },
+    ),
+    h(
+        "Funeral of the Former President France Albert René",
+        Rule::Once {
+            year: 2019,
+            month: 3,
+            day: 7,
+        },
+    ),
+    h(
+        "Bridge Public Holiday",
+        Rule::Once {
+            year: 2020,
+            month: 1,
+            day: 3,
+        },
+    ),
+    h(
+        "Bridge Public Holiday",
+        Rule::Once {
+            year: 2020,
+            month: 10,
+            day: 26,
+        },
+    ),
+    h(
+        "General Election Day",
+        Rule::Once {
+            year: 2020,
+            month: 10,
+            day: 24,
+        },
+    ),
+];
 /// Places every holiday of `year`, resolving the collisions a substitution
 /// creates.
 ///
@@ -5284,6 +8583,84 @@ impl Calendar {
     #[must_use]
     pub const fn united_states_virgin_islands() -> Self {
         Self::new(Country::UnitedStatesVirginIslands)
+    }
+
+    /// Builds the calendar for Armenia.
+    #[must_use]
+    pub const fn armenia() -> Self {
+        Self::new(Country::Armenia)
+    }
+
+    /// Builds the calendar for Aruba.
+    #[must_use]
+    pub const fn aruba() -> Self {
+        Self::new(Country::Aruba)
+    }
+
+    /// Builds the calendar for Barbados.
+    #[must_use]
+    pub const fn barbados() -> Self {
+        Self::new(Country::Barbados)
+    }
+
+    /// Builds the calendar for Belarus.
+    #[must_use]
+    pub const fn belarus() -> Self {
+        Self::new(Country::Belarus)
+    }
+
+    /// Builds the calendar for Curacao.
+    #[must_use]
+    pub const fn curacao() -> Self {
+        Self::new(Country::Curacao)
+    }
+
+    /// Builds the calendar for Georgia.
+    #[must_use]
+    pub const fn georgia() -> Self {
+        Self::new(Country::Georgia)
+    }
+
+    /// Builds the calendar for Guatemala.
+    #[must_use]
+    pub const fn guatemala() -> Self {
+        Self::new(Country::Guatemala)
+    }
+
+    /// Builds the calendar for Honduras.
+    #[must_use]
+    pub const fn honduras() -> Self {
+        Self::new(Country::Honduras)
+    }
+
+    /// Builds the calendar for Hungary.
+    #[must_use]
+    pub const fn hungary() -> Self {
+        Self::new(Country::Hungary)
+    }
+
+    /// Builds the calendar for Moldova.
+    #[must_use]
+    pub const fn moldova() -> Self {
+        Self::new(Country::Moldova)
+    }
+
+    /// Builds the calendar for Madagascar.
+    #[must_use]
+    pub const fn madagascar() -> Self {
+        Self::new(Country::Madagascar)
+    }
+
+    /// Builds the calendar for Namibia.
+    #[must_use]
+    pub const fn namibia() -> Self {
+        Self::new(Country::Namibia)
+    }
+
+    /// Builds the calendar for Seychelles.
+    #[must_use]
+    pub const fn seychelles() -> Self {
+        Self::new(Country::Seychelles)
     }
 
     /// Builds the calendar for Cyprus.
@@ -7616,6 +10993,20 @@ mod tests {
             assert!(!country.name().is_empty());
             assert!(!country.holidays().is_empty());
         }
+    }
+
+    #[test]
+    fn all_lists_every_country_exactly_once() {
+        // The enum's match arms are exhaustive, so a variant added without a
+        // line in `ALL` compiles and is simply never listed - and every
+        // `Country::ALL` test then skips it. Pin the count so adding a country
+        // forces this test to be updated, and reject a repeated one.
+        assert_eq!(Country::ALL.len(), 99, "update when a country is added");
+        let mut names: Vec<&str> = Country::ALL.iter().map(|c| c.name()).collect();
+        names.sort_unstable();
+        let mut unique = names.clone();
+        unique.dedup();
+        assert_eq!(names, unique, "Country::ALL repeats a country");
     }
 
     #[test]
