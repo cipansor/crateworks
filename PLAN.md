@@ -522,18 +522,19 @@ widths. The oracle is the reference's output rather than a transcription of it.
 The generator loads the reference's own test font, which is derived from Ahem and
 is monospace, so the text cases are arithmetic and the fixture is identical on
 every machine. `--random N` adds a deterministic random corpus over the same
-property set, for differential testing: the crate does not yet match the
-reference on every random document - the remaining differences are in how
-vertical margins collapse through a box that has no height - so those cases are
-not written to the committed fixture. This is what the fixture caught while the
+property set, for differential testing; the crate now agrees with the reference
+on all 400 cases it draws, so those are a regression check rather than a list of
+known differences. This is what the fixture caught while the
 crate was being written: the page box being confused with `html`, the missing
 synthesised `body`, the collapse rule
 attributing a margin to the wrong box, WeasyPrint's departure from CSS 2.1 where
 an over-constrained block keeps both margins instead of adjusting the right one,
 `line-height: 2` being read as two pixels rather than twice the font size, an
 inline box's child offsets being taken as absolute instead of relative to the
-box they go into, and the half-leading a box reports as its top and bottom
-margin.
+box they go into, the half-leading a box reports as its top and bottom
+margin, a nested empty inline box not sitting on its parent's baseline, and a
+trailing space that overflows a line deciding which of `text-align` and
+`text-align-last` places it.
 
 ## 24. `fuzzy-score`
 
