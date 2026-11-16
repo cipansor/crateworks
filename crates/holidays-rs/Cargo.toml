@@ -1,12 +1,11 @@
 [package]
 name = "holidays-rs"
 description = "Public holiday calendars for multiple countries, with fixed, Easter-relative and nth-weekday rules."
-version = "0.4.1"
+version = "0.5.0"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation = "https://docs.rs/holidays-rs"
 authors.workspace = true
 keywords = ["holiday", "calendar", "business-day", "date", "regional"]

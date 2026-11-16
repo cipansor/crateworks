@@ -37,7 +37,6 @@ edition = "2024"
 rust-version = "1.88"
 license = "Apache-2.0"
 repository = "https://github.com/cipansor/crateworks"
-homepage = "https://github.com/cipansor/crateworks"
 authors = ["Yayasan Pesantren Cipansor and contributors"]
 
 [workspace.dependencies]

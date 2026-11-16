@@ -6,7 +6,6 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation = "https://docs.rs/openlocationcode"
 authors.workspace = true
 keywords = ["plus-codes", "open-location-code", "geocoding", "coordinates", "olc"]

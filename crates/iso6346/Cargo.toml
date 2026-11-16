@@ -6,7 +6,6 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation = "https://docs.rs/iso6346"
 authors.workspace = true
 keywords = ["iso6346", "container", "shipping", "bic", "validation"]

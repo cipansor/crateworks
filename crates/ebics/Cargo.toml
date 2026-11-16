@@ -6,7 +6,6 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation = "https://docs.rs/ebics"
 authors.workspace = true
 keywords = ["ebics", "banking", "iso20022", "sepa", "xml"]
