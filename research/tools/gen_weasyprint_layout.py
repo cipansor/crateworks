@@ -361,6 +361,23 @@ def cases() -> list[tuple[str, str]]:
         ("text_indent_justify", f"<style>{page}body{{margin:0}}"
                                 "div{font-family:weasyprint;text-indent:20px;text-align:justify;"
                                 "width:96px}</style><div>aa bb cc dd</div>"),
+        # A word that crosses an inline boundary has no space in it, so it is one
+        # unbreakable word: `ab<span>cd</span>` wraps as `abcd`, not as `ab` and
+        # `cd`. The span box moves to the next line with its text.
+        ("inline_word_break", f"<style>{page}body{{margin:0}}"
+                              "div{font-family:weasyprint;width:78px;font-size:16px}</style>"
+                              "<div>ipsum sit a ab<span>lorem ipsum</span></div>"),
+        # A nested inline box with a larger font raises the line even when its
+        # own text is smaller, because the box itself is on the line.
+        ("inline_nested_font", f"<style>{page}body{{margin:0}}"
+                               "div{font-family:weasyprint}</style>"
+                               '<div><span style="font-size:24px">'
+                               '<span style="font-size:16px">a</span></span></div>'),
+        # A run of inline content before the first block child is wrapped in an
+        # anonymous block like any other run, not left as the element's own lines.
+        ("inline_before_block", f"<style>{page}body{{margin:0}}"
+                                "div{font-family:weasyprint}</style>"
+                                '<div>a<p style="margin:0">b</p>c</div>'),
     ]
 
 

@@ -371,7 +371,20 @@ fn layout_children(
 ) -> Result<Vec<Fragment>, Error> {
     let mut out = Vec::new();
     let mut run: Vec<&Node> = Vec::new();
-    let mut saw_block = false;
+    // Any block-level child makes the element a block container, and then *every*
+    // run of inline content it holds is wrapped in an anonymous block - the
+    // leading run included, not only the ones between or after blocks. An element
+    // with no block child keeps its line boxes as its own children.
+    let mut has_block = false;
+    for node in &element.children {
+        if let Node::Element(child) = node {
+            let child_style = crate::style::compute(child, stylesheet, Some(style))?;
+            if child_style.display == Display::Block {
+                has_block = true;
+                break;
+            }
+        }
+    }
 
     for node in &element.children {
         let block_child = match node {
@@ -387,8 +400,7 @@ fn layout_children(
         };
         match block_child {
             Some(child) => {
-                saw_block = true;
-                out.extend(layout_run(&run, element, stylesheet, width, style, true)?);
+                out.extend(layout_run(&run, element, stylesheet, width, style, !has_block)?);
                 run.clear();
                 out.push(layout_element(
                     child,
@@ -401,9 +413,7 @@ fn layout_children(
             None => run.push(node),
         }
     }
-    out.extend(layout_run(
-        &run, element, stylesheet, width, style, !saw_block,
-    )?);
+    out.extend(layout_run(&run, element, stylesheet, width, style, !has_block)?);
     Ok(out)
 }
 
@@ -711,24 +721,39 @@ fn shape_lines(
     // narrower width; every later line starts at the block's edge.
     let mut leading = indent;
 
+    // Group the pieces into words first. A word is a maximal run of pieces with
+    // no space between them, however many inline elements that run crosses:
+    // `ab<span>cd</span>` is one word, because a break is only allowed at a
+    // space and there is none between `ab` and `cd`. Each word carries the space
+    // that preceded it, which is where a break before that word would fall.
+    let mut words: Vec<(Vec<Piece>, f64, Option<Piece>)> = Vec::new();
+    let mut word: Vec<Piece> = Vec::new();
+    let mut word_width = 0.0_f64;
     for piece in pieces(items) {
         if piece.is_space {
-            if !current.is_empty() {
-                pending_space = Some(piece);
+            if !word.is_empty() {
+                let width = word_width;
+                words.push((std::mem::take(&mut word), width, pending_space.take()));
+                word_width = 0.0;
             }
+            pending_space = Some(piece);
             continue;
         }
+        word_width += advance(&piece.text, piece.style.font_size);
+        word.push(piece);
+    }
+    if !word.is_empty() {
+        words.push((word, word_width, pending_space.take()));
+    }
+
+    for (word, word_width, leading_space) in words {
         let available = width - leading;
-        let word_width = advance(&piece.text, piece.style.font_size);
-        let space_width = pending_space
+        let space_width = leading_space
             .as_ref()
             .map_or(0.0, |space| advance(" ", space.style.font_size));
-        // A break is only allowed where there is a break opportunity, which for
-        // this crate is a space. Two runs with no space between them - adjacent
-        // text nodes, or text either side of an inline element's boundary - form
-        // one unbreakable word, so a line that overflows does so rather than
-        // splitting there.
-        if let Some(space) = &pending_space
+        // The first word of a line is taken even when it does not fit, because
+        // there is nowhere earlier to break.
+        if let Some(space) = &leading_space
             && !current.is_empty()
             && x + space_width + word_width > available
         {
@@ -737,17 +762,16 @@ fn shape_lines(
             let boundary = break_boundary(&current, space);
             lines.push((std::mem::take(&mut current), leading, boundary));
             x = 0.0;
-            pending_space = None;
             leading = 0.0;
         }
-        if let Some(space) = pending_space.take()
+        if let Some(space) = leading_space
             && !current.is_empty()
         {
             x += space_width;
             current.push(space);
         }
         x += word_width;
-        current.push(piece);
+        current.extend(word);
     }
     if !current.is_empty() {
         lines.push((current, leading, None));
@@ -858,10 +882,20 @@ fn build_line(
     let strut_baseline = child_baseline(block_style);
     let mut min_y = -strut_baseline;
     let mut max_y = -strut_baseline + block_style.used_line_height();
+    // Every box on the line contributes, including the inline elements a run of
+    // text sits inside: an empty wrapper with a larger font still raises the
+    // line, because its own box is on the line even though its text is not.
     for item in &items {
-        let baseline = child_baseline(&item.style);
-        min_y = min_y.min(-baseline);
-        max_y = max_y.max(-baseline + item.style.used_line_height());
+        for style in item
+            .ancestors
+            .iter()
+            .map(|ancestor| &ancestor.style)
+            .chain(std::iter::once(&item.style))
+        {
+            let baseline = child_baseline(style);
+            min_y = min_y.min(-baseline);
+            max_y = max_y.max(-baseline + style.used_line_height());
+        }
     }
     if let Some((chain, _)) = &boundary {
         for ancestor in chain {
