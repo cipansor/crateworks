@@ -220,13 +220,16 @@ fitted window and then re-resolves the fit over 2051-2075, refusing a table that
 disagrees there. But a holiday that only ever falls on a Sunday has no weekday
 date to be missing, so a fit that silently *drops* it after 2050 - a stack of
 per-year `Between` rules, which is a table, not a rule - passes the date check.
-The tool therefore also rejects a fit whose entries stop producing a holiday the
-reference reports in every held-out year (`vanished_names`). Madagascar's
-Mother's Day is the case that found it: the reference keeps the last Sunday of
-May, *plus a week when that Sunday is Pentecost*, which no `Rule` variant
-expresses, so a 51-year `Between` stack was the only fit - and it was wrong
-after 2050. Madagascar is not shipped for the same reason Antarctica is not: the
-rule is inexpressible, and a knowingly-wrong date is worse than no calendar.
+The tool therefore also rejects a fit that does not produce, in *each* held-out
+year, a holiday the reference reports in every one of them (`vanished_names`).
+The check is per year, not pooled: a name produced in one held-out year and not
+the next is exactly the partial coverage it exists to catch, so a set union
+across the years would defeat it. Madagascar's Mother's Day is the case that
+found it: the reference keeps the last Sunday of May, *plus a week when that
+Sunday is Pentecost*, which no `Rule` variant expresses, so a 51-year `Between`
+stack was the only fit - and it was wrong after 2050. Madagascar is not shipped
+for the same reason Antarctica is not: the rule is inexpressible, and a
+knowingly-wrong date is worse than no calendar.
 
 **A one-year run of a movable shape is not `Since`.** `rust_rule` renders a run
 that ends at `LAST` as `Rule::Since`, which fires from its year onward. A run of

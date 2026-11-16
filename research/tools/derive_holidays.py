@@ -594,31 +594,40 @@ def disagreements(code, entries, style, first, last):
 
 def vanished_names(code, entries, first, last):
     """Base names the reference reports every year in `[first, last]` but the
-    fitted entries never fire for.
+    fitted entries do not fire for in *every* one of those years.
 
     The date comparison in `disagreements` is blind to a holiday that a fit
     drops entirely, because a name that only ever fell on a Sunday has no
     weekday date to be missing. That is how a per-year `Between` stack, which
     is a table rather than a rule, passes the held-out check: the entries stop
-    firing after `LAST` and nothing notices. Requiring every name the reference
-    reports in each held-out year to be produced in that year is the "rule, not
-    a table" property the crate's README states, tested rather than assumed.
+    firing after `LAST` and nothing notices. Requiring a name the reference
+    reports in each held-out year to be produced in each of those years is the
+    "rule, not a table" property the crate's README states, tested rather than
+    assumed.
 
-    Only a name the reference reports in *every* held-out year is considered, so
-    a genuinely one-off or discontinued observance is not a failure.
+    Coverage is per year, not pooled: producing the name in one held-out year
+    and not the next is a gap, so the check compares year by year. Only a name
+    the reference reports in *every* held-out year is considered, so a
+    genuinely one-off or discontinued observance is not a failure.
     """
     ref = pyholidays.country_holidays(code, years=range(first, last + 1))
     bases, _ = split_observed(ref)
     ref_years = {name: {y for y in byyear} for name, byyear in bases.items()}
-    ours = {
-        name
-        for year in range(first, last + 1)
-        for _, name, shape, frm, to, _ in entries
-        if rule_applies(shape, frm, to, year) and safe_resolve(shape, year) is not None
+    span = list(range(first, last + 1))
+    ours_by_year = {
+        year: {
+            name
+            for _, name, shape, frm, to, _ in entries
+            if rule_applies(shape, frm, to, year) and safe_resolve(shape, year) is not None
+        }
+        for year in span
     }
-    span = set(range(first, last + 1))
+    every_year = set(span)
     return sorted(
-        name for name, years in ref_years.items() if years == span and name not in ours
+        name
+        for name, years in ref_years.items()
+        if years == every_year
+        and any(name not in ours_by_year[year] for year in span)
     )
 
 

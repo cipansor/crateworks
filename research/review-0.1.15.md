@@ -139,11 +139,14 @@ Bounding it changes the failure, not the verdict. The one-year entry no longer
 fires after 2050, so the holiday *vanishes* rather than being invented - and the
 date comparison cannot see a vanished holiday, because Madagascar's Mother's Day
 only ever falls on a Sunday, which the check treats as cosmetic. A new guard,
-`vanished_names`, rejects a fit whose entries stop producing a holiday the
-reference reports in every held-out year. With both in place the corrected
-generator refuses Madagascar, so **Madagascar is not shipped** (102 calendars to
-101): the rule is inexpressible, exactly as Antarctica's leap-year Midwinter Day
-is, and a knowingly-wrong date is worse than no calendar. The other nine
+`vanished_names`, rejects a fit that fails to produce a holiday the reference
+reports in each held-out year, comparing year by year - a name produced in one
+held-out year and not the next is a gap, so a pooled "produced at least once"
+test would accept exactly the partial coverage the guard exists to catch. With
+both in place the corrected generator refuses Madagascar, so **Madagascar is not
+shipped** (102 calendars to 101): the rule is inexpressible, exactly as
+Antarctica's leap-year Midwinter Day is, and a knowingly-wrong date is worse
+than no calendar. The other nine
 calendars the corrected generator refuses (Indonesia, the Netherlands, Spain,
 New Zealand, Greece, Mexico, DR Congo, Botswana, the Northern Mariana Islands)
 were already refused at HEAD; only Madagascar's verdict changes. The
