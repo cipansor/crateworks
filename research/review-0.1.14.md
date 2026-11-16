@@ -6,16 +6,19 @@ difference worth closing", closed the `factur-x` profile reader, and recorded
 the remaining candidates with the reason each stays out.
 
 This round re-runs every gate first, then diffs each crate's public surface
-against its reference once more. Three candidates came out of that pass and were
+against its reference once more. Four candidates came out of that pass and were
 closed: the `object-hash` SHA-3 family, which `review-0.1.13.md` itself recorded
 as the npm reference's supported-but-unported set; the `pacs.002` payment status
-report, the `iso20022-rs` gap its own README named; and, when the first draft's
-claims about Node's hash list were checked and found false, the eight remaining
-Node `crypto` digests the reference offers and the crate did not (`ripemd160`,
-`sm3`, `sha512-224`, `sha512-256`, `blake2b512`, `blake2s256`, `shake128`,
-`shake256`). With those, every name in `crypto.getHashes()` is either computed
-here or an alias for one that is. The other candidates that the diff surfaced are
-recorded below with the reason each stays out.
+report, the `iso20022-rs` gap its own README named; the eight remaining Node
+`crypto` digests the reference offers and the crate did not (`ripemd160`, `sm3`,
+`sha512-224`, `sha512-256`, `blake2b512`, `blake2s256`, `shake128`, `shake256`),
+found when the first draft's claims about Node's hash list were checked and
+found false; and six `holidays-rs` calendars whose reference reports the moved
+date inline rather than as a `"(observed)"` partner entry, which the table
+generator had never tried to fit. With the object-hash work, every name in
+`crypto.getHashes()` is either computed here or an alias for one that is. The
+other candidates that the diff surfaced are recorded below with the reason each
+stays out.
 
 ## Correctness first: the differential gates were re-run
 
@@ -23,7 +26,7 @@ Every gate was re-run before any change. All were green on entry.
 
 | Gate | Reference | Result |
 | --- | --- | --- |
-| `verify_holidays.py` | PyPI `holidays` | 0 undocumented defects, 86 calendars |
+| `verify_holidays.py` | PyPI `holidays` | 0 undocumented defects, 92 calendars |
 | `gen_stdnum_vectors.py` | PyPI `python-stdnum` | 85,713 vectors agree |
 | `verify_spreadsheet.py` | npm `@formulajs/formulajs` | 1,068/1,068 cases agree |
 | `verify_aviation.py` | OurAirports `airports.csv` | 11,887 rows and 46,456 lookups agree |
@@ -36,7 +39,7 @@ Every gate was re-run before any change. All were green on entry.
 | `verify_iso20022.py` | the official ISO 20022 XSD | generated pacs.008, pain.001 **and pacs.002** validate |
 | `verify_proxy_addr.py` | npm `proxy-addr` 2.0.8 | 12,216 rows agree |
 | `tests/oracle.rs` (fast-redact) | npm `fast-redact` 3.5.0 | 6,000 redactions and 90 path verdicts agree |
-| `tests/{fuzz,oracle}.rs` (object-hash) | npm `object-hash` 3.0.0 | 4,000 random values and 66 curated cases agree, all sixteen digests |
+| `tests/{fuzz,oracle}.rs` (object-hash) | npm `object-hash` 3.0.0 | 4,000 random values and 66 curated cases agree, all eighteen digests |
 
 No gate regressed.
 
@@ -150,6 +153,31 @@ prints `VALID`. `crates/iso20022-rs/src/pacs.rs` adds nine round-trip and edge
 tests (a proprietary reason, a group-level reason, the empty-report error, text
 escaping, the namespace).
 
+### `holidays-rs` 0.4.1 -> 0.5.0, the inline-observed calendars
+
+The 0.4.1 round added `Rule::ObservedShift`, a per-holiday `(weekday, days)`
+shift table, and took the crate from 65 to 86 calendars. The generator that
+produced those tables only recognised a moved holiday when the reference spelled
+it out as a `"<name> (observed)"` partner entry, so a country whose reference
+reports the moved date under the holiday's own name - Aruba's "Dia di Obrero" is
+1 May, or 2 May when the 1st is a Sunday, and only the 2nd appears - failed the
+fit and was written off as unexpressible. It was not: the shape is exactly an
+`ObservedShift` over the fixed base.
+
+`derive_holidays.py` gains `inline_observed_fit`, a fallback the `derive` loop
+tries when no base shape matches. It tries each date the holiday ever falls on as
+the base and looks for a single `from` year plus a weekday -> days table that
+reproduces every observed date, the same rule the crate already resolves. The
+fit is then re-resolved in Python and refused if it disagrees with the reference,
+the same guard every other shape goes through.
+
+That fallback adds six calendars, 86 to 92: Aruba, the Åland Islands, the
+Caribbean Netherlands, Curaçao, Namibia and Sint Maarten. All 92 are checked by
+`verify_holidays.py` over 2000-2050 with no undocumented difference. The closest
+fixture grows from 21,200 rows over 53 countries to 23,200 over 58; Namibia is
+excluded from it because its reference carries `"(observed)"` duplicate dates,
+the same reason the 0.4.1 batch is excluded.
+
 ## Coverage: the candidates the diff surfaced and why they stay out
 
 The public-surface diff against each reference left the following candidates.
@@ -186,10 +214,32 @@ against a fixture; the dynamic-array and matrix family (`MMULT`, `TRANSPOSE`,
 array objects this scalar evaluator does not model.
 
 **`holidays-rs`: the remaining countries.** The reference carries about 250
-calendars; the crate has 86. Every remaining country fails the fit for the same
-reason: its reference table shifts each holiday independently, while the crate
-holds one crate-wide `SubstituteStyle` per country. The countries that fit have
-all been added.
+calendars; the crate now has 92. An earlier draft of this paragraph was wrong
+about *why* the rest stay out, and is corrected here. It said "the crate holds
+one crate-wide `SubstituteStyle` per country", which has been false since
+`Rule::ObservedShift` landed in 0.4.1: a holiday can carry its own
+`(weekday, days)` shift table, so per-holiday substitution is expressible and
+was not the blocker. Re-measuring all 166 reference countries the gate does not
+cover, 144 fail for reasons that have nothing to do with substitution: the
+holiday is a lunar or Orthodox observance the crate's `Rule` vocabulary does not
+name, or the reference table is an artefact of a single year rather than a
+formula. The real remaining vocabulary gap is a lunar/Islamic holiday set and a
+per-country Orthodox table, which is a larger job than a substitution rule.
+
+The one shape that *was* still out of reach and is now closed: a holiday whose
+reference reports the moved date under the holiday's own name, with no
+`"(observed)"` partner entry. Aruba's "Dia di Obrero" is 1 May, or 2 May when
+the 1st is a Sunday, and the reference lists only the moved date. The generator's
+`split_observed` only recognised the parenthetical form, so it never tried
+`ObservedShift` for these and the countries looked unexpressible. The fix is an
+`inline_observed_fit` fallback that tries each date the holiday ever falls on as
+the base and fits a single `from` year plus a weekday table, the same shape the
+crate already resolves. It adds six calendars - Aruba, the Åland Islands, the
+Caribbean Netherlands, Curaçao, Namibia and Sint Maarten - taking the gate from
+86 to 92 with no undocumented difference. Namibia is excluded from the closest
+fixture for the same reason the 0.4.1 batch was: its reference carries
+`"(observed)"` duplicate dates, so a nearest-holiday query over that larger set
+answers a different question.
 
 **`stdnum-rs`: the six missing modules.** An earlier draft of this paragraph was
 wrong about which modules are missing, and is corrected here. `python-stdnum` has
@@ -221,17 +271,27 @@ missing capabilities.
 * `crates/object-hash/README.md`, which is the crate's `#![doc]` and therefore
   the docs.rs front page, gains the four SHA-3 rows in its algorithm table, the
   sentence explaining the shared Keccak round function, and the extended
-  "How it is checked" text.
+  "How it is checked" text. The 0.6.0 change adds the eight later rows
+  (`Sha512_224`, `Sha512_256`, `Ripemd160`, `Sm3`, `Blake2b512`, `Blake2s256`,
+  `Shake128`, `Shake256`), rewrites the paragraph to eighteen digests and notes
+  that SHAKE's length is Node's default for the bare name; the `hash_with` doc
+  comment in `src/lib.rs` gains `Shake128`/`Shake256` examples.
 * `crates/iso20022-rs/README.md` gains a `pacs.002` section with a runnable
   example and the reason the status codes are strings; its introduction and
   `Cargo.toml` description now name status reports.
+* `crates/holidays-rs/README.md`, which is the crate's `#![doc]` and therefore
+  the docs.rs front page, gains the six new countries in its covered list and
+  the corrected counts in its verification section (92 calendars, and 23,200
+  closest rows over 58 countries). `PLAN.md`'s `holidays-rs` section moves from
+  86 to 92.
 * The `pacs` module doc comment in `crates/iso20022-rs/src/pacs.rs` names
   `PaymentStatusReport` as the answer to a `pacs.008`.
-* `PLAN.md`'s `object-hash` and `iso20022-rs` sections move SHA-3 and `pacs.002`
-  into "covers today" and narrow the gaps accordingly.
-* `scripts/fuzz/README.md` gains the `extendedSha3` argument in the object-hash
-  generator row, and `research/tools/README.md` names `pacs002` in
-  `verify_iso20022.py`'s row.
+* `PLAN.md`'s `object-hash` and `iso20022-rs` sections move SHA-3, the rest of
+  Node's `crypto` digests and `pacs.002` into "covers today" and narrow the gaps
+  accordingly.
+* `scripts/fuzz/README.md` gains the `extendedSha3` argument and the "eight rare
+  digests" wording in the object-hash generator row, and `research/tools/README.md`
+  names `pacs002` in `verify_iso20022.py`'s row.
 
 ## Method
 

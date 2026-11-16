@@ -1,7 +1,7 @@
 [package]
 name = "pdfa"
 description = "PDF/A conformance: XMP metadata, embedded files, and the Factur-X container for e-invoices."
-version = "0.1.9"
+version = "0.1.10"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true

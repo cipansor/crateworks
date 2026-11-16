@@ -20,7 +20,7 @@
 //! - Every string carries its length, so no two different structures can write
 //!   the same bytes by accident.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Write as _;
 
 use crate::Value;
@@ -287,11 +287,19 @@ fn write_object(entries: &[(String, Value)], options: &WriteOptions, out: &mut S
     if options.unordered_objects {
         keys.sort_by(|a, b| utf16_cmp(a, b));
     }
-    // A repeated key keeps the last value: `Object.keys` lists a key once, and
-    // the lookup that follows finds the last assignment.
+    // `Object.keys` lists a repeated key once, in first-appearance order, and
+    // the lookup that follows finds its last assignment. Those are two different
+    // questions, so they need two indexes: `last` answers the value, `seen`
+    // answers the order. One index cannot do both, because the first occurrence
+    // fixes the position while the last fixes the value.
+    let mut last: HashMap<&str, &Value> = HashMap::with_capacity(entries.len());
+    for (key, value) in entries {
+        last.insert(key.as_str(), value);
+    }
     let mut kept: Vec<&str> = Vec::with_capacity(keys.len());
+    let mut seen: HashSet<&str> = HashSet::with_capacity(keys.len());
     for key in keys {
-        if !kept.contains(&key) {
+        if seen.insert(key) {
             kept.push(key);
         }
     }
@@ -300,12 +308,7 @@ fn write_object(entries: &[(String, Value)], options: &WriteOptions, out: &mut S
         write_string(key, out);
         out.push(':');
         if !options.exclude_values {
-            let value = entries
-                .iter()
-                .rev()
-                .find(|(candidate, _)| candidate == key)
-                .map(|(_, value)| value)
-                .expect("key came from the entries");
+            let value = last.get(key).expect("key came from the entries");
             write(value, options, out);
         }
         out.push(',');
@@ -318,11 +321,17 @@ fn write_object(entries: &[(String, Value)], options: &WriteOptions, out: &mut S
 /// does. Unlike a plain object, a map keeps its values when `exclude_values` is
 /// set: the reference's `excludeValues` is only consulted in its object writer.
 fn serialized_entries(entries: &[(String, Value)], options: &WriteOptions) -> Vec<String> {
+    // A repeated key keeps the last value. The map records which position each
+    // key resolves to, so this is linear rather than a scan per entry.
+    let mut position: HashMap<&str, usize> = HashMap::with_capacity(entries.len());
     let mut kept: Vec<(&String, &Value)> = Vec::with_capacity(entries.len());
     for (key, value) in entries {
-        match kept.iter_mut().find(|(existing, _)| *existing == key) {
-            Some(existing) => existing.1 = value,
-            None => kept.push((key, value)),
+        match position.get(key.as_str()) {
+            Some(&index) => kept[index].1 = value,
+            None => {
+                position.insert(key.as_str(), kept.len());
+                kept.push((key, value));
+            }
         }
     }
 

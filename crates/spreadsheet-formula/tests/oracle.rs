@@ -697,3 +697,17 @@ fn a_database_argument_must_be_a_grid() {
     // An unknown field name is an error rather than an empty result.
     assert!(eval(&format!("{DB};{CRIT_AND}"), "=DSUM(A1:G4,\"Nope\",I1:J2)").is_err());
 }
+
+#[test]
+fn percent_rank_deduplicates_equal_values_across_a_nan() {
+    // A cell holding `NaN` reaches `numbers_of_arg` as a NaN, and the sort
+    // comparator treats a comparison with a NaN as equal, so the two `1`s need
+    // not end up adjacent. The distinct-value scan must still see a single `1`;
+    // keeping a second copy would interpolate between identical endpoints,
+    // divide by zero and report a number error instead of the rank.
+    assert_eq!(num("A1=1;A2=NaN;A3=1", "=PERCENTRANK(A1:A3,1.5)"), 0.0);
+    assert_eq!(num("A1=1;A2=NaN;A3=1", "=PERCENTRANK.INC(A1:A3,1.5)"), 0.0);
+    assert_eq!(num("A1=1;A2=NaN;A3=1", "=PERCENTRANK.EXC(A1:A3,1.5)"), 0.0);
+    // The rank of a value that is present is unaffected by the NaN either.
+    assert_eq!(num("A1=1;A2=NaN;A3=1", "=PERCENTRANK(A1:A3,1)"), 0.0);
+}

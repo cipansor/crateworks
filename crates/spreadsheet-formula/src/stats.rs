@@ -13,6 +13,8 @@
 //! so this module is pure arithmetic and is tested against the reference
 //! directly.
 
+use std::collections::HashMap;
+
 use crate::functions::{erf, gamma_ln};
 
 /// The value `jStat.betafn` returns for a non-positive argument.
@@ -891,13 +893,24 @@ pub(crate) fn prob(xs: &[f64], probs: &[f64], lower: f64, upper: f64) -> f64 {
             .position(|v| *v == lower)
             .map_or(0.0, |i| probs[i]);
     }
+    // The first original index of each value, so the loop below does not scan
+    // `xs` once per sorted value (which is quadratic on a large array). The key
+    // is the bit pattern, with the two zeroes folded together, so it groups
+    // exactly the values `==` groups; a NaN is never summed, because the range
+    // test below rejects it.
+    let key = |value: f64| if value == 0.0 { 0 } else { value.to_bits() };
+    let mut first_index: HashMap<u64, usize> = HashMap::with_capacity(xs.len());
+    for (index, value) in xs.iter().enumerate() {
+        first_index.entry(key(*value)).or_insert(index);
+    }
+
     let mut sorted = xs.to_vec();
     sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     let mut result = 0.0;
     for value in &sorted {
         if *value >= lower
             && *value <= upper
-            && let Some(index) = xs.iter().position(|v| v == value)
+            && let Some(&index) = first_index.get(&key(*value))
         {
             result += probs[index];
         }

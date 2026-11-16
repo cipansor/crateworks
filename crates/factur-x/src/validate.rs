@@ -11,6 +11,8 @@
 //! [`validate`] says so rather than implying a document that passes is
 //! conformant in every respect.
 
+use std::collections::BTreeMap;
+
 use crate::amount::Amount;
 use crate::model::Invoice;
 
@@ -220,20 +222,27 @@ pub fn validate(invoice: &Invoice) -> Report {
 
     // BR-S-08: the taxable amount of a standard-rated entry is the sum of the
     // lines charged at that rate.
+    //
+    // Summing the lines once per entry is quadratic in a document that carries
+    // many breakdown entries. The sum only depends on the category and the
+    // rate, so group the lines by that pair in one pass and look each entry up.
+    let mut line_totals: BTreeMap<(&str, Option<i64>), i64> = BTreeMap::new();
+    for line in &invoice.lines {
+        let key = (
+            line.vat_category.as_str(),
+            parse_rate(line.vat_rate.as_deref().unwrap_or("")),
+        );
+        *line_totals.entry(key).or_insert(0) += line.line_total.cents();
+    }
     for entry in &invoice.tax_breakdown {
         if entry.category != "S" {
             continue;
         }
-        let matching: i64 = invoice
-            .lines
-            .iter()
-            .filter(|line| {
-                line.vat_category == entry.category
-                    && parse_rate(line.vat_rate.as_deref().unwrap_or(""))
-                        == parse_rate(entry.rate.as_deref().unwrap_or(""))
-            })
-            .map(|line| line.line_total.cents())
-            .sum();
+        let key = (
+            entry.category.as_str(),
+            parse_rate(entry.rate.as_deref().unwrap_or("")),
+        );
+        let matching = line_totals.get(&key).copied().unwrap_or(0);
         if matching != entry.taxable_amount.cents() {
             report.fail(
                 "BR-S-08",
@@ -416,5 +425,70 @@ mod tests {
         });
         let report = validate(&invoice);
         assert!(report.is_valid(), "{:?}", report.violations);
+    }
+
+    /// A breakdown entry must be checked against the lines at *its own* rate,
+    /// not against the total of every line. Summing the lines once per entry
+    /// hides that distinction when there is only one entry, so this test builds
+    /// several and gives each one its own lines.
+    #[test]
+    fn each_breakdown_entry_is_checked_against_its_own_rate() {
+        let mut invoice = sample_invoice();
+        invoice.lines = vec![
+            line_at("1", "10.00", "S", "19.00"),
+            line_at("2", "20.00", "S", "19.00"),
+            line_at("3", "40.00", "S", "7.00"),
+        ];
+        invoice.tax_breakdown = vec![
+            breakdown_at("30.00", "5.70", "S", "19.00"),
+            breakdown_at("40.00", "2.80", "S", "7.00"),
+        ];
+        invoice.totals.line_total = Amount::parse("70.00").unwrap();
+        invoice.totals.tax_exclusive = Amount::parse("70.00").unwrap();
+        invoice.totals.tax_total = Amount::parse("8.50").unwrap();
+        invoice.totals.tax_inclusive = Amount::parse("78.50").unwrap();
+        invoice.totals.due_payable = Amount::parse("78.50").unwrap();
+
+        let report = validate(&invoice);
+        assert!(report.is_valid(), "{:?}", report.violations);
+
+        // Corrupting only the second entry must be reported against that entry,
+        // which the grouped lookup can only do if the keys are kept apart.
+        invoice.tax_breakdown[1].taxable_amount = Amount::parse("99.00").unwrap();
+        let report = validate(&invoice);
+        assert!(
+            report.rules().contains(&"BR-S-08"),
+            "{:?}",
+            report.violations
+        );
+    }
+
+    fn line_at(id: &str, total: &str, category: &str, rate: &str) -> crate::model::Line {
+        crate::model::Line {
+            id: id.to_string(),
+            name: "Widget".to_string(),
+            description: None,
+            quantity: "1".to_string(),
+            unit: "C62".to_string(),
+            unit_price: Amount::parse(total).unwrap(),
+            line_total: Amount::parse(total).unwrap(),
+            vat_category: category.to_string(),
+            vat_rate: Some(rate.to_string()),
+        }
+    }
+
+    fn breakdown_at(
+        taxable: &str,
+        tax: &str,
+        category: &str,
+        rate: &str,
+    ) -> crate::model::TaxBreakdown {
+        crate::model::TaxBreakdown {
+            taxable_amount: Amount::parse(taxable).unwrap(),
+            tax_amount: Amount::parse(tax).unwrap(),
+            category: category.to_string(),
+            rate: Some(rate.to_string()),
+            exemption_reason: None,
+        }
     }
 }

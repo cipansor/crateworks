@@ -243,6 +243,12 @@ pub enum Country {
     Namibia,
     /// Seychelles.
     Seychelles,
+    /// Åland Islands.
+    AlandIslands,
+    /// Caribbean Netherlands (Bonaire, Sint Eustatius and Saba).
+    CaribbeanNetherlands,
+    /// Sint Maarten.
+    SintMaarten,
 }
 
 impl Country {
@@ -347,6 +353,9 @@ impl Country {
         Self::Madagascar,
         Self::Namibia,
         Self::Seychelles,
+        Self::AlandIslands,
+        Self::CaribbeanNetherlands,
+        Self::SintMaarten,
     ];
 
     /// The holiday rules for this country, in no particular order.
@@ -452,6 +461,9 @@ impl Country {
             Self::Madagascar => MADAGASCAR,
             Self::Namibia => NAMIBIA,
             Self::Seychelles => SEYCHELLES,
+            Self::AlandIslands => ALAND_ISLANDS,
+            Self::CaribbeanNetherlands => CARIBBEAN_NETHERLANDS,
+            Self::SintMaarten => SINT_MAARTEN,
         }
     }
 
@@ -555,6 +567,9 @@ impl Country {
             | Self::Madagascar
             | Self::Namibia
             | Self::Seychelles
+            | Self::AlandIslands
+            | Self::CaribbeanNetherlands
+            | Self::SintMaarten
             | Self::UnitedStatesVirginIslands => SubstituteStyle::None,
             // Latvia moves a weekend holiday to the next Monday from 2007; the
             // two holidays that do not are wrapped in `Rule::NeverSubstituted`.
@@ -665,6 +680,9 @@ impl Country {
             Self::Madagascar => "Madagascar",
             Self::Namibia => "Namibia",
             Self::Seychelles => "Seychelles",
+            Self::AlandIslands => "Åland Islands",
+            Self::CaribbeanNetherlands => "Caribbean Netherlands",
+            Self::SintMaarten => "Sint Maarten",
         }
     }
 }
@@ -8016,6 +8034,283 @@ static SEYCHELLES: &[Holiday] = &[
         },
     ),
 ];
+
+/// Åland Islands.
+///
+/// The Åland Islands follow the Finnish calendar and add their own
+/// Autonomy Day on 9 June. All Saints' Day is the Saturday between 31 October
+/// and 6 November, which the crate models with a per-holiday shift.
+static ALAND_ISLANDS: &[Holiday] = &[
+    h("Uudenvuodenpäivä", Rule::Fixed { month: 1, day: 1 }),
+    h("Loppiainen", Rule::Fixed { month: 1, day: 6 }),
+    h("Pitkäperjantai", Rule::EasterOffset(-2)),
+    h("Pääsiäispäivä", Rule::EasterOffset(0)),
+    h("Toinen pääsiäispäivä", Rule::EasterOffset(1)),
+    h("Vappu", Rule::Fixed { month: 5, day: 1 }),
+    h("Helatorstai", Rule::EasterOffset(39)),
+    h("Helluntaipäivä", Rule::EasterOffset(49)),
+    h(
+        "Juhannusaatto",
+        Rule::WeekdayOnOrAfter {
+            month: 6,
+            day: 19,
+            weekday: 5,
+        },
+    ),
+    h(
+        "Juhannuspäivä",
+        Rule::WeekdayOnOrAfter {
+            month: 6,
+            day: 20,
+            weekday: 6,
+        },
+    ),
+    h(
+        "Pyhäinpäivä",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 11, day: 4 },
+            from: 2000,
+            shifts: &[(0, -1), (1, -2), (2, -3), (3, -4), (4, 2), (5, 1)],
+        },
+    ),
+    h("Itsenäisyyspäivä", Rule::Fixed { month: 12, day: 6 }),
+    h("Jouluaatto", Rule::Fixed { month: 12, day: 24 }),
+    h("Joulupäivä", Rule::Fixed { month: 12, day: 25 }),
+    h("Tapaninpäivä", Rule::Fixed { month: 12, day: 26 }),
+    h(
+        "Ahvenanmaan itsehallintopäivä",
+        Rule::Fixed { month: 6, day: 9 },
+    ),
+];
+/// Caribbean Netherlands.
+///
+/// The Caribbean Netherlands became a Dutch public body in 2010, so most
+/// holidays begin in 2011; King's Day replaced Queen's Day in 2014.
+static CARIBBEAN_NETHERLANDS: &[Holiday] = &[
+    h(
+        "Nieuwjaarsdag",
+        Rule::Since {
+            year: 2011,
+            base: &Rule::Fixed { month: 1, day: 1 },
+        },
+    ),
+    h(
+        "Goede vrijdag",
+        Rule::Since {
+            year: 2011,
+            base: &Rule::EasterOffset(-2),
+        },
+    ),
+    h(
+        "Eerste paasdag",
+        Rule::Since {
+            year: 2011,
+            base: &Rule::EasterOffset(0),
+        },
+    ),
+    h(
+        "Tweede paasdag",
+        Rule::Since {
+            year: 2011,
+            base: &Rule::EasterOffset(1),
+        },
+    ),
+    h(
+        "Koningsdag",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2014,
+                base: &Rule::Fixed { month: 4, day: 26 },
+            },
+            from: 2014,
+            shifts: &[(0, 1), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],
+        },
+    ),
+    h(
+        "Dag van de Arbeid",
+        Rule::Since {
+            year: 2011,
+            base: &Rule::Fixed { month: 5, day: 1 },
+        },
+    ),
+    h(
+        "Hemelvaartsdag",
+        Rule::Since {
+            year: 2011,
+            base: &Rule::EasterOffset(39),
+        },
+    ),
+    h(
+        "Eerste pinksterdag",
+        Rule::Since {
+            year: 2011,
+            base: &Rule::EasterOffset(49),
+        },
+    ),
+    h(
+        "Eerste kerstdag",
+        Rule::Since {
+            year: 2011,
+            base: &Rule::Fixed { month: 12, day: 25 },
+        },
+    ),
+    h(
+        "Tweede kerstdag",
+        Rule::Since {
+            year: 2011,
+            base: &Rule::Fixed { month: 12, day: 26 },
+        },
+    ),
+    h(
+        "Koninginnedag",
+        Rule::Between {
+            from: 2011,
+            to: 2013,
+            base: &Rule::Fixed { month: 4, day: 30 },
+        },
+    ),
+];
+/// Sint Maarten.
+///
+/// Sint Maarten became a country of the Kingdom in 2010, so most holidays
+/// begin in 2011. Constitution Day is the second Monday in October and
+/// Carnival Day, Carnival Monday and Kingdom Day are year-restricted.
+static SINT_MAARTEN: &[Holiday] = &[
+    h(
+        "Nieuwjaarsdag",
+        Rule::Since {
+            year: 2011,
+            base: &Rule::Fixed { month: 1, day: 1 },
+        },
+    ),
+    h(
+        "Goede vrijdag",
+        Rule::Since {
+            year: 2011,
+            base: &Rule::EasterOffset(-2),
+        },
+    ),
+    h(
+        "Eerste paasdag",
+        Rule::Since {
+            year: 2011,
+            base: &Rule::EasterOffset(0),
+        },
+    ),
+    h(
+        "Tweede paasdag",
+        Rule::Since {
+            year: 2011,
+            base: &Rule::EasterOffset(1),
+        },
+    ),
+    h(
+        "Koningsdag",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2014,
+                base: &Rule::Fixed { month: 4, day: 26 },
+            },
+            from: 2014,
+            shifts: &[(0, 1), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],
+        },
+    ),
+    h(
+        "Carnavalsdag",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2011,
+                base: &Rule::Fixed { month: 4, day: 29 },
+            },
+            from: 2014,
+            shifts: &[(0, 1), (1, 1), (2, 1), (3, 1), (4, 1), (6, 3)],
+        },
+    ),
+    h(
+        "Dag van de Arbeid",
+        Rule::Since {
+            year: 2011,
+            base: &Rule::Fixed { month: 5, day: 1 },
+        },
+    ),
+    h(
+        "Hemelvaartsdag",
+        Rule::Since {
+            year: 2011,
+            base: &Rule::EasterOffset(39),
+        },
+    ),
+    h(
+        "Eerste pinksterdag",
+        Rule::Since {
+            year: 2011,
+            base: &Rule::EasterOffset(49),
+        },
+    ),
+    h(
+        "Dag van de Bevrijding",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2012,
+                base: &Rule::Fixed { month: 7, day: 2 },
+            },
+            from: 2012,
+            shifts: &[(0, -1), (2, -1), (3, -1), (4, -1), (5, -1), (6, -1)],
+        },
+    ),
+    h(
+        "Dag van de Constitutie",
+        Rule::Since {
+            year: 2015,
+            base: &Rule::NthWeekday {
+                month: 10,
+                weekday: 1,
+                nth: 2,
+            },
+        },
+    ),
+    h(
+        "Sint-Maartensdag",
+        Rule::Since {
+            year: 2011,
+            base: &Rule::Fixed { month: 11, day: 11 },
+        },
+    ),
+    h(
+        "Eerste kerstdag",
+        Rule::Since {
+            year: 2011,
+            base: &Rule::Fixed { month: 12, day: 25 },
+        },
+    ),
+    h(
+        "Tweede kerstdag",
+        Rule::Since {
+            year: 2011,
+            base: &Rule::Fixed { month: 12, day: 26 },
+        },
+    ),
+    h(
+        "Koninginnedag",
+        Rule::Between {
+            from: 2011,
+            to: 2013,
+            base: &Rule::Fixed { month: 4, day: 30 },
+        },
+    ),
+    h(
+        "Koninkrijksdag",
+        Rule::ObservedShift {
+            base: &Rule::Between {
+                from: 2011,
+                to: 2014,
+                base: &Rule::Fixed { month: 12, day: 15 },
+            },
+            from: 2011,
+            shifts: &[(0, 1)],
+        },
+    ),
+];
 /// Places every holiday of `year`, resolving the collisions a substitution
 /// creates.
 ///
@@ -11001,7 +11296,7 @@ mod tests {
         // line in `ALL` compiles and is simply never listed - and every
         // `Country::ALL` test then skips it. Pin the count so adding a country
         // forces this test to be updated, and reject a repeated one.
-        assert_eq!(Country::ALL.len(), 99, "update when a country is added");
+        assert_eq!(Country::ALL.len(), 102, "update when a country is added");
         let mut names: Vec<&str> = Country::ALL.iter().map(|c| c.name()).collect();
         names.sort_unstable();
         let mut unique = names.clone();

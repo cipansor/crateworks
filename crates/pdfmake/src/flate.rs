@@ -192,7 +192,12 @@ fn deflate(input: &[u8]) -> Vec<u8> {
     writer.write(1, 1);
     writer.write(1, 2);
 
-    let mut chains: Vec<i32> = vec![-1; HASH_SIZE];
+    // `heads` is indexed by hash and holds the most recent position with that
+    // hash; `chains` is indexed by position and holds the previous position with
+    // the same hash. They are two different sizes: a hash bucket is 15 bits, but
+    // a position runs the length of the input, so `chains` must be as long as
+    // the input or the walk off a hash bucket lands past its end.
+    let mut chains: Vec<i32> = vec![-1; input.len()];
     let mut heads: Vec<i32> = vec![-1; HASH_SIZE];
     let mut position = 0usize;
 

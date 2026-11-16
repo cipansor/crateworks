@@ -10,6 +10,8 @@
 //! `IF` and `IFERROR` are not here, because they must not evaluate every
 //! argument; the evaluator handles them directly.
 
+use std::collections::HashSet;
+
 use crate::Error;
 use crate::bessel;
 use crate::complex::Complex;
@@ -3125,10 +3127,32 @@ fn numbers_of_arg(name: &str, arg: &Arg) -> Result<Vec<f64>, Error> {
 /// `n - 1`. Both truncate toward zero at the requested significance.
 fn percent_rank(array: &[f64], x: f64, significance: f64, exclusive: bool) -> f64 {
     let n = array.len();
+    // The distinct values, and the index each was first seen at. Equal finite
+    // values are deduplicated the way the old `Vec::contains` did, but with a
+    // set instead of a scan, so the build stays linear. The key is the bit
+    // pattern with the two zeroes folded together, which is exactly what `==`
+    // groups them by.
+    //
+    // A NaN is handled separately: it is `==` to nothing, so `contains` never
+    // found one and kept every occurrence. The sort comparator treats a
+    // comparison with a NaN as equal, so a NaN can sit between two equal finite
+    // values and stop them being adjacent; checking only the last kept value
+    // would then keep the second copy and interpolate between identical
+    // endpoints. Keeping every NaN and deduplicating finite values by value
+    // reproduces the old `uniques` exactly, order included.
     let mut uniques: Vec<f64> = Vec::new();
-    for value in array {
-        if !uniques.contains(value) {
+    let mut first_index: Vec<usize> = Vec::new();
+    let mut seen: HashSet<u64> = HashSet::new();
+    for (index, value) in array.iter().enumerate() {
+        if value.is_nan() {
             uniques.push(*value);
+            first_index.push(index);
+        } else {
+            let key = if *value == 0.0 { 0 } else { value.to_bits() };
+            if seen.insert(key) {
+                uniques.push(*value);
+                first_index.push(index);
+            }
         }
     }
     let m = uniques.len();
@@ -3137,7 +3161,7 @@ fn percent_rank(array: &[f64], x: f64, significance: f64, exclusive: bool) -> f6
     let mut i = 0;
     while i < m {
         if x == uniques[i] {
-            let index = array.iter().position(|v| *v == uniques[i]).unwrap();
+            let index = first_index[i];
             result = if exclusive {
                 (index + 1) as f64 / (n + 1) as f64
             } else {
@@ -3145,7 +3169,7 @@ fn percent_rank(array: &[f64], x: f64, significance: f64, exclusive: bool) -> f6
             };
             break;
         } else if x >= uniques[i] && (i + 1 >= m || x < uniques[i + 1]) {
-            let index = array.iter().position(|v| *v == uniques[i]).unwrap();
+            let index = first_index[i];
             let next = if i + 1 < m {
                 uniques[i + 1]
             } else {

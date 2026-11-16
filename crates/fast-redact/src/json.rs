@@ -404,13 +404,23 @@ impl Parser<'_> {
                     return Err(self.error("unescaped control character in string"));
                 }
                 _ => {
+                    // The delimiters `"`, `\` and the control characters are
+                    // all ASCII, so none can appear inside a UTF-8 multibyte
+                    // sequence: the run to the next delimiter is a whole number
+                    // of characters. Copy it in one go and let `from_utf8`
+                    // validate it, rather than checking each character.
                     let start = self.pos;
-                    // Copy one whole UTF-8 character.
-                    let text = std::str::from_utf8(&self.bytes[start..])
+                    let mut end = self.pos;
+                    while let Some(&byte) = self.bytes.get(end) {
+                        if byte == b'"' || byte == b'\\' || byte < 0x20 {
+                            break;
+                        }
+                        end += 1;
+                    }
+                    let text = std::str::from_utf8(&self.bytes[start..end])
                         .map_err(|_| self.error("invalid UTF-8 in string"))?;
-                    let ch = text.chars().next().expect("a character");
-                    out.push(ch);
-                    self.pos += ch.len_utf8();
+                    out.push_str(text);
+                    self.pos = end;
                 }
             }
         }

@@ -1,7 +1,7 @@
 [package]
 name = "pdfmake"
 description = "Build paginated PDFs from a plain Rust data structure: text, columns, lists and tables, with repeated table headers and page numbers."
-version = "0.1.9"
+version = "0.1.10"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
