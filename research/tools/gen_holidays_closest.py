@@ -58,7 +58,7 @@ COUNTRIES = {
     "Curacao": "CW", "Namibia": "NA", "SintMaarten": "SX",
     # Added in 0.6.0.
     "Armenia": "AM", "Barbados": "BB", "Belarus": "BY", "Georgia": "GE",
-    "Guatemala": "GT", "Honduras": "HN", "Hungary": "HU", "Madagascar": "MG",
+    "Guatemala": "GT", "Honduras": "HN", "Hungary": "HU",
     "Moldova": "MD", "Seychelles": "SC",
 }
 

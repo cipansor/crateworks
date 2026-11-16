@@ -118,13 +118,47 @@ nearest-holiday query over it answers a different question). The held-out check
 inside `derive_holidays.py` is a second gate on the same question the crate's
 README states, and it is what keeps a lookup from being shipped as a rule.
 
+### Follow-up: the held-out check was still incomplete
+
+The held-out check above has a second defect, found while re-reading the tool.
+`rust_rule` renders a run of years that ends at the fitted window's last year as
+`Rule::Since`, which fires from its first year onward. A run of exactly one year
+is not a `Since` - but the code only special-cased a *fixed* one-year run (as
+`Once`) and let a *movable* one fall through to `Since`. Madagascar's Mother's
+Day is the case: the reference keeps the last Sunday of May, and moves it a week
+later when that Sunday is Pentecost, which no `Rule` variant expresses, so the
+fitter settled on a stack of per-year gates whose last entry was a one-year
+`easter` offset at 2050 - rendered as `Since { year: 2050, EasterOffset(56) }`,
+inventing a Mother's Day in every year after. `rust_rule` now bounds a movable
+one-year run with a one-year `Between`, and `rule_applies` - the tool's model of
+what the Rust rule fires, used by the held-out check - reproduces that branch
+order exactly. The two functions disagreeing is what hid the defect: the model
+said the run was bounded while the emitted Rust said it was open-ended.
+
+Bounding it changes the failure, not the verdict. The one-year entry no longer
+fires after 2050, so the holiday *vanishes* rather than being invented - and the
+date comparison cannot see a vanished holiday, because Madagascar's Mother's Day
+only ever falls on a Sunday, which the check treats as cosmetic. A new guard,
+`vanished_names`, rejects a fit whose entries stop producing a holiday the
+reference reports in every held-out year. With both in place the corrected
+generator refuses Madagascar, so **Madagascar is not shipped** (102 calendars to
+101): the rule is inexpressible, exactly as Antarctica's leap-year Midwinter Day
+is, and a knowingly-wrong date is worse than no calendar. The other nine
+calendars the corrected generator refuses (Indonesia, the Netherlands, Spain,
+New Zealand, Greece, Mexico, DR Congo, Botswana, the Northern Mariana Islands)
+were already refused at HEAD; only Madagascar's verdict changes. The
+closest-holiday fixture drops its 400 rows with it, 26,400 over 66 countries to
+26,000 over 65.
+
 ### `holidays-rs`, a test for the country list
 
-`Country::ALL` is hand-maintained and every test that walks the calendars walks
+`Country::ALL` was hand-maintained and every test that walks the calendars walks
 it. The enum's match arms are exhaustive, so a variant added without a line in
-`ALL` compiles, and every `Country::ALL` test then skips it silently. The new
-`all_lists_every_country_exactly_once` test pins the count at 102 - so adding a
-country forces the test to be updated - and rejects a repeated country.
+`ALL` compiled, and every `Country::ALL` test then skipped it silently. A
+`countries!` macro now generates the enum and `ALL` from one list, so a variant
+cannot be missing from `ALL`; `all_lists_every_country_exactly_once` pins the
+count - so adding a country forces the test to be updated - and rejects a
+repeated country.
 
 ## The candidates the diff surfaced
 

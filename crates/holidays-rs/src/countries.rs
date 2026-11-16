@@ -41,10 +41,23 @@ impl SubstituteStyle {
     }
 }
 
-/// A country with a built-in holiday calendar.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[non_exhaustive]
-pub enum Country {
+macro_rules! countries {
+    ($( $(#[$doc:meta])* $variant:ident ),* $(,)?) => {
+        /// A country with a built-in holiday calendar.
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        #[non_exhaustive]
+        pub enum Country {
+            $( $(#[$doc])* $variant, )*
+        }
+
+        impl Country {
+            /// Every country this crate knows, for iterating over the whole set.
+            pub const ALL: &'static [Self] = &[ $( Self::$variant ),* ];
+        }
+    };
+}
+
+countries! {
     /// Indonesia.
     Indonesia,
     /// United States (federal holidays).
@@ -237,8 +250,6 @@ pub enum Country {
     Hungary,
     /// Moldova.
     Moldova,
-    /// Madagascar.
-    Madagascar,
     /// Namibia.
     Namibia,
     /// Seychelles.
@@ -252,112 +263,6 @@ pub enum Country {
 }
 
 impl Country {
-    /// Every country this crate knows, for iterating over the whole set.
-    pub const ALL: &'static [Self] = &[
-        Self::Indonesia,
-        Self::UnitedStates,
-        Self::UnitedKingdom,
-        Self::Germany,
-        Self::France,
-        Self::Netherlands,
-        Self::Spain,
-        Self::Italy,
-        Self::Portugal,
-        Self::Belgium,
-        Self::Austria,
-        Self::Poland,
-        Self::Sweden,
-        Self::Norway,
-        Self::Denmark,
-        Self::Finland,
-        Self::Ireland,
-        Self::Canada,
-        Self::NewZealand,
-        Self::Czechia,
-        Self::Slovakia,
-        Self::Croatia,
-        Self::Slovenia,
-        Self::Estonia,
-        Self::Lithuania,
-        Self::Luxembourg,
-        Self::Iceland,
-        Self::Cyprus,
-        Self::Malta,
-        Self::Greece,
-        Self::Romania,
-        Self::Mexico,
-        Self::Latvia,
-        Self::Brazil,
-        Self::ElSalvador,
-        Self::Nicaragua,
-        Self::Peru,
-        Self::Andorra,
-        Self::CaboVerde,
-        Self::FaroeIslands,
-        Self::Greenland,
-        Self::Switzerland,
-        Self::PitcairnIslands,
-        Self::Tokelau,
-        Self::Samoa,
-        Self::Australia,
-        Self::Uruguay,
-        Self::FrenchGuiana,
-        Self::SaintBarthelemy,
-        Self::SaintPierreAndMiquelon,
-        Self::FrenchSouthernTerritories,
-        Self::Reunion,
-        Self::Mayotte,
-        Self::Liberia,
-        Self::Congo,
-        Self::Liechtenstein,
-        Self::SaintMartin,
-        Self::NewCaledonia,
-        Self::Martinique,
-        Self::WallisAndFutuna,
-        Self::Guadeloupe,
-        Self::FrenchPolynesia,
-        Self::Haiti,
-        Self::SvalbardAndJanMayen,
-        Self::Lesotho,
-        Self::Jamaica,
-        Self::Mozambique,
-        Self::SaintLucia,
-        Self::Monaco,
-        Self::EquatorialGuinea,
-        Self::Niue,
-        Self::Panama,
-        Self::Nauru,
-        Self::DrCongo,
-        Self::Botswana,
-        Self::FalklandIslands,
-        Self::Malawi,
-        Self::NorfolkIsland,
-        Self::AmericanSamoa,
-        Self::Guam,
-        Self::Micronesia,
-        Self::NorthernMarianaIslands,
-        Self::Palau,
-        Self::SaoTomeAndPrincipe,
-        Self::UnitedStatesMinorOutlyingIslands,
-        Self::UnitedStatesVirginIslands,
-        Self::Armenia,
-        Self::Aruba,
-        Self::Barbados,
-        Self::Belarus,
-        Self::Curacao,
-        Self::Georgia,
-        Self::Guatemala,
-        Self::Honduras,
-        Self::Hungary,
-        Self::Moldova,
-        Self::Madagascar,
-        Self::Namibia,
-        Self::Seychelles,
-        Self::AlandIslands,
-        Self::CaribbeanNetherlands,
-        Self::SintMaarten,
-    ];
-
     /// The holiday rules for this country, in no particular order.
     #[must_use]
     pub fn holidays(self) -> &'static [Holiday] {
@@ -458,7 +363,6 @@ impl Country {
             Self::Honduras => HONDURAS,
             Self::Hungary => HUNGARY,
             Self::Moldova => MOLDOVA,
-            Self::Madagascar => MADAGASCAR,
             Self::Namibia => NAMIBIA,
             Self::Seychelles => SEYCHELLES,
             Self::AlandIslands => ALAND_ISLANDS,
@@ -564,7 +468,6 @@ impl Country {
             | Self::Honduras
             | Self::Hungary
             | Self::Moldova
-            | Self::Madagascar
             | Self::Namibia
             | Self::Seychelles
             | Self::AlandIslands
@@ -671,13 +574,12 @@ impl Country {
             Self::Aruba => "Aruba",
             Self::Barbados => "Barbados",
             Self::Belarus => "Belarus",
-            Self::Curacao => "Curacao",
+            Self::Curacao => "Curaçao",
             Self::Georgia => "Georgia",
             Self::Guatemala => "Guatemala",
             Self::Honduras => "Honduras",
             Self::Hungary => "Hungary",
             Self::Moldova => "Moldova",
-            Self::Madagascar => "Madagascar",
             Self::Namibia => "Namibia",
             Self::Seychelles => "Seychelles",
             Self::AlandIslands => "Åland Islands",
@@ -7375,265 +7277,6 @@ static MOLDOVA: &[Holiday] = &[
     ),
 ];
 
-/// Madagascar.
-///
-/// Derived from the reference `holidays` package and verified against it by
-/// `research/tools/derive_holidays.py`.
-static MADAGASCAR: &[Holiday] = &[
-    h("Taom-baovao", Rule::Fixed { month: 1, day: 1 }),
-    h("Fetin'ny vehivavy", Rule::Fixed { month: 3, day: 8 }),
-    h("Fetin'ny mahery fo", Rule::Fixed { month: 3, day: 29 }),
-    h("Fetin'ny paska", Rule::EasterOffset(0)),
-    h("Alatsinain'ny paska", Rule::EasterOffset(1)),
-    h("Fetin'ny asa", Rule::Fixed { month: 5, day: 1 }),
-    h(
-        "Fiakaran'ny Jesosy kristy tany an-danitra",
-        Rule::EasterOffset(39),
-    ),
-    h("Pentekosta", Rule::EasterOffset(49)),
-    h("Alatsinain'ny pentekosta", Rule::EasterOffset(50)),
-    h(
-        "Fetin'ny reny",
-        Rule::Until {
-            year: 2003,
-            base: &Rule::WeekdayOnOrAfter {
-                month: 5,
-                day: 25,
-                weekday: 0,
-            },
-        },
-    ),
-    h(
-        "Fetin'ny reny",
-        Rule::Between {
-            from: 2005,
-            to: 2006,
-            base: &Rule::WeekdayOnOrAfter {
-                month: 5,
-                day: 25,
-                weekday: 0,
-            },
-        },
-    ),
-    h(
-        "Fetin'ny reny",
-        Rule::Between {
-            from: 2008,
-            to: 2008,
-            base: &Rule::WeekdayOnOrAfter {
-                month: 5,
-                day: 25,
-                weekday: 0,
-            },
-        },
-    ),
-    h(
-        "Fetin'ny reny",
-        Rule::Between {
-            from: 2010,
-            to: 2011,
-            base: &Rule::WeekdayOnOrAfter {
-                month: 5,
-                day: 25,
-                weekday: 0,
-            },
-        },
-    ),
-    h(
-        "Fetin'ny reny",
-        Rule::Between {
-            from: 2013,
-            to: 2019,
-            base: &Rule::WeekdayOnOrAfter {
-                month: 5,
-                day: 25,
-                weekday: 0,
-            },
-        },
-    ),
-    h(
-        "Fetin'ny reny",
-        Rule::Between {
-            from: 2021,
-            to: 2022,
-            base: &Rule::WeekdayOnOrAfter {
-                month: 5,
-                day: 25,
-                weekday: 0,
-            },
-        },
-    ),
-    h(
-        "Fetin'ny reny",
-        Rule::Between {
-            from: 2024,
-            to: 2033,
-            base: &Rule::WeekdayOnOrAfter {
-                month: 5,
-                day: 25,
-                weekday: 0,
-            },
-        },
-    ),
-    h(
-        "Fetin'ny reny",
-        Rule::Between {
-            from: 2035,
-            to: 2038,
-            base: &Rule::WeekdayOnOrAfter {
-                month: 5,
-                day: 25,
-                weekday: 0,
-            },
-        },
-    ),
-    h(
-        "Fetin'ny reny",
-        Rule::Between {
-            from: 2040,
-            to: 2041,
-            base: &Rule::WeekdayOnOrAfter {
-                month: 5,
-                day: 25,
-                weekday: 0,
-            },
-        },
-    ),
-    h(
-        "Fetin'ny reny",
-        Rule::Between {
-            from: 2043,
-            to: 2044,
-            base: &Rule::WeekdayOnOrAfter {
-                month: 5,
-                day: 25,
-                weekday: 0,
-            },
-        },
-    ),
-    h(
-        "Fetin'ny reny",
-        Rule::Between {
-            from: 2046,
-            to: 2049,
-            base: &Rule::WeekdayOnOrAfter {
-                month: 5,
-                day: 25,
-                weekday: 0,
-            },
-        },
-    ),
-    h(
-        "Fetin'ny reny",
-        Rule::Between {
-            from: 2004,
-            to: 2004,
-            base: &Rule::EasterOffset(56),
-        },
-    ),
-    h(
-        "Fetin'ny reny",
-        Rule::Between {
-            from: 2007,
-            to: 2007,
-            base: &Rule::EasterOffset(56),
-        },
-    ),
-    h(
-        "Fetin'ny reny",
-        Rule::Between {
-            from: 2009,
-            to: 2009,
-            base: &Rule::EasterOffset(56),
-        },
-    ),
-    h(
-        "Fetin'ny reny",
-        Rule::Between {
-            from: 2012,
-            to: 2012,
-            base: &Rule::EasterOffset(56),
-        },
-    ),
-    h(
-        "Fetin'ny reny",
-        Rule::Between {
-            from: 2020,
-            to: 2020,
-            base: &Rule::EasterOffset(56),
-        },
-    ),
-    h(
-        "Fetin'ny reny",
-        Rule::Between {
-            from: 2023,
-            to: 2023,
-            base: &Rule::EasterOffset(56),
-        },
-    ),
-    h(
-        "Fetin'ny reny",
-        Rule::Between {
-            from: 2034,
-            to: 2034,
-            base: &Rule::EasterOffset(56),
-        },
-    ),
-    h(
-        "Fetin'ny reny",
-        Rule::Between {
-            from: 2039,
-            to: 2039,
-            base: &Rule::EasterOffset(56),
-        },
-    ),
-    h(
-        "Fetin'ny reny",
-        Rule::Between {
-            from: 2042,
-            to: 2042,
-            base: &Rule::EasterOffset(56),
-        },
-    ),
-    h(
-        "Fetin'ny reny",
-        Rule::Between {
-            from: 2045,
-            to: 2045,
-            base: &Rule::EasterOffset(56),
-        },
-    ),
-    h(
-        "Fetin'ny reny",
-        Rule::Since {
-            year: 2050,
-            base: &Rule::EasterOffset(56),
-        },
-    ),
-    h(
-        "Fetin'ny ray",
-        Rule::NthWeekday {
-            month: 6,
-            weekday: 0,
-            nth: 3,
-        },
-    ),
-    h("Fetin'ny fahaleovantena", Rule::Fixed { month: 6, day: 26 }),
-    h(
-        "Fiakaran'ny Masina Maria tany an-danitra",
-        Rule::Fixed { month: 8, day: 15 },
-    ),
-    h("Fetin'ny olo-masina", Rule::Fixed { month: 11, day: 1 }),
-    h(
-        "Fetin'ny Repoblika",
-        Rule::Since {
-            year: 2011,
-            base: &Rule::Fixed { month: 12, day: 11 },
-        },
-    ),
-    h("Fetin'ny noely", Rule::Fixed { month: 12, day: 25 }),
-];
-
 /// Namibia.
 ///
 /// Derived from the reference `holidays` package and verified against it by
@@ -8938,12 +8581,6 @@ impl Calendar {
     #[must_use]
     pub const fn moldova() -> Self {
         Self::new(Country::Moldova)
-    }
-
-    /// Builds the calendar for Madagascar.
-    #[must_use]
-    pub const fn madagascar() -> Self {
-        Self::new(Country::Madagascar)
     }
 
     /// Builds the calendar for Namibia.
@@ -11292,11 +10929,11 @@ mod tests {
 
     #[test]
     fn all_lists_every_country_exactly_once() {
-        // The enum's match arms are exhaustive, so a variant added without a
-        // line in `ALL` compiles and is simply never listed - and every
-        // `Country::ALL` test then skips it. Pin the count so adding a country
-        // forces this test to be updated, and reject a repeated one.
-        assert_eq!(Country::ALL.len(), 102, "update when a country is added");
+        // The enum and `ALL` are generated together by the `countries!` macro,
+        // so a variant cannot be missing from the list. Pin the count so adding
+        // a country forces this test to be updated deliberately, and reject a
+        // repeated one.
+        assert_eq!(Country::ALL.len(), 101, "update when a country is added");
         let mut names: Vec<&str> = Country::ALL.iter().map(|c| c.name()).collect();
         names.sort_unstable();
         let mut unique = names.clone();

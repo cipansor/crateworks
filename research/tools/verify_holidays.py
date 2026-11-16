@@ -78,7 +78,7 @@ COUNTRIES = {
     "Curacao": "CW", "Namibia": "NA", "SintMaarten": "SX",
     # Added in 0.6.0, unlocked by the two-rule split and the held-out fit check.
     "Armenia": "AM", "Barbados": "BB", "Belarus": "BY", "Georgia": "GE",
-    "Guatemala": "GT", "Honduras": "HN", "Hungary": "HU", "Madagascar": "MG",
+    "Guatemala": "GT", "Honduras": "HN", "Hungary": "HU",
     "Moldova": "MD", "Seychelles": "SC",
 }
 

@@ -214,6 +214,28 @@ thought of are right" into "the cases we checked agree".
 concluding the crate is wrong, print the failing case and check that the fixture
 means what you think it means. This has cost two separate debugging rounds.
 
+**A fit that is right for 51 years can still be a table, and the date check
+cannot see it.** `derive_holidays.py` reproduces the reference exactly over the
+fitted window and then re-resolves the fit over 2051-2075, refusing a table that
+disagrees there. But a holiday that only ever falls on a Sunday has no weekday
+date to be missing, so a fit that silently *drops* it after 2050 - a stack of
+per-year `Between` rules, which is a table, not a rule - passes the date check.
+The tool therefore also rejects a fit whose entries stop producing a holiday the
+reference reports in every held-out year (`vanished_names`). Madagascar's
+Mother's Day is the case that found it: the reference keeps the last Sunday of
+May, *plus a week when that Sunday is Pentecost*, which no `Rule` variant
+expresses, so a 51-year `Between` stack was the only fit - and it was wrong
+after 2050. Madagascar is not shipped for the same reason Antarctica is not: the
+rule is inexpressible, and a knowingly-wrong date is worse than no calendar.
+
+**A one-year run of a movable shape is not `Since`.** `rust_rule` renders a run
+that ends at `LAST` as `Rule::Since`, which fires from its year onward. A run of
+exactly one year is the exception: `Once` for a fixed date, a one-year `Between`
+for anything else. Rendering a movable one-year run as `Since` invented a date
+in every later year - Madagascar's `easter` offset 56 at 2050 did exactly that.
+`rule_applies`, the tool's model of what the Rust rule fires, has to reproduce
+that branch order or the held-out check tests the wrong thing.
+
 ## Known traps
 
 - **A newer clippy can fail an untouched crate.** `-D warnings` turns every new

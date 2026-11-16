@@ -203,13 +203,15 @@ def rust_rule(shape, frm, to):
     if frm == FIRST and to == LAST:
         return core
     if frm == to:
-        # A run of one year is a one-off, and the crate spells that
-        # `Rule::Once`; `Between` with equal bounds is legal but reads as a
-        # window that never was.
-        month = shape[1]
-        day = shape[2] if kind == "fixed" else None
-        if day is not None:
-            return f"Rule::Once {{ year: {frm}, month: {month}, day: {day} }}"
+        # A run of one year fires in that year only, and the gate has to say so
+        # for every shape. `Rule::Once` is the crate's one-off for a fixed date;
+        # a movable shape has no `Once`, so it is bounded with a one-year
+        # `Between`. Letting a movable one-year run fall through to the
+        # `Since` branch below rendered it open-ended, which invented a date in
+        # every year after `to` - the defect the held-out check now catches.
+        if kind == "fixed":
+            return f"Rule::Once {{ year: {frm}, month: {shape[1]}, day: {shape[2]} }}"
+        return f"Rule::Between {{ from: {frm}, to: {to}, base: &{core} }}"
     if frm == FIRST:
         return f"Rule::Until {{ year: {to}, base: &{core} }}"
     if to == LAST:
@@ -507,6 +509,13 @@ def rule_applies(shape, frm, to, year):
     `frm` onward; and anything narrower becomes `Between` or `Once`. Reproducing
     that mapping is what makes the held-out window mean the same thing the Rust
     side would compute.
+
+    The order and the one-year case must match `rust_rule` exactly. A one-year
+    run fires in that year only: `rust_rule` renders a fixed date as `Once` and
+    any other shape as a one-year `Between`. Treating a movable one-year run as
+    open-ended - which an earlier version of both functions did - is what let
+    Madagascar's Mother's Day, a one-year `easter` run at `LAST`, be rendered as
+    `Rule::Since` and invent a date in every later year.
     """
     if frm == FIRST and to == LAST:
         return True
@@ -583,6 +592,36 @@ def disagreements(code, entries, style, first, last):
     return missing, invented
 
 
+def vanished_names(code, entries, first, last):
+    """Base names the reference reports every year in `[first, last]` but the
+    fitted entries never fire for.
+
+    The date comparison in `disagreements` is blind to a holiday that a fit
+    drops entirely, because a name that only ever fell on a Sunday has no
+    weekday date to be missing. That is how a per-year `Between` stack, which
+    is a table rather than a rule, passes the held-out check: the entries stop
+    firing after `LAST` and nothing notices. Requiring every name the reference
+    reports in each held-out year to be produced in that year is the "rule, not
+    a table" property the crate's README states, tested rather than assumed.
+
+    Only a name the reference reports in *every* held-out year is considered, so
+    a genuinely one-off or discontinued observance is not a failure.
+    """
+    ref = pyholidays.country_holidays(code, years=range(first, last + 1))
+    bases, _ = split_observed(ref)
+    ref_years = {name: {y for y in byyear} for name, byyear in bases.items()}
+    ours = {
+        name
+        for year in range(first, last + 1)
+        for _, name, shape, frm, to, _ in entries
+        if rule_applies(shape, frm, to, year) and safe_resolve(shape, year) is not None
+    }
+    span = set(range(first, last + 1))
+    return sorted(
+        name for name, years in ref_years.items() if years == span and name not in ours
+    )
+
+
 def main():
     code = sys.argv[1]
     show = "--rust" in sys.argv
@@ -617,15 +656,19 @@ def main():
     # reproduces 2000-2050 is refused rather than shipped: the crate's promise
     # is that a calendar stays correct for any year.
     hold_missing, hold_invented = disagreements(code, entries, style, LAST + 1, LAST + 25)
-    if hold_missing or hold_invented:
+    vanished = vanished_names(code, entries, LAST + 1, LAST + 25)
+    if hold_missing or hold_invented or vanished:
         print(
             f"FAIL {code}: over-fit, {LAST + 1}-{LAST + 25} has "
-            f"missing={len(hold_missing)} invented={len(hold_invented)}"
+            f"missing={len(hold_missing)} invented={len(hold_invented)} "
+            f"vanished={len(vanished)}"
         )
         for d in hold_missing[:6]:
             print("      missing ", d)
         for d in hold_invented[:6]:
             print("      invented", d)
+        for n in vanished[:6]:
+            print("      vanished", n)
         return 1
     print(f"ok  {code}  ({len(ours)} dates, style={style})")
     if show:
