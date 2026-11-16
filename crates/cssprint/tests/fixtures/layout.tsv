@@ -389,3 +389,34 @@ inline_before_block	0.0.0.1.0.0	p	TextBox	0.00	16.00	16.00	16.00	0.00	0.00	0.00	
 inline_before_block	0.0.0.2	div	BlockBox	0.00	32.00	200.00	16.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
 inline_before_block	0.0.0.2.0	div	LineBox	0.00	32.00	16.00	16.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
 inline_before_block	0.0.0.2.0.0	div	TextBox	0.00	32.00	16.00	16.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	c
+collapse_sibling_bottom_top	0		PageBox	0.00	0.00	200.00	200.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+collapse_sibling_bottom_top	0	html	BlockBox	0.00	0.00	200.00	40.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+collapse_sibling_bottom_top	0.0	body	BlockBox	0.00	0.00	200.00	40.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+collapse_sibling_bottom_top	0.0.0	div	BlockBox	0.00	0.00	200.00	5.00	0.00	0.00	0.00	30.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+collapse_sibling_bottom_top	0.0.1	div	BlockBox	0.00	35.00	200.00	5.00	0.00	0.00	10.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+collapse_through_run	0		PageBox	0.00	0.00	200.00	200.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+collapse_through_run	0	html	BlockBox	0.00	0.00	200.00	60.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+collapse_through_run	0.0	body	BlockBox	0.00	30.00	200.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+collapse_through_run	0.0.0	div	BlockBox	20.00	20.00	160.00	0.00	20.00	20.00	20.00	20.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+collapse_through_run	0.0.1	div	BlockBox	30.00	30.00	140.00	0.00	30.00	30.00	30.00	30.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+collapse_through_then_content	0		PageBox	0.00	0.00	200.00	200.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+collapse_through_then_content	0	html	BlockBox	0.00	0.00	200.00	81.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+collapse_through_then_content	0.0	body	BlockBox	0.00	76.00	200.00	5.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+collapse_through_then_content	0.0.0	div	BlockBox	0.00	76.00	200.00	0.00	0.00	0.00	76.00	76.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+collapse_through_then_content	0.0.1	div	BlockBox	0.00	76.00	200.00	5.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+collapse_parent_child_top	0		PageBox	0.00	0.00	200.00	200.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+collapse_parent_child_top	0	html	BlockBox	0.00	0.00	200.00	30.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+collapse_parent_child_top	0.0	body	BlockBox	0.00	20.00	200.00	10.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+collapse_parent_child_top	0.0.0	div	BlockBox	0.00	20.00	200.00	10.00	0.00	0.00	20.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+collapse_parent_child_top	0.0.0.0	div	BlockBox	0.00	20.00	200.00	10.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+collapse_parent_child_bottom_padding	0		PageBox	0.00	0.00	200.00	200.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+collapse_parent_child_bottom_padding	0	html	BlockBox	0.00	0.00	200.00	140.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+collapse_parent_child_bottom_padding	0.0	body	BlockBox	0.00	0.00	200.00	140.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+collapse_parent_child_bottom_padding	0.0.0	div	BlockBox	32.00	32.00	136.00	76.00	0.00	0.00	0.00	0.00	32.00	32.00	32.00	32.00	0.00	0.00	0.00	0.00	
+collapse_parent_child_bottom_padding	0.0.0.0	div	BlockBox	32.00	32.00	136.00	0.00	0.00	0.00	0.00	76.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+collapse_child_bottom_contained	0		PageBox	0.00	0.00	200.00	200.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+collapse_child_bottom_contained	0	html	BlockBox	0.00	0.00	200.00	40.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+collapse_child_bottom_contained	0.0	body	BlockBox	0.00	0.00	200.00	40.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+collapse_child_bottom_contained	0.0.0	div	BlockBox	0.00	0.00	200.00	5.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+collapse_child_bottom_contained	0.0.0.0	div	BlockBox	0.00	0.00	200.00	5.00	0.00	0.00	0.00	30.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+collapse_child_bottom_contained	0.0.1	div	BlockBox	0.00	35.00	200.00	5.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	

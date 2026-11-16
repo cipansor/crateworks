@@ -139,14 +139,9 @@ struct Fragment {
     padding: Sides,
     border: Sides,
     text: Option<String>,
-    /// The margin this box presents to its parent, after any collapse.
-    effective_margin_top: f64,
-    effective_margin_bottom: f64,
     /// Whether this box's own top and bottom margins are adjoining, so that a
     /// margin passing through it merges with its own on both sides.
     collapses_through: bool,
-    /// Border plus padding on the top.
-    inner_top: f64,
     /// Border plus padding on the bottom.
     inner_bottom: f64,
     children: Vec<Fragment>,
@@ -158,10 +153,18 @@ pub(crate) fn layout_document(
     stylesheet: &crate::Stylesheet,
     page_width: f64,
 ) -> Result<Document, Error> {
-    let mut html = layout_element(dom, stylesheet, page_width, true, None)?;
-    // The root element does not collapse its margin with the page, so it starts
-    // at the origin.
-    html.y_offset = html.inner_top;
+    let (html, _, _) = layout_element(
+        dom,
+        stylesheet,
+        page_width,
+        true,
+        None,
+        Pos {
+            cursor_y: 0.0,
+            parent_content_y: 0.0,
+        },
+        fresh_margins(),
+    )?;
     let html = place(&html, 0.0, 0.0);
     let root = LayoutBox {
         tag: String::new(),
@@ -179,173 +182,225 @@ pub(crate) fn layout_document(
     Ok(Document { root })
 }
 
+/// A run of adjoining margins, shared between a box and its collapsing
+/// descendants.
+///
+/// The reference passes one list down the tree and every box appends its own top
+/// margin to it; a box that collapses through leaves its margins in the list for
+/// the next sibling, and a box that stops the collapse starts a fresh list.
+/// Sharing the list rather than copying it is what makes a chain of
+/// collapsed-through boxes share one collapsed margin: a parent's own top margin
+/// is the collapse of every margin that ended up adjoining inside it.
+type Margins = std::rc::Rc<std::cell::RefCell<Vec<f64>>>;
+
+fn fresh_margins() -> Margins {
+    std::rc::Rc::new(std::cell::RefCell::new(Vec::new()))
+}
+
+fn collapsed(run: &Margins) -> f64 {
+    collapse_margins(&run.borrow())
+}
+
+/// Where a box is being laid out: the parent's running bottom edge, and the
+/// absolute y of the parent's content box, which its own offset is measured
+/// against.
+#[derive(Clone, Copy)]
+struct Pos {
+    cursor_y: f64,
+    parent_content_y: f64,
+}
+
 /// Lay out one block-level element and its subtree.
 ///
 /// `is_root` marks the `html` element, which neither collapses with the page nor
 /// with its own first child in the way an ordinary box does.
+///
+/// Vertical placement follows `block_container_layout` in the reference. The box
+/// joins the run of adjoining margins it was handed, places itself at the
+/// collapsed value of that run, and either stops the run - when a border or
+/// padding separates its margin from its content - or passes it on to its
+/// children. A box that collapses through keeps the run alive for its next
+/// sibling, so a row of empty boxes occupies one collapsed margin rather than
+/// one margin each.
+///
+/// Returns the box, the absolute y of its content box, and the run it leaves
+/// behind for its next sibling.
 fn layout_element(
     element: &Element,
     stylesheet: &crate::Stylesheet,
     containing_width: f64,
     is_root: bool,
     parent_style: Option<&Style>,
-) -> Result<Fragment, Error> {
+    at: Pos,
+    adjoining: Margins,
+) -> Result<(Fragment, f64, Margins), Error> {
+    let Pos {
+        cursor_y,
+        parent_content_y,
+    } = at;
     let style = crate::style::compute(element, stylesheet, parent_style)?;
     let (width, x_offset, margin_left, margin_right) = resolve_horizontal(&style, containing_width);
     let padding = resolve_sides(&style.padding, containing_width);
-
     let inner_top = style.border.top + padding.top;
     let inner_bottom = style.border.bottom + padding.bottom;
-    let own_margin_top = resolve_margin(style.margin[0], containing_width);
-    let own_margin_bottom = resolve_margin(style.margin[2], containing_width);
+    let margin_top = resolve_margin(style.margin[0], containing_width);
+    let margin_bottom = resolve_margin(style.margin[2], containing_width);
 
-    let mut children = layout_children(element, stylesheet, width, &style)?;
-
-    let auto_height = style.height.is_none();
-    let declared_height = style.height;
-
-    if children.is_empty() {
-        // An empty box with no border or padding and zero height collapses
-        // *through*: its top and bottom margins are adjoining, so they merge
-        // into one margin that applies on both sides. The box itself stays
-        // where it is; the merged margin is what a sibling sees.
-        let height = declared_height.unwrap_or(0.0);
-        let through = !is_root && height == 0.0 && inner_top == 0.0 && inner_bottom == 0.0;
-        let (effective_margin_top, effective_margin_bottom) = if through {
-            let merged = collapse_margins(&[own_margin_top, own_margin_bottom]);
-            (merged, merged)
-        } else {
-            (own_margin_top, own_margin_bottom)
-        };
-        return Ok(Fragment {
-            kind: BoxKind::Block,
-            tag: element.tag.clone(),
-            x_offset,
-            y_offset: inner_top,
-            width,
-            height,
-            margin: Sides {
-                top: own_margin_top,
-                right: margin_right,
-                bottom: own_margin_bottom,
-                left: margin_left,
-            },
-            padding,
-            border: style.border,
-            text: None,
-            effective_margin_top,
-            effective_margin_bottom,
-            collapses_through: through,
-            inner_top,
-            inner_bottom,
-            children,
-        });
-    }
-
-    let first_effective_top = children[0].effective_margin_top;
-    let last_effective_bottom = children.last().expect("not empty").effective_margin_bottom;
-    // A box's top margin is adjoining its first child's top margin when nothing
-    // separates them, which is a property of *this* box only: its own border and
-    // padding. The child's border and padding sit below its margin, so they do
-    // not stop the two margins from collapsing, and a child whose own margin
-    // collapsed out of it still presents that margin here. A line box carries no
-    // margin, so it never collapses; the parent's own margin is what applies. The
-    // same holds for an anonymous block, which is built with zero margins.
-    //
-    // The bottom edge differs: a declared height stops the last child's bottom
-    // margin from collapsing out, because the content box has a fixed bottom.
-    // The top edge has no such condition - a declared height says nothing about
-    // the top.
     let collapses_top = !is_root && inner_top == 0.0;
-    let collapses_bottom = !is_root && auto_height && inner_bottom == 0.0;
+    let collapses_bottom = !is_root && inner_bottom == 0.0;
 
-    // Walk the children, leaving each the gap its margin requires. A first child
-    // whose margin collapsed out of this box contributes no gap, because the
-    // collapsed margin has already moved this box itself.
-    let mut cursor = 0.0_f64;
-    let mut previous_bottom = 0.0_f64;
-    // The bottom border edge of the last child that did not collapse through.
-    // The reference only advances its position for such a child, so a trailing
-    // run of collapsed-through boxes adds no height to this one.
-    let mut content_bottom = 0.0_f64;
-    for (index, child) in children.iter_mut().enumerate() {
-        let gap = if index == 0 {
-            if collapses_top {
-                0.0
-            } else {
-                child.effective_margin_top
+    adjoining.borrow_mut().push(margin_top);
+    let this_run = std::rc::Rc::clone(&adjoining);
+
+    let mut adjoining = adjoining;
+    let mut box_y = cursor_y;
+    // A box whose top margin collapses keeps the position it was handed and is
+    // moved by the collapsed run later; otherwise it stops the run here.
+    let cursor = if collapses_top {
+        box_y
+    } else {
+        box_y += collapsed(&adjoining) - margin_top;
+        adjoining = fresh_margins();
+        box_y + margin_top + inner_top
+    };
+    let content_box_y = box_y + margin_top + inner_top;
+
+    // Any block-level child makes this a block container, and then every run of
+    // inline content it holds is wrapped in an anonymous block.
+    let mut has_block = false;
+    for node in &element.children {
+        if let Node::Element(child) = node {
+            let child_style = crate::style::compute(child, stylesheet, Some(&style))?;
+            if child_style.display == Display::Block {
+                has_block = true;
+                break;
             }
-        } else {
-            previous_bottom.max(child.effective_margin_top)
-        };
-        cursor += gap;
-        child.y_offset = cursor + child.inner_top;
-        cursor = child.y_offset + child.height + child.inner_bottom;
-        if !child.collapses_through {
-            content_bottom = cursor;
         }
-        previous_bottom = child.effective_margin_bottom;
     }
 
-    let content_height = if collapses_bottom {
-        content_bottom
-    } else {
-        cursor + previous_bottom
+    let ctx = RunCtx {
+        element,
+        stylesheet,
+        width,
+        style: &style,
+        has_block,
+        content_box_y,
     };
+    let mut flow = Flow {
+        cursor,
+        adjoining,
+        children: Vec::new(),
+        has_in_flow: false,
+    };
+    let mut run: Vec<&Node> = Vec::new();
 
-    // A box whose own top and bottom margins meet - no border, no padding and
-    // zero content height - collapses through: a margin passing into it merges
-    // with its own and escapes the other side.
-    let collapses_through = collapses_top
-        && collapses_bottom
-        && content_height == 0.0
-        && declared_height.unwrap_or(0.0) == 0.0;
-
-    // A first or last child that collapses through presents both of its margins
-    // to this box, so the run includes the far one too.
-    let effective_margin_top = if collapses_top {
-        let mut margin = own_margin_top.max(first_effective_top);
-        if children[0].collapses_through {
-            margin = margin.max(children[0].effective_margin_bottom);
+    for node in &element.children {
+        let block_child = match node {
+            Node::Text(_) => None,
+            Node::Element(child) => {
+                let child_style = crate::style::compute(child, stylesheet, Some(&style))?;
+                match child_style.display {
+                    Display::None => continue,
+                    Display::Block => Some(child),
+                    Display::Inline => None,
+                }
+            }
+        };
+        match block_child {
+            Some(child) => {
+                flush_run(&mut run, &ctx, &mut flow)?;
+                let (mut frag, child_content_y, child_run) = layout_element(
+                    child,
+                    stylesheet,
+                    width,
+                    false,
+                    Some(&style),
+                    Pos {
+                        cursor_y: flow.cursor,
+                        parent_content_y: content_box_y,
+                    },
+                    std::rc::Rc::clone(&flow.adjoining),
+                )?;
+                flow.adjoining = child_run;
+                frag.y_offset = child_content_y - content_box_y;
+                if !frag.collapses_through {
+                    flow.cursor = child_content_y + frag.height + frag.inner_bottom;
+                }
+                flow.adjoining.borrow_mut().push(frag.margin.bottom);
+                flow.children.push(frag);
+                flow.has_in_flow = true;
+            }
+            None => run.push(node),
         }
-        margin
-    } else {
-        own_margin_top
-    };
-    let effective_margin_bottom = if collapses_bottom {
-        let last = children.last().expect("not empty");
-        let mut margin = own_margin_bottom.max(last_effective_bottom);
-        if last.collapses_through {
-            margin = margin.max(last.effective_margin_top);
-        }
-        margin
-    } else {
-        own_margin_bottom
-    };
+    }
+    flush_run(&mut run, &ctx, &mut flow)?;
 
-    Ok(Fragment {
+    let Flow {
+        mut cursor,
+        mut adjoining,
+        mut children,
+        has_in_flow,
+    } = flow;
+
+    // With no in-flow child the box's own top and bottom margins are adjoining,
+    // so a zero-height box with no border or padding collapses through and its
+    // margins join the run for the next sibling.
+    let mut collapses_through = false;
+    if !has_in_flow {
+        let margin = collapsed(&adjoining);
+        if style.height.unwrap_or(0.0) == 0.0 && inner_top == 0.0 && inner_bottom == 0.0 {
+            collapses_through = true;
+        } else {
+            cursor += margin;
+            adjoining = fresh_margins();
+        }
+    } else if style.height.is_some() {
+        // A declared height gives the content box a fixed bottom, so the last
+        // child's bottom margin cannot escape.
+        adjoining = fresh_margins();
+    }
+    if !collapses_bottom {
+        cursor += collapsed(&adjoining);
+        adjoining = fresh_margins();
+    }
+
+    // A box whose top margin collapses is moved by the collapsed run it joined,
+    // but that move is the box's alone: the children were placed against the
+    // position the box had before the move, so their offsets come back by the
+    // same amount.
+    if collapses_top {
+        let delta = collapsed(&this_run) - margin_top;
+        box_y += delta;
+        for child in &mut children {
+            child.y_offset -= delta;
+        }
+    }
+    let content_box_y = box_y + margin_top + inner_top;
+    let height = style
+        .height
+        .unwrap_or_else(|| (cursor - content_box_y).max(0.0));
+
+    let fragment = Fragment {
         kind: BoxKind::Block,
         tag: element.tag.clone(),
         x_offset,
-        y_offset: inner_top,
+        y_offset: content_box_y - parent_content_y,
         width,
-        height: declared_height.unwrap_or(content_height),
+        height,
         margin: Sides {
-            top: own_margin_top,
+            top: margin_top,
             right: margin_right,
-            bottom: own_margin_bottom,
+            bottom: margin_bottom,
             left: margin_left,
         },
         padding,
         border: style.border,
         text: None,
-        effective_margin_top,
-        effective_margin_bottom,
         collapses_through,
-        inner_top,
         inner_bottom,
         children,
-    })
+    };
+    Ok((fragment, content_box_y, adjoining))
 }
 
 /// Collapse a set of adjoining margins: the largest positive plus the most
@@ -356,127 +411,102 @@ fn collapse_margins(margins: &[f64]) -> f64 {
     positive + negative
 }
 
-/// Lay out an element's children in document order.
-///
-/// Block-level children become block boxes. Everything else is a run of inline
-/// content, which becomes line boxes; when such a run sits between block-level
-/// children it is wrapped in an anonymous block that carries the parent's tag,
-/// which is what the reference produces and why `a<p>b</p>c` inside a `div`
-/// yields three boxes tagged `div`.
-fn layout_children(
-    element: &Element,
-    stylesheet: &crate::Stylesheet,
+/// The immutable context a box lays its runs out in.
+struct RunCtx<'a> {
+    element: &'a Element,
+    stylesheet: &'a crate::Stylesheet,
     width: f64,
-    style: &Style,
-) -> Result<Vec<Fragment>, Error> {
-    let mut out = Vec::new();
-    let mut run: Vec<&Node> = Vec::new();
-    // Any block-level child makes the element a block container, and then *every*
-    // run of inline content it holds is wrapped in an anonymous block - the
-    // leading run included, not only the ones between or after blocks. An element
-    // with no block child keeps its line boxes as its own children.
-    let mut has_block = false;
-    for node in &element.children {
-        if let Node::Element(child) = node {
-            let child_style = crate::style::compute(child, stylesheet, Some(style))?;
-            if child_style.display == Display::Block {
-                has_block = true;
-                break;
-            }
-        }
-    }
-
-    for node in &element.children {
-        let block_child = match node {
-            Node::Text(_) => None,
-            Node::Element(child) => {
-                let child_style = crate::style::compute(child, stylesheet, Some(style))?;
-                match child_style.display {
-                    Display::None => continue,
-                    Display::Block => Some(child),
-                    Display::Inline => None,
-                }
-            }
-        };
-        match block_child {
-            Some(child) => {
-                out.extend(layout_run(&run, element, stylesheet, width, style, !has_block)?);
-                run.clear();
-                out.push(layout_element(
-                    child,
-                    stylesheet,
-                    width,
-                    false,
-                    Some(style),
-                )?);
-            }
-            None => run.push(node),
-        }
-    }
-    out.extend(layout_run(&run, element, stylesheet, width, style, !has_block)?);
-    Ok(out)
+    style: &'a Style,
+    has_block: bool,
+    content_box_y: f64,
 }
 
-/// Lay out one run of inline content.
+/// The state a box accumulates while it places its children: its running bottom
+/// edge, the adjoining-margin run it hands on, the children so far, and whether
+/// any of them is in flow.
+struct Flow {
+    cursor: f64,
+    adjoining: Margins,
+    children: Vec<Fragment>,
+    has_in_flow: bool,
+}
+
+/// Lay out one run of inline content and append its line boxes to the flow.
 ///
-/// `direct` says the run is the element's entire content, so its line boxes are
-/// the element's own children; otherwise they go inside an anonymous block. A
-/// run that produces no line box - whitespace between two blocks, say - produces
-/// nothing at all, which is what the reference does.
-fn layout_run(
-    run: &[&Node],
-    element: &Element,
-    stylesheet: &crate::Stylesheet,
-    width: f64,
-    parent_style: &Style,
-    direct: bool,
-) -> Result<Vec<Fragment>, Error> {
+/// `has_block` says the element also holds a block-level child, so the run is
+/// wrapped in an anonymous block; otherwise its line boxes are the element's own
+/// children. Either way the run ends the adjoining-margin chain, because a line
+/// box carries no margin to collapse.
+fn flush_run(run: &mut Vec<&Node>, ctx: &RunCtx, flow: &mut Flow) -> Result<(), Error> {
+    let RunCtx {
+        element,
+        stylesheet,
+        width,
+        style,
+        has_block,
+        content_box_y,
+    } = *ctx;
     if run.is_empty() {
-        return Ok(Vec::new());
+        return Ok(());
     }
-    let items = collect_items(run, stylesheet, parent_style)?;
-    let align = parent_style.text_align;
-    let align_last = parent_style.text_align_last.unwrap_or(align);
-    let indent = resolve(parent_style.text_indent, width);
-    let mut lines = shape_lines(
+    let items = collect_items(run, stylesheet, style)?;
+    let align = style.text_align;
+    let align_last = style.text_align_last.unwrap_or(align);
+    let indent = resolve(style.text_indent, width);
+    let lines = shape_lines(
         &items,
         width,
         &element.tag,
         align,
         align_last,
         indent,
-        parent_style,
+        style,
     );
+    run.clear();
     if lines.is_empty() {
-        return Ok(Vec::new());
+        return Ok(());
     }
-    if direct {
-        return Ok(lines);
+
+    if !flow.adjoining.borrow().is_empty() {
+        flow.cursor += collapsed(&flow.adjoining);
     }
-    let height: f64 = lines.iter().map(|line| line.height).sum();
-    let mut cursor = 0.0;
-    for line in &mut lines {
-        line.y_offset = cursor;
-        cursor += line.height;
+    flow.adjoining = fresh_margins();
+
+    if has_block {
+        let mut height = 0.0;
+        let mut inner = lines;
+        for line in &mut inner {
+            line.y_offset = height;
+            height += line.height;
+        }
+        flow.children.push(Fragment {
+            kind: BoxKind::Block,
+            tag: element.tag.clone(),
+            x_offset: 0.0,
+            y_offset: flow.cursor - content_box_y,
+            width,
+            height,
+            margin: Sides::default(),
+            padding: Sides::default(),
+            border: Sides::default(),
+            text: None,
+            collapses_through: false,
+            inner_bottom: 0.0,
+            children: inner,
+        });
+        flow.cursor += height;
+        // The anonymous block is a block with zero margins, so it leaves a zero
+        // in the run for its next sibling.
+        flow.adjoining.borrow_mut().push(0.0);
+    } else {
+        for mut line in lines {
+            line.y_offset = flow.cursor - content_box_y;
+            flow.cursor += line.height;
+            flow.children.push(line);
+        }
     }
-    Ok(vec![Fragment {
-        kind: BoxKind::Block,
-        tag: element.tag.clone(),
-        x_offset: 0.0,
-        y_offset: 0.0,
-        width,
-        height,
-        margin: Sides::default(),
-        padding: Sides::default(),
-        border: Sides::default(),
-        text: None,
-        effective_margin_top: 0.0,
-        effective_margin_bottom: 0.0,
-        collapses_through: false,
-        inner_top: 0.0,
-        inner_bottom: 0.0,
-        children: lines,
-    }])
+    flow.has_in_flow = true;
+    Ok(())
 }
 
 /// One collapsed text node, with the inline elements it sits inside.
@@ -934,10 +964,7 @@ fn build_line(
         padding: Sides::default(),
         border: Sides::default(),
         text: None,
-        effective_margin_top: 0.0,
-        effective_margin_bottom: 0.0,
         collapses_through: false,
-        inner_top: 0.0,
         inner_bottom: 0.0,
         children,
     })
@@ -1068,10 +1095,7 @@ fn nest(
             padding: Sides::default(),
             border: Sides::default(),
             text: None,
-            effective_margin_top: 0.0,
-            effective_margin_bottom: 0.0,
             collapses_through: false,
-            inner_top: 0.0,
             inner_bottom: 0.0,
             children,
         });
@@ -1111,10 +1135,7 @@ fn empty_boxes(
             padding: Sides::default(),
             border: Sides::default(),
             text: Some(String::new()),
-            effective_margin_top: 0.0,
-            effective_margin_bottom: 0.0,
             collapses_through: false,
-            inner_top: 0.0,
             inner_bottom: 0.0,
             children: Vec::new(),
         }];
@@ -1138,10 +1159,7 @@ fn empty_boxes(
         padding: Sides::default(),
         border: Sides::default(),
         text: None,
-        effective_margin_top: 0.0,
-        effective_margin_bottom: 0.0,
         collapses_through: false,
-        inner_top: 0.0,
         inner_bottom: 0.0,
         children,
     }]
@@ -1164,10 +1182,7 @@ fn text_box(item: &Placed, line_baseline: f64, block_tag: &str) -> Fragment {
         padding: Sides::default(),
         border: Sides::default(),
         text: Some(item.text.clone()),
-        effective_margin_top: 0.0,
-        effective_margin_bottom: 0.0,
         collapses_through: false,
-        inner_top: 0.0,
         inner_bottom: 0.0,
         children: Vec::new(),
     }

@@ -378,6 +378,30 @@ def cases() -> list[tuple[str, str]]:
         ("inline_before_block", f"<style>{page}body{{margin:0}}"
                                 "div{font-family:weasyprint}</style>"
                                 '<div>a<p style="margin:0">b</p>c</div>'),
+        ("collapse_sibling_bottom_top", f"<style>{page}body{{margin:0}}"
+                                        "div{font-family:weasyprint}</style>"
+                                        '<div style="height:5px;margin-bottom:30px"></div>'
+                                        '<div style="height:5px;margin-top:10px"></div>'),
+        ("collapse_through_run", f"<style>{page}body{{margin:0}}"
+                                 "div{font-family:weasyprint}</style>"
+                                 '<div style="margin:20px"></div>'
+                                 '<div style="margin:30px"></div>'),
+        ("collapse_through_then_content", f"<style>{page}body{{margin:0}}"
+                                          "div{font-family:weasyprint}</style>"
+                                          '<div style="margin:76px 0"></div>'
+                                          '<div style="height:5px"></div>'),
+        ("collapse_parent_child_top", f"<style>{page}body{{margin:0}}"
+                                      "div{font-family:weasyprint}</style>"
+                                      '<div style="margin-top:20px">'
+                                      '<div style="height:10px"></div></div>'),
+        ("collapse_parent_child_bottom_padding", f"<style>{page}body{{margin:0}}"
+                                                 "div{font-family:weasyprint}</style>"
+                                                 '<div style="padding:32px">'
+                                                 '<div style="margin-bottom:76px"></div></div>'),
+        ("collapse_child_bottom_contained", f"<style>{page}body{{margin:0}}"
+                                            "div{font-family:weasyprint}</style>"
+                                            '<div><div style="height:5px;margin-bottom:30px"></div></div>'
+                                            '<div style="height:5px"></div>'),
     ]
 
 

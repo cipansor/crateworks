@@ -57,3 +57,9 @@ text_indent_justify	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}d
 inline_word_break	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;width:78px;font-size:16px}</style><div>ipsum sit a ab<span>lorem ipsum</span></div>
 inline_nested_font	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint}</style><div><span style="font-size:24px"><span style="font-size:16px">a</span></span></div>
 inline_before_block	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint}</style><div>a<p style="margin:0">b</p>c</div>
+collapse_sibling_bottom_top	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint}</style><div style="height:5px;margin-bottom:30px"></div><div style="height:5px;margin-top:10px"></div>
+collapse_through_run	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint}</style><div style="margin:20px"></div><div style="margin:30px"></div>
+collapse_through_then_content	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint}</style><div style="margin:76px 0"></div><div style="height:5px"></div>
+collapse_parent_child_top	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint}</style><div style="margin-top:20px"><div style="height:10px"></div></div>
+collapse_parent_child_bottom_padding	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint}</style><div style="padding:32px"><div style="margin-bottom:76px"></div></div>
+collapse_child_bottom_contained	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint}</style><div><div style="height:5px;margin-bottom:30px"></div></div><div style="height:5px"></div>
