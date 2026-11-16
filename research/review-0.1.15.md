@@ -16,8 +16,19 @@ decides whether a country fits, was dropping data, and the countries it called
 unfittable included thirteen that fit exactly. The same defect had already forced
 a workaround in a country the previous round shipped: the old tool could not
 produce Botswana's four one-off `Public Holiday` entries, so they were written
-into `countries.rs` by hand. Both are fixed, and the crate now carries 99
+into `countries.rs` by hand. Both are fixed, and the crate now carries 102
 calendars rather than 86.
+
+The work was reconciled with upstream before it landed. While this branch was in
+flight, `cipansor/main` released `holidays-rs` 0.5.0 with a smaller, different
+set: six calendars (Aruba, the Åland Islands, the Caribbean Netherlands, Curaçao,
+Namibia and Sint Maarten) that its own generator reached through a separate
+inline-observed fallback. A published version number cannot be reused, so this
+branch rebases on that release and ships the union as **0.6.0**. The generator
+here subsumes the upstream fallback - it fits all six of those countries too -
+so the branch keeps one generator and one table set rather than two. The final
+count is 102: the 86 at the merge base, upstream's 6, and the 10 this branch adds
+beyond them.
 
 ## Correctness first: the differential gates were re-run
 
@@ -28,7 +39,7 @@ freshness rather than a crate defect - its row and lookup counts are unchanged.
 
 | Gate | Reference | Result |
 | --- | --- | --- |
-| `verify_holidays.py` | PyPI `holidays` | 0 undocumented defects, 86 calendars |
+| `verify_holidays.py` | PyPI `holidays` | 0 undocumented defects (86 calendars, the count before this round) |
 | `gen_stdnum_vectors.py` | PyPI `python-stdnum` | 85,713 vectors agree |
 | `verify_spreadsheet.py` | npm `@formulajs/formulajs` | 1,068/1,068 cases agree |
 | `verify_aviation.py` | OurAirports `airports.csv` (live) | crate fixture: 11,887 rows and 46,456 lookups |
@@ -42,13 +53,13 @@ freshness rather than a crate defect - its row and lookup counts are unchanged.
 | `verify_proxy_addr.py` | npm `proxy-addr` 2.0.8 | 12,216 rows agree |
 | `tests/oracle.rs` (fast-redact) | npm `fast-redact` 3.5.0 | 6,000 redactions and 90 path verdicts agree |
 | `tests/{fuzz,oracle}.rs` (object-hash) | npm `object-hash` 3.0.0 | 4,000 random values and 66 curated cases agree, all sixteen digests |
-| `tests/closest.rs` (holidays-rs) | PyPI `holidays` | 25,200 rows agree over 63 calendars |
+| `tests/closest.rs` (holidays-rs) | PyPI `holidays` | 26,400 rows agree over 66 calendars |
 
 No gate regressed.
 
 ## What this round develops
 
-### `holidays-rs` 0.4.1 -> 0.5.0, thirteen more countries
+### `holidays-rs` 0.4.1 -> 0.6.0, sixteen more countries, reconciled with upstream's 0.5.0
 
 The crate's own README and `PLAN.md` named the remaining countries as the
 obvious next step and said the additions were mechanical because
@@ -86,9 +97,10 @@ that same stack would have been emitted as a calendar.
 The two fixes together turn the "remaining countries" question from a judgement
 call into a measurement, and the measurement added thirteen: Armenia, Aruba,
 Barbados, Belarus, Curacao, Georgia, Guatemala, Honduras, Hungary, Moldova,
-Madagascar, Namibia and Seychelles. The crate goes from 86 calendars to 99.
-Belarus, Georgia and Moldova bring Orthodox Easter into three more countries;
-Hungary is the country whose two-date name exposed the defect.
+Madagascar, Namibia and Seychelles. Three of those (Aruba, Curacao, Namibia)
+were released upstream as 0.5.0 in parallel, so the reconciled crate goes from 86
+calendars to 102. Belarus, Georgia and Moldova bring Orthodox Easter into three
+more countries; Hungary is the country whose two-date name exposed the defect.
 
 A third, smaller change makes the output readable. A shape that matches a
 holiday's dates with no shift is now preferred over one that needs a shift
@@ -96,10 +108,10 @@ table. Madagascar's Father's Day is the third Sunday of June; the old ordering
 fitted it as a fixed 21 June plus a six-entry weekday shift table - correct, and
 a puzzle to read. It is now `Rule::NthWeekday { month: 6, weekday: 0, nth: 3 }`.
 
-**How it is trusted.** `verify_holidays.py` is the gate, and it now covers 99
+**How it is trusted.** `verify_holidays.py` is the gate, and it now covers 102
 calendars against the reference over 2000-2050 with 0 undocumented defects. The
 closest-holiday fixture is regenerated from the same reference and grows from
-21,200 rows over 53 calendars to 25,200 rows over 63; Barbados, Namibia and
+21,200 rows over 53 calendars to 26,400 rows over 66; Barbados, Namibia and
 Seychelles are excluded for the same reason the other shifting calendars are
 (their reference set carries the raw date and the observed one, so a
 nearest-holiday query over it answers a different question). The held-out check
@@ -111,7 +123,7 @@ README states, and it is what keeps a lookup from being shipped as a rule.
 `Country::ALL` is hand-maintained and every test that walks the calendars walks
 it. The enum's match arms are exhaustive, so a variant added without a line in
 `ALL` compiles, and every `Country::ALL` test then skips it silently. The new
-`all_lists_every_country_exactly_once` test pins the count at 99 - so adding a
+`all_lists_every_country_exactly_once` test pins the count at 102 - so adding a
 country forces the test to be updated - and rejects a repeated country.
 
 ## The candidates the diff surfaced
@@ -138,14 +150,29 @@ licence question, not a port.
 
 ## Documentation
 
-* `crates/holidays-rs/README.md` names the thirteen new calendars in its covered
+* `crates/holidays-rs/README.md` names the sixteen new calendars in its covered
   list, records the held-out fit check in "Verification", and updates the
-  closest-holiday fixture figures to 25,200 rows over 63 countries.
-* `PLAN.md`'s `holidays-rs` section moves the count from 86 to 99, names the new
+  closest-holiday fixture figures to 26,400 rows over 66 countries.
+* `PLAN.md`'s `holidays-rs` section moves the count from 86 to 102, names the new
   Orthodox-Easter calendars, and states that `derive_holidays.py` refuses a fit
   that stops agreeing outside the fitted window.
 * `research/tools/README.md` describes the two-rule split, the shift-table
   preference and the held-out check in `derive_holidays.py`'s row.
+
+## Housekeeping in the same round
+
+Three small changes that are not holiday data:
+
+* The redundant `homepage` field is dropped from the workspace and from every
+  crate. crates.io already shows the repository URL from `repository`, so the
+  second field adds nothing but a place to drift out of date.
+* `ebics` and `pades` each carry a copy of `BigUint::sub`, and clippy 1.100
+  fails both under `-D warnings` with `needless_range_loop` - an untouched crate
+  broken by a newer lint, the trap `AGENTS.md` records. Both loops now iterate
+  the limbs directly, so the fix is in the code rather than an `allow`.
+* `AGENTS.md` gains the note that a gate reading live data fails on the data,
+  not the code: `verify_aviation.py` reads OurAirports' CSV, so a row added or
+  re-coordinated upstream shows up as a red gate with no crate change behind it.
 
 ## Method
 
