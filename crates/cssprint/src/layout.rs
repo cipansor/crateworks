@@ -46,7 +46,7 @@
 
 use crate::dom::{Element, Node};
 use crate::error::Error;
-use crate::style::{Display, Length, Sides, Style};
+use crate::style::{Display, Length, Sides, Style, TextAlign};
 
 /// The kind of box, named as the reference names it so that a tree can be
 /// compared with WeasyPrint's directly.
@@ -142,6 +142,9 @@ struct Fragment {
     /// The margin this box presents to its parent, after any collapse.
     effective_margin_top: f64,
     effective_margin_bottom: f64,
+    /// Whether this box's own top and bottom margins are adjoining, so that a
+    /// margin passing through it merges with its own on both sides.
+    collapses_through: bool,
     /// Border plus padding on the top.
     inner_top: f64,
     /// Border plus padding on the bottom.
@@ -189,9 +192,10 @@ fn layout_element(
 ) -> Result<Fragment, Error> {
     let style = crate::style::compute(element, stylesheet, parent_style)?;
     let (width, x_offset, margin_left, margin_right) = resolve_horizontal(&style, containing_width);
+    let padding = resolve_sides(&style.padding, containing_width);
 
-    let inner_top = style.border.top + style.padding.top;
-    let inner_bottom = style.border.bottom + style.padding.bottom;
+    let inner_top = style.border.top + padding.top;
+    let inner_bottom = style.border.bottom + padding.bottom;
     let own_margin_top = resolve_margin(style.margin[0], containing_width);
     let own_margin_bottom = resolve_margin(style.margin[2], containing_width);
 
@@ -201,55 +205,69 @@ fn layout_element(
     let declared_height = style.height;
 
     if children.is_empty() {
+        // An empty box with no border or padding and zero height collapses
+        // *through*: its top and bottom margins are adjoining, so they merge
+        // into one margin that applies on both sides. The box itself stays
+        // where it is; the merged margin is what a sibling sees.
+        let height = declared_height.unwrap_or(0.0);
+        let through = !is_root && height == 0.0 && inner_top == 0.0 && inner_bottom == 0.0;
+        let (effective_margin_top, effective_margin_bottom) = if through {
+            let merged = collapse_margins(&[own_margin_top, own_margin_bottom]);
+            (merged, merged)
+        } else {
+            (own_margin_top, own_margin_bottom)
+        };
         return Ok(Fragment {
             kind: BoxKind::Block,
             tag: element.tag.clone(),
             x_offset,
             y_offset: inner_top,
             width,
-            height: declared_height.unwrap_or(0.0),
+            height,
             margin: Sides {
                 top: own_margin_top,
                 right: margin_right,
                 bottom: own_margin_bottom,
                 left: margin_left,
             },
-            padding: style.padding,
+            padding,
             border: style.border,
             text: None,
-            effective_margin_top: own_margin_top,
-            effective_margin_bottom: own_margin_bottom,
+            effective_margin_top,
+            effective_margin_bottom,
+            collapses_through: through,
             inner_top,
             inner_bottom,
             children,
         });
     }
 
-    let first = &children[0];
-    let last = children.last().expect("not empty");
-    // A line box carries no margin, so it never collapses; the parent's own
-    // margin is what applies. The same holds for an anonymous block, which is
-    // built with zero margins.
-    let collapses_top = !is_root && auto_height && inner_top == 0.0 && first.inner_top == 0.0;
-    let collapses_bottom =
-        !is_root && auto_height && inner_bottom == 0.0 && last.inner_bottom == 0.0;
-
-    let effective_margin_top = if collapses_top {
-        own_margin_top.max(first.effective_margin_top)
-    } else {
-        own_margin_top
-    };
-    let effective_margin_bottom = if collapses_bottom {
-        own_margin_bottom.max(last.effective_margin_bottom)
-    } else {
-        own_margin_bottom
-    };
+    let first_effective_top = children[0].effective_margin_top;
+    let last_effective_bottom = children.last().expect("not empty").effective_margin_bottom;
+    // A box's top margin is adjoining its first child's top margin when nothing
+    // separates them, which is a property of *this* box only: its own border and
+    // padding. The child's border and padding sit below its margin, so they do
+    // not stop the two margins from collapsing, and a child whose own margin
+    // collapsed out of it still presents that margin here. A line box carries no
+    // margin, so it never collapses; the parent's own margin is what applies. The
+    // same holds for an anonymous block, which is built with zero margins.
+    //
+    // The bottom edge differs: a declared height stops the last child's bottom
+    // margin from collapsing out, because the content box has a fixed bottom.
+    // The top edge has no such condition - a declared height says nothing about
+    // the top.
+    let collapses_top = !is_root && inner_top == 0.0;
+    let collapses_bottom = !is_root && auto_height && inner_bottom == 0.0;
 
     // Walk the children, leaving each the gap its margin requires. A first child
     // whose margin collapsed out of this box contributes no gap, because the
     // collapsed margin has already moved this box itself.
     let mut cursor = 0.0_f64;
     let mut previous_bottom = 0.0_f64;
+    // The bottom border edge of the last child that did not collapse through.
+    // The reference only advances its position for such a child, so a trailing
+    // run of collapsed-through boxes adds no height to this one.
+    let mut content_bottom = 0.0_f64;
     for (index, child) in children.iter_mut().enumerate() {
         let gap = if index == 0 {
             if collapses_top {
@@ -263,13 +281,46 @@ fn layout_element(
         cursor += gap;
         child.y_offset = cursor + child.inner_top;
         cursor = child.y_offset + child.height + child.inner_bottom;
+        if !child.collapses_through {
+            content_bottom = cursor;
+        }
         previous_bottom = child.effective_margin_bottom;
     }
 
     let content_height = if collapses_bottom {
-        cursor
+        content_bottom
     } else {
         cursor + previous_bottom
+    };
+
+    // A box whose own top and bottom margins meet - no border, no padding and
+    // zero content height - collapses through: a margin passing into it merges
+    // with its own and escapes the other side.
+    let collapses_through = collapses_top
+        && collapses_bottom
+        && content_height == 0.0
+        && declared_height.unwrap_or(0.0) == 0.0;
+
+    // A first or last child that collapses through presents both of its margins
+    // to this box, so the run includes the far one too.
+    let effective_margin_top = if collapses_top {
+        let mut margin = own_margin_top.max(first_effective_top);
+        if children[0].collapses_through {
+            margin = margin.max(children[0].effective_margin_bottom);
+        }
+        margin
+    } else {
+        own_margin_top
+    };
+    let effective_margin_bottom = if collapses_bottom {
+        let last = children.last().expect("not empty");
+        let mut margin = own_margin_bottom.max(last_effective_bottom);
+        if last.collapses_through {
+            margin = margin.max(last.effective_margin_top);
+        }
+        margin
+    } else {
+        own_margin_bottom
     };
 
     Ok(Fragment {
@@ -285,15 +336,24 @@ fn layout_element(
             bottom: own_margin_bottom,
             left: margin_left,
         },
-        padding: style.padding,
+        padding,
         border: style.border,
         text: None,
         effective_margin_top,
         effective_margin_bottom,
+        collapses_through,
         inner_top,
         inner_bottom,
         children,
     })
+}
+
+/// Collapse a set of adjoining margins: the largest positive plus the most
+/// negative, which is the reference's `collapse_margin`.
+fn collapse_margins(margins: &[f64]) -> f64 {
+    let positive = margins.iter().copied().fold(0.0_f64, f64::max);
+    let negative = margins.iter().copied().fold(0.0_f64, f64::min);
+    positive + negative
 }
 
 /// Lay out an element's children in document order.
@@ -365,7 +425,18 @@ fn layout_run(
         return Ok(Vec::new());
     }
     let items = collect_items(run, stylesheet, parent_style)?;
-    let mut lines = shape_lines(&items, width, &element.tag);
+    let align = parent_style.text_align;
+    let align_last = parent_style.text_align_last.unwrap_or(align);
+    let indent = resolve(parent_style.text_indent, width);
+    let mut lines = shape_lines(
+        &items,
+        width,
+        &element.tag,
+        align,
+        align_last,
+        indent,
+        parent_style,
+    );
     if lines.is_empty() {
         return Ok(Vec::new());
     }
@@ -391,6 +462,7 @@ fn layout_run(
         text: None,
         effective_margin_top: 0.0,
         effective_margin_bottom: 0.0,
+        collapses_through: false,
         inner_top: 0.0,
         inner_bottom: 0.0,
         children: lines,
@@ -582,6 +654,39 @@ fn pieces(items: &[Item]) -> Vec<Piece> {
     out
 }
 
+/// The empty boxes a line break leaves at the end of a line.
+///
+/// A break drops the space that would have separated the two lines, and the
+/// reference keeps the box that space was in when the line has nothing else in
+/// it. A space in the same box as the line's last content simply goes away. A
+/// space in a box the last content sits deeper inside leaves nothing, because
+/// that box is still on the line. A space at the block level, with the last
+/// content inside an inline box, leaves an empty text box for the block. A space
+/// in an inline box the last content is not inside leaves that box, and the
+/// boxes between them, nested and empty. `None` means no box is left.
+fn break_boundary(current: &[Piece], space: &Piece) -> Option<(Vec<InlineAncestor>, usize)> {
+    let last = current.last()?;
+    let space_path = &space.ancestors;
+    let common = last
+        .ancestors
+        .iter()
+        .zip(space_path)
+        .take_while(|(left, right)| left.id == right.id)
+        .count();
+    if common == space_path.len() {
+        // The space's box holds the last content, so that box stays on the line
+        // whether or not the space was in it. Nothing is left empty.
+        None
+    } else {
+        Some((space_path[common..].to_vec(), common))
+    }
+}
+
+/// A line's content, the indent applied to it, and the empty inline chain a break
+/// left behind with the depth in the line where that chain attaches. The chain is
+/// `None` when no break ended the line.
+type PendingLine = (Vec<Piece>, f64, Option<(Vec<InlineAncestor>, usize)>);
+
 /// Break the pieces into lines.
 ///
 /// A line takes words until the next one would not fit, at which point the space
@@ -589,11 +694,22 @@ fn pieces(items: &[Item]) -> Vec<Piece> {
 /// line and a space at the end of one. That is what the reference does, and it
 /// is why `hello world` in a 40px block becomes two boxes reading `hello` and
 /// `world` with no space between them.
-fn shape_lines(items: &[Item], width: f64, tag: &str) -> Vec<Fragment> {
-    let mut lines: Vec<Fragment> = Vec::new();
+fn shape_lines(
+    items: &[Item],
+    width: f64,
+    tag: &str,
+    align: TextAlign,
+    align_last: TextAlign,
+    indent: f64,
+    block_style: &Style,
+) -> Vec<Fragment> {
+    let mut lines: Vec<PendingLine> = Vec::new();
     let mut current: Vec<Piece> = Vec::new();
     let mut x = 0.0_f64;
     let mut pending_space: Option<Piece> = None;
+    // `text-indent` shifts the first line's content, so that line wraps against a
+    // narrower width; every later line starts at the block's edge.
+    let mut leading = indent;
 
     for piece in pieces(items) {
         if piece.is_space {
@@ -602,16 +718,27 @@ fn shape_lines(items: &[Item], width: f64, tag: &str) -> Vec<Fragment> {
             }
             continue;
         }
+        let available = width - leading;
         let word_width = advance(&piece.text, piece.style.font_size);
         let space_width = pending_space
             .as_ref()
             .map_or(0.0, |space| advance(" ", space.style.font_size));
-        if !current.is_empty() && x + space_width + word_width > width {
-            if let Some(line) = build_line(std::mem::take(&mut current), tag) {
-                lines.push(line);
-            }
+        // A break is only allowed where there is a break opportunity, which for
+        // this crate is a space. Two runs with no space between them - adjacent
+        // text nodes, or text either side of an inline element's boundary - form
+        // one unbreakable word, so a line that overflows does so rather than
+        // splitting there.
+        if let Some(space) = &pending_space
+            && !current.is_empty()
+            && x + space_width + word_width > available
+        {
+            // The break drops the space. When the space was the only content its
+            // box had on this line, the reference leaves that box behind empty.
+            let boundary = break_boundary(&current, space);
+            lines.push((std::mem::take(&mut current), leading, boundary));
             x = 0.0;
             pending_space = None;
+            leading = 0.0;
         }
         if let Some(space) = pending_space.take()
             && !current.is_empty()
@@ -622,10 +749,29 @@ fn shape_lines(items: &[Item], width: f64, tag: &str) -> Vec<Fragment> {
         x += word_width;
         current.push(piece);
     }
-    if let Some(line) = build_line(current, tag) {
-        lines.push(line);
+    if !current.is_empty() {
+        lines.push((current, leading, None));
     }
+
+    // The last line is aligned by `text-align-last`, every other line by
+    // `text-align`, which is what the reference does.
+    let count = lines.len();
     lines
+        .into_iter()
+        .enumerate()
+        .filter_map(|(index, (line, leading, boundary))| {
+            let last = index + 1 == count;
+            build_line(
+                line,
+                tag,
+                width,
+                if last { align_last } else { align },
+                leading,
+                block_style,
+                boundary,
+            )
+        })
+        .collect()
 }
 
 /// Merge adjacent pieces that share their inline ancestry into one text box,
@@ -664,37 +810,91 @@ fn place_pieces(pieces: Vec<Piece>) -> Vec<Placed> {
     out
 }
 
-/// Turn one line's pieces into a line box.
-fn build_line(pieces: Vec<Piece>, tag: &str) -> Option<Fragment> {
-    let items = place_pieces(pieces);
-    if items.is_empty() {
+/// Turn one line's pieces into a line box, aligned within `available`.
+///
+/// `indent` is the `text-indent` that applies to this line, which is non-zero
+/// only for the first line of a block. The reference measures the line box from
+/// the block's edge to the end of the content, so the indent widens the line box
+/// and shifts its content, and the alignment offset is taken against that wider
+/// box.
+fn build_line(
+    pieces: Vec<Piece>,
+    tag: &str,
+    available: f64,
+    align: TextAlign,
+    indent: f64,
+    block_style: &Style,
+    boundary: Option<(Vec<InlineAncestor>, usize)>,
+) -> Option<Fragment> {
+    let mut items = place_pieces(pieces);
+    if items.is_empty() && boundary.is_none() {
         return None;
     }
 
-    // The baseline is as far down as the deepest box on the line reaches.
-    let baseline = items
-        .iter()
-        .map(|item| child_baseline(&item.style))
-        .fold(f64::NEG_INFINITY, f64::max);
-    let top = items
-        .iter()
-        .map(|item| baseline - child_baseline(&item.style))
-        .fold(f64::INFINITY, f64::min);
-    let bottom = items
-        .iter()
-        .map(|item| baseline - child_baseline(&item.style) + item.style.used_line_height())
-        .fold(f64::NEG_INFINITY, f64::max);
-    let height = bottom - top;
+    let content_width: f64 = items.iter().map(|item| item.width).sum();
+    // WeasyPrint leaves a line alone once it already fills the line box, and
+    // `justify` never touches the last line (that is `text-align-last`'s job).
+    let line_box_width = indent + content_width;
+    let offset = if line_box_width >= available {
+        0.0
+    } else {
+        let gap = available - line_box_width;
+        match align {
+            TextAlign::Start | TextAlign::Left | TextAlign::Justify => 0.0,
+            TextAlign::Center => gap / 2.0,
+            TextAlign::End | TextAlign::Right => gap,
+        }
+    };
+    if align == TextAlign::Justify && line_box_width < available {
+        justify(&mut items, available - line_box_width);
+    }
 
-    let line_width: f64 = items.iter().map(|item| item.width).sum();
-    let children = nest(&items, 0, baseline - top, tag);
+    // The line box has the block's own font as its "strut": a zero-width box on
+    // the baseline, so a line whose inline content is smaller or larger than the
+    // block still gets the block's line height. Every box on the line is
+    // baseline-aligned, so with the baseline at zero a box of style `s` spans
+    // `-baseline(s)` to `-baseline(s) + line-height(s)`; the line box is the
+    // union of those spans, the strut included.
+    let strut_baseline = child_baseline(block_style);
+    let mut min_y = -strut_baseline;
+    let mut max_y = -strut_baseline + block_style.used_line_height();
+    for item in &items {
+        let baseline = child_baseline(&item.style);
+        min_y = min_y.min(-baseline);
+        max_y = max_y.max(-baseline + item.style.used_line_height());
+    }
+    if let Some((chain, _)) = &boundary {
+        for ancestor in chain {
+            let baseline = child_baseline(&ancestor.style);
+            min_y = min_y.min(-baseline);
+            max_y = max_y.max(-baseline + ancestor.style.used_line_height());
+        }
+    }
+    let baseline = -min_y;
+    let height = max_y - min_y;
+
+    let content_width: f64 = items.iter().map(|item| item.width).sum();
+    let mut children = nest(
+        &items,
+        0,
+        baseline,
+        tag,
+        boundary
+            .as_ref()
+            .map(|(chain, attach)| (chain.as_slice(), *attach)),
+        content_width,
+    );
+    // The indent shifts the line's content, not the line box itself.
+    for child in &mut children {
+        child.x_offset += indent;
+    }
 
     Some(Fragment {
         kind: BoxKind::Line,
         tag: tag.to_owned(),
-        x_offset: 0.0,
+        x_offset: offset,
         y_offset: 0.0,
-        width: line_width,
+        width: indent + content_width,
         height,
         margin: Sides::default(),
         padding: Sides::default(),
@@ -702,10 +902,40 @@ fn build_line(pieces: Vec<Piece>, tag: &str) -> Option<Fragment> {
         text: None,
         effective_margin_top: 0.0,
         effective_margin_bottom: 0.0,
+        collapses_through: false,
         inner_top: 0.0,
         inner_bottom: 0.0,
         children,
     })
+}
+
+/// Distribute `extra` across the expandable spaces of a justified line.
+///
+/// This mirrors `justify_line` in the reference: the extra width is split evenly
+/// over the spaces, and each space widens its own box, so a line that wraps is
+/// only stretched on the lines that are not last.
+fn justify(items: &mut [Placed], extra: f64) {
+    if extra <= 0.0 {
+        return;
+    }
+    let spaces: usize = items
+        .iter()
+        .map(|item| item.text.matches(' ').count())
+        .sum();
+    if spaces == 0 {
+        return;
+    }
+    let per_space = extra / spaces as f64;
+    let mut shift = 0.0;
+    for item in items.iter_mut() {
+        item.x += shift;
+        let count = item.text.matches(' ').count();
+        if count > 0 {
+            let added = per_space * count as f64;
+            item.width += added;
+            shift += added;
+        }
+    }
 }
 
 /// Group a line's boxes into inline boxes, returning the outermost ones.
@@ -714,12 +944,36 @@ fn build_line(pieces: Vec<Piece>, tag: &str) -> Option<Fragment> {
 /// a box's content-box top is `line_baseline - ascent(font-size)`. A child's
 /// offset is made relative to the box it goes into, so that placing the tree
 /// top-down adds each level exactly once.
-fn nest(items: &[Placed], depth: usize, line_baseline: f64, block_tag: &str) -> Vec<Fragment> {
-    let mut out = Vec::new();
+///
+/// `tail` is the chain of boxes a line break left empty, with the depth it
+/// belongs at: the number of boxes the line's last content and the dropped space
+/// share. The empty boxes go inside that many levels, because the reference
+/// keeps them where the space sat rather than beside the line's content.
+/// `end_x` is the line's content end, from the line's left edge, which is where
+/// the outermost empty box goes.
+fn nest(
+    items: &[Placed],
+    depth: usize,
+    line_baseline: f64,
+    block_tag: &str,
+    tail: Option<(&[InlineAncestor], usize)>,
+    end_x: f64,
+) -> Vec<Fragment> {
+    // Split the items into runs that share the ancestor at this depth.
+    struct Group {
+        ancestor: Option<InlineAncestor>,
+        start: usize,
+        end: usize,
+    }
+    let mut groups: Vec<Group> = Vec::new();
     let mut index = 0;
     while index < items.len() {
         if items[index].ancestors.len() <= depth {
-            out.push(text_box(&items[index], line_baseline, block_tag));
+            groups.push(Group {
+                ancestor: None,
+                start: index,
+                end: index + 1,
+            });
             index += 1;
             continue;
         }
@@ -731,19 +985,49 @@ fn nest(items: &[Placed], depth: usize, line_baseline: f64, block_tag: &str) -> 
         {
             end += 1;
         }
-        let mut children = nest(&items[index..end], depth + 1, line_baseline, block_tag);
+        groups.push(Group {
+            ancestor: Some(ancestor),
+            start: index,
+            end,
+        });
+        index = end;
+    }
+
+    let mut out = Vec::new();
+    for group in &groups {
+        let Some(ancestor) = &group.ancestor else {
+            out.push(text_box(&items[group.start], line_baseline, block_tag));
+            continue;
+        };
+        // The tail travels down the run that holds the line's last content,
+        // because that is the box the empty chain belongs inside.
+        let is_last_run = group.end == items.len();
+        let inner_tail = tail.filter(|(_, attach)| is_last_run && *attach > depth);
+        let mut children = nest(
+            &items[group.start..group.end],
+            depth + 1,
+            line_baseline,
+            block_tag,
+            inner_tail,
+            end_x,
+        );
         let left = children.first().map_or(0.0, |child| child.x_offset);
         let right = children
             .last()
             .map_or(left, |child| child.x_offset + child.width);
+        // A child's offset is relative to the box it goes into, so the inline
+        // box's own offset comes off both axes. The x offsets were laid out from
+        // the line's left edge; the y offsets are measured from the line's top.
+        let top = line_baseline - ascent(&ancestor.style);
         for child in &mut children {
             child.x_offset -= left;
+            child.y_offset -= top;
         }
         out.push(Fragment {
             kind: BoxKind::Inline,
-            tag: ancestor.tag,
+            tag: ancestor.tag.clone(),
             x_offset: left,
-            y_offset: line_baseline - ascent(&ancestor.style),
+            y_offset: top,
             width: right - left,
             height: ancestor.style.font_size,
             margin: half_leading_sides(&ancestor.style),
@@ -752,13 +1036,81 @@ fn nest(items: &[Placed], depth: usize, line_baseline: f64, block_tag: &str) -> 
             text: None,
             effective_margin_top: 0.0,
             effective_margin_bottom: 0.0,
+            collapses_through: false,
             inner_top: 0.0,
             inner_bottom: 0.0,
             children,
         });
-        index = end;
+    }
+
+    // The tail's depth is this one, so its boxes are siblings of the boxes here.
+    if let Some((chain, attach)) = tail
+        && attach == depth
+    {
+        out.extend(empty_boxes(chain, end_x, line_baseline, block_tag, true));
     }
     out
+}
+
+/// Build the empty boxes a line break leaves at the end of a line.
+///
+/// An empty chain is the block itself, which the reference leaves as an empty
+/// text box for the block. A non-empty chain nests, so each box wraps the next
+/// and only the outermost is placed; the innermost holds nothing, and the boxes
+/// inside sit at the origin of the box that holds them.
+fn empty_boxes(
+    chain: &[InlineAncestor],
+    x: f64,
+    line_baseline: f64,
+    block_tag: &str,
+    outer: bool,
+) -> Vec<Fragment> {
+    let Some(ancestor) = chain.first() else {
+        return vec![Fragment {
+            kind: BoxKind::Text,
+            tag: block_tag.to_owned(),
+            x_offset: x,
+            y_offset: 0.0,
+            width: 0.0,
+            height: 0.0,
+            margin: Sides::default(),
+            padding: Sides::default(),
+            border: Sides::default(),
+            text: Some(String::new()),
+            effective_margin_top: 0.0,
+            effective_margin_bottom: 0.0,
+            collapses_through: false,
+            inner_top: 0.0,
+            inner_bottom: 0.0,
+            children: Vec::new(),
+        }];
+    };
+    let children = match chain.get(1..) {
+        Some(rest) if !rest.is_empty() => empty_boxes(rest, 0.0, line_baseline, block_tag, false),
+        _ => Vec::new(),
+    };
+    vec![Fragment {
+        kind: BoxKind::Inline,
+        tag: ancestor.tag.clone(),
+        x_offset: x,
+        y_offset: if outer {
+            line_baseline - ascent(&ancestor.style)
+        } else {
+            0.0
+        },
+        width: 0.0,
+        height: ancestor.style.font_size,
+        margin: half_leading_sides(&ancestor.style),
+        padding: Sides::default(),
+        border: Sides::default(),
+        text: None,
+        effective_margin_top: 0.0,
+        effective_margin_bottom: 0.0,
+        collapses_through: false,
+        inner_top: 0.0,
+        inner_bottom: 0.0,
+        children,
+    }]
 }
 
 /// A text box on a line.
@@ -780,6 +1132,7 @@ fn text_box(item: &Placed, line_baseline: f64, block_tag: &str) -> Fragment {
         text: Some(item.text.clone()),
         effective_margin_top: 0.0,
         effective_margin_bottom: 0.0,
+        collapses_through: false,
         inner_top: 0.0,
         inner_bottom: 0.0,
         children: Vec::new(),
@@ -825,10 +1178,10 @@ fn advance(text: &str, font_size: f64) -> f64 {
 /// Returns the content width, the offset from the containing block's content
 /// left edge to this box's content box, and the two used margins.
 fn resolve_horizontal(style: &Style, cb: f64) -> (f64, f64, f64, f64) {
-    let padding_plus_border =
-        style.padding.left + style.padding.right + style.border.left + style.border.right;
-    let left_auto = style.margin[3] == Length::Auto;
-    let right_auto = style.margin[1] == Length::Auto;
+    let padding = resolve_sides(&style.padding, cb);
+    let padding_plus_border = padding.left + padding.right + style.border.left + style.border.right;
+    let mut left_auto = style.margin[3] == Length::Auto;
+    let mut right_auto = style.margin[1] == Length::Auto;
     let mut margin_left = if left_auto {
         0.0
     } else {
@@ -855,7 +1208,10 @@ fn resolve_horizontal(style: &Style, cb: f64) -> (f64, f64, f64, f64) {
     };
     width = clamp_width(width, style, cb);
 
-    // An `auto` margin becomes zero when the box would otherwise overflow.
+    // An `auto` margin becomes zero when the box would otherwise overflow, and
+    // it stops being `auto`: the reference zeroes it before it distributes the
+    // remaining space, so an over-constrained box keeps zero margins rather than
+    // a negative one.
     let mut margin_width = padding_plus_border + width;
     if !left_auto {
         margin_width += margin_left;
@@ -866,9 +1222,11 @@ fn resolve_horizontal(style: &Style, cb: f64) -> (f64, f64, f64, f64) {
     if margin_width > cb {
         if left_auto {
             margin_left = 0.0;
+            left_auto = false;
         }
         if right_auto {
             margin_right = 0.0;
+            right_auto = false;
         }
     }
 
@@ -884,20 +1242,35 @@ fn resolve_horizontal(style: &Style, cb: f64) -> (f64, f64, f64, f64) {
         (false, false) => {}
     }
 
-    let x_offset = margin_left + style.border.left + style.padding.left;
+    let x_offset = margin_left + style.border.left + padding.left;
     (width, x_offset, margin_left, margin_right)
 }
 
+/// Resolve a padding shorthand, whose percentages use the containing block's
+/// width on every side - the vertical ones too, as CSS 2.1 specifies.
+fn resolve_sides(sides: &[Length; 4], cb: f64) -> Sides {
+    Sides {
+        top: resolve(sides[0], cb),
+        right: resolve(sides[1], cb),
+        bottom: resolve(sides[2], cb),
+        left: resolve(sides[3], cb),
+    }
+}
+
 /// Apply `min-width` and `max-width` to a used width.
+///
+/// `min-width`'s initial value is zero, so the used width is floored at zero
+/// even when neither property is set: a box whose padding alone exceeds its
+/// containing block is zero wide, not negative. The reference computes
+/// `max(min, min(max, width))`, so `min-width` is applied last and wins when it
+/// is larger than `max-width`.
 fn clamp_width(width: f64, style: &Style, cw: f64) -> f64 {
     let mut width = width;
-    if let Some(min) = style.min_width {
-        width = width.max(resolve(min, cw));
-    }
     if let Some(max) = style.max_width {
         width = width.min(resolve(max, cw));
     }
-    width
+    let min = style.min_width.map_or(0.0, |min| resolve(min, cw));
+    width.max(min)
 }
 
 /// Resolve a length to pixels against a containing width.

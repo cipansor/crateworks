@@ -497,8 +497,12 @@ percentages resolve against the containing block, adjacent vertical margins
 collapse including through a parent, and `display: none` removes a subtree.
 Text and inline elements are gathered into line boxes, wrapped to the block's
 width, and placed on a shared baseline, with whitespace collapsed, a space at a
-line break removed, and `font-size` and `line-height` inherited. Styles come from
-a stylesheet and an inline `style` attribute, with the attribute winning.
+line break removed, and `font-size` and `line-height` inherited. Each line is
+placed by `text-align` - `left`, `right`, `center`, `start`, `end` and `justify` -
+with `justify` widening the spaces so every line but the last fills the block,
+and `text-align-last` overriding the final line; `text-indent` shifts the first
+line of a block. Styles come from a stylesheet and an inline `style` attribute,
+with the attribute winning.
 
 Text is measured for one font: the monospace font the checked corpus uses, where
 every glyph advances exactly one em and the ascent is 819/1024 em. A word's width
@@ -506,8 +510,8 @@ is its character count times the font size, so the fixture is arithmetic. A
 proportional font would need a metrics source, which is future work.
 
 **Not covered.** Floats, `position`, tables, flex, grid and pagination.
-`white-space: pre`, `br`, and `text-align` are absent, as are descendant
-selectors, pseudo-classes and at-rules.
+`white-space: pre` and `br` are absent, as are descendant selectors,
+pseudo-classes and at-rules.
 
 **How it is checked.** Against WeasyPrint's own box tree, not against rendered
 PDFs. `tests/fixtures/layout.tsv` holds the tree WeasyPrint produces for each
@@ -517,9 +521,13 @@ document and compares box by box on position, size, margins, padding and border
 widths. The oracle is the reference's output rather than a transcription of it.
 The generator loads the reference's own test font, which is derived from Ahem and
 is monospace, so the text cases are arithmetic and the fixture is identical on
-every machine. This is what
-the fixture caught while the crate was being written: the page box being
-confused with `html`, the missing synthesised `body`, the collapse rule
+every machine. `--random N` adds a deterministic random corpus over the same
+property set, for differential testing: the crate does not yet match the
+reference on every random document - the remaining differences are in how
+vertical margins collapse through a box that has no height - so those cases are
+not written to the committed fixture. This is what the fixture caught while the
+crate was being written: the page box being confused with `html`, the missing
+synthesised `body`, the collapse rule
 attributing a margin to the wrong box, WeasyPrint's departure from CSS 2.1 where
 an over-constrained block keeps both margins instead of adjusting the right one,
 `line-height: 2` being read as two pixels rather than twice the font size, an

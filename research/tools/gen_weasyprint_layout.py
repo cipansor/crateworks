@@ -29,7 +29,11 @@ Needs `pip install weasyprint`. Run from the repository root:
     python3 research/tools/gen_weasyprint_layout.py crates/cssprint
 
 The corpus covers the box model (width, height, margin, padding, border), block
-layout and inline layout. Text is included, and it is reproducible because the
+layout, inline layout, text alignment and `text-indent`. The committed fixture is
+the hand-picked list in `cases()`. `--random N` appends a deterministic random
+list from the same implemented property set, with a fixed seed, for differential
+testing; the crate does not match the reference on every random document yet, so
+those cases are not written to the fixture. Text is reproducible because the
 cases load the reference's own test font: `weasyprint.otf` is derived from Ahem,
 so every glyph advances exactly one em, the ascent is 819/1024 em, the descent
 205/1024 em and the normal line height is one em. Line breaking is then
@@ -46,19 +50,168 @@ from __future__ import annotations
 import argparse
 import os
 import pathlib
+import random
 import sys
 
 PAGE = "@page { size: %dpx %dpx; margin: 0 }"
 
+# The generator's random corpus draws from the features the crate implements, so
+# a difference is a bug rather than an unimplemented property. Keep this list in
+# step with the crate: adding a property here is how it gets checked.
+_RANDOM_SEED = 20261116
+_RANDOM_COUNT = 400
+_ALIGNMENTS = ["left", "right", "center", "start", "end", "justify"]
+_WORDS = ["a", "ab", "abc", "hello", "world", "lorem", "ipsum", "dolor", "sit"]
+
+
+def _length(
+    rng: random.Random, *, allow_auto: bool = False, hi: int = 120, percent: bool = True
+) -> str:
+    """A random length from the properties the crate resolves."""
+    kinds = ["px"]
+    if percent:
+        kinds.append("percent")
+    if allow_auto:
+        kinds.append("auto")
+    kind = rng.choice(kinds)
+    if kind == "auto":
+        return "auto"
+    if kind == "percent":
+        return f"{rng.choice([10, 20, 25, 33, 50, 75, 100])}%"
+    return f"{rng.randrange(0, hi)}px"
+
+
+def _sides(
+    rng: random.Random, *, allow_auto: bool = False, hi: int = 120, percent: bool = True
+) -> str:
+    """One to four values for a `margin` or `padding` shorthand."""
+    count = rng.randrange(1, 5)
+    return " ".join(
+        _length(rng, allow_auto=allow_auto, hi=hi, percent=percent) for _ in range(count)
+    )
+
+
+def _block_declarations(rng: random.Random) -> list[str]:
+    """Declarations for a block box, from the supported set only."""
+    out = []
+    if rng.random() < 0.75:
+        out.append(f"width:{_length(rng)}")
+    if rng.random() < 0.35:
+        out.append(f"height:{rng.randrange(0, 60)}px")
+    if rng.random() < 0.35:
+        out.append("min-width:" + _length(rng, hi=40))
+    if rng.random() < 0.35:
+        out.append("max-width:" + _length(rng, hi=160))
+    if rng.random() < 0.5:
+        out.append(f"margin:{_sides(rng, allow_auto=True)}")
+    elif rng.random() < 0.5:
+        out.append(f"margin-left:{_length(rng, allow_auto=True)}")
+        out.append(f"margin-right:{_length(rng, allow_auto=True)}")
+    if rng.random() < 0.5:
+        out.append(f"padding:{_sides(rng)}")
+    if rng.random() < 0.35:
+        out.append("border-width:" + _sides(rng, hi=6, percent=False))
+        out.append("border-style:solid")
+    if rng.random() < 0.4:
+        out.append(f"font-size:{rng.choice([8, 10, 12, 16, 20, 24])}px")
+    if rng.random() < 0.3:
+        out.append(f"line-height:{rng.choice(['normal', '1', '1.5', '2', '24px', '30px'])}")
+    if rng.random() < 0.5:
+        out.append(f"text-align:{rng.choice(_ALIGNMENTS)}")
+    if rng.random() < 0.25:
+        out.append(f"text-align-last:{rng.choice(_ALIGNMENTS + ['auto'])}")
+    if rng.random() < 0.3:
+        out.append("text-indent:" + _length(rng, hi=40))
+    return out
+
+
+def _text(rng: random.Random) -> str:
+    """A run of words, with whitespace the collapsing rules have to fold."""
+    count = rng.randrange(1, 8)
+    words = [rng.choice(_WORDS) for _ in range(count)]
+    joiner = rng.choice([" ", "  ", " \n ", "\t"])
+    text = joiner.join(words)
+    if rng.random() < 0.3:
+        text = " " + text
+    if rng.random() < 0.3:
+        text += " "
+    return text
+
+
+def _inline(rng: random.Random, depth: int) -> str:
+    """A run of text and nested inline elements.
+
+    Only `span` is used: `b` and `i` select a bold or italic face in the
+    reference's user-agent stylesheet, and this crate lays out one font, so they
+    would compare a face the crate does not have.
+    """
+    parts = []
+    for _ in range(rng.randrange(1, 4)):
+        if depth < 2 and rng.random() < 0.4:
+            style = ""
+            if rng.random() < 0.3:
+                style = f' style="font-size:{rng.choice([10, 16, 24])}px"'
+            parts.append(f"<span{style}>{_inline(rng, depth + 1)}</span>")
+        else:
+            parts.append(_text(rng))
+    return "".join(parts)
+
+
+def _block(rng: random.Random, depth: int, tag: str = "div") -> str:
+    """A block box, optionally holding inline content or nested blocks."""
+    style = ";".join(_block_declarations(rng))
+    attribute = f' style="{style}"' if style else ""
+    if depth < 2 and rng.random() < 0.5:
+        inner = "".join(_block(rng, depth + 1) for _ in range(rng.randrange(1, 3)))
+    elif rng.random() < 0.75:
+        inner = _inline(rng, 0)
+    else:
+        inner = ""
+    return f"<{tag}{attribute}>{inner}</{tag}>"
+
+
+def random_document(rng: random.Random) -> str:
+    """One random document, built only from the features the crate implements."""
+    # A tall page, so a random document stays on one page: the crate lays out at
+    # the page width only and the fixture records absolute positions, so a case
+    # that paginated would not be comparable.
+    page = PAGE % (200, 5000)
+    # The body always selects the reference's test font and pins its margin. The
+    # crate lays out one font and has no user-agent stylesheet, so a case that
+    # left either to the reference's defaults would compare a value the crate
+    # does not model. Only `div` and `span` are used below, and neither carries a
+    # user-agent style beyond `display`, so pinning these two is enough.
+    body = ["font-family:weasyprint", "margin:0"]
+    if rng.random() < 0.5:
+        body[-1] = f"margin:{_sides(rng)}"
+    blocks = "".join(_block(rng, 0) for _ in range(rng.randrange(1, 4)))
+    return f"<style>{page}body{{{';'.join(body)}}}</style>{blocks}"
+
+
+def random_cases(count: int = _RANDOM_COUNT, seed: int = _RANDOM_SEED) -> list[tuple[str, str]]:
+    """A deterministic corpus of random documents over the implemented features.
+
+    The curated cases above are hand-picked, so they check the shapes someone
+    thought of. These are drawn from the same property set at random, which is
+    what turns "the cases we thought of agree" into "the cases we checked
+    agree". The seed is fixed so the committed fixture rebuilds byte for byte.
+    """
+    rng = random.Random(seed)
+    return [(f"random_{index:04d}", random_document(rng)) for index in range(count)]
+
+
+def all_cases(random_count: int = 0) -> list[tuple[str, str]]:
+    """The curated corpus, and optionally the random one after it."""
+    return cases() + (random_cases(random_count) if random_count else [])
+
 
 def cases() -> list[tuple[str, str]]:
-    """The corpus: (case id, HTML). Every case is self-contained.
+    """The hand-picked corpus: (case id, HTML). Every case is self-contained.
 
-    Text is deliberately absent. Laying out a line needs font metrics - "hello"
-    at 16px is 39.64px wide in DejaVu Sans and something else in any other font -
-    so a corpus that included it would only be reproducible on a machine with the
-    same fonts installed. Inline layout and line breaking need a font-metrics
-    oracle, which is the next slice, not this one.
+    Text is included. Laying out a line needs font metrics, so the cases load
+    the reference's own test font (`weasyprint.otf`, Ahem-derived and monospace)
+    rather than relying on whatever is installed: every glyph advances one em, so
+    line breaking is arithmetic and the fixture is the same on every machine.
     """
     page = PAGE % (200, 200)
     return [
@@ -135,6 +288,79 @@ def cases() -> list[tuple[str, str]]:
         ("text_between_blocks", f"<style>{page}body{{margin:0}}"
                                 "div{font-family:weasyprint}</style>"
                                 "<div>a</div>   <div>b</div>"),
+        # text-align. Each line is placed within the block's content box, so the
+        # offset is a function of the line's own width and the alignment.
+        ("text_align_center", f"<style>{page}body{{margin:0}}"
+                              "div{font-family:weasyprint;text-align:center}</style>"
+                              "<div>ab</div>"),
+        ("text_align_right", f"<style>{page}body{{margin:0}}"
+                             "div{font-family:weasyprint;text-align:right}</style>"
+                             "<div>ab</div>"),
+        ("text_align_end", f"<style>{page}body{{margin:0}}"
+                           "div{font-family:weasyprint;text-align:end}</style>"
+                           "<div>ab</div>"),
+        ("text_align_center_wrap", f"<style>{page}body{{margin:0}}"
+                                   "div{font-family:weasyprint;text-align:center;width:64px}</style>"
+                                   "<div>aa bb cc</div>"),
+        ("text_align_right_wrap", f"<style>{page}body{{margin:0}}"
+                                  "div{font-family:weasyprint;text-align:right;width:64px}</style>"
+                                  "<div>aa bb cc</div>"),
+        ("text_align_justify", f"<style>{page}body{{margin:0}}"
+                               "div{font-family:weasyprint;text-align:justify;width:96px}</style>"
+                               "<div>aa bb cc</div>"),
+        ("text_align_justify_last_line", f"<style>{page}body{{margin:0}}"
+                                         "div{font-family:weasyprint;text-align:justify;width:96px}"
+                                         "</style><div>aa bb cc dd</div>"),
+        ("text_align_last_overrides", f"<style>{page}body{{margin:0}}"
+                                      "div{font-family:weasyprint;text-align:center;"
+                                      "text-align-last:right;width:64px}</style>"
+                                      "<div>aa bb cc</div>"),
+        ("text_align_inherited", f"<style>{page}body{{margin:0}}"
+                                 "div{font-family:weasyprint;text-align:center}</style>"
+                                 "<div><span>ab</span></div>"),
+        ("text_align_overflows", f"<style>{page}body{{margin:0}}"
+                                 "div{font-family:weasyprint;text-align:center;width:16px}"
+                                 "</style><div>abcd</div>"),
+        ("text_align_start", f"<style>{page}body{{margin:0}}"
+                             "div{font-family:weasyprint;text-align:start;width:64px}</style>"
+                             "<div>ab</div>"),
+        ("text_align_left", f"<style>{page}body{{margin:0}}"
+                            "div{font-family:weasyprint;text-align:left;width:64px}</style>"
+                            "<div>ab</div>"),
+        ("text_align_justify_last_justify", f"<style>{page}body{{margin:0}}"
+                                            "div{font-family:weasyprint;text-align:justify;"
+                                            "text-align-last:justify;width:96px}</style>"
+                                            "<div>aa bb cc dd</div>"),
+        ("text_align_last_auto", f"<style>{page}body{{margin:0}}"
+                                 "div{font-family:weasyprint;text-align:center;"
+                                 "text-align-last:auto;width:64px}</style>"
+                                 "<div>aa bb cc</div>"),
+        ("text_align_justify_single_line", f"<style>{page}body{{margin:0}}"
+                                           "div{font-family:weasyprint;text-align:justify;"
+                                           "width:96px}</style><div>aa bb</div>"),
+        # text-indent. Only the first line is shifted, and the shift narrows the
+        # width that line wraps against.
+        ("text_indent", f"<style>{page}body{{margin:0}}"
+                        "div{font-family:weasyprint;text-indent:20px;width:200px}</style>"
+                        "<div>ab cd</div>"),
+        ("text_indent_wrap", f"<style>{page}body{{margin:0}}"
+                             "div{font-family:weasyprint;text-indent:20px;width:64px}</style>"
+                             "<div>aa bb cc dd</div>"),
+        ("text_indent_percent", f"<style>{page}body{{margin:0}}"
+                                "div{font-family:weasyprint;text-indent:10%;width:64px}</style>"
+                                "<div>aa bb cc</div>"),
+        ("text_indent_negative", f"<style>{page}body{{margin:0}}"
+                                 "div{font-family:weasyprint;text-indent:-10px;width:200px}"
+                                 "</style><div>ab cd</div>"),
+        ("text_indent_center", f"<style>{page}body{{margin:0}}"
+                               "div{font-family:weasyprint;text-indent:20px;text-align:center;"
+                               "width:200px}</style><div>ab cd</div>"),
+        ("text_indent_right", f"<style>{page}body{{margin:0}}"
+                              "div{font-family:weasyprint;text-indent:20px;text-align:right;"
+                              "width:200px}</style><div>ab cd</div>"),
+        ("text_indent_justify", f"<style>{page}body{{margin:0}}"
+                                "div{font-family:weasyprint;text-indent:20px;text-align:justify;"
+                                "width:96px}</style><div>aa bb cc dd</div>"),
     ]
 
 
@@ -249,6 +475,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("crate", nargs="?", help="crate directory, e.g. crates/cssprint")
     parser.add_argument("--show", action="store_true", help="print each tree to stdout")
+    parser.add_argument(
+        "--random", type=int, default=0, metavar="N",
+        help="append N random documents, for differential testing; the crate does "
+             "not match the reference on all of them yet, so they are not written "
+             "to the committed fixture",
+    )
     parser.add_argument("--font", help="path to the reference's weasyprint.otf")
     args = parser.parse_args()
 
@@ -262,7 +494,8 @@ def main() -> int:
     font_config = FontConfiguration()
 
     rows: list[tuple[str, ...]] = []
-    for case, html in cases():
+    corpus = all_cases(args.random)
+    for case, html in corpus:
         page = render(html, font, font_config)
         out: list[tuple] = []
         walk(page, "", out)
@@ -303,7 +536,7 @@ def main() -> int:
         handle.write("# Generated by research/tools/gen_weasyprint_layout.py."
                      " Do not edit.\n")
         handle.write("# case\thtml\n")
-        for case, html in cases():
+        for case, html in corpus:
             handle.write(f"{case}\t{escape(html)}\n")
 
     target = fixtures / "layout.tsv"
@@ -319,8 +552,8 @@ def main() -> int:
             "\tborder_l\tborder_r\tborder_t\tborder_b\ttext\n")
         for row in rows:
             handle.write("\t".join(row) + "\n")
-    print(f"{len(rows)} boxes from {len(cases())} cases -> {target}")
-    print(f"{len(cases())} inputs -> {inputs}")
+    print(f"{len(rows)} boxes from {len(corpus)} cases -> {target}")
+    print(f"{len(corpus)} inputs -> {inputs}")
     return 0
 
 

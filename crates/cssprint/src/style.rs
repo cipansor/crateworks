@@ -18,6 +18,26 @@ pub(crate) enum Display {
     None,
 }
 
+/// The `text-align` property, reduced to the keywords this crate resolves.
+///
+/// `start` and `end` are logical: with the left-to-right direction this crate
+/// assumes, they mean the left and right edges.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum TextAlign {
+    /// Align to the start edge (the left edge here).
+    Start,
+    /// Align to the end edge (the right edge here).
+    End,
+    /// Align to the left edge.
+    Left,
+    /// Align to the right edge.
+    Right,
+    /// Centre within the line box.
+    Center,
+    /// Stretch the spaces so the line fills the line box.
+    Justify,
+}
+
 /// The `line-height` property, before the used value is worked out.
 ///
 /// `normal` and a bare number both depend on the element's font size, so they
@@ -71,14 +91,21 @@ pub(crate) struct Style {
     pub(crate) max_width: Option<Length>,
     /// The margins, which may be `auto`.
     pub(crate) margin: [Length; 4],
-    /// The padding, which may not be `auto`.
-    pub(crate) padding: Sides,
+    /// The padding, as top, right, bottom, left. A percentage is resolved
+    /// against the containing block's width, so it is kept unresolved here.
+    pub(crate) padding: [Length; 4],
     /// The border widths, which are zero unless a border style is set.
     pub(crate) border: Sides,
     /// The `font-size` in pixels, which is inherited.
     pub(crate) font_size: f64,
     /// The `line-height`, which is inherited.
     pub(crate) line_height: LineHeight,
+    /// `text-align` for every line but the last, which is inherited.
+    pub(crate) text_align: TextAlign,
+    /// `text-align-last`, or `None` for `auto`, which means [`Self::text_align`].
+    pub(crate) text_align_last: Option<TextAlign>,
+    /// The `text-indent` on the first line, which is inherited.
+    pub(crate) text_indent: Length,
 }
 
 /// The font size an element has when nothing sets one.
@@ -93,10 +120,13 @@ impl Default for Style {
             min_width: None,
             max_width: None,
             margin: [Length::Px(0.0); 4],
-            padding: Sides::default(),
+            padding: [Length::Px(0.0); 4],
             border: Sides::default(),
             font_size: DEFAULT_FONT_SIZE,
             line_height: LineHeight::Normal,
+            text_align: TextAlign::Start,
+            text_align_last: None,
+            text_indent: Length::Px(0.0),
         }
     }
 }
@@ -145,6 +175,9 @@ pub(crate) fn compute(
         display: initial_display(element),
         font_size: inherited.font_size,
         line_height: inherited.line_height,
+        text_align: inherited.text_align,
+        text_align_last: inherited.text_align_last,
+        text_indent: inherited.text_indent,
         ..Style::default()
     };
 
@@ -203,19 +236,11 @@ fn apply(style: &mut Style, declaration: &Declaration) -> Result<(), Error> {
         "margin-right" => style.margin[1] = length(value)?,
         "margin-bottom" => style.margin[2] = length(value)?,
         "margin-left" => style.margin[3] = length(value)?,
-        "padding" => {
-            let sides = sides_of(value, false)?;
-            style.padding = Sides {
-                top: px(&sides[0]),
-                right: px(&sides[1]),
-                bottom: px(&sides[2]),
-                left: px(&sides[3]),
-            };
-        }
-        "padding-top" => style.padding.top = px(&length(value)?),
-        "padding-right" => style.padding.right = px(&length(value)?),
-        "padding-bottom" => style.padding.bottom = px(&length(value)?),
-        "padding-left" => style.padding.left = px(&length(value)?),
+        "padding" => style.padding = sides_of(value, false)?,
+        "padding-top" => style.padding[0] = length(value)?,
+        "padding-right" => style.padding[1] = length(value)?,
+        "padding-bottom" => style.padding[2] = length(value)?,
+        "padding-left" => style.padding[3] = length(value)?,
         "border-width" => {
             let sides = sides_of(value, false)?;
             style.border = Sides {
@@ -237,6 +262,27 @@ fn apply(style: &mut Style, declaration: &Declaration) -> Result<(), Error> {
                 .ok_or_else(|| Error::Unsupported(format!("font-size: {value} is not a length")))?;
         }
         "line-height" => style.line_height = line_height(value)?,
+        // WeasyPrint expands `text-align` into `text-align-all` and
+        // `text-align-last`: one keyword sets both, except `justify`, which
+        // leaves the last line to `start`. `text-align-last` may then override
+        // the last line alone.
+        "text-align" => {
+            let align = text_align(value)?;
+            style.text_align = align;
+            style.text_align_last = if align == TextAlign::Justify {
+                Some(TextAlign::Start)
+            } else {
+                Some(align)
+            };
+        }
+        "text-align-last" => {
+            style.text_align_last = if value == "auto" {
+                None
+            } else {
+                Some(text_align(value)?)
+            };
+        }
+        "text-indent" => style.text_indent = length(value)?,
         "border" => style.border = border_shorthand(value)?,
         "border-top" => style.border.top = border_width(value)?,
         "border-right" => style.border.right = border_width(value)?,
@@ -262,6 +308,23 @@ fn apply(style: &mut Style, declaration: &Declaration) -> Result<(), Error> {
         }
     }
     Ok(())
+}
+
+/// Read `text-align` or `text-align-last` as a keyword.
+fn text_align(value: &str) -> Result<TextAlign, Error> {
+    Ok(match value.trim() {
+        "start" => TextAlign::Start,
+        "end" => TextAlign::End,
+        "left" => TextAlign::Left,
+        "right" => TextAlign::Right,
+        "center" => TextAlign::Center,
+        "justify" => TextAlign::Justify,
+        other => {
+            return Err(Error::Unsupported(format!(
+                "text-align: {other} is not supported"
+            )));
+        }
+    })
 }
 
 /// Read `line-height`: `normal`, a length, or a bare multiple of the font size.

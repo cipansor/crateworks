@@ -47,6 +47,38 @@ assert_eq!(div.children[1].children[0].text.as_deref(), Some("world"));
 # Ok::<(), cssprint::Error>(())
 ```
 
+`text-align` places each line within the block, and `justify` stretches the
+spaces so every line but the last fills the width:
+
+```rust
+use cssprint::{Stylesheet, layout};
+
+let sheet = Stylesheet::parse(
+    "div { font-family: weasyprint; width: 64px; text-align: center }",
+)?;
+let document = layout("<div>aa</div>", &sheet, 200.0)?;
+
+let line = &document.body().children[0].children[0];
+// Two 16px glyphs in a 64px block, centred: (64 - 32) / 2 = 16.
+assert_eq!(line.content_x, 16.0);
+# Ok::<(), cssprint::Error>(())
+```
+
+`text-indent` shifts the first line of a block, in pixels or as a percentage of
+the block's width:
+
+```rust
+use cssprint::{Stylesheet, layout};
+
+let sheet = Stylesheet::parse("div { font-family: weasyprint; text-indent: 20px }")?;
+let document = layout("<div>ab cd</div>", &sheet, 200.0)?;
+
+// The indent shifts the line's content, so the text box starts 20px in.
+let text = &document.body().children[0].children[0].children[0];
+assert_eq!(text.content_x, 20.0);
+# Ok::<(), cssprint::Error>(())
+```
+
 ## What it does
 
 The CSS 2.1 block formatting context and inline layout. A block box fills the
@@ -59,6 +91,11 @@ margins collapse, including through a parent.
 Text and inline elements are gathered into line boxes, wrapped to the block's
 width, and placed on a shared baseline. Whitespace collapses, a space at a line
 break is removed, and `font-size` and `line-height` are inherited and honoured.
+Each line is aligned by `text-align` (`left`, `right`, `center`, `start`, `end`
+and `justify`); `justify` stretches the spaces so the line fills the block, and
+`text-align-last` overrides the final line, as in the reference. `text-indent`
+shifts the first line of a block, in pixels or as a percentage of the block's
+width.
 
 Styles come from a stylesheet, an inline `style` attribute, or both, with the
 inline attribute winning. `display: none` removes an element from the tree.
@@ -76,9 +113,8 @@ baseline arithmetic would not change, only the width function.
 
 ## What it does not do
 
-Floats, `position`, tables, flex, grid, and pagination. `white-space: pre`, `br`,
-and `text-align` are also absent, as are descendant selectors, pseudo-classes and
-at-rules.
+Floats, `position`, tables, flex, grid, and pagination. `white-space: pre` and
+`br` are also absent, as are descendant selectors, pseudo-classes and at-rules.
 
 ## How it is checked
 

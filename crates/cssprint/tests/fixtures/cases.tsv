@@ -32,3 +32,25 @@ text_inline_font_size	<style>@page { size: 200px 200px; margin: 0 }body{margin:0
 text_empty	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint}</style><div></div>
 text_whitespace_only	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint}</style><div>   </div>
 text_between_blocks	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint}</style><div>a</div>   <div>b</div>
+text_align_center	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;text-align:center}</style><div>ab</div>
+text_align_right	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;text-align:right}</style><div>ab</div>
+text_align_end	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;text-align:end}</style><div>ab</div>
+text_align_center_wrap	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;text-align:center;width:64px}</style><div>aa bb cc</div>
+text_align_right_wrap	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;text-align:right;width:64px}</style><div>aa bb cc</div>
+text_align_justify	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;text-align:justify;width:96px}</style><div>aa bb cc</div>
+text_align_justify_last_line	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;text-align:justify;width:96px}</style><div>aa bb cc dd</div>
+text_align_last_overrides	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;text-align:center;text-align-last:right;width:64px}</style><div>aa bb cc</div>
+text_align_inherited	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;text-align:center}</style><div><span>ab</span></div>
+text_align_overflows	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;text-align:center;width:16px}</style><div>abcd</div>
+text_align_start	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;text-align:start;width:64px}</style><div>ab</div>
+text_align_left	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;text-align:left;width:64px}</style><div>ab</div>
+text_align_justify_last_justify	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;text-align:justify;text-align-last:justify;width:96px}</style><div>aa bb cc dd</div>
+text_align_last_auto	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;text-align:center;text-align-last:auto;width:64px}</style><div>aa bb cc</div>
+text_align_justify_single_line	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;text-align:justify;width:96px}</style><div>aa bb</div>
+text_indent	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;text-indent:20px;width:200px}</style><div>ab cd</div>
+text_indent_wrap	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;text-indent:20px;width:64px}</style><div>aa bb cc dd</div>
+text_indent_percent	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;text-indent:10%;width:64px}</style><div>aa bb cc</div>
+text_indent_negative	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;text-indent:-10px;width:200px}</style><div>ab cd</div>
+text_indent_center	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;text-indent:20px;text-align:center;width:200px}</style><div>ab cd</div>
+text_indent_right	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;text-indent:20px;text-align:right;width:200px}</style><div>ab cd</div>
+text_indent_justify	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;text-indent:20px;text-align:justify;width:96px}</style><div>aa bb cc dd</div>
