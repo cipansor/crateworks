@@ -6,7 +6,6 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation = "https://docs.rs/fast-redact"
 authors.workspace = true
 keywords = ["redact", "log", "json", "secret", "pii"]

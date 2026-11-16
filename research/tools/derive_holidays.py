@@ -20,6 +20,17 @@ import sys
 import holidays as pyholidays
 
 FIRST, LAST = 2000, 2050
+# The most distinct `Rule`s one holiday name may need before the calendar is
+# judged to need a table rather than a rule set. A name that is two observances
+# needs two or three (one per run of years); a name whose dates are decided
+# year by year needs one per year and is refused.
+MAX_GROUPS = 8
+
+
+class Unexpressible(Exception):
+    """A holiday name that no small set of crate rules reproduces."""
+
+
 STYLE = {
     "none": "SubstituteStyle::None",
     "nearest": "SubstituteStyle::NearestWeekday",
@@ -192,13 +203,15 @@ def rust_rule(shape, frm, to):
     if frm == FIRST and to == LAST:
         return core
     if frm == to:
-        # A run of one year is a one-off, and the crate spells that
-        # `Rule::Once`; `Between` with equal bounds is legal but reads as a
-        # window that never was.
-        month = shape[1]
-        day = shape[2] if kind == "fixed" else None
-        if day is not None:
-            return f"Rule::Once {{ year: {frm}, month: {month}, day: {day} }}"
+        # A run of one year fires in that year only, and the gate has to say so
+        # for every shape. `Rule::Once` is the crate's one-off for a fixed date;
+        # a movable shape has no `Once`, so it is bounded with a one-year
+        # `Between`. Letting a movable one-year run fall through to the
+        # `Since` branch below rendered it open-ended, which invented a date in
+        # every year after `to` - the defect the held-out check now catches.
+        if kind == "fixed":
+            return f"Rule::Once {{ year: {frm}, month: {shape[1]}, day: {shape[2]} }}"
+        return f"Rule::Between {{ from: {frm}, to: {to}, base: &{core} }}"
     if frm == FIRST:
         return f"Rule::Until {{ year: {to}, base: &{core} }}"
     if to == LAST:
@@ -214,7 +227,7 @@ def split_observed(ref):
     ("Christmas Day" and "Christmas Day (observed)"). Returns the base
     name -> {year: date} map and base name -> {observed dates}.
     """
-    byname = collections.defaultdict(dict)
+    byname = collections.defaultdict(lambda: collections.defaultdict(list))
     for d, n in ref.items():
         # The reference collapses two holidays that fall on the same day into one
         # entry whose name is the two joined by "; " (ANZAC Day; Easter Monday,
@@ -222,8 +235,13 @@ def split_observed(ref):
         # and the year it was collapsed for is not left uncovered: the crate has
         # no such joined name, and treating the collapse as a gap would make the
         # individual holiday's rule skip that year.
+        #
+        # A name may also fall on more than one date in the same year, because
+        # the reference reuses it for two observances (Hungary's `Nemzeti ünnep`
+        # is 15 March and 23 October). The dates are kept as a list so the
+        # grouping step can tell that apart from a holiday that merely moved.
         for part in n.split("; "):
-            byname[part][d.year] = d
+            byname[part][d.year].append(d)
     base_names = {n for n in byname if not PAREN.search(n)}
     bases: dict = {}
     observed: dict = collections.defaultdict(set)
@@ -231,23 +249,65 @@ def split_observed(ref):
         m = PAREN.search(n)
         root = n[: m.start()] if m else None
         if root is not None and root in base_names:
-            observed[root].update(byyear.values())
+            for dates in byyear.values():
+                observed[root].update(dates)
         else:
             bases[n] = byyear
     return bases, observed
 
 
-def observed_shift(byyear, observed, years):
-    """Fit one holiday's observed dates to a per-holiday shift table.
+def safe_resolve(shape, y):
+    """`resolve`, treating a shape that does not exist in `y` as no date.
 
-    Returns `(from_year, {weekday: days})`, or `None` when no shift table
-    reproduces the observed dates, which means the country needs the
-    country-wide style instead. `from_year` is the first year the shift
-    applies; before it the holiday is not moved.
+    A candidate fitted to 29 February of a leap year is out of range in the
+    year after, so a shape that fits the dates it was chosen for can still raise
+    on a neighbouring year.
+    """
+    try:
+        return resolve(shape, y)
+    except ValueError:
+        return None
+
+
+def candidate_shapes(dates):
+    """Every crate shape that fits a single date, cheapest first, deduplicated.
+
+    `shapes_for` is called one date at a time so that a candidate which fits one
+    observance of a name but not another is still offered; the caller then keeps
+    the candidate that accounts for the most dates.
+    """
+    out = []
+    seen = set()
+    for d in dates:
+        for shape in shapes_for([d]):
+            if shape not in seen:
+                seen.add(shape)
+                out.append(shape)
+    return out
+
+
+def fit_shift(shape, actual, observed):
+    """Fit `shape` plus a per-weekday shift table to the observed dates.
+
+    The crate reports a holiday on the date it is *observed*, and
+    `Rule::ObservedShift` carries one shift per weekday of the date it falls on.
+    The reference reports the observed date either under a second key with a
+    trailing parenthetical (Chile) or under the same key as the raw date
+    (Aruba), so the actual date for a year is the parenthetical one when there
+    is one and the reported date otherwise.
+
+    Returns `(from_year, table)` when a single table reproduces every year, or
+    `None`. An empty table means the shape alone already matches, and the caller
+    then emits no shift.
+
+    `from_year` is only advanced past the first year when every earlier year
+    needs no shift at all. Without that check a wrong base shape fits by
+    starting its table late, after the years that contradict it: Hungary's
+    Easter Sunday fits `Rule::Fixed { month: 4, day: 5 }` from 2045 and nowhere
+    before, which is not a rule.
     """
     peryear = {}
-    for y in years:
-        fall = byyear[y]
+    for y, fall in actual.items():
         near = {o for o in observed if 0 < abs((o - fall).days) <= 7}
         if near:
             deltas = {(o - fall).days for o in near}
@@ -256,13 +316,18 @@ def observed_shift(byyear, observed, years):
             delta = deltas.pop()
         else:
             delta = 0
-        peryear[y] = (crate_weekday(fall), delta)
+        base = safe_resolve(shape, y)
+        if base is None:
+            return None
+        peryear[y] = (crate_weekday(base), (fall + datetime.timedelta(days=delta) - base).days)
     for frm in range(FIRST, LAST + 1):
         table: dict = {}
-        for y in years:
-            if y < frm:
-                continue
+        for y in sorted(peryear):
             weekday, delta = peryear[y]
+            if y < frm:
+                if delta != 0:
+                    break
+                continue
             if weekday in table and table[weekday] != delta:
                 break
             table[weekday] = delta
@@ -271,85 +336,103 @@ def observed_shift(byyear, observed, years):
     return None
 
 
-def inline_observed_fit(byyear):
-    """Fit a holiday whose reference reports the OBSERVED date under its own
-    name, with no "(observed)" partner entry.
+def shift_entries(name, byyear, observed):
+    """Express a name as one base shape with a per-weekday shift, or `None`.
 
-    Aruba's "Dia di Obrero" is 1 May, or 2 May when the 1st is a Sunday, and
-    the reference lists only the moved date. The crate expresses this as an
-    `ObservedShift` over a fixed base, so try every date the holiday ever falls
-    on as the base and look for a single year boundary `from` and a
-    weekday -> days table that reproduce the dates: before `from` the date is
-    unmoved, from `from` on it moves by the table (a weekday absent from the
-    table is not moved). Returns `((month, day), from, table)` or `None`.
+    A name that falls on more than one date in a year cannot be one rule with a
+    shift, so it is left to `partition`.
+
+    A shape that matches the dates with no shift at all is preferred over one
+    that needs a shift table, and `candidate_shapes` orders the candidates
+    cheapest first. Without that preference Madagascar's Father's Day, which is
+    the third Sunday of June, came out as a fixed 21 June plus a six-entry shift
+    table: correct, but a puzzle. `NthWeekday` says it in one line.
     """
-    ys = sorted(byyear)
-    seen = []
-    for y in ys:
-        key = (byyear[y].month, byyear[y].day)
-        if key not in seen:
-            seen.append(key)
-    for month, day in seen:
-        natural = {y: datetime.date(y, month, day) for y in ys}
-        delta = {y: (byyear[y] - natural[y]).days for y in ys}
-        if any(abs(d) > 7 for d in delta.values()):
+    if any(len(dates) > 1 for dates in byyear.values()):
+        return None
+    actual = {y: dates[0] for y, dates in byyear.items()}
+    candidates = candidate_shapes(list(actual.values()))
+    fits = []
+    for shape in candidates:
+        fit = fit_shift(shape, actual, observed)
+        if fit is not None:
+            fits.append((shape, fit))
+    for shape, (frm_shift, table) in fits:
+        if table:
             continue
-        for frm in ys + [LAST + 1]:
-            table: dict = {}
-            ok = True
-            for y in ys:
-                d = delta[y]
-                if y < frm:
-                    if d != 0:
-                        ok = False
-                        break
-                    continue
-                wd = crate_weekday(natural[y])
-                if wd in table and table[wd] != d:
-                    ok = False
-                    break
-                table[wd] = d
-            if ok and any(table.values()):
-                return (month, day), frm, {k: v for k, v in table.items() if v}
-    return None
+        return [
+            (frm, name, shape, frm, to, None) for frm, to in contiguous(sorted(actual))
+        ]
+    if not fits:
+        return None
+    shape, (frm_shift, table) = fits[0]
+    return [
+        (frm, name, shape, frm, to, (frm_shift, table))
+        for frm, to in contiguous(sorted(actual))
+    ]
+
+
+def partition(dates):
+    """Split a name's `(year, date)` pairs into the fewest crate shapes.
+
+    A name may cover two observances that no single rule spans (Hungary's
+    `Nemzeti ünnep` is 15 March and 23 October). Each pass takes the candidate
+    that accounts for the most remaining dates and removes them, so the count
+    stays minimal and the loop ends because every pass removes at least one.
+    Ties keep the earlier, cheaper candidate because `candidate_shapes` is
+    ordered.
+
+    Returns `None` when more than `MAX_GROUPS` shapes are needed, which is the
+    signature of a calendar whose dates are decided rather than computed (Japan,
+    China, the Islamic observances): a handful of `Once` entries is a table, a
+    hundred is a dataset this crate does not carry.
+    """
+    remaining = list(dates)
+    groups = []
+    while remaining:
+        best_shape = best_taken = None
+        for shape in candidate_shapes([d for _, d in remaining]):
+            taken = [(y, d) for y, d in remaining if safe_resolve(shape, y) == d]
+            if best_taken is None or len(taken) > len(best_taken):
+                best_shape, best_taken = shape, taken
+        groups.append((best_shape, best_taken))
+        if len(groups) > MAX_GROUPS:
+            return None
+        taken = set(best_taken)
+        remaining = [pair for pair in remaining if pair not in taken]
+    return groups
 
 
 def derive(code):
     ref = pyholidays.country_holidays(code, years=range(FIRST, LAST + 1))
-    byname = collections.defaultdict(dict)
-    for d, n in ref.items():
-        for part in n.split("; "):
-            byname[part][d.year] = d
     bases, observed = split_observed(ref)
     entries = []
     for name, byyear in bases.items():
-        years = set(byyear)
-        runs = contiguous(years)
-        shape = None
-        for candidate in shapes_for(list(byyear.values())):
-            if all(
-                resolve(candidate, y) == byyear[y]
-                for frm, to in runs
-                for y in range(frm, to + 1)
-            ):
-                shape = candidate
-                break
-        if shape is None:
-            inline = inline_observed_fit(byyear)
-            if inline is None:
-                return None, f"unexpressible: {name}"
-            (month, day), shift_from, table = inline
-            shape = ("fixed", month, day)
-            shifts = (shift_from, table)
-            for frm, to in runs:
-                entries.append((frm, name, shape, frm, to, shifts))
-            continue
-        shifts = None
-        if name in observed:
-            shifts = observed_shift(byyear, observed[name], sorted(years))
-        for frm, to in runs:
-            entries.append((frm, name, shape, frm, to, shifts))
+        try:
+            entries.extend(name_entries(name, byyear, observed))
+        except Unexpressible:
+            return None, f"unexpressible: {name}"
     return entries, None
+
+
+def name_entries(name, byyear, observed):
+    """The crate entries for one holiday name.
+
+    A name is tried as a single base rule with a per-weekday shift first, which
+    is what most countries need and keeps the table short; only when no single
+    shape fits does the name get split into several rules.
+    """
+    single = shift_entries(name, byyear, observed.get(name, set()))
+    if single is not None:
+        return single
+    groups = partition([(y, d) for y in sorted(byyear) for d in byyear[y]])
+    if groups is None:
+        raise Unexpressible(name)
+    entries = []
+    for shape, matched in groups:
+        for frm, to in contiguous(sorted({y for y, _ in matched})):
+            entries.append((frm, name, shape, frm, to, None))
+    return entries
 
 
 def resolve_table(entries, style):
@@ -417,6 +500,137 @@ def rust_entry(name, shape, frm, to, shifts):
     )
 
 
+def rule_applies(shape, frm, to, year):
+    """Whether the rendered rule fires in `year`, mirroring `rust_rule`.
+
+    A run that spans the whole fitted window is rendered without a gate and so
+    fires in every year; a run that starts at `FIRST` becomes `Until`, which
+    stops after `to`; one that ends at `LAST` becomes `Since`, which fires from
+    `frm` onward; and anything narrower becomes `Between` or `Once`. Reproducing
+    that mapping is what makes the held-out window mean the same thing the Rust
+    side would compute.
+
+    The order and the one-year case must match `rust_rule` exactly. A one-year
+    run fires in that year only: `rust_rule` renders a fixed date as `Once` and
+    any other shape as a one-year `Between`. Treating a movable one-year run as
+    open-ended - which an earlier version of both functions did - is what let
+    Madagascar's Mother's Day, a one-year `easter` run at `LAST`, be rendered as
+    `Rule::Since` and invent a date in every later year.
+    """
+    if frm == FIRST and to == LAST:
+        return True
+    if frm == to:
+        return year == frm
+    if frm == FIRST:
+        return year <= to
+    if to == LAST:
+        return year >= frm
+    return frm <= year <= to
+
+
+def resolve_range(entries, style, first, last):
+    """`resolve_table`, but over an arbitrary year range.
+
+    The fit is derived from 2000-2050, so re-resolving over a *later* window is
+    what tells an over-fit from a rule: a table that only reproduces the fitted
+    years is a lookup, not a calendar. A holiday gated to a run inside the
+    fitted window is dropped here because the Rust side keeps that gate, which
+    is exactly the behaviour a caller past 2050 would get.
+    """
+    out = set()
+    for y in range(first, last + 1):
+        falls = []
+        for _, name, shape, frm, to, shifts in entries:
+            if not rule_applies(shape, frm, to, y):
+                continue
+            d = resolve(shape, y)
+            if d is None:
+                continue
+            if shifts is not None:
+                shift_from, table = shifts
+                delta = table.get(crate_weekday(d), 0) if y >= shift_from else 0
+                falls.append((d + datetime.timedelta(days=delta), name, True))
+            else:
+                falls.append((d, name, False))
+        falls.sort()
+        if style == "none":
+            out |= {d for d, _, _ in falls}
+            continue
+        taken = set()
+        for d, _, shifted in falls:
+            if shifted:
+                out.add(d)
+                taken.add(d)
+                continue
+            moved = d
+            if style == "nearest":
+                if d.weekday() == 5:
+                    moved = d - datetime.timedelta(days=1)
+                elif d.weekday() == 6:
+                    moved = d + datetime.timedelta(days=1)
+            elif style == "next_monday":
+                if d.weekday() == 5:
+                    moved = d + datetime.timedelta(days=2)
+                elif d.weekday() == 6:
+                    moved = d + datetime.timedelta(days=1)
+            while moved in taken:
+                moved += datetime.timedelta(days=1)
+            taken.add(moved)
+            out.add(moved)
+    return {d.isoformat() for d in out}
+
+
+def disagreements(code, entries, style, first, last):
+    """The weekday gaps and invented dates over one window."""
+    ours = resolve_range(entries, style, first, last)
+    ref = {
+        d.isoformat()
+        for d in pyholidays.country_holidays(code, years=range(first, last + 1))
+    }
+    missing = [d for d in sorted(ref - ours) if datetime.date.fromisoformat(d).weekday() < 5]
+    invented = sorted(ours - ref)
+    return missing, invented
+
+
+def vanished_names(code, entries, first, last):
+    """Base names the reference reports every year in `[first, last]` but the
+    fitted entries do not fire for in *every* one of those years.
+
+    The date comparison in `disagreements` is blind to a holiday that a fit
+    drops entirely, because a name that only ever fell on a Sunday has no
+    weekday date to be missing. That is how a per-year `Between` stack, which
+    is a table rather than a rule, passes the held-out check: the entries stop
+    firing after `LAST` and nothing notices. Requiring a name the reference
+    reports in each held-out year to be produced in each of those years is the
+    "rule, not a table" property the crate's README states, tested rather than
+    assumed.
+
+    Coverage is per year, not pooled: producing the name in one held-out year
+    and not the next is a gap, so the check compares year by year. Only a name
+    the reference reports in *every* held-out year is considered, so a
+    genuinely one-off or discontinued observance is not a failure.
+    """
+    ref = pyholidays.country_holidays(code, years=range(first, last + 1))
+    bases, _ = split_observed(ref)
+    ref_years = {name: {y for y in byyear} for name, byyear in bases.items()}
+    span = list(range(first, last + 1))
+    ours_by_year = {
+        year: {
+            name
+            for _, name, shape, frm, to, _ in entries
+            if rule_applies(shape, frm, to, year) and safe_resolve(shape, year) is not None
+        }
+        for year in span
+    }
+    every_year = set(span)
+    return sorted(
+        name
+        for name, years in ref_years.items()
+        if years == every_year
+        and any(name not in ours_by_year[year] for year in span)
+    )
+
+
 def main():
     code = sys.argv[1]
     show = "--rust" in sys.argv
@@ -446,6 +660,24 @@ def main():
             print("      missing ", d)
         for d in invented[:6]:
             print("      invented", d)
+        return 1
+    # The fitted window cannot tell a rule from a table, so a calendar that only
+    # reproduces 2000-2050 is refused rather than shipped: the crate's promise
+    # is that a calendar stays correct for any year.
+    hold_missing, hold_invented = disagreements(code, entries, style, LAST + 1, LAST + 25)
+    vanished = vanished_names(code, entries, LAST + 1, LAST + 25)
+    if hold_missing or hold_invented or vanished:
+        print(
+            f"FAIL {code}: over-fit, {LAST + 1}-{LAST + 25} has "
+            f"missing={len(hold_missing)} invented={len(hold_invented)} "
+            f"vanished={len(vanished)}"
+        )
+        for d in hold_missing[:6]:
+            print("      missing ", d)
+        for d in hold_invented[:6]:
+            print("      invented", d)
+        for n in vanished[:6]:
+            print("      vanished", n)
         return 1
     print(f"ok  {code}  ({len(ours)} dates, style={style})")
     if show:

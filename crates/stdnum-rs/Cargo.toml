@@ -6,7 +6,6 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation = "https://docs.rs/stdnum-rs"
 authors.workspace = true
 keywords = ["validation", "iban", "isin", "checksum", "tax-id"]

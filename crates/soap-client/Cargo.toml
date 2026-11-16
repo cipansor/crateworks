@@ -6,7 +6,6 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation = "https://docs.rs/soap-client"
 authors.workspace = true
 keywords = ["soap", "wsdl", "web-service", "xml", "legacy"]

@@ -144,8 +144,8 @@ impl BigUint {
     fn sub(&self, other: &Self) -> Self {
         let mut out = Vec::with_capacity(self.limbs.len());
         let mut borrow = 0i64;
-        for index in 0..self.limbs.len() {
-            let left = i64::from(self.limbs[index]);
+        for (index, limb) in self.limbs.iter().enumerate() {
+            let left = i64::from(*limb);
             let right = i64::from(other.limbs.get(index).copied().unwrap_or(0));
             let mut value = left - right - borrow;
             if value < 0 {
