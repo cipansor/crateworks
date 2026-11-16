@@ -341,6 +341,24 @@ that branch order or the held-out check tests the wrong thing.
   `slug` field, not the display name (`parser-implementations` is the slug for
   "Parser implementations"). Without `per_page` it returns 10 per page and the
   list runs to 58, so a single default page looks complete when it is not.
+- **A crate can sit at a version its last tag is behind but that was never
+  published.** `cssprint` was bumped to `0.2.0` in the manifest while the last
+  tag was `cssprint-v0.1.11`, and `0.2.0` was never uploaded. `release_plan.py`
+  reads that as "bumped past its last tag" and suggests `0.2.1`, which would
+  spend a number nobody asked for: the pending release is the manifest version
+  itself. The script only compares the manifest to the last tag; it never asks
+  crates.io. Check the manifest version against the registry before tagging a
+  crate the plan flags as `bumped` -
+  `curl -so /dev/null -w '%{http_code}' https://crates.io/api/v1/crates/<crate>/<version>`
+  answers `404` when the version is still unpublished.
+- **A trailing space decides `text-align` versus `text-align-last`.** When a
+  collapsible trailing space does not fit on a line that has a break in it (two
+  or more words), WeasyPrint lets it start a line of its own, then drops that
+  line. It still counts it, so the line the space left is not last and is placed
+  by `text-align`, not `text-align-last`. A single word has no break to drop the
+  space at, so the space stays and the line is last. Getting this wrong moves a
+  line by the whole alignment offset, which is what `cssprint`'s
+  `align_last_trailing_space_overflow` fixture pins.
 
 ## Boundaries
 
