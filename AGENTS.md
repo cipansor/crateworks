@@ -301,6 +301,15 @@ means what you think it means. This has cost two separate debugging rounds.
   against it. `bump.py` updates `[workspace.dependencies]` and names them.
 - **A crate name cannot be changed after publication.** Check with
   `research/tools/namecheck.py` before writing code, not after.
+- **A gate that fetches live data fails on the data, not the code.**
+  `verify_aviation.py` compares the crate against OurAirports' current
+  `airports.csv`, so an upstream row added, renamed or re-coordinated since the
+  fixture was cut shows up as a disagreement in a crate nobody touched. The
+  crate's own numbers are the check that matters: `cargo test -p aviation-data`
+  against the committed fixture passes, and `verify_aviation.py`'s row and
+  lookup counts (`11,887` rows, `46,456` lookups) still match. Read the failure
+  before "fixing" it, and only regenerate the fixture deliberately, as its own
+  change.
 - **crates.io category names must be in the live list**, which is not the same as
   an intuitive guess. Fetch
   `https://crates.io/api/v1/categories?per_page=100` and compare against the
