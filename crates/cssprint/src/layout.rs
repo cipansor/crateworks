@@ -803,6 +803,19 @@ fn shape_lines(
         x += word_width;
         current.extend(word);
     }
+    // A trailing collapsible space that overflows a line with a break in it
+    // starts a line of its own, which holds nothing and is dropped. The
+    // reference counts that line, so the one the space left is not last and
+    // takes `text-align` rather than `text-align-last`. A single word has no
+    // break to drop the space at, so it stays on the line and the line is last.
+    let phantom = match &pending_space {
+        Some(space) => {
+            !current.is_empty()
+                && current.iter().any(|piece| piece.is_space)
+                && x + advance(" ", space.style.font_size) > width - leading
+        }
+        None => false,
+    };
     if !current.is_empty() {
         lines.push((current, leading, None));
     }
@@ -814,7 +827,7 @@ fn shape_lines(
         .into_iter()
         .enumerate()
         .filter_map(|(index, (line, leading, boundary))| {
-            let last = index + 1 == count;
+            let last = index + 1 == count && !phantom;
             build_line(
                 line,
                 tag,

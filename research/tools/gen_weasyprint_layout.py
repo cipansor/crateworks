@@ -411,6 +411,14 @@ def cases() -> list[tuple[str, str]]:
                                       '<div style="width:40px">world'
                                       '<span><span style="font-size:10px"> lorem dolor</span>'
                                       '</span></div>'),
+        # A trailing collapsible space that overflows a line with a break in it
+        # starts a line of its own, so the line it left is not last and takes
+        # `text-align` rather than `text-align-last`. The single-word block is
+        # the counter-case: with no break, the space stays and the line is last.
+        ("align_last_trailing_space_overflow", f"<style>{page}body{{margin:0}}"
+                                               "div{font-family:weasyprint;font-size:16px;"
+                                               "width:90px;text-align:end;text-align-last:start}"
+                                               "</style><div>ab cd </div><div>lorem </div>"),
     ]
 
 

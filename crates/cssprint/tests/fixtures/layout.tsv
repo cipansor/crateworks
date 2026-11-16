@@ -436,3 +436,12 @@ inline_empty_chain_nested	0.0.0.2	div	LineBox	0.00	32.00	50.00	16.00	0.00	0.00	0
 inline_empty_chain_nested	0.0.0.2.0	span	InlineBox	0.00	32.00	50.00	16.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
 inline_empty_chain_nested	0.0.0.2.0.0	span	InlineBox	0.00	36.80	50.00	10.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
 inline_empty_chain_nested	0.0.0.2.0.0.0	span	TextBox	0.00	36.80	50.00	10.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	dolor
+align_last_trailing_space_overflow	0		PageBox	0.00	0.00	200.00	200.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+align_last_trailing_space_overflow	0	html	BlockBox	0.00	0.00	200.00	32.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+align_last_trailing_space_overflow	0.0	body	BlockBox	0.00	0.00	200.00	32.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+align_last_trailing_space_overflow	0.0.0	div	BlockBox	0.00	0.00	90.00	16.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+align_last_trailing_space_overflow	0.0.0.0	div	LineBox	10.00	0.00	80.00	16.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+align_last_trailing_space_overflow	0.0.0.0.0	div	TextBox	10.00	0.00	80.00	16.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	ab cd
+align_last_trailing_space_overflow	0.0.1	div	BlockBox	0.00	16.00	90.00	16.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+align_last_trailing_space_overflow	0.0.1.0	div	LineBox	0.00	16.00	80.00	16.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+align_last_trailing_space_overflow	0.0.1.0.0	div	TextBox	0.00	16.00	80.00	16.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	lorem
