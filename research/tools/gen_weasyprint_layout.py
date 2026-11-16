@@ -402,6 +402,15 @@ def cases() -> list[tuple[str, str]]:
                                             "div{font-family:weasyprint}</style>"
                                             '<div><div style="height:5px;margin-bottom:30px"></div></div>'
                                             '<div style="height:5px"></div>'),
+        # A line break inside nested inline boxes leaves the inner boxes on the
+        # line, aligned on the shared baseline rather than at the parent's top.
+        # A smaller nested box therefore sits lower than its parent, which the
+        # absolute offsets have to reproduce.
+        ("inline_empty_chain_nested", f"<style>{page}body{{margin:0}}"
+                                      "div{font-family:weasyprint}</style>"
+                                      '<div style="width:40px">world'
+                                      '<span><span style="font-size:10px"> lorem dolor</span>'
+                                      '</span></div>'),
     ]
 
 

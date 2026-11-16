@@ -1105,7 +1105,7 @@ fn nest(
     if let Some((chain, attach)) = tail
         && attach == depth
     {
-        out.extend(empty_boxes(chain, end_x, line_baseline, block_tag, true));
+        out.extend(empty_boxes(chain, end_x, line_baseline, block_tag, None));
     }
     out
 }
@@ -1114,14 +1114,16 @@ fn nest(
 ///
 /// An empty chain is the block itself, which the reference leaves as an empty
 /// text box for the block. A non-empty chain nests, so each box wraps the next
-/// and only the outermost is placed; the innermost holds nothing, and the boxes
-/// inside sit at the origin of the box that holds them.
+/// and only the outermost is placed against the line; the innermost holds
+/// nothing. The nested boxes stay on the line's shared baseline, so each one's
+/// offset is its parent's ascent less its own - the same alignment a text box
+/// gets, which is what puts a smaller nested box lower on the line.
 fn empty_boxes(
     chain: &[InlineAncestor],
     x: f64,
     line_baseline: f64,
     block_tag: &str,
-    outer: bool,
+    parent_ascent: Option<f64>,
 ) -> Vec<Fragment> {
     let Some(ancestor) = chain.first() else {
         return vec![Fragment {
@@ -1140,19 +1142,26 @@ fn empty_boxes(
             children: Vec::new(),
         }];
     };
+    let own_ascent = ascent(&ancestor.style);
     let children = match chain.get(1..) {
-        Some(rest) if !rest.is_empty() => empty_boxes(rest, 0.0, line_baseline, block_tag, false),
+        Some(rest) if !rest.is_empty() => {
+            empty_boxes(rest, 0.0, line_baseline, block_tag, Some(own_ascent))
+        }
         _ => Vec::new(),
+    };
+    let y_offset = match parent_ascent {
+        // The outermost box sits against the line box, whose content top is the
+        // baseline less this box's ascent.
+        None => line_baseline - own_ascent,
+        // A nested box aligns its baseline with its parent's, so it sits at the
+        // parent's ascent less its own.
+        Some(parent) => parent - own_ascent,
     };
     vec![Fragment {
         kind: BoxKind::Inline,
         tag: ancestor.tag.clone(),
         x_offset: x,
-        y_offset: if outer {
-            line_baseline - ascent(&ancestor.style)
-        } else {
-            0.0
-        },
+        y_offset,
         width: 0.0,
         height: ancestor.style.font_size,
         margin: half_leading_sides(&ancestor.style),

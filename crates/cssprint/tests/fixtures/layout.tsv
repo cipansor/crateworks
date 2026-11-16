@@ -420,3 +420,19 @@ collapse_child_bottom_contained	0.0	body	BlockBox	0.00	0.00	200.00	40.00	0.00	0.
 collapse_child_bottom_contained	0.0.0	div	BlockBox	0.00	0.00	200.00	5.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
 collapse_child_bottom_contained	0.0.0.0	div	BlockBox	0.00	0.00	200.00	5.00	0.00	0.00	0.00	30.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
 collapse_child_bottom_contained	0.0.1	div	BlockBox	0.00	35.00	200.00	5.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+inline_empty_chain_nested	0		PageBox	0.00	0.00	200.00	200.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+inline_empty_chain_nested	0	html	BlockBox	0.00	0.00	200.00	48.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+inline_empty_chain_nested	0.0	body	BlockBox	0.00	0.00	200.00	48.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+inline_empty_chain_nested	0.0.0	div	BlockBox	0.00	0.00	40.00	48.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+inline_empty_chain_nested	0.0.0.0	div	LineBox	0.00	0.00	80.00	16.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+inline_empty_chain_nested	0.0.0.0.0	div	TextBox	0.00	0.00	80.00	16.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	world
+inline_empty_chain_nested	0.0.0.0.1	span	InlineBox	80.00	0.00	0.00	16.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+inline_empty_chain_nested	0.0.0.0.1.0	span	InlineBox	80.00	4.80	0.00	10.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+inline_empty_chain_nested	0.0.0.1	div	LineBox	0.00	16.00	50.00	16.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+inline_empty_chain_nested	0.0.0.1.0	span	InlineBox	0.00	16.00	50.00	16.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+inline_empty_chain_nested	0.0.0.1.0.0	span	InlineBox	0.00	20.80	50.00	10.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+inline_empty_chain_nested	0.0.0.1.0.0.0	span	TextBox	0.00	20.80	50.00	10.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	lorem
+inline_empty_chain_nested	0.0.0.2	div	LineBox	0.00	32.00	50.00	16.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+inline_empty_chain_nested	0.0.0.2.0	span	InlineBox	0.00	32.00	50.00	16.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+inline_empty_chain_nested	0.0.0.2.0.0	span	InlineBox	0.00	36.80	50.00	10.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+inline_empty_chain_nested	0.0.0.2.0.0.0	span	TextBox	0.00	36.80	50.00	10.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	dolor
