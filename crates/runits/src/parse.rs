@@ -26,6 +26,9 @@ pub enum ParseError {
     /// An affine unit such as `degC` appears inside a product or quotient,
     /// where its offset has no meaning.
     AffineUnitInProduct,
+    /// A logarithmic unit such as `dB` appears inside a product, quotient or
+    /// power, where a logarithm has no meaning.
+    LogarithmicUnitInProduct,
     /// A division by a zero value.
     DivideByZero,
 }
@@ -41,6 +44,8 @@ impl fmt::Display for ParseError {
             Self::Exponent(text) => write!(formatter, "bad exponent {text:?}"),
             Self::AffineUnitInProduct => formatter
                 .write_str("an affine unit such as degC cannot appear in a product or quotient"),
+            Self::LogarithmicUnitInProduct => formatter
+                .write_str("a logarithmic unit such as dB cannot appear in a product or quotient"),
             Self::DivideByZero => formatter.write_str("division by zero"),
         }
     }
@@ -188,6 +193,9 @@ impl Parser {
             None => return Err(ParseError::UnexpectedEnd),
         };
         if let Some(Token::Caret) = self.peek() {
+            if base.is_logarithmic() {
+                return Err(ParseError::LogarithmicUnitInProduct);
+            }
             self.position += 1;
             let exponent = match self.next() {
                 Some(Token::Number(value)) if value.fract() == 0.0 => {
@@ -212,6 +220,9 @@ fn multiply(left: Unit, right: Unit) -> Result<Unit, ParseError> {
     if left.is_affine() || right.is_affine() {
         return Err(ParseError::AffineUnitInProduct);
     }
+    if left.is_logarithmic() || right.is_logarithmic() {
+        return Err(ParseError::LogarithmicUnitInProduct);
+    }
     let dimension = left
         .dimension()
         .times(right.dimension())
@@ -225,6 +236,9 @@ fn divide(left: Unit, right: Unit) -> Result<Unit, ParseError> {
     }
     if left.is_affine() || right.is_affine() {
         return Err(ParseError::AffineUnitInProduct);
+    }
+    if left.is_logarithmic() || right.is_logarithmic() {
+        return Err(ParseError::LogarithmicUnitInProduct);
     }
     let dimension = left
         .dimension()

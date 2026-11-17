@@ -304,6 +304,13 @@ that branch order or the held-out check tests the wrong thing.
 - **`cargo clippy` prints nothing on a cached build.** If a lint seems to have
   vanished, `touch crates/*/src/lib.rs` (or `find crates -name '*.rs' -exec touch {} +`)
   to force a rebuild before believing the result.
+- **A generated table cannot carry a bare `std::f64::consts::E` by accident.**
+  `runits` emits the logarithm base of `Np` as `std::f64::consts::E` rather than
+  `2.718281828459045`, because clippy's `approx_constant` fires on the literal
+  and the crate forbids an `allow`. `gen_units.py` detects a base equal to `e`
+  and writes the constant by name. Any new generated float that equals a named
+  maths constant needs the same treatment; the check is in `main`, not in the
+  emitter.
 - **`xmlkit` name matching.** `Element::child` and `children_named` match the
   full name including the prefix, so `child(el, "IssueDateTime")` does **not**
   find `ram:IssueDateTime`. Match on the local name. `Element::text()`

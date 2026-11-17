@@ -15,7 +15,9 @@ Usage:
 from __future__ import annotations
 
 UNSUPPORTED = 65535  # u16::MAX, marks a name the crate cannot represent
+LOG_FLAG = 0x8000  # set on a name whose value indexes LOGARITHMIC, not DEFINITIONS
 
+import math
 import pathlib
 import re
 import sys
@@ -257,6 +259,7 @@ def parse_definitions(source: pathlib.Path):
     collect(source / "default_en.txt", [])
 
     units: dict[str, tuple[Quantity, float | None]] = {}
+    logarithmic: dict[str, tuple[float, float, Quantity]] = {}
     prefixes: dict[str, Fraction] = {}
 
     explicit: set[str] = set()
@@ -309,25 +312,43 @@ def parse_definitions(source: pathlib.Path):
                     dims[name] = value
                 else:
                     offset = None
-                    logarithmic = False
+                    logbase = None
+                    logfactor = None
                     for directive in directives:
                         if directive.startswith("offset:"):
                             offset = evaluate(
                                 directive[len("offset:") :].strip(), environment()
                             )
                             offset = float(offset.factor)
-                        elif directive.startswith(("logbase:", "logfactor:")):
-                            logarithmic = True
-                    if logarithmic:
-                        # A logarithmic unit (dB, Np, octave) has no linear
-                        # factor, so representing it as one would be wrong.
-                        raise ValueError(f"logarithmic unit {name!r}")
-                    entry = (value, offset)
-                    units[name] = entry
+                        elif directive.startswith("logbase:"):
+                            logbase = float(
+                                evaluate(
+                                    directive[len("logbase:") :].strip(), environment()
+                                ).factor
+                            )
+                        elif directive.startswith("logfactor:"):
+                            logfactor = float(
+                                evaluate(
+                                    directive[len("logfactor:") :].strip(), environment()
+                                ).factor
+                            )
                     symbol = symbol_and_aliases[0] if symbol_and_aliases else None
                     aliases = symbol_and_aliases[1:] if symbol_and_aliases else []
-                    for alias in [symbol, *aliases]:
-                        if alias and alias != "_":
+                    names = [n for n in [name, symbol, *aliases] if n and n != "_"]
+                    if logbase is not None or logfactor is not None:
+                        # A logarithmic scale (dB, Np, octave) is not a linear
+                        # factor: its value is a logarithm of a ratio to a
+                        # reference quantity. `value` is that reference, which
+                        # is 1 (dimensionless) for dB and Np and one watt for
+                        # dBW, so the reference's factor and dimension are the
+                        # ones the scale is anchored to.
+                        log = (logbase, logfactor, value)
+                        for alias in names:
+                            logarithmic[alias] = log
+                    else:
+                        entry = (value, offset)
+                        units[name] = entry
+                        for alias in names:
                             units[alias] = entry
                 progress = True
             except KeyError:
@@ -344,7 +365,7 @@ def parse_definitions(source: pathlib.Path):
             break
         pending = remaining
 
-    names = sorted(units)
+    names = sorted(set(units) | set(logarithmic))
     unsupported_names: set[str] = set()
     for record in unsupported:
         kind, name = record[0], record[1]
@@ -362,7 +383,62 @@ def parse_definitions(source: pathlib.Path):
         unit, offset = units[name]
         if not supported(unit, offset, dims):
             unsupported_names.add(name)
-    return units, prefixes, dims, names, sorted(unsupported_names), explicit
+    # A logarithmic scale is representable as long as its reference quantity
+    # is: `dB` anchors to 1 and `dBm` to one milliwatt, so the reference has to
+    # reduce to the seven SI base dimensions. The scale itself adds no factor.
+    for name, (_base, _factor, reference) in logarithmic.items():
+        if not supported(reference, None, dims):
+            unsupported_names.add(name)
+    return (
+        units,
+        logarithmic,
+        prefixes,
+        dims,
+        names,
+        sorted(unsupported_names),
+        explicit,
+    )
+
+
+def build_log_rows(logarithmic, dims, unsupported_names=()):
+    """Group the logarithmic scales into distinct rows and name -> row entries.
+
+    A logarithmic scale carries three numbers rather than the one factor a
+    linear unit does: the base of the logarithm, the divisor applied to the
+    value, and the reference quantity the ratio is taken against. ``dB`` and
+    ``Np`` are anchored to the dimensionless one, ``dBW`` to one watt and
+    ``dBm`` to one milliwatt, so the reference reduces to a factor and a
+    dimension vector exactly as a linear unit does.
+    """
+    rows: list[tuple[float, float, float, tuple[int, ...]]] = []
+    row_index: dict[tuple[float, float, float, tuple[int, ...]], int] = {}
+    name_rows: list[tuple[str, int]] = []
+    unsupported: list[str] = []
+
+    for name in sorted(logarithmic):
+        base, factor, reference = logarithmic[name]
+        if not supported(reference, None, dims):
+            name_rows.append((name, UNSUPPORTED))
+            unsupported.append(name)
+            continue
+        vector = tuple(
+            int(to_base(reference, dims).get(d, 0)) for d in BASE_DIMS
+        )
+        key = (float(base), float(factor), float(reference.factor), vector)
+        if key not in row_index:
+            row_index[key] = len(rows)
+            rows.append(key)
+        # The high bit separates a logarithmic row index from a linear one, so
+        # one name table serves both.
+        name_rows.append((name, LOG_FLAG | row_index[key]))
+
+    known = {name for name, _ in name_rows}
+    for name in unsupported_names:
+        if name not in known:
+            name_rows.append((name, UNSUPPORTED))
+            unsupported.append(name)
+    name_rows.sort()
+    return rows, name_rows, unsupported
 
 
 def build_rows(units, dims, unsupported_names=()):
@@ -458,10 +534,16 @@ def main() -> int:
         return 2
     crate = pathlib.Path(sys.argv[1])
     source = pint_source()
-    units, prefixes, dims, names, skipped_names, _explicit = parse_definitions(source)
+    units, logarithmic, prefixes, dims, _names, skipped_names, _explicit = (
+        parse_definitions(source)
+    )
 
     # Collect one row per distinct definition, then a name -> row index list.
     rows, name_rows, skipped = build_rows(units, dims, skipped_names)
+    log_rows, log_name_rows, _log_skipped = build_log_rows(
+        logarithmic, dims, skipped_names
+    )
+    name_rows = sorted(name_rows + log_name_rows)
 
     # Longest first, so a lookup can stop at the first prefix that matches
     # without `d` shadowing `da`.
@@ -491,6 +573,9 @@ def main() -> int:
     lines.append("/// The row index used for a name that is known but not representable.")
     lines.append("pub(crate) const UNSUPPORTED: u16 = u16::MAX;")
     lines.append("")
+    lines.append("/// Set on a name whose index is into `LOGARITHMIC` rather than `DEFINITIONS`.")
+    lines.append(f"pub(crate) const LOG_FLAG: u16 = {LOG_FLAG};")
+    lines.append("")
     # The factors are data, not approximations of the maths constants they
     # happen to equal: `turn` really is 6.283185307179586 radians.
     lines.append("#[allow(clippy::approx_constant)]")
@@ -519,6 +604,35 @@ def main() -> int:
     for name, value in usable_prefixes:
         lines.append(f'    ({name!r}, {rust_float(value)}),'.replace("'", '"'))
     lines.append("];")
+    lines.append("")
+    lines.append("/// A logarithmic scale: the base of the logarithm, the divisor applied to the")
+    lines.append("/// value, and the reference quantity the ratio is taken against, as a factor to")
+    lines.append("/// the SI base units and a base-dimension vector.")
+    lines.append("pub(crate) struct Logarithmic {")
+    lines.append("    pub(crate) base: f64,")
+    lines.append("    pub(crate) factor: f64,")
+    lines.append("    pub(crate) reference: f64,")
+    lines.append("    pub(crate) dim: [i8; 7],")
+    lines.append("}")
+    lines.append("")
+    lines.append("#[rustfmt::skip]")
+    lines.append("pub(crate) static LOGARITHMIC: &[Logarithmic] = &[")
+    for base, factor, reference, vector in log_rows:
+        dims_text = ", ".join(str(v) for v in vector)
+        # `Np` is a logarithm base e; writing the constant by name rather than
+        # the literal keeps clippy's `approx_constant` from firing, and is the
+        # same `f64`.
+        base_text = (
+            "std::f64::consts::E"
+            if abs(base - math.e) < 1e-12
+            else rust_float(base)
+        )
+        lines.append(
+            f"    Logarithmic {{ base: {base_text}, "
+            f"factor: {rust_float(factor)}, reference: {rust_float(reference)}, "
+            f"dim: [{dims_text}] }},"
+        )
+    lines.append("];")
 
     (crate / "src").mkdir(parents=True, exist_ok=True)
     # No trailing blank line: `cargo fmt` strips one, so emitting it would
@@ -526,6 +640,7 @@ def main() -> int:
     (crate / "src" / "table.rs").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     print(f"definitions   {len(rows)}")
+    print(f"logarithmic   {len(log_rows)}")
     print(f"names         {len(name_rows)}")
     print(f"prefixes      {len(usable_prefixes)}")
     print(f"skipped       {len(skipped)} (dimensions outside the seven SI base units)")

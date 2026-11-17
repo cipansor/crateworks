@@ -9,7 +9,7 @@ pub mod units;
 
 pub use parse::{ParseError, parse};
 pub use quantity::{ArithmeticError, ConvertError, Quantity, convert};
-pub use units::{Unit, UnknownUnit, unit};
+pub use units::{LogScale, Unit, UnknownUnit, unit};
 
 use std::fmt;
 

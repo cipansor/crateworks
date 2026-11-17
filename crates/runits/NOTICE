@@ -15,10 +15,11 @@ It also includes a unit table derived from the definition files of
     modification, are permitted provided that the conditions of the
     BSD 3-Clause licence are met.
 
-`crates/runits/src/table.rs` and `crates/runits/tests/fixtures/pint_units.tsv`
-are generated from those files by `research/tools/gen_units.py` and
-`research/tools/verify_units.py`. The table is data, not code: it records the
-factor, dimension and offset of each unit so that a conversion can be carried
-out without Pint present.
+`crates/runits/src/table.rs`, `crates/runits/tests/fixtures/pint_units.tsv` and
+`crates/runits/tests/fixtures/pint_log_units.tsv` are generated from those files
+by `research/tools/gen_units.py` and `research/tools/verify_units.py`. The table
+is data, not code: it records the factor, dimension and offset of each unit, and
+the base, divisor and reference of each logarithmic scale, so that a conversion
+can be carried out without Pint present.
 
 Licensed under the Apache License, Version 2.0 (see LICENSE).

@@ -55,6 +55,20 @@ BY_DIMENSION: dict[tuple[int, ...], list[str]] = {
 # Units from different dimensions, so every pair is a dimension mismatch.
 MISMATCH = ["m", "kg", "s", "L", "radian", "N", "J", "W"]
 
+# The dimensionless logarithmic scales. A sum of two logarithms adds their
+# logarithms, and pint agrees: `3 dB + 3 dB` is `6 dB` and `3 dB + 1 Np` is
+# `11.686 dB`.
+LOG_SCALES = ["dB", "Np", "octave", "decade"]
+
+# The dimensioned logarithmic scales, a sum of which pint turns into a squared
+# base quantity (`0 dBm + 1 dBm` is a watt squared) rather than a logarithm. The
+# crate refuses it, so every pair here is an expected error.
+LOG_POWER_SCALES = ["dBm", "dBW", "dBu"]
+
+# Logarithms are not restricted to positive values, so the magnitudes include
+# a negative and a zero one.
+LOG_MAGNITUDES = [-10.0, -3.0, -0.5, 0.0, 0.5, 3.0, 10.0, 30.0]
+
 # Magnitudes spanning micro to mega, so a factor bug shows up at both ends.
 MAGNITUDES = [
     1e-6, 1e-3, 0.1, 0.5, 1.0, 2.5, 7.0, 12.0, 99.0, 1e3, 1e6,
@@ -99,6 +113,29 @@ def main() -> int:
         else:
             expected = repr(float((left_q + right_q).magnitude))
         rows.append((left, right, expected))
+
+    # The logarithmic slice: a sum of two dimensionless logarithms adds their
+    # logarithms, and pint computes the same number.
+    for _ in range(160):
+        left_unit, right_unit = rng.choice(LOG_SCALES), rng.choice(LOG_SCALES)
+        left = quantity(rng.choice(LOG_MAGNITUDES), left_unit)
+        right = quantity(rng.choice(LOG_MAGNITUDES), right_unit)
+        try:
+            result = registry.Quantity(left) + registry.Quantity(right)
+        except Exception:
+            expected = "-"
+        else:
+            expected = repr(float(result.magnitude))
+        rows.append((left, right, expected))
+
+    # A sum of two dimensioned logarithms is not a logarithm. Pint multiplies
+    # the references and returns a squared base unit, which names neither
+    # operand, so the crate refuses it and the expectation is an error.
+    for left_unit in LOG_POWER_SCALES:
+        for right_unit in LOG_POWER_SCALES:
+            left = quantity(rng.choice(LOG_MAGNITUDES), left_unit)
+            right = quantity(rng.choice(LOG_MAGNITUDES), right_unit)
+            rows.append((left, right, "-"))
 
     for affine in ["degC", "degF", "K"]:
         for other in ["degC", "degF", "K"]:
