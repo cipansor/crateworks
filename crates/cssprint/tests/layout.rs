@@ -371,3 +371,19 @@ fn split_case(html: &str) -> (f64, String) {
     );
     (width, sheet)
 }
+
+/// The curated selector corpus, compared the same way.
+#[test]
+fn matches_weasyprint_selector_corpus() {
+    run_corpus("selector_cases.tsv", "selector_layout.tsv", "selector");
+}
+
+/// The deterministic random selector corpus.
+#[test]
+fn matches_weasyprint_random_selector_corpus() {
+    run_corpus(
+        "selector_fuzz_cases.tsv",
+        "selector_fuzz.tsv",
+        "selector random",
+    );
+}

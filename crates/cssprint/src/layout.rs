@@ -153,17 +153,23 @@ pub(crate) fn layout_document(
     stylesheet: &crate::Stylesheet,
     page_width: f64,
 ) -> Result<Document, Error> {
+    let mut walk = Walk {
+        stylesheet,
+        ancestors: Vec::new(),
+    };
     let (html, _, _) = layout_element(
         dom,
-        stylesheet,
-        page_width,
-        true,
-        None,
-        Pos {
-            cursor_y: 0.0,
-            parent_content_y: 0.0,
+        &mut walk,
+        Placement {
+            containing_width: page_width,
+            is_root: true,
+            parent_style: None,
+            at: Pos {
+                cursor_y: 0.0,
+                parent_content_y: 0.0,
+            },
+            adjoining: fresh_margins(),
         },
-        fresh_margins(),
     )?;
     let html = place(&html, 0.0, 0.0);
     let root = LayoutBox {
@@ -210,10 +216,28 @@ struct Pos {
     parent_content_y: f64,
 }
 
+/// The stylesheet and the ancestor chain, threaded through the walk so a
+/// descendant or child selector can be matched against the element's ancestry.
+struct Walk<'a> {
+    stylesheet: &'a crate::Stylesheet,
+    ancestors: Vec<&'a Element>,
+}
+
+/// Where a box is placed: the width it is laid out against, whether it is the
+/// root, the style it inherits from, and the margin run it joins.
+struct Placement<'s> {
+    containing_width: f64,
+    is_root: bool,
+    parent_style: Option<&'s Style>,
+    at: Pos,
+    adjoining: Margins,
+}
+
 /// Lay out one block-level element and its subtree.
 ///
-/// `is_root` marks the `html` element, which neither collapses with the page nor
-/// with its own first child in the way an ordinary box does.
+/// `walk` carries the stylesheet and the ancestor chain a descendant or child
+/// selector is matched against. The element is pushed onto that chain before its
+/// children are laid out, so each child sees the full chain above it.
 ///
 /// Vertical placement follows `block_container_layout` in the reference. The box
 /// joins the run of adjoining margins it was handed, places itself at the
@@ -225,20 +249,25 @@ struct Pos {
 ///
 /// Returns the box, the absolute y of its content box, and the run it leaves
 /// behind for its next sibling.
-fn layout_element(
-    element: &Element,
-    stylesheet: &crate::Stylesheet,
-    containing_width: f64,
-    is_root: bool,
-    parent_style: Option<&Style>,
-    at: Pos,
-    adjoining: Margins,
+fn layout_element<'a>(
+    element: &'a Element,
+    walk: &mut Walk<'a>,
+    placement: Placement<'_>,
 ) -> Result<(Fragment, f64, Margins), Error> {
+    let stylesheet = walk.stylesheet;
+    let Placement {
+        containing_width,
+        is_root,
+        parent_style,
+        at,
+        adjoining,
+    } = placement;
     let Pos {
         cursor_y,
         parent_content_y,
     } = at;
-    let style = crate::style::compute(element, stylesheet, parent_style)?;
+    let style = crate::style::compute(element, stylesheet, parent_style, &walk.ancestors)?;
+    walk.ancestors.push(element);
     let (width, x_offset, margin_left, margin_right) = resolve_horizontal(&style, containing_width);
     let padding = resolve_sides(&style.padding, containing_width);
     let inner_top = style.border.top + padding.top;
@@ -270,7 +299,8 @@ fn layout_element(
     let mut has_block = false;
     for node in &element.children {
         if let Node::Element(child) = node {
-            let child_style = crate::style::compute(child, stylesheet, Some(&style))?;
+            let child_style =
+                crate::style::compute(child, stylesheet, Some(&style), &walk.ancestors)?;
             if child_style.display == Display::Block {
                 has_block = true;
                 break;
@@ -298,7 +328,8 @@ fn layout_element(
         let block_child = match node {
             Node::Text(_) => None,
             Node::Element(child) => {
-                let child_style = crate::style::compute(child, stylesheet, Some(&style))?;
+                let child_style =
+                    crate::style::compute(child, stylesheet, Some(&style), &walk.ancestors)?;
                 match child_style.display {
                     Display::None => continue,
                     Display::Block => Some(child),
@@ -308,18 +339,20 @@ fn layout_element(
         };
         match block_child {
             Some(child) => {
-                flush_run(&mut run, &ctx, &mut flow)?;
+                flush_run(&mut run, &ctx, &walk.ancestors, &mut flow)?;
                 let (mut frag, child_content_y, child_run) = layout_element(
                     child,
-                    stylesheet,
-                    width,
-                    false,
-                    Some(&style),
-                    Pos {
-                        cursor_y: flow.cursor,
-                        parent_content_y: content_box_y,
+                    walk,
+                    Placement {
+                        containing_width: width,
+                        is_root: false,
+                        parent_style: Some(&style),
+                        at: Pos {
+                            cursor_y: flow.cursor,
+                            parent_content_y: content_box_y,
+                        },
+                        adjoining: std::rc::Rc::clone(&flow.adjoining),
                     },
-                    std::rc::Rc::clone(&flow.adjoining),
                 )?;
                 flow.adjoining = child_run;
                 frag.y_offset = child_content_y - content_box_y;
@@ -333,7 +366,7 @@ fn layout_element(
             None => run.push(node),
         }
     }
-    flush_run(&mut run, &ctx, &mut flow)?;
+    flush_run(&mut run, &ctx, &walk.ancestors, &mut flow)?;
 
     let Flow {
         mut cursor,
@@ -400,6 +433,7 @@ fn layout_element(
         inner_bottom,
         children,
     };
+    walk.ancestors.pop();
     Ok((fragment, content_box_y, adjoining))
 }
 
@@ -437,7 +471,12 @@ struct Flow {
 /// wrapped in an anonymous block; otherwise its line boxes are the element's own
 /// children. Either way the run ends the adjoining-margin chain, because a line
 /// box carries no margin to collapse.
-fn flush_run(run: &mut Vec<&Node>, ctx: &RunCtx, flow: &mut Flow) -> Result<(), Error> {
+fn flush_run(
+    run: &mut Vec<&Node>,
+    ctx: &RunCtx,
+    ancestors: &[&Element],
+    flow: &mut Flow,
+) -> Result<(), Error> {
     let RunCtx {
         element,
         stylesheet,
@@ -449,7 +488,7 @@ fn flush_run(run: &mut Vec<&Node>, ctx: &RunCtx, flow: &mut Flow) -> Result<(), 
     if run.is_empty() {
         return Ok(());
     }
-    let items = collect_items(run, stylesheet, style)?;
+    let items = collect_items(run, stylesheet, style, ancestors)?;
     let align = style.text_align;
     let align_last = style.text_align_last.unwrap_or(align);
     let indent = resolve(style.text_indent, width);
@@ -534,39 +573,49 @@ fn collect_items(
     nodes: &[&Node],
     stylesheet: &crate::Stylesheet,
     parent_style: &Style,
+    ancestors: &[&Element],
 ) -> Result<Vec<Item>, Error> {
-    let mut items = Vec::new();
-    let mut following_space = false;
-    let mut next_id = 0;
+    let mut collector = Collector {
+        stylesheet,
+        chain: ancestors.to_vec(),
+        next_id: 0,
+        following_space: false,
+        items: Vec::new(),
+    };
     for node in nodes {
-        collect(
-            node,
-            stylesheet,
-            parent_style,
-            &mut Vec::new(),
-            &mut next_id,
-            &mut following_space,
-            &mut items,
-        )?;
+        collect(node, parent_style, &mut Vec::new(), &mut collector)?;
     }
-    Ok(items)
+    Ok(collector.items)
+}
+
+/// The state a run of inline content accumulates while it is walked: the
+/// element chain for selector matching, the whitespace-collapsing flag, the
+/// running id counter and the items so far.
+struct Collector<'a> {
+    stylesheet: &'a crate::Stylesheet,
+    chain: Vec<&'a Element>,
+    next_id: usize,
+    following_space: bool,
+    items: Vec<Item>,
 }
 
 /// The recursive half of [`collect_items`].
-fn collect(
-    node: &Node,
-    stylesheet: &crate::Stylesheet,
+///
+/// `ancestors` is the inline ancestor stack for the current path, and
+/// `collector.chain` extends the block chain with the inline elements opened so
+/// far; a style is computed against that chain, so a descendant selector matches
+/// an inline ancestor like any other.
+fn collect<'a>(
+    node: &'a Node,
     parent_style: &Style,
     ancestors: &mut Vec<InlineAncestor>,
-    next_id: &mut usize,
-    following_space: &mut bool,
-    out: &mut Vec<Item>,
+    collector: &mut Collector<'a>,
 ) -> Result<(), Error> {
     match node {
         Node::Text(text) => {
-            let collapsed = collapse(text, following_space);
+            let collapsed = collapse(text, &mut collector.following_space);
             if !collapsed.is_empty() {
-                out.push(Item {
+                collector.items.push(Item {
                     ancestors: ancestors.clone(),
                     style: parent_style.clone(),
                     text: collapsed,
@@ -575,28 +624,27 @@ fn collect(
             Ok(())
         }
         Node::Element(element) => {
-            let style = crate::style::compute(element, stylesheet, Some(parent_style))?;
+            let style = crate::style::compute(
+                element,
+                collector.stylesheet,
+                Some(parent_style),
+                &collector.chain,
+            )?;
             if style.display == Display::None {
                 return Ok(());
             }
-            let id = *next_id;
-            *next_id += 1;
+            let id = collector.next_id;
+            collector.next_id += 1;
             ancestors.push(InlineAncestor {
                 id,
                 tag: element.tag.clone(),
                 style: style.clone(),
             });
+            collector.chain.push(element);
             for child in &element.children {
-                collect(
-                    child,
-                    stylesheet,
-                    &style,
-                    ancestors,
-                    next_id,
-                    following_space,
-                    out,
-                )?;
+                collect(child, &style, ancestors, collector)?;
             }
+            collector.chain.pop();
             ancestors.pop();
             Ok(())
         }
