@@ -52,10 +52,12 @@ impl Quantity {
 
     /// The value expressed in the SI base units, with the offset applied.
     ///
-    /// `25 °C` is `298.15` here, because the base unit is the kelvin.
+    /// `25 °C` is `298.15` here, because the base unit is the kelvin. For a
+    /// logarithmic unit this is the reference quantity scaled by the ratio the
+    /// value names: `30 dBm` is `1.0`, one watt.
     #[must_use]
     pub fn base(&self) -> f64 {
-        self.value * self.unit.factor() + self.unit.offset()
+        self.unit.base_of(self.value)
     }
 
     /// Convert to another unit, given as a name or expression.
@@ -83,19 +85,31 @@ impl Quantity {
                 to: target.dimension(),
             });
         }
-        if target.unit.factor() == 0.0 {
+        if target.unit.factor() == 0.0 && !target.unit.is_logarithmic() {
             return Err(ConvertError::ZeroScale);
         }
-        Ok(Self::new(
-            (self.base() - target.unit.offset()) / target.unit.factor(),
-            target.unit,
-        ))
+        // Two logarithmic scales convert in log space, so a finite value whose
+        // linear equivalent overflows `f64` still converts: `400 Np` is about
+        // `3474 dB`, and `e^800` would have been the lost intermediate.
+        if let (Some(from), Some(to)) = (self.unit.log_scale(), target.unit.log_scale()) {
+            return Ok(Self::new(to.value_from(from, self.value), target.unit));
+        }
+        let base = self.base();
+        // A zero or negative quantity has no logarithm, so it cannot be written
+        // on a logarithmic scale; the reference raises the same way.
+        if target.unit.is_logarithmic() && base <= 0.0 {
+            return Err(ConvertError::NotPositive);
+        }
+        Ok(Self::new(target.unit.value_from(base), target.unit))
     }
 
     /// Multiply by another quantity, combining the units.
     pub fn times(&self, other: Self) -> Result<Self, ArithmeticError> {
         if self.unit.is_affine() || other.unit.is_affine() {
             return Err(ArithmeticError::AffineUnit);
+        }
+        if self.unit.is_logarithmic() || other.unit.is_logarithmic() {
+            return Err(ArithmeticError::LogarithmicUnit);
         }
         let factor = self.unit.factor() * other.unit.factor();
         let dimension = combine(self.dimension(), other.dimension(), 1)?;
@@ -112,6 +126,9 @@ impl Quantity {
         }
         if self.unit.is_affine() || other.unit.is_affine() {
             return Err(ArithmeticError::AffineUnit);
+        }
+        if self.unit.is_logarithmic() || other.unit.is_logarithmic() {
+            return Err(ArithmeticError::LogarithmicUnit);
         }
         let factor = self.unit.factor() / other.unit.factor();
         let dimension = combine(self.dimension(), other.dimension(), -1)?;
@@ -163,6 +180,9 @@ impl Quantity {
         if self.unit.is_affine() || other.unit.is_affine() {
             return Err(ArithmeticError::AffineUnit);
         }
+        if self.unit.is_logarithmic() || other.unit.is_logarithmic() {
+            return self.shifted_logarithmically(other, sign);
+        }
         if self.dimension() != other.dimension() {
             return Err(ArithmeticError::DimensionMismatch {
                 left: self.dimension(),
@@ -171,6 +191,44 @@ impl Quantity {
         }
         let in_self = sign * other.value * other.unit.factor() / self.unit.factor();
         Ok(Self::new(self.value + in_self, self.unit))
+    }
+
+    /// A sum or difference where at least one operand is on a logarithmic scale.
+    ///
+    /// A dimensionless logarithmic value is a logarithm of a ratio, so adding
+    /// two of them adds their logarithms: two `3 dB` gains make `6 dB`, and
+    /// `3 dB + 1 Np` is `11.686 dB`. The right operand is first expressed in
+    /// `self`'s scale through the base quantity they share, and the result
+    /// keeps `self`'s scale.
+    ///
+    /// Only the dimensionless scales can be added. For a dimensioned one such
+    /// as `dBm`, the reference multiplies the two reference quantities and
+    /// returns the base unit - `0 dBm + 1 dBm` becomes a squared watt, a
+    /// quantity neither operand named - so the crate refuses it rather than
+    /// report a number with no meaning. Adding a logarithmic value to a linear
+    /// one is refused too: `0 dBm + 1 mW` has no meaning, and the reference
+    /// refuses that as well.
+    fn shifted_logarithmically(&self, other: Self, sign: f64) -> Result<Self, ArithmeticError> {
+        if self.dimension() != other.dimension() {
+            return Err(ArithmeticError::DimensionMismatch {
+                left: self.dimension(),
+                right: other.dimension(),
+            });
+        }
+        if !(self.unit.is_logarithmic() && other.unit.is_logarithmic()) {
+            return Err(ArithmeticError::LogarithmicUnit);
+        }
+        if !self.dimension().is_dimensionless() {
+            return Err(ArithmeticError::LogarithmicUnit);
+        }
+        // Both operands are logarithms, so express the right one in `self`'s
+        // scale in log space and add the two numbers. This keeps a finite
+        // result whose linear equivalent is outside `f64`: `200 Np + 200 Np` is
+        // `400 Np`, whose base quantity is `e^800`.
+        let right = self.unit.log_scale().expect("self is logarithmic");
+        let other_scale = other.unit.log_scale().expect("other is logarithmic");
+        let in_self = right.value_from(other_scale, other.value);
+        Ok(Self::new(self.value + sign * in_self, self.unit))
     }
 }
 
@@ -204,6 +262,8 @@ pub enum ConvertError {
     BadTarget(ParseError),
     /// The target unit's scale is zero, so the value cannot be recovered.
     ZeroScale,
+    /// A zero or negative quantity cannot be written on a logarithmic scale.
+    NotPositive,
 }
 
 impl fmt::Display for ConvertError {
@@ -212,6 +272,7 @@ impl fmt::Display for ConvertError {
             Self::Dimension { from, to } => write!(formatter, "cannot convert {from} to {to}"),
             Self::BadTarget(error) => write!(formatter, "bad target unit: {error}"),
             Self::ZeroScale => formatter.write_str("the target unit has a zero scale"),
+            Self::NotPositive => formatter.write_str("only a positive quantity has a logarithm"),
         }
     }
 }
@@ -243,6 +304,9 @@ pub enum ArithmeticError {
         /// The dimension of the right operand.
         right: Dimension,
     },
+    /// A logarithmic scale took part in an operation that needs a linear one: a
+    /// product, a quotient, or a sum with a linear quantity.
+    LogarithmicUnit,
 }
 
 impl fmt::Display for ArithmeticError {
@@ -258,6 +322,9 @@ impl fmt::Display for ArithmeticError {
             Self::DimensionMismatch { left, right } => {
                 write!(formatter, "cannot add or subtract {left} and {right}")
             }
+            Self::LogarithmicUnit => formatter.write_str(
+                "a logarithmic scale cannot be multiplied, divided or added to a linear quantity",
+            ),
         }
     }
 }

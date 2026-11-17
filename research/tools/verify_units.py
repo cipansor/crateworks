@@ -30,21 +30,46 @@ BASE_DIMS = g.BASE_DIMS
 def build_table(source):
     """The generated tables as Python objects.
 
-    ``build_rows`` is the generator's own function, so the verifier compares the
-    crate against exactly the table the crate is built from. The prefix list is
-    ordered longest first, the order the generated table uses and the order the
-    crate's lookup relies on.
+    ``build_rows`` and ``build_log_rows`` are the generator's own functions, so
+    the verifier compares the crate against exactly the tables the crate is
+    built from. The prefix list is ordered longest first, the order the
+    generated table uses and the order the crate's lookup relies on.
     """
-    units, prefixes, dims, names, skipped, explicit = g.parse_definitions(source)
+    units, logarithmic, prefixes, dims, _names, skipped, explicit = (
+        g.parse_definitions(source)
+    )
     rows, name_rows, unsupported = g.build_rows(units, dims, skipped)
+    log_rows, log_name_rows, _log_unsupported = g.build_log_rows(
+        logarithmic, dims, skipped
+    )
+    name_index = dict(name_rows + log_name_rows)
     ordered = sorted(
         ((name, float(value)) for name, value in prefixes.items() if name),
         key=lambda item: (-len(item[0]), item[0]),
     )
-    return rows, dict(name_rows), ordered, unsupported, explicit
+    return rows, log_rows, name_index, ordered, unsupported, explicit
 
 
-def resolve(name, definitions, names, prefixes):
+def lookup(index, definitions, log_definitions, prefix=None):
+    """Resolve one name-table row, tagged linear or logarithmic.
+
+    A prefix on a logarithmic scale is refused, which is what ``unit("mdB")``
+    does: a milli-logarithm is not a unit.
+    """
+    if index == g.UNSUPPORTED:
+        return None
+    if index & g.LOG_FLAG:
+        if prefix is not None:
+            return None
+        base, factor, reference, vector = log_definitions[index & ~g.LOG_FLAG]
+        return ("log", base, factor, reference, vector)
+    factor, vector, offset = definitions[index]
+    if prefix is not None:
+        factor *= prefix
+    return ("linear", factor, vector, offset)
+
+
+def resolve(name, definitions, log_definitions, names, prefixes):
     """The crate's lookup order: exact name, then prefix, then plural.
 
     The name table is consulted first and contains every name the definition
@@ -58,7 +83,7 @@ def resolve(name, definitions, names, prefixes):
     """
     index = names.get(name)
     if index is not None:
-        return None if index == g.UNSUPPORTED else definitions[index]
+        return lookup(index, definitions, log_definitions)
     for prefix, factor in prefixes:
         if not name.startswith(prefix):
             continue
@@ -68,15 +93,41 @@ def resolve(name, definitions, names, prefixes):
         for candidate in (remainder, remainder.rstrip("s")):
             index = names.get(candidate)
             if index is not None:
-                if index == g.UNSUPPORTED:
-                    return None
-                base = definitions[index]
-                return (base[0] * factor, base[1], base[2])
+                return lookup(index, definitions, log_definitions, prefix=factor)
     if name.endswith("s"):
         index = names.get(name.rstrip("s"))
-        if index is not None and index != g.UNSUPPORTED:
-            return definitions[index]
+        if index is not None:
+            return lookup(index, definitions, log_definitions)
     return None
+
+
+def pint_log_value(registry, name):
+    """pint's own base, divisor and reference for a logarithmic name.
+
+    ``Quantity(0, name).to_base_units()`` is the reference the logarithm is
+    taken against: one for ``dB`` and ``Np``, one milliwatt for ``dBm``. It is
+    rescaled onto the crate's gram-based mass the same way ``pint_value`` does.
+    """
+    definition = registry._units[name]
+    if definition.is_multiplicative:
+        return None
+    converter = definition.converter
+    base = getattr(converter, "logbase", None)
+    if base is None:
+        return None
+    factor = getattr(converter, "logfactor", None)
+    reference = registry.Quantity(0, name).to_base_units()
+    vector = []
+    for dim in BASE_DIMS:
+        exponent = reference.dimensionality.get(dim, 0)
+        if float(exponent) != int(float(exponent)):
+            return None
+        vector.append(int(exponent))
+    for key in reference.dimensionality:
+        if str(key) not in BASE_DIMS:
+            return None
+    scale = 1000.0 ** vector[2]
+    return (float(base), float(factor), float(reference.magnitude) * scale, tuple(vector))
 
 
 def pint_value(registry, name):
@@ -89,11 +140,12 @@ def pint_value(registry, name):
     (``degree_Celsius``) the offset is the value of zero and the factor is the
     step, so ``base = value * factor + offset`` holds.
     """
-    if not registry._units[name].is_multiplicative:
-        # Logarithmic units (dB, Np, octave) have no linear factor.
-        converter = registry._units[name].converter
-        if getattr(converter, "logbase", None) is not None:
-            return None
+    definition = registry._units[name]
+    if not definition.is_multiplicative and getattr(
+        definition.converter, "logbase", None
+    ) is not None:
+        # A logarithmic unit has no linear factor; `pint_log_value` compares it.
+        return None
     zero = registry.Quantity(0, name).to_base_units()
     one = registry.Quantity(1, name).to_base_units()
     vector = []
@@ -115,9 +167,10 @@ def explain_uncovered(registry, name, expected) -> str:
     """Why the crate does not carry ``name``, checked against pint's data."""
     definition = registry._units[name]
     if not definition.is_multiplicative:
-        converter = definition.converter
-        if getattr(converter, "logbase", None) is not None:
-            return "logarithmic scale, not a linear factor"
+        # A logarithmic scale is covered when its reference reduces to the seven
+        # base dimensions; `expected is None` there means the reference does not.
+        if getattr(definition.converter, "logbase", None) is not None:
+            return "logarithmic scale whose reference is outside the seven SI base units"
     if expected is None:
         # Either a dimension outside the seven, or a fractional exponent.
         try:
@@ -144,7 +197,9 @@ def main() -> int:
     import pint
 
     registry = pint.UnitRegistry()
-    definitions, names, prefixes, unsupported_names, _explicit = build_table(source)
+    definitions, log_definitions, names, prefixes, unsupported_names, _explicit = (
+        build_table(source)
+    )
     unsupported = set(unsupported_names)
 
     checked = 0
@@ -152,12 +207,30 @@ def main() -> int:
     uncovered = []
     smuggled = []
     fixture_rows = []
+    log_checked = 0
+    log_mismatches = []
+    log_rows = []
 
     for name in sorted(registry._units):
         if name.startswith("["):
             continue
+        log_expected = pint_log_value(registry, name)
+        if log_expected is not None:
+            actual = resolve(name, definitions, log_definitions, names, prefixes)
+            if actual is None or actual[0] != "log":
+                log_mismatches.append((name, log_expected, actual))
+                continue
+            log_checked += 1
+            got = (actual[1], actual[2], actual[3], actual[4])
+            log_rows.append((name, log_expected))
+            if not close(got, log_expected):
+                log_mismatches.append((name, log_expected, got))
+            continue
         expected = pint_value(registry, name)
-        actual = resolve(name, definitions, names, prefixes)
+        actual = resolve(name, definitions, log_definitions, names, prefixes)
+        if actual is not None and actual[0] == "log":
+            mismatches.append((name, expected, actual))
+            continue
         # A name the definition files know must never resolve by prefix
         # decomposition: `ppi` is the printer unit, not `pico` x `pi`. Its
         # dimension is outside the seven, so the comparison below cannot catch a
@@ -171,14 +244,19 @@ def main() -> int:
             mismatches.append((name, expected, actual))
             continue
         checked += 1
+        got = actual[1:]
         fixture_rows.append((name, expected))
-        if not close(actual, expected):
-            mismatches.append((name, expected, actual))
+        if not close(got, expected):
+            mismatches.append((name, expected, got))
 
     print(f"pint unit names      {len(registry._units)}")
     print(f"compared             {checked}")
     print(f"mismatches           {len(mismatches)}")
     for name, expected, actual in mismatches[:25]:
+        print(f"  {name:24} pint={expected} crate={actual}")
+    print(f"logarithmic compared {log_checked}")
+    print(f"logarithmic mismatch {len(log_mismatches)}")
+    for name, expected, actual in log_mismatches[:25]:
         print(f"  {name:24} pint={expected} crate={actual}")
     if smuggled:
         print(f"prefix-decomposed explicit names  {len(smuggled)}: {smuggled[:20]}")
@@ -212,7 +290,23 @@ def main() -> int:
     (fixtures / "pint_units.tsv").write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"fixture rows         {len(fixture_rows)} -> {fixtures / 'pint_units.tsv'}")
 
-    return 1 if mismatches or unexplained or smuggled else 0
+    log_lines = ["# Generated by research/tools/verify_units.py from pint - do not edit."]
+    log_lines.append("# name\tlogbase\tlogfactor\treference\tdim(7)")
+    for name, (base, factor, reference, vector) in sorted(log_rows):
+        dims_text = ",".join(str(v) for v in vector)
+        log_lines.append(f"{name}\t{base!r}\t{factor!r}\t{reference!r}\t{dims_text}")
+    (fixtures / "pint_log_units.tsv").write_text(
+        "\n".join(log_lines) + "\n", encoding="utf-8"
+    )
+    print(
+        f"log fixture rows     {len(log_rows)} -> {fixtures / 'pint_log_units.tsv'}"
+    )
+
+    return (
+        1
+        if mismatches or log_mismatches or unexplained or smuggled
+        else 0
+    )
 
 
 def close(actual, expected) -> bool:

@@ -139,20 +139,221 @@ fn a_dimension_mismatch_is_an_error() {
 
 #[test]
 fn a_known_but_unrepresentable_unit_is_not_a_typo() {
-    // `dB` is a real unit with a logarithmic scale, so the crate reports it as
-    // unsupported rather than as an unknown name.
-    match unit("dB") {
-        Err(runits::UnknownUnit::Unsupported(_)) => {}
-        other => panic!("expected Unsupported, got {other:?}"),
-    }
-    match unit("planck_length") {
-        Err(runits::UnknownUnit::Unsupported(_)) => {}
-        other => panic!("expected Unsupported, got {other:?}"),
+    // `statC` is a real unit whose dimension has a fractional exponent, and
+    // `mdB` is a real unit a logarithmic scale refuses to take a prefix on, so
+    // both report as unsupported rather than as an unknown name.
+    for name in ["statC", "planck_length", "mdB"] {
+        match unit(name) {
+            Err(runits::UnknownUnit::Unsupported(_)) => {}
+            other => panic!("expected Unsupported for {name}, got {other:?}"),
+        }
     }
     match unit("florps") {
         Err(runits::UnknownUnit::Unknown(_)) => {}
         other => panic!("expected Unknown, got {other:?}"),
     }
+}
+
+#[test]
+fn a_logarithmic_scale_resolves_and_converts() {
+    // `dBm` is a power, `dB` is dimensionless, and `0 dBm` is one milliwatt.
+    let decibel_milliwatt = unit("dBm").expect("dBm resolves");
+    assert!(decibel_milliwatt.is_logarithmic());
+    let power = decibel_milliwatt.dimension();
+    assert_eq!((power.length, power.time, power.mass), (2, -3, 1));
+    // The factor is the reference quantity's own, one milliwatt, which is 1.0
+    // on the crate's gram-based scale (1e-3 W times the 1000 of the watt).
+    assert!((decibel_milliwatt.factor() - 1.0).abs() < 1e-15);
+
+    let thirty = Quantity::parse("30 dBm").unwrap();
+    assert!((thirty.base() - 1000.0).abs() < 1e-9, "30 dBm is one watt");
+    assert!((thirty.to("W").unwrap().value() - 1.0).abs() < 1e-9);
+    assert!((thirty.to("mW").unwrap().value() - 1000.0).abs() < 1e-9);
+
+    // The inverse goes the other way, and a plain quantity converts into a log.
+    assert!((Quantity::parse("1 mW").unwrap().to("dBm").unwrap().value()).abs() < 1e-9);
+    assert!((Quantity::parse("1 W").unwrap().to("dBm").unwrap().value() - 30.0).abs() < 1e-9);
+
+    // Two dimensionless scales relate through their shared reference.
+    let neper = Quantity::parse("1 Np").unwrap().to("dB").unwrap();
+    assert!((neper.value() - 8.685_889_638_065_035).abs() < 1e-12);
+    assert!(
+        (Quantity::parse("1 octave")
+            .unwrap()
+            .to("dB")
+            .unwrap()
+            .value()
+            - 3.010_299_956_639_811_6)
+            .abs()
+            < 1e-12
+    );
+}
+
+#[test]
+fn a_logarithmic_scale_is_kept_out_of_linear_arithmetic() {
+    // A sum of two logarithms adds their logarithms.
+    let total = Quantity::parse("3 dB")
+        .unwrap()
+        .add(Quantity::parse("3 dB").unwrap())
+        .unwrap();
+    assert!((total.value() - 6.0).abs() < 1e-12);
+
+    // A dimensionless logarithm and a Neper both add in decibels.
+    let mixed = Quantity::parse("3 dB")
+        .unwrap()
+        .add(Quantity::parse("1 Np").unwrap())
+        .unwrap();
+    assert!((mixed.value() - 11.685_889_638_065_037).abs() < 1e-12);
+
+    // `0 dBm + 1 mW` has no meaning: a logarithm cannot join a linear quantity.
+    assert!(
+        Quantity::parse("0 dBm")
+            .unwrap()
+            .add(Quantity::parse("1 mW").unwrap())
+            .is_err()
+    );
+    // A dimensioned logarithm is refused too: pint turns the sum into a squared
+    // watt, a quantity neither operand named, so there is no number to return.
+    assert!(
+        Quantity::parse("0 dBm")
+            .unwrap()
+            .add(Quantity::parse("1 dBm").unwrap())
+            .is_err()
+    );
+    assert!(
+        Quantity::parse("0 dBm")
+            .unwrap()
+            .times(Quantity::parse("2").unwrap())
+            .is_err()
+    );
+    // A zero or negative quantity has no logarithm.
+    assert!(Quantity::parse("0 W").unwrap().to("dBm").is_err());
+    // A logarithmic scale cannot be raised to a power or multiplied in text.
+    assert!(Quantity::parse("1 dB*m").is_err());
+    assert!(Quantity::parse("1 dB^2").is_err());
+}
+
+#[test]
+fn a_logarithm_outside_the_linear_range_still_converts() {
+    // `400 Np` is about `3474 dB`, and its linear equivalent is `e^800`, which
+    // overflows `f64`. Converting between two logarithmic scales must not go
+    // through that intermediate, so the result stays finite and correct.
+    let loud = Quantity::parse("400 Np").unwrap().to("dB").unwrap();
+    assert!(loud.value().is_finite(), "400 Np is about 3474 dB");
+    assert!((loud.value() - 3_474.355_855_226_014).abs() < 1e-9);
+
+    // The negative side underflows to zero, which used to read as a
+    // non-positive quantity and fail; the answer is finite and negative.
+    let quiet = Quantity::parse("-400 Np").unwrap().to("dB").unwrap();
+    assert!(quiet.value().is_finite(), "-400 Np is about -3474 dB");
+    assert!((quiet.value() + 3_474.355_855_226_014).abs() < 1e-9);
+
+    // The round trip returns the value it started from.
+    let back = loud.to("Np").unwrap();
+    assert!((back.value() - 400.0).abs() < 1e-9);
+
+    // A sum of two logarithms keeps the same range: `200 Np + 200 Np` is
+    // `400 Np`, whose base quantity is `e^800`.
+    let total = Quantity::parse("200 Np")
+        .unwrap()
+        .add(Quantity::parse("200 Np").unwrap())
+        .unwrap();
+    assert!(total.value().is_finite());
+    assert!((total.value() - 400.0).abs() < 1e-9);
+
+    // A dimensioned pair converts through their references too: `0 dBm` is one
+    // milliwatt, which is `-30 dBW` against the one-watt reference.
+    let milliwatt = Quantity::parse("0 dBm").unwrap().to("dBW").unwrap();
+    assert!((milliwatt.value() + 30.0).abs() < 1e-9);
+}
+
+/// The generated logarithmic fixture: name, log base, divisor, reference, dims.
+fn log_fixture() -> Vec<(String, f64, f64, f64, [i8; 7])> {
+    let text = include_str!("fixtures/pint_log_units.tsv");
+    text.lines()
+        .filter(|line| !line.starts_with('#') && !line.trim().is_empty())
+        .map(|line| {
+            let mut fields = line.split('\t');
+            let name = fields.next().expect("name").to_owned();
+            let base: f64 = fields.next().expect("base").parse().expect("base");
+            let divisor: f64 = fields.next().expect("divisor").parse().expect("divisor");
+            let reference: f64 = fields
+                .next()
+                .expect("reference")
+                .parse()
+                .expect("reference");
+            let dim: Vec<i8> = fields
+                .next()
+                .expect("dim")
+                .split(',')
+                .map(|value| value.parse().expect("exponent"))
+                .collect();
+            (
+                name,
+                base,
+                divisor,
+                reference,
+                dim.try_into().expect("seven exponents"),
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn every_logarithmic_fixture_name_matches_pint() {
+    let rows = log_fixture();
+    assert!(rows.len() >= 7, "the fixture should hold every log scale");
+
+    let mut failures = Vec::new();
+    for (name, base, divisor, reference, dim) in &rows {
+        let Ok(found) = unit(name) else {
+            failures.push(format!("{name}: not found"));
+            continue;
+        };
+        let Some(scale) = found.log_scale() else {
+            failures.push(format!("{name}: not logarithmic"));
+            continue;
+        };
+        let expected_dim = runits::Dimension {
+            length: dim[0],
+            time: dim[1],
+            mass: dim[2],
+            current: dim[3],
+            temperature: dim[4],
+            substance: dim[5],
+            luminosity: dim[6],
+        };
+        if found.dimension() != expected_dim {
+            failures.push(format!(
+                "{name}: dimension {} but pint says {expected_dim}",
+                found.dimension()
+            ));
+        }
+        if !close(scale.base(), *base) {
+            failures.push(format!(
+                "{name}: base {} but pint says {base}",
+                scale.base()
+            ));
+        }
+        if !close(scale.divisor(), *divisor) {
+            failures.push(format!(
+                "{name}: divisor {} but pint says {divisor}",
+                scale.divisor()
+            ));
+        }
+        if !close(scale.reference(), *reference) {
+            failures.push(format!(
+                "{name}: reference {} but pint says {reference}",
+                scale.reference()
+            ));
+        }
+    }
+    assert!(
+        failures.is_empty(),
+        "{} log names disagree with pint:\n{}",
+        failures.len(),
+        failures.join("\n")
+    );
 }
 
 #[test]
@@ -227,8 +428,8 @@ fn the_degree_sign_is_part_of_a_name() {
 
 /// Every sum and difference is checked against pint's own arithmetic.
 ///
-/// `fixtures/pint_arithmetic.tsv` is generated by
-/// `research/tools/gen_units_arithmetic.py` from the pint library, not from
+/// `fixtures/pint_arithmetic.tsv` is generated by `scripts/fuzz/runits/gen.py`
+/// from the pint library, not from
 /// this crate. Each row is two quantities and the number pint returns in the
 /// *left* operand's unit, which is the unit pint keeps; a row whose expected
 /// value is `-` is one pint refuses (a dimension mismatch, or either operand an

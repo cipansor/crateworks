@@ -14,6 +14,9 @@ pub(crate) struct Definition {
 /// The row index used for a name that is known but not representable.
 pub(crate) const UNSUPPORTED: u16 = u16::MAX;
 
+/// Set on a name whose index is into `LOGARITHMIC` rather than `DEFINITIONS`.
+pub(crate) const LOG_FLAG: u16 = 32768;
+
 #[allow(clippy::approx_constant)]
 #[rustfmt::skip]
 pub(crate) static DEFINITIONS: &[Definition] = &[
@@ -445,7 +448,7 @@ pub(crate) static NAMES: &[(&str, u16)] = &[
     ("N_A", 43),
     ("Ne", 21),
     ("NeC", 21),
-    ("Np", 65535),
+    ("Np", 32768),
     ("Oe", 65535),
     ("P", 44),
     ("PPCM", 65535),
@@ -712,19 +715,19 @@ pub(crate) static NAMES: &[(&str, u16)] = &[
     ("cwt", 76),
     ("cycle", 169),
     ("d", 183),
-    ("dB", 65535),
-    ("dBW", 65535),
-    ("dBm", 65535),
-    ("dBu", 65535),
+    ("dB", 32769),
+    ("dBW", 32770),
+    ("dBm", 32771),
+    ("dBu", 32772),
     ("dalton", 20),
     ("darcy", 184),
     ("day", 183),
     ("debye", 19),
-    ("decade", 65535),
-    ("decibel", 65535),
-    ("decibelmicrowatt", 65535),
-    ("decibelmilliwatt", 65535),
-    ("decibelwatt", 65535),
+    ("decade", 32773),
+    ("decibel", 32769),
+    ("decibelmicrowatt", 32772),
+    ("decibelmilliwatt", 32771),
+    ("decibelwatt", 32770),
     ("deg", 127),
     ("degC", 165),
     ("degF", 185),
@@ -1095,7 +1098,7 @@ pub(crate) static NAMES: &[(&str, u16)] = &[
     ("mu_B", 150),
     ("mu_N", 283),
     ("nautical_mile", 284),
-    ("neper", 65535),
+    ("neper", 32768),
     ("neutron_mass", 264),
     ("newton", 42),
     ("newtonian_constant_of_gravitation", 227),
@@ -1104,8 +1107,8 @@ pub(crate) static NAMES: &[(&str, u16)] = &[
     ("nuclear_magneton", 283),
     ("number_english", 21),
     ("number_meter", 285),
-    ("oct", 65535),
-    ("octave", 65535),
+    ("oct", 32774),
+    ("octave", 32774),
     ("octet", 7),
     ("oersted", 65535),
     ("ohm", 286),
@@ -1484,4 +1487,25 @@ pub(crate) static PREFIXES: &[(&str, f64)] = &[
     ("z", 1e-21),
     ("µ", 1e-6),
     ("μ", 1e-6),
+];
+
+/// A logarithmic scale: the base of the logarithm, the divisor applied to the
+/// value, and the reference quantity the ratio is taken against, as a factor to
+/// the SI base units and a base-dimension vector.
+pub(crate) struct Logarithmic {
+    pub(crate) base: f64,
+    pub(crate) factor: f64,
+    pub(crate) reference: f64,
+    pub(crate) dim: [i8; 7],
+}
+
+#[rustfmt::skip]
+pub(crate) static LOGARITHMIC: &[Logarithmic] = &[
+    Logarithmic { base: std::f64::consts::E, factor: 0.5, reference: 1.0, dim: [0, 0, 0, 0, 0, 0, 0] },
+    Logarithmic { base: 10.0, factor: 10.0, reference: 1.0, dim: [0, 0, 0, 0, 0, 0, 0] },
+    Logarithmic { base: 10.0, factor: 10.0, reference: 1000.0, dim: [2, -3, 1, 0, 0, 0, 0] },
+    Logarithmic { base: 10.0, factor: 10.0, reference: 1.0, dim: [2, -3, 1, 0, 0, 0, 0] },
+    Logarithmic { base: 10.0, factor: 10.0, reference: 0.001, dim: [2, -3, 1, 0, 0, 0, 0] },
+    Logarithmic { base: 10.0, factor: 1.0, reference: 1.0, dim: [0, 0, 0, 0, 0, 0, 0] },
+    Logarithmic { base: 2.0, factor: 1.0, reference: 1.0, dim: [0, 0, 0, 0, 0, 0, 0] },
 ];
