@@ -46,7 +46,7 @@
 
 use crate::dom::{Element, Node};
 use crate::error::Error;
-use crate::style::{Display, Length, Sides, Style};
+use crate::style::{Display, Length, Sides, Style, TextAlign};
 
 /// The kind of box, named as the reference names it so that a tree can be
 /// compared with WeasyPrint's directly.
@@ -139,11 +139,9 @@ struct Fragment {
     padding: Sides,
     border: Sides,
     text: Option<String>,
-    /// The margin this box presents to its parent, after any collapse.
-    effective_margin_top: f64,
-    effective_margin_bottom: f64,
-    /// Border plus padding on the top.
-    inner_top: f64,
+    /// Whether this box's own top and bottom margins are adjoining, so that a
+    /// margin passing through it merges with its own on both sides.
+    collapses_through: bool,
     /// Border plus padding on the bottom.
     inner_bottom: f64,
     children: Vec<Fragment>,
@@ -155,10 +153,18 @@ pub(crate) fn layout_document(
     stylesheet: &crate::Stylesheet,
     page_width: f64,
 ) -> Result<Document, Error> {
-    let mut html = layout_element(dom, stylesheet, page_width, true, None)?;
-    // The root element does not collapse its margin with the page, so it starts
-    // at the origin.
-    html.y_offset = html.inner_top;
+    let (html, _, _) = layout_element(
+        dom,
+        stylesheet,
+        page_width,
+        true,
+        None,
+        Pos {
+            cursor_y: 0.0,
+            parent_content_y: 0.0,
+        },
+        fresh_margins(),
+    )?;
     let html = place(&html, 0.0, 0.0);
     let root = LayoutBox {
         tag: String::new(),
@@ -176,148 +182,123 @@ pub(crate) fn layout_document(
     Ok(Document { root })
 }
 
+/// A run of adjoining margins, shared between a box and its collapsing
+/// descendants.
+///
+/// The reference passes one list down the tree and every box appends its own top
+/// margin to it; a box that collapses through leaves its margins in the list for
+/// the next sibling, and a box that stops the collapse starts a fresh list.
+/// Sharing the list rather than copying it is what makes a chain of
+/// collapsed-through boxes share one collapsed margin: a parent's own top margin
+/// is the collapse of every margin that ended up adjoining inside it.
+type Margins = std::rc::Rc<std::cell::RefCell<Vec<f64>>>;
+
+fn fresh_margins() -> Margins {
+    std::rc::Rc::new(std::cell::RefCell::new(Vec::new()))
+}
+
+fn collapsed(run: &Margins) -> f64 {
+    collapse_margins(&run.borrow())
+}
+
+/// Where a box is being laid out: the parent's running bottom edge, and the
+/// absolute y of the parent's content box, which its own offset is measured
+/// against.
+#[derive(Clone, Copy)]
+struct Pos {
+    cursor_y: f64,
+    parent_content_y: f64,
+}
+
 /// Lay out one block-level element and its subtree.
 ///
 /// `is_root` marks the `html` element, which neither collapses with the page nor
 /// with its own first child in the way an ordinary box does.
+///
+/// Vertical placement follows `block_container_layout` in the reference. The box
+/// joins the run of adjoining margins it was handed, places itself at the
+/// collapsed value of that run, and either stops the run - when a border or
+/// padding separates its margin from its content - or passes it on to its
+/// children. A box that collapses through keeps the run alive for its next
+/// sibling, so a row of empty boxes occupies one collapsed margin rather than
+/// one margin each.
+///
+/// Returns the box, the absolute y of its content box, and the run it leaves
+/// behind for its next sibling.
 fn layout_element(
     element: &Element,
     stylesheet: &crate::Stylesheet,
     containing_width: f64,
     is_root: bool,
     parent_style: Option<&Style>,
-) -> Result<Fragment, Error> {
+    at: Pos,
+    adjoining: Margins,
+) -> Result<(Fragment, f64, Margins), Error> {
+    let Pos {
+        cursor_y,
+        parent_content_y,
+    } = at;
     let style = crate::style::compute(element, stylesheet, parent_style)?;
     let (width, x_offset, margin_left, margin_right) = resolve_horizontal(&style, containing_width);
+    let padding = resolve_sides(&style.padding, containing_width);
+    let inner_top = style.border.top + padding.top;
+    let inner_bottom = style.border.bottom + padding.bottom;
+    let margin_top = resolve_margin(style.margin[0], containing_width);
+    let margin_bottom = resolve_margin(style.margin[2], containing_width);
 
-    let inner_top = style.border.top + style.padding.top;
-    let inner_bottom = style.border.bottom + style.padding.bottom;
-    let own_margin_top = resolve_margin(style.margin[0], containing_width);
-    let own_margin_bottom = resolve_margin(style.margin[2], containing_width);
+    let collapses_top = !is_root && inner_top == 0.0;
+    let collapses_bottom = !is_root && inner_bottom == 0.0;
 
-    let mut children = layout_children(element, stylesheet, width, &style)?;
+    adjoining.borrow_mut().push(margin_top);
+    let this_run = std::rc::Rc::clone(&adjoining);
 
-    let auto_height = style.height.is_none();
-    let declared_height = style.height;
-
-    if children.is_empty() {
-        return Ok(Fragment {
-            kind: BoxKind::Block,
-            tag: element.tag.clone(),
-            x_offset,
-            y_offset: inner_top,
-            width,
-            height: declared_height.unwrap_or(0.0),
-            margin: Sides {
-                top: own_margin_top,
-                right: margin_right,
-                bottom: own_margin_bottom,
-                left: margin_left,
-            },
-            padding: style.padding,
-            border: style.border,
-            text: None,
-            effective_margin_top: own_margin_top,
-            effective_margin_bottom: own_margin_bottom,
-            inner_top,
-            inner_bottom,
-            children,
-        });
-    }
-
-    let first = &children[0];
-    let last = children.last().expect("not empty");
-    // A line box carries no margin, so it never collapses; the parent's own
-    // margin is what applies. The same holds for an anonymous block, which is
-    // built with zero margins.
-    let collapses_top = !is_root && auto_height && inner_top == 0.0 && first.inner_top == 0.0;
-    let collapses_bottom =
-        !is_root && auto_height && inner_bottom == 0.0 && last.inner_bottom == 0.0;
-
-    let effective_margin_top = if collapses_top {
-        own_margin_top.max(first.effective_margin_top)
+    let mut adjoining = adjoining;
+    let mut box_y = cursor_y;
+    // A box whose top margin collapses keeps the position it was handed and is
+    // moved by the collapsed run later; otherwise it stops the run here.
+    let cursor = if collapses_top {
+        box_y
     } else {
-        own_margin_top
+        box_y += collapsed(&adjoining) - margin_top;
+        adjoining = fresh_margins();
+        box_y + margin_top + inner_top
     };
-    let effective_margin_bottom = if collapses_bottom {
-        own_margin_bottom.max(last.effective_margin_bottom)
-    } else {
-        own_margin_bottom
-    };
+    let content_box_y = box_y + margin_top + inner_top;
 
-    // Walk the children, leaving each the gap its margin requires. A first child
-    // whose margin collapsed out of this box contributes no gap, because the
-    // collapsed margin has already moved this box itself.
-    let mut cursor = 0.0_f64;
-    let mut previous_bottom = 0.0_f64;
-    for (index, child) in children.iter_mut().enumerate() {
-        let gap = if index == 0 {
-            if collapses_top {
-                0.0
-            } else {
-                child.effective_margin_top
+    // Any block-level child makes this a block container, and then every run of
+    // inline content it holds is wrapped in an anonymous block.
+    let mut has_block = false;
+    for node in &element.children {
+        if let Node::Element(child) = node {
+            let child_style = crate::style::compute(child, stylesheet, Some(&style))?;
+            if child_style.display == Display::Block {
+                has_block = true;
+                break;
             }
-        } else {
-            previous_bottom.max(child.effective_margin_top)
-        };
-        cursor += gap;
-        child.y_offset = cursor + child.inner_top;
-        cursor = child.y_offset + child.height + child.inner_bottom;
-        previous_bottom = child.effective_margin_bottom;
+        }
     }
 
-    let content_height = if collapses_bottom {
-        cursor
-    } else {
-        cursor + previous_bottom
-    };
-
-    Ok(Fragment {
-        kind: BoxKind::Block,
-        tag: element.tag.clone(),
-        x_offset,
-        y_offset: inner_top,
+    let ctx = RunCtx {
+        element,
+        stylesheet,
         width,
-        height: declared_height.unwrap_or(content_height),
-        margin: Sides {
-            top: own_margin_top,
-            right: margin_right,
-            bottom: own_margin_bottom,
-            left: margin_left,
-        },
-        padding: style.padding,
-        border: style.border,
-        text: None,
-        effective_margin_top,
-        effective_margin_bottom,
-        inner_top,
-        inner_bottom,
-        children,
-    })
-}
-
-/// Lay out an element's children in document order.
-///
-/// Block-level children become block boxes. Everything else is a run of inline
-/// content, which becomes line boxes; when such a run sits between block-level
-/// children it is wrapped in an anonymous block that carries the parent's tag,
-/// which is what the reference produces and why `a<p>b</p>c` inside a `div`
-/// yields three boxes tagged `div`.
-fn layout_children(
-    element: &Element,
-    stylesheet: &crate::Stylesheet,
-    width: f64,
-    style: &Style,
-) -> Result<Vec<Fragment>, Error> {
-    let mut out = Vec::new();
+        style: &style,
+        has_block,
+        content_box_y,
+    };
+    let mut flow = Flow {
+        cursor,
+        adjoining,
+        children: Vec::new(),
+        has_in_flow: false,
+    };
     let mut run: Vec<&Node> = Vec::new();
-    let mut saw_block = false;
 
     for node in &element.children {
         let block_child = match node {
             Node::Text(_) => None,
             Node::Element(child) => {
-                let child_style = crate::style::compute(child, stylesheet, Some(style))?;
+                let child_style = crate::style::compute(child, stylesheet, Some(&style))?;
                 match child_style.display {
                     Display::None => continue,
                     Display::Block => Some(child),
@@ -327,74 +308,205 @@ fn layout_children(
         };
         match block_child {
             Some(child) => {
-                saw_block = true;
-                out.extend(layout_run(&run, element, stylesheet, width, style, true)?);
-                run.clear();
-                out.push(layout_element(
+                flush_run(&mut run, &ctx, &mut flow)?;
+                let (mut frag, child_content_y, child_run) = layout_element(
                     child,
                     stylesheet,
                     width,
                     false,
-                    Some(style),
-                )?);
+                    Some(&style),
+                    Pos {
+                        cursor_y: flow.cursor,
+                        parent_content_y: content_box_y,
+                    },
+                    std::rc::Rc::clone(&flow.adjoining),
+                )?;
+                flow.adjoining = child_run;
+                frag.y_offset = child_content_y - content_box_y;
+                if !frag.collapses_through {
+                    flow.cursor = child_content_y + frag.height + frag.inner_bottom;
+                }
+                flow.adjoining.borrow_mut().push(frag.margin.bottom);
+                flow.children.push(frag);
+                flow.has_in_flow = true;
             }
             None => run.push(node),
         }
     }
-    out.extend(layout_run(
-        &run, element, stylesheet, width, style, !saw_block,
-    )?);
-    Ok(out)
-}
+    flush_run(&mut run, &ctx, &mut flow)?;
 
-/// Lay out one run of inline content.
-///
-/// `direct` says the run is the element's entire content, so its line boxes are
-/// the element's own children; otherwise they go inside an anonymous block. A
-/// run that produces no line box - whitespace between two blocks, say - produces
-/// nothing at all, which is what the reference does.
-fn layout_run(
-    run: &[&Node],
-    element: &Element,
-    stylesheet: &crate::Stylesheet,
-    width: f64,
-    parent_style: &Style,
-    direct: bool,
-) -> Result<Vec<Fragment>, Error> {
-    if run.is_empty() {
-        return Ok(Vec::new());
+    let Flow {
+        mut cursor,
+        mut adjoining,
+        mut children,
+        has_in_flow,
+    } = flow;
+
+    // With no in-flow child the box's own top and bottom margins are adjoining,
+    // so a zero-height box with no border or padding collapses through and its
+    // margins join the run for the next sibling.
+    let mut collapses_through = false;
+    if !has_in_flow {
+        let margin = collapsed(&adjoining);
+        if style.height.unwrap_or(0.0) == 0.0 && inner_top == 0.0 && inner_bottom == 0.0 {
+            collapses_through = true;
+        } else {
+            cursor += margin;
+            adjoining = fresh_margins();
+        }
+    } else if style.height.is_some() {
+        // A declared height gives the content box a fixed bottom, so the last
+        // child's bottom margin cannot escape.
+        adjoining = fresh_margins();
     }
-    let items = collect_items(run, stylesheet, parent_style)?;
-    let mut lines = shape_lines(&items, width, &element.tag);
-    if lines.is_empty() {
-        return Ok(Vec::new());
+    if !collapses_bottom {
+        cursor += collapsed(&adjoining);
+        adjoining = fresh_margins();
     }
-    if direct {
-        return Ok(lines);
+
+    // A box whose top margin collapses is moved by the collapsed run it joined,
+    // but that move is the box's alone: the children were placed against the
+    // position the box had before the move, so their offsets come back by the
+    // same amount.
+    if collapses_top {
+        let delta = collapsed(&this_run) - margin_top;
+        box_y += delta;
+        for child in &mut children {
+            child.y_offset -= delta;
+        }
     }
-    let height: f64 = lines.iter().map(|line| line.height).sum();
-    let mut cursor = 0.0;
-    for line in &mut lines {
-        line.y_offset = cursor;
-        cursor += line.height;
-    }
-    Ok(vec![Fragment {
+    let content_box_y = box_y + margin_top + inner_top;
+    let height = style
+        .height
+        .unwrap_or_else(|| (cursor - content_box_y).max(0.0));
+
+    let fragment = Fragment {
         kind: BoxKind::Block,
         tag: element.tag.clone(),
-        x_offset: 0.0,
-        y_offset: 0.0,
+        x_offset,
+        y_offset: content_box_y - parent_content_y,
         width,
         height,
-        margin: Sides::default(),
-        padding: Sides::default(),
-        border: Sides::default(),
+        margin: Sides {
+            top: margin_top,
+            right: margin_right,
+            bottom: margin_bottom,
+            left: margin_left,
+        },
+        padding,
+        border: style.border,
         text: None,
-        effective_margin_top: 0.0,
-        effective_margin_bottom: 0.0,
-        inner_top: 0.0,
-        inner_bottom: 0.0,
-        children: lines,
-    }])
+        collapses_through,
+        inner_bottom,
+        children,
+    };
+    Ok((fragment, content_box_y, adjoining))
+}
+
+/// Collapse a set of adjoining margins: the largest positive plus the most
+/// negative, which is the reference's `collapse_margin`.
+fn collapse_margins(margins: &[f64]) -> f64 {
+    let positive = margins.iter().copied().fold(0.0_f64, f64::max);
+    let negative = margins.iter().copied().fold(0.0_f64, f64::min);
+    positive + negative
+}
+
+/// The immutable context a box lays its runs out in.
+struct RunCtx<'a> {
+    element: &'a Element,
+    stylesheet: &'a crate::Stylesheet,
+    width: f64,
+    style: &'a Style,
+    has_block: bool,
+    content_box_y: f64,
+}
+
+/// The state a box accumulates while it places its children: its running bottom
+/// edge, the adjoining-margin run it hands on, the children so far, and whether
+/// any of them is in flow.
+struct Flow {
+    cursor: f64,
+    adjoining: Margins,
+    children: Vec<Fragment>,
+    has_in_flow: bool,
+}
+
+/// Lay out one run of inline content and append its line boxes to the flow.
+///
+/// `has_block` says the element also holds a block-level child, so the run is
+/// wrapped in an anonymous block; otherwise its line boxes are the element's own
+/// children. Either way the run ends the adjoining-margin chain, because a line
+/// box carries no margin to collapse.
+fn flush_run(run: &mut Vec<&Node>, ctx: &RunCtx, flow: &mut Flow) -> Result<(), Error> {
+    let RunCtx {
+        element,
+        stylesheet,
+        width,
+        style,
+        has_block,
+        content_box_y,
+    } = *ctx;
+    if run.is_empty() {
+        return Ok(());
+    }
+    let items = collect_items(run, stylesheet, style)?;
+    let align = style.text_align;
+    let align_last = style.text_align_last.unwrap_or(align);
+    let indent = resolve(style.text_indent, width);
+    let lines = shape_lines(
+        &items,
+        width,
+        &element.tag,
+        align,
+        align_last,
+        indent,
+        style,
+    );
+    run.clear();
+    if lines.is_empty() {
+        return Ok(());
+    }
+
+    if !flow.adjoining.borrow().is_empty() {
+        flow.cursor += collapsed(&flow.adjoining);
+    }
+    flow.adjoining = fresh_margins();
+
+    if has_block {
+        let mut height = 0.0;
+        let mut inner = lines;
+        for line in &mut inner {
+            line.y_offset = height;
+            height += line.height;
+        }
+        flow.children.push(Fragment {
+            kind: BoxKind::Block,
+            tag: element.tag.clone(),
+            x_offset: 0.0,
+            y_offset: flow.cursor - content_box_y,
+            width,
+            height,
+            margin: Sides::default(),
+            padding: Sides::default(),
+            border: Sides::default(),
+            text: None,
+            collapses_through: false,
+            inner_bottom: 0.0,
+            children: inner,
+        });
+        flow.cursor += height;
+        // The anonymous block is a block with zero margins, so it leaves a zero
+        // in the run for its next sibling.
+        flow.adjoining.borrow_mut().push(0.0);
+    } else {
+        for mut line in lines {
+            line.y_offset = flow.cursor - content_box_y;
+            flow.cursor += line.height;
+            flow.children.push(line);
+        }
+    }
+    flow.has_in_flow = true;
+    Ok(())
 }
 
 /// One collapsed text node, with the inline elements it sits inside.
@@ -514,19 +626,49 @@ fn collapse(text: &str, following_space: &mut bool) -> String {
     if pending_space {
         collapsed.push(' ');
     }
+    // The state that carries to the next node is read from the collapsed text
+    // *before* a duplicate leading space is removed, so a node that was nothing
+    // but that duplicate still leaves the state set. Reading it after the
+    // removal would clear the state and let the next node's leading space
+    // survive, which brings that node's font size into the line instead of the
+    // first space's.
+    let ends_with_space = collapsed.ends_with(' ');
     if *following_space && collapsed.starts_with(' ') {
         collapsed.remove(0);
     }
-    *following_space = collapsed.ends_with(' ');
+    *following_space = ends_with_space;
     collapsed
 }
 
 /// A piece of inline content: a word, or a single space between two words.
+///
+/// A word with a break opportunity inside it (`foo-bar`) is split into several
+/// pieces, one per unit, so the line breaker can choose between them.
 struct Piece {
     ancestors: Vec<InlineAncestor>,
     style: Style,
     text: String,
     is_space: bool,
+    /// Whether this space is the whole of its text node (`<span>a</span> <span>b</span>`),
+    /// as opposed to a space inside a node that holds other text (`a b`). The
+    /// reference strips a dropped space from its text box and leaves the box in
+    /// place; only a node that was nothing but that space is left as an empty
+    /// text box, which is what `break_boundary` reads.
+    lone: bool,
+    /// Whether a line may break immediately before this piece with no space,
+    /// because it follows a break opportunity inside a word (`foo-bar`).
+    breakable: bool,
+}
+
+/// Whether two pieces sit in the same inline element, i.e. belong to the same
+/// text box. The reference splits one text box at a time, so a decision about a
+/// space must not see pieces from a sibling box on the same line.
+fn same_ancestors(left: &[InlineAncestor], right: &[InlineAncestor]) -> bool {
+    left.len() == right.len()
+        && left
+            .iter()
+            .zip(right)
+            .all(|(left, right)| left.id == right.id)
 }
 
 /// A piece placed on a line, with the x it ended up at.
@@ -538,17 +680,33 @@ struct Placed {
     width: f64,
 }
 
+/// A run of pieces a line may not be split inside, and where a break before it
+/// would fall.
+///
+/// An atom is a whole word, however many inline elements it crosses
+/// (`ab<span>cd</span>`), or one unit of a word that has a break opportunity
+/// inside it (`foo-` and `bar`). The break before an atom is either at a space -
+/// `space` holds it, and the break drops it - or inside a word, where `space` is
+/// `None` and no character is dropped.
+struct Atom {
+    pieces: Vec<Piece>,
+    width: f64,
+    space: Option<Piece>,
+}
+
 /// Flatten collapsed text nodes into words and single spaces.
 ///
 /// A space belongs to the item it came from, which is what keeps `a    b` one
 /// box reading `a b` while leaving `<i>a</i> <b>c</b>` with a space box of its
 /// own between the two elements.
 fn pieces(items: &[Item]) -> Vec<Piece> {
-    let space = |item: &Item| Piece {
+    let space = |item: &Item, lone: bool| Piece {
         ancestors: item.ancestors.clone(),
         style: item.style.clone(),
         text: " ".to_owned(),
         is_space: true,
+        lone,
+        breakable: false,
     };
     let mut out = Vec::new();
     for item in items {
@@ -558,29 +716,374 @@ fn pieces(items: &[Item]) -> Vec<Piece> {
             .filter(|word| !word.is_empty())
             .collect();
         if words.is_empty() {
-            out.push(space(item));
+            // The node was nothing but whitespace, so the reference keeps its
+            // text box and leaves it empty when the space is dropped.
+            out.push(space(item, true));
             continue;
         }
         if item.text.starts_with(' ') {
-            out.push(space(item));
+            out.push(space(item, false));
         }
         for (index, word) in words.iter().enumerate() {
             if index > 0 {
-                out.push(space(item));
+                out.push(space(item, false));
             }
-            out.push(Piece {
-                ancestors: item.ancestors.clone(),
-                style: item.style.clone(),
-                text: (*word).to_owned(),
-                is_space: false,
-            });
+            for (unit_index, unit) in break_units(word).into_iter().enumerate() {
+                // Every unit but the first begins after a break opportunity
+                // inside the word, so a line may start there. The first unit of
+                // an item's first word can also begin after a break opportunity
+                // at a seam with the previous item, which is where two adjacent
+                // text nodes meet with no space between them.
+                let breakable = if unit_index > 0 {
+                    true
+                } else if index == 0 {
+                    seam_breakable(out.last(), unit)
+                } else {
+                    false
+                };
+                out.push(Piece {
+                    ancestors: item.ancestors.clone(),
+                    style: item.style.clone(),
+                    text: unit.to_owned(),
+                    is_space: false,
+                    lone: false,
+                    breakable,
+                });
+            }
         }
         if item.text.ends_with(' ') {
-            out.push(space(item));
+            out.push(space(item, false));
         }
     }
     out
 }
+
+/// Whether a line may break between the piece before this one and the first
+/// unit of a new text node.
+///
+/// Two adjacent text nodes with no space between them meet at a *seam*
+/// (`3%<span>$(3</span>`), and the reference allows a break there exactly when
+/// the two characters beside it are a break opportunity on their own - the same
+/// rule that governs a break inside one word, but read from the two characters
+/// alone, because the reference asks Pango about `last_letter + first_letter`
+/// and nothing wider. `3/` followed by `4` therefore breaks at the seam even
+/// though `3/4` inside one text node does not: the numeric rule needs the whole
+/// expression, and the seam sees only two characters.
+fn seam_breakable(previous: Option<&Piece>, unit: &str) -> bool {
+    let Some(previous) = previous else {
+        return false;
+    };
+    if previous.is_space {
+        return false;
+    }
+    let (Some(before), Some(after)) = (previous.text.chars().next_back(), unit.chars().next())
+    else {
+        return false;
+    };
+    break_allowed(&[before, after], 1)
+}
+
+/// The break opportunities inside one word, as maximal runs that may not be
+/// split further.
+///
+/// A break is allowed after certain punctuation even with no space, which the
+/// reference takes from Unicode's line-breaking algorithm (UAX #14) through
+/// Pango: `foo-bar` wraps as `foo-` / `bar` in a 64px block. The split is by
+/// class pair, not by a fixed character list, because `a-b` breaks after the
+/// hyphen while `3-4` does not - a hyphen between two numbers is part of the
+/// number, not an opportunity.
+///
+/// The units are the substrings between the opportunities. `ab` yields one unit,
+/// so a word with no punctuation stays indivisible; `foo-bar` yields `foo-` and
+/// `bar`.
+fn break_units(word: &str) -> Vec<&str> {
+    let characters: Vec<char> = word.chars().collect();
+    // The byte offset each character starts at, plus the word's length, so a
+    // split at a character boundary can slice the original string.
+    let mut offsets = Vec::with_capacity(characters.len() + 1);
+    let mut offset = 0;
+    for character in &characters {
+        offsets.push(offset);
+        offset += character.len_utf8();
+    }
+    offsets.push(offset);
+
+    let mut units = Vec::new();
+    let mut start = 0;
+    for index in 1..characters.len() {
+        if break_allowed(&characters, index) {
+            units.push(&word[start..offsets[index]]);
+            start = offsets[index];
+        }
+    }
+    if start < word.len() {
+        units.push(&word[start..]);
+    }
+    if units.is_empty() {
+        units.push(word);
+    }
+    units
+}
+
+/// Whether a line may break before the character at `index`, which is at least
+/// one character into `characters`.
+///
+/// The context-free part is the class-pair rule; the two rules that need more
+/// than the adjacent characters are the word-initial hyphen and the numeric
+/// expression, both of which the reference applies across the whole word.
+fn break_allowed(characters: &[char], index: usize) -> bool {
+    let before = characters[index - 1];
+    let after = characters[index];
+    // A word-initial hyphen does not break before a letter or a digit (UAX #14
+    // LB20a): `-bar` and `-3` stay whole even though `a-bar` breaks after its
+    // hyphen. Before anything else (`-$`, `-(`) the hyphen still breaks.
+    if before == '-'
+        && index == 1
+        && matches!(line_class(after), Some(LineClass::Al | LineClass::Nu))
+    {
+        return false;
+    }
+    // A break inside a numeric expression is not allowed even though the pair
+    // rule would permit it (UAX #14 LB25).
+    if inside_numeric_expression(characters, index) {
+        return false;
+    }
+    break_after(before, after)
+}
+
+/// Whether the boundary at `index` falls inside a numeric expression.
+///
+/// The pair rule decides every boundary from the two characters beside it, but
+/// LB25 is not a pair rule: `3/4`, `$(3` and `(3)$` each contain a boundary the
+/// pair rule would break at and the reference keeps whole. The expression is
+/// recognised from the characters around the boundary, reading outwards:
+///
+/// * `NU (SY|IS)* (CL|CP)? x (PO|PR)` - a currency sign after a number, with an
+///   optional closing bracket in between.
+/// * `NU (SY|IS)* x NU` - a second digit, as in `3/4` or `1,000`.
+/// * `NU (SY|IS)* x (PO|PR)` - a postfix percent after a number, as in `3%`.
+/// * `(PO|PR) x (OP|HY)? (IS)? NU` - a numeric prefix before a number, as in
+///   `$(3` or `+3`, with an optional opening bracket and separator in between.
+///
+/// The last rule is where the prefix sits before the boundary; the others read
+/// the run before it. Together they reproduce Pango's table exactly over every
+/// printable ASCII string up to length three and hundreds of thousands of
+/// longer random ones.
+fn inside_numeric_expression(characters: &[char], index: usize) -> bool {
+    let before = characters[index - 1];
+    let after = characters[index];
+    if is_numeric_prefix_or_postfix(after) {
+        // `NU (SY|IS)* (CL|CP)? x (PO|PR)`
+        if is_close_bracket(before) && numeric_run_before(characters, index - 1) {
+            return true;
+        }
+        // `NU (SY|IS)* x (PO|PR)`
+        if numeric_run_before(characters, index) {
+            return true;
+        }
+    }
+    // `NU (SY|IS)* x NU`
+    if after.is_ascii_digit() && numeric_run_before(characters, index) {
+        return true;
+    }
+    // `(PO|PR) x (OP|HY)? (IS)? NU`
+    if is_numeric_prefix_or_postfix(before) {
+        let mut look = index;
+        if look < characters.len() && (is_open_bracket(characters[look]) || characters[look] == '-')
+        {
+            look += 1;
+        }
+        if look < characters.len() && is_infix_separator(characters[look]) {
+            look += 1;
+        }
+        if look < characters.len() && characters[look].is_ascii_digit() {
+            return true;
+        }
+    }
+    false
+}
+
+/// Whether `characters[..end]` ends with `NU (SY|IS)*`, so the boundary at
+/// `end` follows a number that may still be continued.
+fn numeric_run_before(characters: &[char], end: usize) -> bool {
+    let mut start = end;
+    while start > 0 && is_infix_or_symbol(characters[start - 1]) {
+        start -= 1;
+    }
+    start > 0 && characters[start - 1].is_ascii_digit()
+}
+
+/// Whether `character` is a numeric prefix (`$`, `+`, `\`) or postfix (`%`).
+fn is_numeric_prefix_or_postfix(character: char) -> bool {
+    matches!(character, '$' | '+' | '\\' | '%')
+}
+
+/// Whether `character` is an infix separator (`,`, `.`, `:`, `;`).
+fn is_infix_separator(character: char) -> bool {
+    matches!(character, ',' | '.' | ':' | ';')
+}
+
+/// Whether `character` is a symbol that may sit between digits (`/`).
+fn is_symbol(character: char) -> bool {
+    character == '/'
+}
+
+/// Whether `character` may sit between two digits of one number.
+fn is_infix_or_symbol(character: char) -> bool {
+    is_infix_separator(character) || is_symbol(character)
+}
+
+/// Whether `character` is an opening bracket (`(`, `[`, `{`).
+fn is_open_bracket(character: char) -> bool {
+    matches!(character, '(' | '[' | '{')
+}
+
+/// Whether `character` is a closing bracket (`)`, `]`, `}`).
+fn is_close_bracket(character: char) -> bool {
+    matches!(character, ')' | ']' | '}')
+}
+
+/// Whether a line may break between two adjacent characters with no space.
+///
+/// This is the ASCII subset of UAX #14 that the reference exercises. Both
+/// characters must be ASCII: the crate lays out one font and the reference's
+/// line breaking outside ASCII is not something the corpus pins, so anything
+/// else stays unbreakable rather than guessing.
+///
+/// The rule was read off the reference: every one of the 94 printable ASCII
+/// characters was set against every other in `aaX Yaa` at a width of three
+/// characters, and this predicate reproduces that table exactly.
+fn break_after(before: char, after: char) -> bool {
+    let (Some(before), Some(after)) = (line_class(before), line_class(after)) else {
+        return false;
+    };
+    use LineClass::*;
+    // Where the second character may not start a line.
+    if matches!(after, Cl | Cp | Ex | Is | Sy | Qu | Ba | Hy) {
+        return false;
+    }
+    // Where the first character may not end a line.
+    if matches!(before, Al | Nu | Op | Qu) {
+        return false;
+    }
+    // No break between a numeric prefix or postfix and the number it belongs to.
+    if matches!(before, Pr | Po | Is | Cp) && matches!(after, Al | Nu) {
+        return false;
+    }
+    // `3-4` is a number, not two.
+    if before == Hy && after == Nu {
+        return false;
+    }
+    true
+}
+
+/// The UAX #14 line-breaking class of an ASCII character.
+///
+/// Only the classes the pair rule above distinguishes are named; a character
+/// that is not ASCII has no class, which keeps it out of the rule.
+fn line_class(character: char) -> Option<LineClass> {
+    use LineClass::*;
+    Some(match character {
+        '0'..='9' => Nu,
+        '!' | '?' => Ex,
+        '"' | '\'' => Qu,
+        '$' | '+' | '\\' => Pr,
+        '%' => Po,
+        '(' | '[' | '{' => Op,
+        ')' | ']' => Cp,
+        '}' => Cl,
+        ',' | '.' | ':' | ';' => Is,
+        '/' => Sy,
+        '-' => Hy,
+        '|' => Ba,
+        c if c.is_ascii() => Al,
+        _ => return None,
+    })
+}
+
+/// The line-breaking class of an ASCII character, for the pair rule.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum LineClass {
+    /// Letters, and the symbols with no special break behaviour.
+    Al,
+    /// Digits.
+    Nu,
+    /// Opening brackets.
+    Op,
+    /// Closing brackets.
+    Cp,
+    /// Closing punctuation.
+    Cl,
+    /// Quotation marks.
+    Qu,
+    /// Exclamation and question marks.
+    Ex,
+    /// Infix separators.
+    Is,
+    /// Numeric prefixes.
+    Pr,
+    /// Numeric postfixes.
+    Po,
+    /// Hyphen.
+    Hy,
+    /// Symbols allowing a break after.
+    Sy,
+    /// Break-after marks.
+    Ba,
+}
+
+/// The empty boxes a line break leaves at the end of a line.
+///
+/// A break drops the space that would have separated the two lines, and the
+/// reference keeps the box that space was in: `remove_last_whitespace` walks the
+/// line's rightmost chain, strips the trailing space from that text box and
+/// leaves it zero-width when nothing else was in it. The boxes between the
+/// space's box and the block are therefore left empty, and the innermost one
+/// keeps an empty text box of its own only when the space was the whole of its
+/// text node - a space inside a node that holds other text (`a b`) is stripped
+/// from a box the line still needs, so nothing is left empty.
+///
+/// A space at the block level with the line's last content deeper inside an
+/// inline box (`<span>a</span> <span>b</span>`) leaves an empty text box for the
+/// block, but only when the space was its own node: `<span>a</span> b` shares
+/// the space with `b` and leaves nothing.
+///
+/// The returned chain is the boxes to leave empty, outermost first, the depth in
+/// the line where the outermost one attaches, and whether the innermost box also
+/// keeps an empty text box. `None` means no box is left.
+fn break_boundary(current: &[Piece], space: &Piece) -> Option<(Vec<InlineAncestor>, usize, bool)> {
+    let last = current.last()?;
+    let space_path = &space.ancestors;
+    let common = last
+        .ancestors
+        .iter()
+        .zip(space_path)
+        .take_while(|(left, right)| left.id == right.id)
+        .count();
+    if common == space_path.len() {
+        // The space's box is a prefix of the last content's, so the space was
+        // stripped from a box the line keeps. A whitespace-only node whose box
+        // is a *strict* ancestor of the content's leaves an empty text box in
+        // that ancestor box, tagged and styled with it; the reference appends it
+        // after the content. The block level is the same case with an empty
+        // prefix. When the space's box is the content's own box (`common ==
+        // space_path.len() == last.ancestors.len()`) the reference strips the
+        // space and leaves nothing.
+        if space.lone && space_path.len() < last.ancestors.len() {
+            Some((Vec::new(), space_path.len(), true))
+        } else {
+            None
+        }
+    } else {
+        Some((space_path[common..].to_vec(), common, space.lone))
+    }
+}
+
+/// A line's content, the indent applied to it, and the empty inline chain a break
+/// left behind with the depth in the line where that chain attaches and whether
+/// its innermost box keeps an empty text box. The chain is `None` when no break
+/// ended the line.
+type PendingLine = (Vec<Piece>, f64, Option<(Vec<InlineAncestor>, usize, bool)>);
 
 /// Break the pieces into lines.
 ///
@@ -589,43 +1092,200 @@ fn pieces(items: &[Item]) -> Vec<Piece> {
 /// line and a space at the end of one. That is what the reference does, and it
 /// is why `hello world` in a 40px block becomes two boxes reading `hello` and
 /// `world` with no space between them.
-fn shape_lines(items: &[Item], width: f64, tag: &str) -> Vec<Fragment> {
-    let mut lines: Vec<Fragment> = Vec::new();
+fn shape_lines(
+    items: &[Item],
+    width: f64,
+    tag: &str,
+    align: TextAlign,
+    align_last: TextAlign,
+    indent: f64,
+    block_style: &Style,
+) -> Vec<Fragment> {
+    let mut lines: Vec<PendingLine> = Vec::new();
     let mut current: Vec<Piece> = Vec::new();
     let mut x = 0.0_f64;
     let mut pending_space: Option<Piece> = None;
+    // `text-indent` shifts the first line's content, so that line wraps against a
+    // narrower width; every later line starts at the block's edge.
+    let mut leading = indent;
 
+    // Group the pieces into atoms first. An atom is a whole word, however many
+    // inline elements it crosses - `ab<span>cd</span>` is one atom, because
+    // there is no space and no break opportunity between `ab` and `cd` - or one
+    // unit of a word that may break inside it, `foo-` and `bar` being two. Each
+    // atom carries the space that preceded it, when there was one; that is where
+    // a break before the atom falls, and it drops the space. An intra-word atom
+    // carries no space, so a break before it drops nothing.
+    let mut atoms: Vec<Atom> = Vec::new();
+    let mut atom: Vec<Piece> = Vec::new();
+    let mut atom_width = 0.0_f64;
+    let mut atom_space: Option<Piece> = None;
     for piece in pieces(items) {
         if piece.is_space {
-            if !current.is_empty() {
-                pending_space = Some(piece);
+            if !atom.is_empty() {
+                let width = atom_width;
+                atoms.push(Atom {
+                    pieces: std::mem::take(&mut atom),
+                    width,
+                    space: atom_space.take(),
+                });
+                atom_width = 0.0;
             }
+            pending_space = Some(piece);
             continue;
         }
-        let word_width = advance(&piece.text, piece.style.font_size);
-        let space_width = pending_space
+        // A piece with a space before it, or one that begins after a break
+        // opportunity inside a word, starts a new atom. The first piece of an
+        // atom keeps the space that led to it.
+        if !atom.is_empty() && (piece.breakable || pending_space.is_some()) {
+            let width = atom_width;
+            atoms.push(Atom {
+                pieces: std::mem::take(&mut atom),
+                width,
+                space: atom_space.take(),
+            });
+            atom_width = 0.0;
+        }
+        if atom.is_empty() {
+            atom_space = pending_space.take();
+        }
+        atom_width += advance(&piece.text, piece.style.font_size);
+        atom.push(piece);
+    }
+    if !atom.is_empty() {
+        atoms.push(Atom {
+            pieces: atom,
+            width: atom_width,
+            space: atom_space.take(),
+        });
+    }
+
+    for Atom {
+        pieces,
+        width: atom_width,
+        space,
+    } in atoms
+    {
+        let available = width - leading;
+        let space_width = space
             .as_ref()
             .map_or(0.0, |space| advance(" ", space.style.font_size));
-        if !current.is_empty() && x + space_width + word_width > width {
-            if let Some(line) = build_line(std::mem::take(&mut current), tag) {
-                lines.push(line);
-            }
+        // The break happens when the atom does not fit and the line already has
+        // content. At a space the break drops the space, and when the space was
+        // the only content its box had on this line the reference leaves that
+        // box behind empty. Inside a word there is no space, so nothing is left.
+        //
+        // One case is not a break at all: when the space itself is what
+        // overflows and the atom after it would fit without the space, the
+        // reference drops the space and keeps the atom on the line rather than
+        // starting a new one. `abc ` at 24px against a 16px `a` in an 88px block
+        // wraps to `abca`, not `abc` / `a`, because the 24px space cannot follow
+        // `abc` but the 16px `a` can. The space fitting is what keeps this
+        // apart from an ordinary break: at 96px the space fits and the atom does
+        // not, so the line breaks normally instead.
+        //
+        // This only happens when the text box the space closes holds a single
+        // unbreakable unit on this line. The reference splits a text box at its
+        // last opportunity before deciding, so a box that already carries a
+        // space (`ab cd `) or a word with an intra-word opportunity (`a-b `)
+        // ends the line there and the space is kept. The check is scoped to the
+        // space's own box - the run of pieces sharing its inline ancestors - not
+        // to the whole line. A `foo-bar` whose `foo-` already wrapped leaves only
+        // `bar` here, and `bar` is a single unit, so the space drops.
+        let single_atom = space.as_ref().is_some_and(|space| {
+            let run_start = current
+                .iter()
+                .rposition(|piece| !same_ancestors(&piece.ancestors, &space.ancestors))
+                .map_or(0, |index| index + 1);
+            let run = &current[run_start..];
+            !run.is_empty()
+                && !run.iter().any(|piece| piece.is_space)
+                && !run.iter().skip(1).any(|piece| piece.breakable)
+        });
+        let overflows = !current.is_empty() && x + space_width + atom_width > available;
+        let drop_space = overflows
+            && space.is_some()
+            && single_atom
+            && x + space_width > available
+            && x + atom_width <= available;
+        if overflows && !drop_space {
+            let boundary = space
+                .as_ref()
+                .and_then(|space| break_boundary(&current, space));
+            lines.push((std::mem::take(&mut current), leading, boundary));
             x = 0.0;
-            pending_space = None;
+            leading = 0.0;
         }
-        if let Some(space) = pending_space.take()
+        if let Some(space) = space
             && !current.is_empty()
+            && !drop_space
         {
             x += space_width;
             current.push(space);
         }
-        x += word_width;
-        current.push(piece);
+        x += atom_width;
+        current.extend(pieces);
     }
-    if let Some(line) = build_line(current, tag) {
-        lines.push(line);
+    // A trailing collapsible space that overflows a line with an internal break
+    // opportunity starts a line of its own, which holds nothing and is dropped.
+    // The reference counts that line, so the one the space left is not last and
+    // takes `text-align` rather than `text-align-last`. The break has to be
+    // *inside* the line: a space between two words, or an intra-word break
+    // between two units both on this line. A break at the line's own start does
+    // not count, which is why `a/b ` wraps its space onto its own line but the
+    // `c` that `a-b-c ` ends with does not - `c` begins the line, so there is
+    // nothing before it to break from.
+    //
+    // The space must also share its text node with the line's content. A
+    // whitespace-only node never makes the extra line: the reference drops it
+    // from the box the line keeps and leaves that box empty, which is the
+    // boundary case below rather than a phantom line.
+    let phantom = match &pending_space {
+        Some(space) => {
+            !space.lone
+                && !current.is_empty()
+                && current
+                    .iter()
+                    .enumerate()
+                    .any(|(index, piece)| piece.is_space || (piece.breakable && index > 0))
+                && x + advance(" ", space.style.font_size) > width - leading
+        }
+        None => false,
+    };
+    if !current.is_empty() {
+        // A trailing space that ends the block is dropped like one at a break,
+        // and leaves the same empty box behind when it was the whole of its
+        // text node. The phantom case is different: the space starts a line of
+        // its own, which holds nothing and is dropped, so it leaves no box.
+        let boundary = if phantom {
+            None
+        } else {
+            pending_space
+                .as_ref()
+                .and_then(|space| break_boundary(&current, space))
+        };
+        lines.push((current, leading, boundary));
     }
+
+    // The last line is aligned by `text-align-last`, every other line by
+    // `text-align`, which is what the reference does.
+    let count = lines.len();
     lines
+        .into_iter()
+        .enumerate()
+        .filter_map(|(index, (line, leading, boundary))| {
+            let last = index + 1 == count && !phantom;
+            build_line(
+                line,
+                tag,
+                width,
+                if last { align_last } else { align },
+                leading,
+                block_style,
+                boundary,
+            )
+        })
+        .collect()
 }
 
 /// Merge adjacent pieces that share their inline ancestry into one text box,
@@ -664,48 +1324,153 @@ fn place_pieces(pieces: Vec<Piece>) -> Vec<Placed> {
     out
 }
 
-/// Turn one line's pieces into a line box.
-fn build_line(pieces: Vec<Piece>, tag: &str) -> Option<Fragment> {
-    let items = place_pieces(pieces);
-    if items.is_empty() {
+/// Turn one line's pieces into a line box, aligned within `available`.
+///
+/// `indent` is the `text-indent` that applies to this line, which is non-zero
+/// only for the first line of a block. The reference measures the line box from
+/// the block's edge to the end of the content, so the indent widens the line box
+/// and shifts its content, and the alignment offset is taken against that wider
+/// box.
+fn build_line(
+    pieces: Vec<Piece>,
+    tag: &str,
+    available: f64,
+    align: TextAlign,
+    indent: f64,
+    block_style: &Style,
+    boundary: Option<(Vec<InlineAncestor>, usize, bool)>,
+) -> Option<Fragment> {
+    let mut items = place_pieces(pieces);
+    if items.is_empty() && boundary.is_none() {
         return None;
     }
 
-    // The baseline is as far down as the deepest box on the line reaches.
-    let baseline = items
-        .iter()
-        .map(|item| child_baseline(&item.style))
-        .fold(f64::NEG_INFINITY, f64::max);
-    let top = items
-        .iter()
-        .map(|item| baseline - child_baseline(&item.style))
-        .fold(f64::INFINITY, f64::min);
-    let bottom = items
-        .iter()
-        .map(|item| baseline - child_baseline(&item.style) + item.style.used_line_height())
-        .fold(f64::NEG_INFINITY, f64::max);
-    let height = bottom - top;
+    let content_width: f64 = items.iter().map(|item| item.width).sum();
+    // WeasyPrint leaves a line alone once it already fills the line box, and
+    // `justify` never touches the last line (that is `text-align-last`'s job).
+    let line_box_width = indent + content_width;
+    let offset = if line_box_width >= available {
+        0.0
+    } else {
+        let gap = available - line_box_width;
+        match align {
+            TextAlign::Start | TextAlign::Left | TextAlign::Justify => 0.0,
+            TextAlign::Center => gap / 2.0,
+            TextAlign::End | TextAlign::Right => gap,
+        }
+    };
+    if align == TextAlign::Justify && line_box_width < available {
+        justify(&mut items, available - line_box_width);
+    }
 
-    let line_width: f64 = items.iter().map(|item| item.width).sum();
-    let children = nest(&items, 0, baseline - top, tag);
+    // The line box has the block's own font as its "strut": a zero-width box on
+    // the baseline, so a line whose inline content is smaller or larger than the
+    // block still gets the block's line height. Every box on the line is
+    // baseline-aligned, so with the baseline at zero a box of style `s` spans
+    // `-baseline(s)` to `-baseline(s) + line-height(s)`; the line box is the
+    // union of those spans, the strut included.
+    let strut_baseline = child_baseline(block_style);
+    let mut min_y = -strut_baseline;
+    let mut max_y = -strut_baseline + block_style.used_line_height();
+    // Every box on the line contributes, including the inline elements a run of
+    // text sits inside: an empty wrapper with a larger font still raises the
+    // line, because its own box is on the line even though its text is not.
+    for item in &items {
+        for style in item
+            .ancestors
+            .iter()
+            .map(|ancestor| &ancestor.style)
+            .chain(std::iter::once(&item.style))
+        {
+            let baseline = child_baseline(style);
+            min_y = min_y.min(-baseline);
+            max_y = max_y.max(-baseline + style.used_line_height());
+        }
+    }
+    if let Some((chain, _, _)) = &boundary {
+        // The empty boxes left on the line still contribute their own struts, so
+        // an empty wrapper with a larger font raises the line.
+        for ancestor in chain {
+            let baseline = child_baseline(&ancestor.style);
+            min_y = min_y.min(-baseline);
+            max_y = max_y.max(-baseline + ancestor.style.used_line_height());
+        }
+    }
+    let baseline = -min_y;
+    let height = max_y - min_y;
+
+    let content_width: f64 = items.iter().map(|item| item.width).sum();
+    let block = Block {
+        style: block_style,
+        tag,
+    };
+    let mut children = nest(
+        &items,
+        0,
+        baseline,
+        &block,
+        boundary
+            .as_ref()
+            .map(|(chain, attach, lone)| (chain.as_slice(), *attach, *lone)),
+        content_width,
+        None,
+    );
+    // The indent shifts the line's content, not the line box itself.
+    for child in &mut children {
+        child.x_offset += indent;
+    }
 
     Some(Fragment {
         kind: BoxKind::Line,
         tag: tag.to_owned(),
-        x_offset: 0.0,
+        x_offset: offset,
         y_offset: 0.0,
-        width: line_width,
+        width: indent + content_width,
         height,
         margin: Sides::default(),
         padding: Sides::default(),
         border: Sides::default(),
         text: None,
-        effective_margin_top: 0.0,
-        effective_margin_bottom: 0.0,
-        inner_top: 0.0,
+        collapses_through: false,
         inner_bottom: 0.0,
         children,
     })
+}
+
+/// Distribute `extra` across the expandable spaces of a justified line.
+///
+/// This mirrors `justify_line` in the reference: the extra width is split evenly
+/// over the spaces, and each space widens its own box, so a line that wraps is
+/// only stretched on the lines that are not last.
+fn justify(items: &mut [Placed], extra: f64) {
+    if extra <= 0.0 {
+        return;
+    }
+    let spaces: usize = items
+        .iter()
+        .map(|item| item.text.matches(' ').count())
+        .sum();
+    if spaces == 0 {
+        return;
+    }
+    let per_space = extra / spaces as f64;
+    let mut shift = 0.0;
+    for item in items.iter_mut() {
+        item.x += shift;
+        let count = item.text.matches(' ').count();
+        if count > 0 {
+            let added = per_space * count as f64;
+            item.width += added;
+            shift += added;
+        }
+    }
+}
+
+/// The block a line belongs to: its style and tag, which an empty box at the
+/// block level is built from.
+struct Block<'a> {
+    style: &'a Style,
+    tag: &'a str,
 }
 
 /// Group a line's boxes into inline boxes, returning the outermost ones.
@@ -714,12 +1479,40 @@ fn build_line(pieces: Vec<Piece>, tag: &str) -> Option<Fragment> {
 /// a box's content-box top is `line_baseline - ascent(font-size)`. A child's
 /// offset is made relative to the box it goes into, so that placing the tree
 /// top-down adds each level exactly once.
-fn nest(items: &[Placed], depth: usize, line_baseline: f64, block_tag: &str) -> Vec<Fragment> {
-    let mut out = Vec::new();
+///
+/// `tail` is the chain of boxes a line break left empty, with the depth it
+/// belongs at: the number of boxes the line's last content and the dropped space
+/// share. The empty boxes go inside that many levels, because the reference
+/// keeps them where the space sat rather than beside the line's content.
+/// `end_x` is the line's content end, from the line's left edge, which is where
+/// the outermost empty box goes. `enclosing` is the box this run sits inside,
+/// or `None` for the line itself; an empty chain that creates no box of its own
+/// takes its tag and style from it, because the reference appends the empty text
+/// box to the box the dropped space sat in.
+fn nest(
+    items: &[Placed],
+    depth: usize,
+    line_baseline: f64,
+    block: &Block,
+    tail: Option<(&[InlineAncestor], usize, bool)>,
+    end_x: f64,
+    enclosing: Option<&InlineAncestor>,
+) -> Vec<Fragment> {
+    // Split the items into runs that share the ancestor at this depth.
+    struct Group {
+        ancestor: Option<InlineAncestor>,
+        start: usize,
+        end: usize,
+    }
+    let mut groups: Vec<Group> = Vec::new();
     let mut index = 0;
     while index < items.len() {
         if items[index].ancestors.len() <= depth {
-            out.push(text_box(&items[index], line_baseline, block_tag));
+            groups.push(Group {
+                ancestor: None,
+                start: index,
+                end: index + 1,
+            });
             index += 1;
             continue;
         }
@@ -731,34 +1524,176 @@ fn nest(items: &[Placed], depth: usize, line_baseline: f64, block_tag: &str) -> 
         {
             end += 1;
         }
-        let mut children = nest(&items[index..end], depth + 1, line_baseline, block_tag);
+        groups.push(Group {
+            ancestor: Some(ancestor),
+            start: index,
+            end,
+        });
+        index = end;
+    }
+
+    let mut out = Vec::new();
+    for group in &groups {
+        let Some(ancestor) = &group.ancestor else {
+            out.push(text_box(&items[group.start], line_baseline, block.tag));
+            continue;
+        };
+        // The tail travels down the run that holds the line's last content,
+        // because that is the box the empty chain belongs inside.
+        let is_last_run = group.end == items.len();
+        let inner_tail = tail.filter(|(_, attach, _)| is_last_run && *attach > depth);
+        let mut children = nest(
+            &items[group.start..group.end],
+            depth + 1,
+            line_baseline,
+            block,
+            inner_tail,
+            end_x,
+            Some(ancestor),
+        );
         let left = children.first().map_or(0.0, |child| child.x_offset);
         let right = children
             .last()
             .map_or(left, |child| child.x_offset + child.width);
+        // A child's offset is relative to the box it goes into, so the inline
+        // box's own offset comes off both axes. The x offsets were laid out from
+        // the line's left edge; the y offsets are measured from the line's top.
+        let top = line_baseline - ascent(&ancestor.style);
         for child in &mut children {
             child.x_offset -= left;
+            child.y_offset -= top;
         }
         out.push(Fragment {
             kind: BoxKind::Inline,
-            tag: ancestor.tag,
+            tag: ancestor.tag.clone(),
             x_offset: left,
-            y_offset: line_baseline - ascent(&ancestor.style),
+            y_offset: top,
             width: right - left,
             height: ancestor.style.font_size,
             margin: half_leading_sides(&ancestor.style),
             padding: Sides::default(),
             border: Sides::default(),
             text: None,
-            effective_margin_top: 0.0,
-            effective_margin_bottom: 0.0,
-            inner_top: 0.0,
+            collapses_through: false,
             inner_bottom: 0.0,
             children,
         });
-        index = end;
+    }
+
+    // The tail's depth is this one, so its boxes are siblings of the boxes here.
+    if let Some((chain, attach, lone)) = tail
+        && attach == depth
+    {
+        out.extend(empty_boxes(
+            chain,
+            lone,
+            end_x,
+            line_baseline,
+            block,
+            None,
+            enclosing,
+        ));
     }
     out
+}
+
+/// Build the empty boxes a line break leaves at the end of a line.
+///
+/// An empty chain with `lone` is the block itself, which the reference leaves as
+/// an empty text box for the block. A non-empty chain nests, so each box wraps
+/// the next and only the outermost is placed against the line. The innermost box
+/// keeps an empty text box only when the dropped space was the whole of its text
+/// node (`lone`); otherwise the chain stops at the innermost inline box. The
+/// nested boxes stay on the line's shared baseline, so each one's offset is its
+/// parent's ascent less its own - the same alignment a text box gets, which is
+/// what puts a smaller nested box lower on the line.
+fn empty_boxes(
+    chain: &[InlineAncestor],
+    lone: bool,
+    x: f64,
+    line_baseline: f64,
+    block: &Block,
+    parent_ascent: Option<f64>,
+    enclosing: Option<&InlineAncestor>,
+) -> Vec<Fragment> {
+    let Some(ancestor) = chain.first() else {
+        // An empty chain is a dropped space whose box is an ancestor of the
+        // line's last content, so the empty text box belongs to the box the
+        // space sat in: `enclosing` when the space was inside an inline box,
+        // and the block itself at the top level.
+        let (tag, style) = match enclosing {
+            Some(ancestor) => (ancestor.tag.clone(), ancestor.style.clone()),
+            None => (block.tag.to_owned(), block.style.clone()),
+        };
+        return vec![Fragment {
+            kind: BoxKind::Text,
+            tag,
+            x_offset: x,
+            y_offset: line_baseline - ascent(&style),
+            width: 0.0,
+            height: style.font_size,
+            margin: half_leading_sides(&style),
+            padding: Sides::default(),
+            border: Sides::default(),
+            text: Some(String::new()),
+            collapses_through: false,
+            inner_bottom: 0.0,
+            children: Vec::new(),
+        }];
+    };
+    let own_ascent = ascent(&ancestor.style);
+    let children = match chain.get(1..) {
+        Some(rest) if !rest.is_empty() => empty_boxes(
+            rest,
+            lone,
+            0.0,
+            line_baseline,
+            block,
+            Some(own_ascent),
+            enclosing,
+        ),
+        // The innermost box holds the dropped space's text box, which the
+        // reference keeps only when the space was its own text node.
+        _ if lone => vec![Fragment {
+            kind: BoxKind::Text,
+            tag: ancestor.tag.clone(),
+            x_offset: 0.0,
+            y_offset: 0.0,
+            width: 0.0,
+            height: ancestor.style.font_size,
+            margin: half_leading_sides(&ancestor.style),
+            padding: Sides::default(),
+            border: Sides::default(),
+            text: Some(String::new()),
+            collapses_through: false,
+            inner_bottom: 0.0,
+            children: Vec::new(),
+        }],
+        _ => Vec::new(),
+    };
+    let y_offset = match parent_ascent {
+        // The outermost box sits against the line box, whose content top is the
+        // baseline less this box's ascent.
+        None => line_baseline - own_ascent,
+        // A nested box aligns its baseline with its parent's, so it sits at the
+        // parent's ascent less its own.
+        Some(parent) => parent - own_ascent,
+    };
+    vec![Fragment {
+        kind: BoxKind::Inline,
+        tag: ancestor.tag.clone(),
+        x_offset: x,
+        y_offset,
+        width: 0.0,
+        height: ancestor.style.font_size,
+        margin: half_leading_sides(&ancestor.style),
+        padding: Sides::default(),
+        border: Sides::default(),
+        text: None,
+        collapses_through: false,
+        inner_bottom: 0.0,
+        children,
+    }]
 }
 
 /// A text box on a line.
@@ -778,9 +1713,7 @@ fn text_box(item: &Placed, line_baseline: f64, block_tag: &str) -> Fragment {
         padding: Sides::default(),
         border: Sides::default(),
         text: Some(item.text.clone()),
-        effective_margin_top: 0.0,
-        effective_margin_bottom: 0.0,
-        inner_top: 0.0,
+        collapses_through: false,
         inner_bottom: 0.0,
         children: Vec::new(),
     }
@@ -825,10 +1758,10 @@ fn advance(text: &str, font_size: f64) -> f64 {
 /// Returns the content width, the offset from the containing block's content
 /// left edge to this box's content box, and the two used margins.
 fn resolve_horizontal(style: &Style, cb: f64) -> (f64, f64, f64, f64) {
-    let padding_plus_border =
-        style.padding.left + style.padding.right + style.border.left + style.border.right;
-    let left_auto = style.margin[3] == Length::Auto;
-    let right_auto = style.margin[1] == Length::Auto;
+    let padding = resolve_sides(&style.padding, cb);
+    let padding_plus_border = padding.left + padding.right + style.border.left + style.border.right;
+    let mut left_auto = style.margin[3] == Length::Auto;
+    let mut right_auto = style.margin[1] == Length::Auto;
     let mut margin_left = if left_auto {
         0.0
     } else {
@@ -855,7 +1788,10 @@ fn resolve_horizontal(style: &Style, cb: f64) -> (f64, f64, f64, f64) {
     };
     width = clamp_width(width, style, cb);
 
-    // An `auto` margin becomes zero when the box would otherwise overflow.
+    // An `auto` margin becomes zero when the box would otherwise overflow, and
+    // it stops being `auto`: the reference zeroes it before it distributes the
+    // remaining space, so an over-constrained box keeps zero margins rather than
+    // a negative one.
     let mut margin_width = padding_plus_border + width;
     if !left_auto {
         margin_width += margin_left;
@@ -866,9 +1802,11 @@ fn resolve_horizontal(style: &Style, cb: f64) -> (f64, f64, f64, f64) {
     if margin_width > cb {
         if left_auto {
             margin_left = 0.0;
+            left_auto = false;
         }
         if right_auto {
             margin_right = 0.0;
+            right_auto = false;
         }
     }
 
@@ -884,20 +1822,35 @@ fn resolve_horizontal(style: &Style, cb: f64) -> (f64, f64, f64, f64) {
         (false, false) => {}
     }
 
-    let x_offset = margin_left + style.border.left + style.padding.left;
+    let x_offset = margin_left + style.border.left + padding.left;
     (width, x_offset, margin_left, margin_right)
 }
 
+/// Resolve a padding shorthand, whose percentages use the containing block's
+/// width on every side - the vertical ones too, as CSS 2.1 specifies.
+fn resolve_sides(sides: &[Length; 4], cb: f64) -> Sides {
+    Sides {
+        top: resolve(sides[0], cb),
+        right: resolve(sides[1], cb),
+        bottom: resolve(sides[2], cb),
+        left: resolve(sides[3], cb),
+    }
+}
+
 /// Apply `min-width` and `max-width` to a used width.
+///
+/// `min-width`'s initial value is zero, so the used width is floored at zero
+/// even when neither property is set: a box whose padding alone exceeds its
+/// containing block is zero wide, not negative. The reference computes
+/// `max(min, min(max, width))`, so `min-width` is applied last and wins when it
+/// is larger than `max-width`.
 fn clamp_width(width: f64, style: &Style, cw: f64) -> f64 {
     let mut width = width;
-    if let Some(min) = style.min_width {
-        width = width.max(resolve(min, cw));
-    }
     if let Some(max) = style.max_width {
         width = width.min(resolve(max, cw));
     }
-    width
+    let min = style.min_width.map_or(0.0, |min| resolve(min, cw));
+    width.max(min)
 }
 
 /// Resolve a length to pixels against a containing width.
@@ -940,5 +1893,81 @@ fn place(fragment: &Fragment, parent_content_x: f64, parent_content_y: f64) -> L
         border: fragment.border,
         text: fragment.text.clone(),
         children,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Piece, Style, break_units, seam_breakable};
+
+    /// The units a word splits into, as a `Vec` of strings for easy comparison.
+    fn units(word: &str) -> Vec<String> {
+        break_units(word)
+            .iter()
+            .map(|unit| (*unit).to_owned())
+            .collect()
+    }
+
+    #[test]
+    fn a_word_with_no_opportunity_is_one_unit() {
+        assert_eq!(units("abc"), ["abc"]);
+        assert_eq!(units("3-4"), ["3-4"]);
+        assert_eq!(units("-bar"), ["-bar"]);
+    }
+
+    #[test]
+    fn a_hyphen_between_letters_is_an_opportunity() {
+        assert_eq!(units("foo-bar"), ["foo-", "bar"]);
+        assert_eq!(units("a-b-c"), ["a-", "b-", "c"]);
+    }
+
+    #[test]
+    fn a_slash_between_letters_is_an_opportunity() {
+        assert_eq!(units("a/b"), ["a/", "b"]);
+    }
+
+    #[test]
+    fn a_numeric_expression_has_no_internal_opportunity() {
+        // The class-pair rule would break each of these; LB25 keeps them whole.
+        assert_eq!(units("3/4"), ["3/4"]);
+        assert_eq!(units("$(3"), ["$(3"]);
+        assert_eq!(units("(3)$"), ["(3)$"]);
+        assert_eq!(units("1,000"), ["1,000"]);
+        assert_eq!(units("3%"), ["3%"]);
+        assert_eq!(units("+3"), ["+3"]);
+    }
+
+    #[test]
+    fn a_word_initial_hyphen_does_not_break_before_a_letter() {
+        // LB20a: `-bar` stays whole, but the hyphen before a symbol still breaks.
+        assert_eq!(units("-bar"), ["-bar"]);
+        assert_eq!(units("-$"), ["-", "$"]);
+    }
+
+    #[test]
+    fn a_seam_between_text_nodes_uses_the_adjacent_characters_alone() {
+        // Two adjacent text nodes meet with no space between them. The reference
+        // asks Pango about the last character of one and the first of the next,
+        // so the seam sees only that pair, not the whole expression: `3/` before
+        // `4` breaks even though `3/4` inside one node does not.
+        let word = |text: &str| Piece {
+            ancestors: Vec::new(),
+            style: Style::default(),
+            text: text.to_owned(),
+            is_space: false,
+            lone: false,
+            breakable: false,
+        };
+        assert!(seam_breakable(Some(&word("3/")), "4"));
+        assert!(seam_breakable(Some(&word("a/")), "b"));
+        assert!(seam_breakable(Some(&word("%")), "$"));
+        assert!(!seam_breakable(Some(&word("a")), "b"));
+        assert!(!seam_breakable(Some(&word("1,")), "000"));
+        assert!(!seam_breakable(Some(&word("ab")), "cd"));
+        // A seam after a space is a normal space break, not this rule.
+        let mut space = word(" ");
+        space.is_space = true;
+        assert!(!seam_breakable(Some(&space), "b"));
+        assert!(!seam_breakable(None, "b"));
     }
 }

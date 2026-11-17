@@ -45,6 +45,7 @@ never a dependency of any crate.
 | `wssec` | `wssec/gen.py` | Python `hashlib` and `base64` (stdlib) | `python3 wssec/gen.py <fixture-dir>` |
 | `fast-redact` | `fast-redact/gen.js` | `fast-redact` npm 3.5.0 | `NODE_PATH=<modules> node fast-redact/gen.js [fixture-dir]` |
 | `pdfmake` | `pdfmake/gen_zlib_vectors.py` | Python `zlib` (stdlib) | `python3 pdfmake/gen_zlib_vectors.py [out]` |
+| `cssprint` | `cssprint/gen.py` | WeasyPrint PyPI 70.0 | `python3 cssprint/gen.py [crate dir]` |
 
 With no `out` argument each writes to the crate's own fixture, which is the path
 you want when rebuilding it in place. The recorded versions are the ones the
@@ -183,6 +184,16 @@ to write down.
   exercise that shape, so it is behaviour rather than a bug, and the crate now
   reproduces it; the corpus is what made that visible, because the first version
   of the walk descended one level too far and the curated cases agreed with it.
+- `cssprint` — 400 random documents over the implemented property set, laid out
+  by WeasyPrint and recorded as a box tree. The curated cases were the shapes
+  someone thought of; the random ones are the shapes nobody wrote down. Adding
+  numeric expressions to the word pool surfaced a real bug the curated cases
+  passed over: the crate never allowed a break at the seam between two adjacent
+  text nodes, so `3%<span>$(3</span>` stayed on one line where the reference
+  broke it. The reference decides a seam from the two adjacent characters alone,
+  which is why `3/` then `4` breaks at the seam while `3/4` in one text node does
+  not. It found the seam rule, and the corpus is now committed so the next change
+  that moves a random box fails CI rather than passing on the curated cases.
 
 ## Companion extractors
 

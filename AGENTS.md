@@ -300,6 +300,24 @@ that branch order or the held-out check tests the wrong thing.
   find `ram:IssueDateTime`. Match on the local name. `Element::text()`
   concatenates only direct text children, so a value nested in a sub-element
   comes back empty.
+- **An empty inline element is still a box.** WeasyPrint gives `<span></span>`
+  an empty inline box with its own strut, even with no text in it: `<div>a<span
+  style="font-size:24px"></span></div>` raises the line to 24px, and an empty
+  `<span>` on its own leaves a line box of height 0 that holds the 16px inline
+  box. `cssprint` currently emits no box for an element with no in-flow
+  children, so its line stays 16px and the empty inline box is missing. A
+  whitespace-only node is different and already handled (see `push_text`): it
+  survives as an empty text box, not an empty inline box.
+- **A trailing space only makes a phantom line when it shares its text node with
+  the content.** When a trailing collapsible space overflows a line that already
+  has an internal break opportunity, WeasyPrint starts a line of its own for the
+  space, drops it, and counts it - so the line it left is not last and takes
+  `text-align` rather than `text-align-last`. A whitespace-only node never does
+  this: the reference drops it from the box the line keeps and leaves that box
+  empty, so the line stays last. `cssprint` had the phantom test fire for both;
+  the fix is the `!space.lone` guard in `shape_lines`. The two differ only in how
+  the space was written, so a curated case for each sits side by side
+  (`align_last_trailing_space_overflow`, `align_last_trailing_lone_space_keeps_line`).
 - **`cargo publish` resolves path dependencies against the registry.** A crate
   that depends on `xmlkit` cannot be packaged until `xmlkit` is *published*, and
   the error ("no matching package named `xmlkit` found") reads like a broken
@@ -341,6 +359,24 @@ that branch order or the held-out check tests the wrong thing.
   `slug` field, not the display name (`parser-implementations` is the slug for
   "Parser implementations"). Without `per_page` it returns 10 per page and the
   list runs to 58, so a single default page looks complete when it is not.
+- **A crate can sit at a version its last tag is behind but that was never
+  published.** `cssprint` was bumped to `0.2.0` in the manifest while the last
+  tag was `cssprint-v0.1.11`, and `0.2.0` was never uploaded. `release_plan.py`
+  reads that as "bumped past its last tag" and suggests `0.2.1`, which would
+  spend a number nobody asked for: the pending release is the manifest version
+  itself. The script only compares the manifest to the last tag; it never asks
+  crates.io. Check the manifest version against the registry before tagging a
+  crate the plan flags as `bumped` -
+  `curl -so /dev/null -w '%{http_code}' https://crates.io/api/v1/crates/<crate>/<version>`
+  answers `404` when the version is still unpublished.
+- **A trailing space decides `text-align` versus `text-align-last`.** When a
+  collapsible trailing space does not fit on a line that has a break in it (two
+  or more words), WeasyPrint lets it start a line of its own, then drops that
+  line. It still counts it, so the line the space left is not last and is placed
+  by `text-align`, not `text-align-last`. A single word has no break to drop the
+  space at, so the space stays and the line is last. Getting this wrong moves a
+  line by the whole alignment offset, which is what `cssprint`'s
+  `align_last_trailing_space_overflow` fixture pins.
 
 ## Boundaries
 

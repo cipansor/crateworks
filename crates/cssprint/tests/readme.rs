@@ -33,6 +33,27 @@ fn readme_text_example() {
 }
 
 #[test]
+fn readme_align_example() {
+    let sheet =
+        Stylesheet::parse("div { font-family: weasyprint; width: 64px; text-align: center }")
+            .unwrap();
+    let document = layout("<div>aa</div>", &sheet, 200.0).unwrap();
+
+    let line = &document.body().children[0].children[0];
+    // Two 16px glyphs in a 64px block, centred: (64 - 32) / 2 = 16.
+    assert_eq!(line.content_x, 16.0);
+}
+
+#[test]
+fn readme_indent_example() {
+    let sheet = Stylesheet::parse("div { font-family: weasyprint; text-indent: 20px }").unwrap();
+    let document = layout("<div>ab cd</div>", &sheet, 200.0).unwrap();
+
+    let text = &document.body().children[0].children[0].children[0];
+    assert_eq!(text.content_x, 20.0);
+}
+
+#[test]
 fn inline_style_overrides_the_sheet() {
     let sheet = Stylesheet::parse("div { width: 50px }").unwrap();
     let document = layout(r#"<div style="width: 90px"></div>"#, &sheet, 200.0).unwrap();
