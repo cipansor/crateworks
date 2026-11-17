@@ -334,6 +334,20 @@ that branch order or the held-out check tests the wrong thing.
   `layout_element`, so a selector like `div span` only matches if the inline
   elements opened so far are pushed onto the same ancestor chain the block walk
   builds. Both walks now thread that chain (`Walk::ancestors`, `Collector::chain`).
+- **An inline match is only visible through an inherited property.** A box-model
+  declaration (`width`, `height`, `margin`, `padding`) is ignored on a
+  non-replaced inline by both engines, so a corpus that gives an inline subject
+  only those would pass even if the inline ancestry were dropped entirely. A
+  rule whose subject may be inline must carry `font-size` (or `display: none`),
+  which moves the text, for the match to show up in the box tree. The random
+  selector corpus nests spans and gives inline subjects `font-size` for this
+  reason; breaking the inline chain now fails 167 random cases, where before it
+  failed none.
+- **A tag name in a selector must accept what the HTML parser keeps.** The HTML
+  parser lowercases and keeps a tag as written, so `café` is a real element and
+  `café { … }` must parse. Rejecting a non-ASCII tag because the check used
+  `is_ascii_alphanumeric` is a regression the old permissive parser did not have.
+  Accept any alphanumeric character (plus `-` and `_`) via `is_alphanumeric`.
 - **`cargo publish` resolves path dependencies against the registry.** A crate
   that depends on `xmlkit` cannot be packaged until `xmlkit` is *published*, and
   the error ("no matching package named `xmlkit` found") reads like a broken

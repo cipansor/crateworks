@@ -259,6 +259,13 @@ def random_cases(count: int = _RANDOM_COUNT, seed: int = _RANDOM_SEED) -> list[t
 # elements carry ids and classes and a stylesheet full of descendant and child
 # selectors over them, so the box tree only comes out right if both the matching
 # and the specificity ordering are right.
+#
+# The elements nest: a block holds blocks or inline runs, and an inline run holds
+# nested spans, so a selector over an inline ancestor (a span inside a span) has
+# something to match. A rule whose subject may be inline carries `font-size`, an
+# inherited property that moves the text, so an inline match is visible in the
+# tree; a box-model declaration there would be ignored by both engines and the
+# broken ancestry would pass unnoticed.
 
 # The tags the selector corpus uses. All three are UA-neutral in WeasyPrint's
 # test stylesheet: `div` and `section` are blocks with no margin, `span` is
@@ -311,16 +318,28 @@ def _selector_rule(rng: random.Random) -> tuple[str, bool]:
 
 
 def _selector_declarations(rng: random.Random, block: bool) -> str:
-    """A declaration list that moves a box, from the supported set only."""
+    """A declaration list that moves a box, from the supported set only.
+
+    A block subject takes the box-model properties, which move the box. An
+    inline subject takes `font-size`, an inherited property that moves the text
+    it holds, so a match on an inline element is visible in the tree; `width`
+    and `height` are kept too, but both engines ignore them on a non-replaced
+    inline, so they are not what makes an inline match observable.
+    """
     out = []
-    if rng.random() < 0.85:
-        out.append(f"width:{rng.choice([10, 20, 30, 40, 50, 60, 80, 120])}px")
-    if rng.random() < 0.4:
-        out.append(f"height:{rng.randrange(0, 40)}px")
-    if block and rng.random() < 0.4:
-        out.append(f"margin:{rng.randrange(0, 20)}px")
-    if block and rng.random() < 0.3:
-        out.append(f"padding:{rng.randrange(0, 10)}px")
+    if block:
+        if rng.random() < 0.85:
+            out.append(f"width:{rng.choice([10, 20, 30, 40, 50, 60, 80, 120])}px")
+        if rng.random() < 0.4:
+            out.append(f"height:{rng.randrange(0, 40)}px")
+        if rng.random() < 0.4:
+            out.append(f"margin:{rng.randrange(0, 20)}px")
+        if rng.random() < 0.3:
+            out.append(f"padding:{rng.randrange(0, 10)}px")
+    else:
+        out.append(f"font-size:{rng.choice([8, 10, 12, 16, 20, 24])}px")
+        if rng.random() < 0.3:
+            out.append(f"width:{rng.choice([10, 20, 30, 40])}px")
     if not out:
         out.append("width:25px")
     return ";".join(out)
@@ -356,13 +375,25 @@ def _selector_tree(rng: random.Random, depth: int, serial: list[int]) -> str:
     return f"<{tag}{attribute}>{inner}</{tag}>"
 
 
-def _selector_inline(rng: random.Random) -> str:
-    """A run of text and inline elements, each maybe carrying a class."""
+def _selector_inline(rng: random.Random, depth: int = 0) -> str:
+    """A run of text and inline elements, sometimes nested.
+
+    A span may hold another inline run, so a descendant or child selector over
+    an inline ancestor (a span inside a span) has something to match. Nesting
+    stops after one level, which is enough for the chain to matter without the
+    tree growing without bound. Every span holds text, so no empty inline box is
+    produced, which is a separate difference from the reference.
+    """
     parts = []
     for _ in range(rng.randrange(1, 3)):
-        if rng.random() < 0.5:
+        roll = rng.random()
+        if roll < 0.45:
             classes = rng.choice(_SELECTOR_CLASSES)
             parts.append(f'<span class="{classes}">ab</span>')
+        elif roll < 0.75 and depth < 1:
+            classes = rng.choice(_SELECTOR_CLASSES)
+            inner = _selector_inline(rng, depth + 1)
+            parts.append(f'<span class="{classes}">{inner}</span>')
         else:
             parts.append("cd")
     return "".join(parts)
@@ -463,6 +494,38 @@ def selector_cases() -> list[tuple[str, str]]:
         ("selector_matches_nothing", f"<style>{page}{body}"
                                      "section > div{width:30px;height:10px}</style>"
                                      "<div><section></section></div>"),
+        # A descendant selector over an inline ancestor: the inner span's
+        # `font-size` is inherited by its text, so the match shows as a taller,
+        # wider line. A chain that dropped the outer span would leave the text at
+        # the default size and disagree here.
+        ("inline_ancestor_descendant", f"<style>{page}{body}"
+                                       "span span{font-size:24px}</style>"
+                                       "<div><span>a<span>b</span></span></div>"),
+        # The child combinator at the inline level: the inner span's parent is a
+        # span, so the rule matches and the text grows.
+        ("inline_ancestor_child", f"<style>{page}{body}"
+                                  "span > span{font-size:24px}</style>"
+                                  "<div><span>a<span>b</span></span></div>"),
+        # A descendant selector over an inline ancestor that removes the subject:
+        # `display` is not inherited, so only the inner span goes and its text
+        # disappears. A broken chain would leave it visible.
+        ("inline_ancestor_display_none", f"<style>{page}{body}"
+                                         "div span span{display:none}</style>"
+                                         "<div><span>a<span>b</span></span></div>"),
+        # The child step must be the immediate parent, not any ancestor: the
+        # outer span's parent is a `section`, so `div > span` never matches and
+        # the inner span keeps the default size. Read as a descendant, the rule
+        # would reach the inner span through the outer one and grow the text.
+        ("inline_child_needs_immediate_parent", f"<style>{page}{body}"
+                                                "div > span span{font-size:24px}</style>"
+                                                "<div><section><span>a<span>b</span>"
+                                                "</span></section></div>"),
+        # A non-ASCII tag name: the HTML parser keeps `café` as written, so a
+        # rule for it must parse and match. The subject is inline, so `font-size`
+        # is what makes the match visible.
+        ("non_ascii_tag_matches", f"<style>{page}{body}"
+                                  "café{font-size:24px}</style>"
+                                  "<div><café>ab</café></div>"),
     ]
 
 

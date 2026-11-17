@@ -534,8 +534,12 @@ Selector matching has its own pair of corpora, `selector_layout.tsv` /
 `selector_cases.tsv` and `selector_fuzz.tsv` / `selector_fuzz_cases.tsv`, drawn
 from documents whose elements carry ids and classes and a stylesheet of
 descendant and child selectors over them; `--selectors N` overrides the random
-selector count. The crate agrees with the reference on all 400 cases it draws and
-on all 1,200 selector cases. The random corpus is what caught the seam rule: the
+selector count. The elements nest, including spans inside spans, and a rule whose
+subject may be inline carries `font-size`, which moves the text, so an inline
+match is visible in the tree - a box-model declaration there is ignored on a
+non-replaced inline and would hide a broken inline ancestry. The crate agrees
+with the reference on all 400 cases it draws and on all 1,200 selector cases.
+The random corpus is what caught the seam rule: the
 crate never broke a line at the boundary between two adjacent text nodes, and the
 reference breaks there whenever the two adjacent characters are a break
 opportunity on their own, which is why `3%<span>$(3</span>` wraps where `3%$(3`

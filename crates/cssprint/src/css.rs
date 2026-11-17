@@ -443,6 +443,16 @@ fn ends_name(character: char) -> bool {
     character == '#' || character == '.' || character == '>' || character.is_whitespace()
 }
 
+/// Whether `character` may appear in a tag name.
+///
+/// The HTML parser keeps a tag as it finds it, so a name it can carry - any
+/// alphanumeric character, ASCII or not - must parse here too, or a rule for an
+/// element the document can hold would be rejected. `-` and `_` are allowed
+/// because custom elements and the common escaped names use them.
+fn is_tag_character(character: char) -> bool {
+    character.is_alphanumeric() || character == '-' || character == '_'
+}
+
 /// Parse one compound selector and return it with the text that follows it.
 ///
 /// The grammar is an optional tag (or `*`) followed by any number of `#id` and
@@ -459,10 +469,7 @@ fn parse_compound(text: &str) -> Result<(Compound, &str), Error> {
     if !head.is_empty() {
         if head == "*" {
             named = true;
-        } else if head
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
-        {
+        } else if head.chars().all(is_tag_character) {
             compound.tag = Some(head.to_ascii_lowercase());
             named = true;
         } else {
@@ -668,6 +675,17 @@ mod tests {
         assert_eq!(selector.compounds.len(), 2);
         assert_eq!(selector.compounds[1].tag.as_deref(), Some("p"));
         assert_eq!(selector.compounds[1].classes, vec!["c".to_owned()]);
+    }
+
+    #[test]
+    fn a_non_ascii_tag_name_is_accepted() {
+        // The HTML parser keeps the tag as written, so a rule for an element it
+        // can carry has to parse. The tag is lowercased like an ASCII one.
+        let selector = sheet("café");
+        assert_eq!(selector.compounds[0].tag.as_deref(), Some("café"));
+        assert_eq!(sheet("DIV").compounds[0].tag.as_deref(), Some("div"));
+        // A character no tag name can hold is still rejected.
+        assert!(Stylesheet::parse("@media { width: 1px }").is_err());
     }
 
     #[test]

@@ -118,7 +118,9 @@ inline attribute winning. A stylesheet rule's selector may be a comma-separated
 list of complex selectors: each is a chain of compound selectors (a tag, an
 `#id`, a `.class`, the universal `*`, or a combination) joined by a descendant
 (whitespace) or child (`>`) combinator, so `div p`, `div > p`, `div.card#main`
-and `div > p span` all work. The cascade orders by specificity first and source
+and `div > p span` all work. A tag name may contain any alphanumeric character,
+ASCII or not, plus `-` and `_`, matching what the HTML parser keeps, so `café`
+parses like `div` does. The cascade orders by specificity first and source
 order second, as the reference does: a more specific selector wins however early
 it appears, and equal specificity falls back to the later rule. `display: none`
 removes an element from the tree.
@@ -157,7 +159,11 @@ Selector matching has its own pair of corpora, `selector_layout.tsv` /
 `selector_cases.tsv` and `selector_fuzz.tsv` / `selector_fuzz_cases.tsv`, drawn
 from documents whose elements carry ids and classes and a stylesheet of
 descendant and child selectors over them: the box tree only comes out right when
-both the matching and the specificity ordering are right.
+both the matching and the specificity ordering are right. The elements nest,
+including spans inside spans, and a rule whose subject may be inline carries
+`font-size`, an inherited property that moves the text: a box-model declaration
+is ignored on a non-replaced inline, so it would hide a broken inline ancestry
+instead of exposing it.
 
 The curated cases are the shapes someone thought of; the random ones are the
 shapes nobody wrote down, so a change that keeps the curated cases green but
