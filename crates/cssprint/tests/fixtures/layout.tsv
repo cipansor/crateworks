@@ -445,3 +445,29 @@ align_last_trailing_space_overflow	0.0.0.0.0	div	TextBox	10.00	0.00	80.00	16.00	
 align_last_trailing_space_overflow	0.0.1	div	BlockBox	0.00	16.00	90.00	16.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
 align_last_trailing_space_overflow	0.0.1.0	div	LineBox	0.00	16.00	80.00	16.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
 align_last_trailing_space_overflow	0.0.1.0.0	div	TextBox	0.00	16.00	80.00	16.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	lorem
+drop_space_when_space_overflows	0		PageBox	0.00	0.00	200.00	200.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+drop_space_when_space_overflows	0	html	BlockBox	0.00	0.00	200.00	24.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+drop_space_when_space_overflows	0.0	body	BlockBox	0.00	0.00	200.00	24.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+drop_space_when_space_overflows	0.0.0	div	BlockBox	0.00	0.00	88.00	24.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+drop_space_when_space_overflows	0.0.0.0	div	LineBox	0.00	0.00	88.00	24.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+drop_space_when_space_overflows	0.0.0.0.0	span	InlineBox	0.00	0.00	72.00	24.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+drop_space_when_space_overflows	0.0.0.0.0.0	span	TextBox	0.00	0.00	72.00	24.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	abc
+drop_space_when_space_overflows	0.0.0.0.1	div	TextBox	72.00	6.40	16.00	16.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	a
+keep_space_when_word_breaks	0		PageBox	0.00	0.00	200.00	200.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+keep_space_when_word_breaks	0	html	BlockBox	0.00	0.00	200.00	18.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+keep_space_when_word_breaks	0.0	body	BlockBox	0.00	0.00	200.00	18.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+keep_space_when_word_breaks	0.0.0	div	BlockBox	0.00	0.00	38.00	18.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+keep_space_when_word_breaks	0.0.0.0	div	LineBox	0.00	0.00	30.00	10.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+keep_space_when_word_breaks	0.0.0.0.0	span	InlineBox	0.00	0.00	30.00	10.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+keep_space_when_word_breaks	0.0.0.0.0.0	span	TextBox	0.00	0.00	30.00	10.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	a-b
+keep_space_when_word_breaks	0.0.0.1	div	LineBox	0.00	10.00	8.00	8.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+keep_space_when_word_breaks	0.0.0.1.0	div	TextBox	0.00	10.00	8.00	8.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	a
+keep_space_after_earlier_space	0		PageBox	0.00	0.00	200.00	200.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+keep_space_after_earlier_space	0	html	BlockBox	0.00	0.00	200.00	18.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+keep_space_after_earlier_space	0.0	body	BlockBox	0.00	0.00	200.00	18.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+keep_space_after_earlier_space	0.0.0	div	BlockBox	0.00	0.00	58.00	18.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+keep_space_after_earlier_space	0.0.0.0	div	LineBox	0.00	0.00	50.00	10.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+keep_space_after_earlier_space	0.0.0.0.0	span	InlineBox	0.00	0.00	50.00	10.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+keep_space_after_earlier_space	0.0.0.0.0.0	span	TextBox	0.00	0.00	50.00	10.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	ab cd
+keep_space_after_earlier_space	0.0.0.1	div	LineBox	0.00	10.00	8.00	8.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+keep_space_after_earlier_space	0.0.0.1.0	div	TextBox	0.00	10.00	8.00	8.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	a

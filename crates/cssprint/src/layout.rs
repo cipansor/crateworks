@@ -634,11 +634,28 @@ fn collapse(text: &str, following_space: &mut bool) -> String {
 }
 
 /// A piece of inline content: a word, or a single space between two words.
+///
+/// A word with a break opportunity inside it (`foo-bar`) is split into several
+/// pieces, one per unit, so the line breaker can choose between them.
 struct Piece {
     ancestors: Vec<InlineAncestor>,
     style: Style,
     text: String,
     is_space: bool,
+    /// Whether a line may break immediately before this piece with no space,
+    /// because it follows a break opportunity inside a word (`foo-bar`).
+    breakable: bool,
+}
+
+/// Whether two pieces sit in the same inline element, i.e. belong to the same
+/// text box. The reference splits one text box at a time, so a decision about a
+/// space must not see pieces from a sibling box on the same line.
+fn same_ancestors(left: &[InlineAncestor], right: &[InlineAncestor]) -> bool {
+    left.len() == right.len()
+        && left
+            .iter()
+            .zip(right)
+            .all(|(left, right)| left.id == right.id)
 }
 
 /// A piece placed on a line, with the x it ended up at.
@@ -648,6 +665,20 @@ struct Placed {
     text: String,
     x: f64,
     width: f64,
+}
+
+/// A run of pieces a line may not be split inside, and where a break before it
+/// would fall.
+///
+/// An atom is a whole word, however many inline elements it crosses
+/// (`ab<span>cd</span>`), or one unit of a word that has a break opportunity
+/// inside it (`foo-` and `bar`). The break before an atom is either at a space -
+/// `space` holds it, and the break drops it - or inside a word, where `space` is
+/// `None` and no character is dropped.
+struct Atom {
+    pieces: Vec<Piece>,
+    width: f64,
+    space: Option<Piece>,
 }
 
 /// Flatten collapsed text nodes into words and single spaces.
@@ -661,6 +692,7 @@ fn pieces(items: &[Item]) -> Vec<Piece> {
         style: item.style.clone(),
         text: " ".to_owned(),
         is_space: true,
+        breakable: false,
     };
     let mut out = Vec::new();
     for item in items {
@@ -680,18 +712,150 @@ fn pieces(items: &[Item]) -> Vec<Piece> {
             if index > 0 {
                 out.push(space(item));
             }
-            out.push(Piece {
-                ancestors: item.ancestors.clone(),
-                style: item.style.clone(),
-                text: (*word).to_owned(),
-                is_space: false,
-            });
+            for (unit_index, unit) in break_units(word).into_iter().enumerate() {
+                out.push(Piece {
+                    ancestors: item.ancestors.clone(),
+                    style: item.style.clone(),
+                    text: unit.to_owned(),
+                    is_space: false,
+                    // Every unit but the first begins after a break
+                    // opportunity inside the word, so a line may start there.
+                    breakable: unit_index > 0,
+                });
+            }
         }
         if item.text.ends_with(' ') {
             out.push(space(item));
         }
     }
     out
+}
+
+/// The break opportunities inside one word, as maximal runs that may not be
+/// split further.
+///
+/// A break is allowed after certain punctuation even with no space, which the
+/// reference takes from Unicode's line-breaking algorithm (UAX #14) through
+/// Pango: `foo-bar` wraps as `foo-` / `bar` in a 64px block. The split is by
+/// class pair, not by a fixed character list, because `a-b` breaks after the
+/// hyphen while `3-4` does not - a hyphen between two numbers is part of the
+/// number, not an opportunity.
+///
+/// The units are the substrings between the opportunities. `ab` yields one unit,
+/// so a word with no punctuation stays indivisible; `foo-bar` yields `foo-` and
+/// `bar`.
+fn break_units(word: &str) -> Vec<&str> {
+    let mut units = Vec::new();
+    let mut start = 0;
+    let mut previous: Option<(usize, char)> = None;
+    for (index, character) in word.char_indices() {
+        if let Some((before_index, before)) = previous
+            && break_after(before, character)
+            // A word-initial hyphen does not break (UAX #14 LB20a): `-bar`
+            // stays whole even though `a-bar` breaks after its hyphen.
+            && !(before == '-' && before_index == 0)
+        {
+            units.push(&word[start..index]);
+            start = index;
+        }
+        previous = Some((index, character));
+    }
+    if start < word.len() {
+        units.push(&word[start..]);
+    }
+    if units.is_empty() {
+        units.push(word);
+    }
+    units
+}
+
+/// Whether a line may break between two adjacent characters with no space.
+///
+/// This is the ASCII subset of UAX #14 that the reference exercises. Both
+/// characters must be ASCII: the crate lays out one font and the reference's
+/// line breaking outside ASCII is not something the corpus pins, so anything
+/// else stays unbreakable rather than guessing.
+///
+/// The rule was read off the reference: every one of the 94 printable ASCII
+/// characters was set against every other in `aaX Yaa` at a width of three
+/// characters, and this predicate reproduces that table exactly.
+fn break_after(before: char, after: char) -> bool {
+    let (Some(before), Some(after)) = (line_class(before), line_class(after)) else {
+        return false;
+    };
+    use LineClass::*;
+    // Where the second character may not start a line.
+    if matches!(after, Cl | Cp | Ex | Is | Sy | Qu | Ba | Hy) {
+        return false;
+    }
+    // Where the first character may not end a line.
+    if matches!(before, Al | Nu | Op | Qu) {
+        return false;
+    }
+    // No break between a numeric prefix or postfix and the number it belongs to.
+    if matches!(before, Pr | Po | Is | Cp) && matches!(after, Al | Nu) {
+        return false;
+    }
+    // `3-4` is a number, not two.
+    if before == Hy && after == Nu {
+        return false;
+    }
+    true
+}
+
+/// The UAX #14 line-breaking class of an ASCII character.
+///
+/// Only the classes the pair rule above distinguishes are named; a character
+/// that is not ASCII has no class, which keeps it out of the rule.
+fn line_class(character: char) -> Option<LineClass> {
+    use LineClass::*;
+    Some(match character {
+        '0'..='9' => Nu,
+        '!' | '?' => Ex,
+        '"' | '\'' => Qu,
+        '$' | '+' | '\\' => Pr,
+        '%' => Po,
+        '(' | '[' | '{' => Op,
+        ')' | ']' => Cp,
+        '}' => Cl,
+        ',' | '.' | ':' | ';' => Is,
+        '/' => Sy,
+        '-' => Hy,
+        '|' => Ba,
+        c if c.is_ascii() => Al,
+        _ => return None,
+    })
+}
+
+/// The line-breaking class of an ASCII character, for the pair rule.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum LineClass {
+    /// Letters, and the symbols with no special break behaviour.
+    Al,
+    /// Digits.
+    Nu,
+    /// Opening brackets.
+    Op,
+    /// Closing brackets.
+    Cp,
+    /// Closing punctuation.
+    Cl,
+    /// Quotation marks.
+    Qu,
+    /// Exclamation and question marks.
+    Ex,
+    /// Infix separators.
+    Is,
+    /// Numeric prefixes.
+    Pr,
+    /// Numeric postfixes.
+    Po,
+    /// Hyphen.
+    Hy,
+    /// Symbols allowing a break after.
+    Sy,
+    /// Break-after marks.
+    Ba,
 }
 
 /// The empty boxes a line break leaves at the end of a line.
@@ -751,67 +915,139 @@ fn shape_lines(
     // narrower width; every later line starts at the block's edge.
     let mut leading = indent;
 
-    // Group the pieces into words first. A word is a maximal run of pieces with
-    // no space between them, however many inline elements that run crosses:
-    // `ab<span>cd</span>` is one word, because a break is only allowed at a
-    // space and there is none between `ab` and `cd`. Each word carries the space
-    // that preceded it, which is where a break before that word would fall.
-    let mut words: Vec<(Vec<Piece>, f64, Option<Piece>)> = Vec::new();
-    let mut word: Vec<Piece> = Vec::new();
-    let mut word_width = 0.0_f64;
+    // Group the pieces into atoms first. An atom is a whole word, however many
+    // inline elements it crosses - `ab<span>cd</span>` is one atom, because
+    // there is no space and no break opportunity between `ab` and `cd` - or one
+    // unit of a word that may break inside it, `foo-` and `bar` being two. Each
+    // atom carries the space that preceded it, when there was one; that is where
+    // a break before the atom falls, and it drops the space. An intra-word atom
+    // carries no space, so a break before it drops nothing.
+    let mut atoms: Vec<Atom> = Vec::new();
+    let mut atom: Vec<Piece> = Vec::new();
+    let mut atom_width = 0.0_f64;
+    let mut atom_space: Option<Piece> = None;
     for piece in pieces(items) {
         if piece.is_space {
-            if !word.is_empty() {
-                let width = word_width;
-                words.push((std::mem::take(&mut word), width, pending_space.take()));
-                word_width = 0.0;
+            if !atom.is_empty() {
+                let width = atom_width;
+                atoms.push(Atom {
+                    pieces: std::mem::take(&mut atom),
+                    width,
+                    space: atom_space.take(),
+                });
+                atom_width = 0.0;
             }
             pending_space = Some(piece);
             continue;
         }
-        word_width += advance(&piece.text, piece.style.font_size);
-        word.push(piece);
+        // A piece with a space before it, or one that begins after a break
+        // opportunity inside a word, starts a new atom. The first piece of an
+        // atom keeps the space that led to it.
+        if !atom.is_empty() && (piece.breakable || pending_space.is_some()) {
+            let width = atom_width;
+            atoms.push(Atom {
+                pieces: std::mem::take(&mut atom),
+                width,
+                space: atom_space.take(),
+            });
+            atom_width = 0.0;
+        }
+        if atom.is_empty() {
+            atom_space = pending_space.take();
+        }
+        atom_width += advance(&piece.text, piece.style.font_size);
+        atom.push(piece);
     }
-    if !word.is_empty() {
-        words.push((word, word_width, pending_space.take()));
+    if !atom.is_empty() {
+        atoms.push(Atom {
+            pieces: atom,
+            width: atom_width,
+            space: atom_space.take(),
+        });
     }
 
-    for (word, word_width, leading_space) in words {
+    for Atom {
+        pieces,
+        width: atom_width,
+        space,
+    } in atoms
+    {
         let available = width - leading;
-        let space_width = leading_space
+        let space_width = space
             .as_ref()
             .map_or(0.0, |space| advance(" ", space.style.font_size));
-        // The first word of a line is taken even when it does not fit, because
-        // there is nowhere earlier to break.
-        if let Some(space) = &leading_space
-            && !current.is_empty()
-            && x + space_width + word_width > available
-        {
-            // The break drops the space. When the space was the only content its
-            // box had on this line, the reference leaves that box behind empty.
-            let boundary = break_boundary(&current, space);
+        // The break happens when the atom does not fit and the line already has
+        // content. At a space the break drops the space, and when the space was
+        // the only content its box had on this line the reference leaves that
+        // box behind empty. Inside a word there is no space, so nothing is left.
+        //
+        // One case is not a break at all: when the space itself is what
+        // overflows and the atom after it would fit without the space, the
+        // reference drops the space and keeps the atom on the line rather than
+        // starting a new one. `abc ` at 24px against a 16px `a` in an 88px block
+        // wraps to `abca`, not `abc` / `a`, because the 24px space cannot follow
+        // `abc` but the 16px `a` can. The space fitting is what keeps this
+        // apart from an ordinary break: at 96px the space fits and the atom does
+        // not, so the line breaks normally instead.
+        //
+        // This only happens when the text box the space closes holds a single
+        // unbreakable unit on this line. The reference splits a text box at its
+        // last opportunity before deciding, so a box that already carries a
+        // space (`ab cd `) or a word with an intra-word opportunity (`a-b `)
+        // ends the line there and the space is kept. The check is scoped to the
+        // space's own box - the run of pieces sharing its inline ancestors - not
+        // to the whole line. A `foo-bar` whose `foo-` already wrapped leaves only
+        // `bar` here, and `bar` is a single unit, so the space drops.
+        let single_atom = space.as_ref().is_some_and(|space| {
+            let run_start = current
+                .iter()
+                .rposition(|piece| !same_ancestors(&piece.ancestors, &space.ancestors))
+                .map_or(0, |index| index + 1);
+            let run = &current[run_start..];
+            !run.is_empty()
+                && !run.iter().any(|piece| piece.is_space)
+                && !run.iter().skip(1).any(|piece| piece.breakable)
+        });
+        let overflows = !current.is_empty() && x + space_width + atom_width > available;
+        let drop_space = overflows
+            && space.is_some()
+            && single_atom
+            && x + space_width > available
+            && x + atom_width <= available;
+        if overflows && !drop_space {
+            let boundary = space
+                .as_ref()
+                .and_then(|space| break_boundary(&current, space));
             lines.push((std::mem::take(&mut current), leading, boundary));
             x = 0.0;
             leading = 0.0;
         }
-        if let Some(space) = leading_space
+        if let Some(space) = space
             && !current.is_empty()
+            && !drop_space
         {
             x += space_width;
             current.push(space);
         }
-        x += word_width;
-        current.extend(word);
+        x += atom_width;
+        current.extend(pieces);
     }
-    // A trailing collapsible space that overflows a line with a break in it
-    // starts a line of its own, which holds nothing and is dropped. The
-    // reference counts that line, so the one the space left is not last and
-    // takes `text-align` rather than `text-align-last`. A single word has no
-    // break to drop the space at, so it stays on the line and the line is last.
+    // A trailing collapsible space that overflows a line with an internal break
+    // opportunity starts a line of its own, which holds nothing and is dropped.
+    // The reference counts that line, so the one the space left is not last and
+    // takes `text-align` rather than `text-align-last`. The break has to be
+    // *inside* the line: a space between two words, or an intra-word break
+    // between two units both on this line. A break at the line's own start does
+    // not count, which is why `a/b ` wraps its space onto its own line but the
+    // `c` that `a-b-c ` ends with does not - `c` begins the line, so there is
+    // nothing before it to break from.
     let phantom = match &pending_space {
         Some(space) => {
             !current.is_empty()
-                && current.iter().any(|piece| piece.is_space)
+                && current
+                    .iter()
+                    .enumerate()
+                    .any(|(index, piece)| piece.is_space || (piece.breakable && index > 0))
                 && x + advance(" ", space.style.font_size) > width - leading
         }
         None => false,

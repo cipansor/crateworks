@@ -29,15 +29,16 @@ Needs `pip install weasyprint`. Run from the repository root:
     python3 research/tools/gen_weasyprint_layout.py crates/cssprint
 
 The corpus covers the box model (width, height, margin, padding, border), block
-layout, inline layout, text alignment and `text-indent`. The committed fixture is
-the hand-picked list in `cases()`. `--random N` appends a deterministic random
-list from the same implemented property set, with a fixed seed, for differential
-testing; the crate does not match the reference on every random document yet, so
-those cases are not written to the fixture. Text is reproducible because the
-cases load the reference's own test font: `weasyprint.otf` is derived from Ahem,
-so every glyph advances exactly one em, the ascent is 819/1024 em, the descent
-205/1024 em and the normal line height is one em. Line breaking is then
-arithmetic, not a guess about installed fonts.
+layout, inline layout, line breaking, text alignment and `text-indent`. The
+committed fixture is the hand-picked list in `cases()`. `--random N` appends a
+deterministic random list from the same implemented property set, with a fixed
+seed, for differential testing; the crate agrees with the reference on the
+shipped seed, so the corpus is a regression check, but a fresh seed can still
+surface a divergence and those cases are not written to the committed fixture.
+Text is reproducible because the cases load the reference's own test font:
+`weasyprint.otf` is derived from Ahem, so every glyph advances exactly one em,
+the ascent is 819/1024 em, the descent 205/1024 em and the normal line height is
+one em. Line breaking is then arithmetic, not a guess about installed fonts.
 
 The font file belongs to WeasyPrint and is not redistributed here; pass its
 location with `--font` or clone WeasyPrint next to the workspace. Only the
@@ -55,13 +56,29 @@ import sys
 
 PAGE = "@page { size: %dpx %dpx; margin: 0 }"
 
+# The page height the random corpus is written with. It is a page no document
+# reaches, so the reference never clips: the crate lays out at the page width
+# only and models no pagination, so a page shorter than the content cuts the
+# reference's tree off and the two trees differ for a reason that is not a layout
+# bug. The page's own height is not compared - the fixture writes the page box and
+# `html` at the same path, so the later row wins - but the *clip* it causes is
+# real, and a page taller than any random document removes it.
+_NO_CLIP_HEIGHT = 100_000_000
+
 # The generator's random corpus draws from the features the crate implements, so
 # a difference is a bug rather than an unimplemented property. Keep this list in
 # step with the crate: adding a property here is how it gets checked.
 _RANDOM_SEED = 20261116
 _RANDOM_COUNT = 400
 _ALIGNMENTS = ["left", "right", "center", "start", "end", "justify"]
-_WORDS = ["a", "ab", "abc", "hello", "world", "lorem", "ipsum", "dolor", "sit"]
+_WORDS = [
+    "a", "ab", "abc", "hello", "world", "lorem", "ipsum", "dolor", "sit",
+    # Words with a break opportunity inside them, so the corpus exercises line
+    # breaking at punctuation and not only at spaces: `foo-bar` may wrap after
+    # the hyphen, `3-4` may not.
+    "foo-bar", "well-known", "e-mail", "self-test", "a/b", "foo/bar", "3-4",
+    "a-b", "x!y", "p|q", "a-b-c",
+]
 
 
 def _length(
@@ -172,10 +189,13 @@ def _block(rng: random.Random, depth: int, tag: str = "div") -> str:
 
 def random_document(rng: random.Random) -> str:
     """One random document, built only from the features the crate implements."""
-    # A tall page, so a random document stays on one page: the crate lays out at
-    # the page width only and the fixture records absolute positions, so a case
-    # that paginated would not be comparable.
-    page = PAGE % (200, 5000)
+    # A page no random document reaches, so the reference does not clip: the crate
+    # lays out at the page width only and models no pagination, so a document
+    # taller than its page would have its tree cut off in the reference and the
+    # two would differ over boxes the crate lays out correctly. The height is not
+    # itself compared (the fixture's page box is shadowed by `html`), but the clip
+    # it avoids is.
+    page = PAGE % (200, _NO_CLIP_HEIGHT)
     # The body always selects the reference's test font and pins its margin. The
     # crate lays out one font and has no user-agent stylesheet, so a case that
     # left either to the reference's defaults would compare a value the crate
@@ -419,6 +439,27 @@ def cases() -> list[tuple[str, str]]:
                                                "div{font-family:weasyprint;font-size:16px;"
                                                "width:90px;text-align:end;text-align-last:start}"
                                                "</style><div>ab cd </div><div>lorem </div>"),
+        # When the space itself overflows but the word after it would fit without
+        # it, the reference drops the space and keeps the word on the line. The
+        # 24px space cannot follow `abc`, but the 16px `a` can, so the line is
+        # `abca` rather than `abc` / `a`. This only holds while the box the space
+        # closes is a single unbreakable word.
+        ("drop_space_when_space_overflows", f"<style>{page}body{{margin:0}}"
+                                            "div{font-family:weasyprint;font-size:16px;"
+                                            "width:88px}</style>"
+                                            '<div><span style="font-size:24px">abc </span>a</div>'),
+        # The counter-case: the box before the space holds a break opportunity
+        # (`a-b `) or an earlier space (`ab cd `), so the reference ends the line
+        # at that opportunity and keeps the space. Same widths as the case above,
+        # so only the presence of the opportunity separates them.
+        ("keep_space_when_word_breaks", f"<style>{page}body{{margin:0}}"
+                                        "div{font-family:weasyprint;font-size:8px;"
+                                        "width:38px}</style>"
+                                        '<div><span style="font-size:10px">a-b </span>a</div>'),
+        ("keep_space_after_earlier_space", f"<style>{page}body{{margin:0}}"
+                                           "div{font-family:weasyprint;font-size:8px;"
+                                           "width:58px}</style>"
+                                           '<div><span style="font-size:10px">ab cd </span>a</div>'),
     ]
 
 
@@ -535,9 +576,9 @@ def main() -> int:
     parser.add_argument("--show", action="store_true", help="print each tree to stdout")
     parser.add_argument(
         "--random", type=int, default=0, metavar="N",
-        help="append N random documents, for differential testing; the crate does "
-             "not match the reference on all of them yet, so they are not written "
-             "to the committed fixture",
+        help="append N random documents, for differential testing; the shipped "
+             "seed matches, but a fresh seed can still surface a divergence, so "
+             "they are not written to the committed fixture",
     )
     parser.add_argument("--font", help="path to the reference's weasyprint.otf")
     args = parser.parse_args()
