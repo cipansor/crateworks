@@ -4,7 +4,8 @@
 [![docs.rs](https://docs.rs/iso20022-rs/badge.svg)](https://docs.rs/iso20022-rs)
 
 ISO 20022 payment messages: `pacs` interbank credit transfers and payment
-status reports, `camt` bank statements and `pain` payment initiation.
+status reports, `camt` bank statements and `pain` payment initiation and status
+reports.
 
 ```rust
 use iso20022_rs::camt::BankStatement;
@@ -79,6 +80,31 @@ compares the string.
 computed from the transfers so the output is internally consistent. Generating
 one requires the debtor bank BIC and a requested execution date, because the
 schema marks `DbtrAgt` and `ReqdExctnDt` as required.
+
+`pain.002` is the bank's answer to a `pain.001`. It says whether the instruction,
+or a payment inside it, was accepted, rejected or is still pending, and why. It
+carries the group-level outcome, the outcome of each payment instruction, and the
+outcome of each payment inside those instructions, so it can be read and
+generated:
+
+```rust
+use iso20022_rs::pain::CustomerPaymentStatusReport;
+
+let xml = r#"<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pain.002.001.10">
+  <CstmrPmtStsRpt>
+    <GrpHdr><MsgId>S1</MsgId><CreDtTm>2026-01-01T00:00:00Z</CreDtTm></GrpHdr>
+    <OrgnlGrpInfAndSts>
+      <OrgnlMsgId>MSG-1</OrgnlMsgId>
+      <OrgnlMsgNmId>pain.001.001.09</OrgnlMsgNmId>
+      <GrpSts>ACCP</GrpSts>
+    </OrgnlGrpInfAndSts>
+  </CstmrPmtStsRpt>
+</Document>"#;
+
+let report = CustomerPaymentStatusReport::parse(xml).unwrap();
+assert_eq!(report.original_group.original_message_name_id, "pain.001.001.09");
+assert_eq!(report.original_group.group_status.as_deref(), Some("ACCP"));
+```
 
 ISO 20022 is the XML message standard that is replacing the older SWIFT MT
 formats. It is organised into business areas whose message names carry a

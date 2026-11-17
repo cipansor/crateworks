@@ -138,6 +138,52 @@ PACS002 = """<?xml version="1.0" encoding="UTF-8"?>
   </FIToFIPmtStsRpt>
 </Document>"""
 
+PAIN002 = """<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pain.002.001.10">
+  <CstmrPmtStsRpt>
+    <GrpHdr>
+      <MsgId>PAIN002-001</MsgId>
+      <CreDtTm>2026-10-21T09:40:00Z</CreDtTm>
+      <FwdgAgt><FinInstnId><BICFI>DEUTDEFFXXX</BICFI></FinInstnId></FwdgAgt>
+      <DbtrAgt><FinInstnId><BICFI>DEUTDEFFXXX</BICFI></FinInstnId></DbtrAgt>
+      <CdtrAgt><FinInstnId><BICFI>COBADEFFXXX</BICFI></FinInstnId></CdtrAgt>
+    </GrpHdr>
+    <OrgnlGrpInfAndSts>
+      <OrgnlMsgId>PAIN001-MSG-1</OrgnlMsgId>
+      <OrgnlMsgNmId>pain.001.001.09</OrgnlMsgNmId>
+      <OrgnlCreDtTm>2026-10-21T09:30:00Z</OrgnlCreDtTm>
+      <OrgnlNbOfTxs>2</OrgnlNbOfTxs>
+      <OrgnlCtrlSum>150.00</OrgnlCtrlSum>
+      <GrpSts>PART</GrpSts>
+    </OrgnlGrpInfAndSts>
+    <OrgnlPmtInfAndSts>
+      <OrgnlPmtInfId>PAIN001-MSG-1-PMT</OrgnlPmtInfId>
+      <OrgnlNbOfTxs>2</OrgnlNbOfTxs>
+      <OrgnlCtrlSum>150.00</OrgnlCtrlSum>
+      <PmtInfSts>PART</PmtInfSts>
+      <TxInfAndSts>
+        <StsId>STS-1</StsId>
+        <OrgnlInstrId>INSTR-1</OrgnlInstrId>
+        <OrgnlEndToEndId>E2E-1</OrgnlEndToEndId>
+        <TxSts>ACSC</TxSts>
+        <AccptncDtTm>2026-10-21T09:40:00Z</AccptncDtTm>
+        <AcctSvcrRef>ACCT-REF-1</AcctSvcrRef>
+        <ClrSysRef>CLR-1</ClrSysRef>
+      </TxInfAndSts>
+      <TxInfAndSts>
+        <StsId>STS-2</StsId>
+        <OrgnlInstrId>INSTR-2</OrgnlInstrId>
+        <OrgnlEndToEndId>E2E-2</OrgnlEndToEndId>
+        <TxSts>RJCT</TxSts>
+        <StsRsnInf>
+          <Rsn><Cd>AC01</Cd></Rsn>
+          <AddtlInf>Account identifier invalid</AddtlInf>
+        </StsRsnInf>
+      </TxInfAndSts>
+    </OrgnlPmtInfAndSts>
+  </CstmrPmtStsRpt>
+</Document>"""
+
 # message key -> (schema URL, crate type, fixture)
 CASES = {
     "pacs008": (
@@ -154,6 +200,11 @@ CASES = {
         f"{BASE}/pacs/schemas/pacs.002.001.10.xsd",
         "iso20022_rs::pacs::PaymentStatusReport",
         PACS002,
+    ),
+    "pain002": (
+        f"{BASE}/pain/schemas/pain.002.001.10.xsd",
+        "iso20022_rs::pain::CustomerPaymentStatusReport",
+        PAIN002,
     ),
 }
 

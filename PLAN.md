@@ -183,11 +183,14 @@ The only crate on crates.io is from 2020 and unmaintained.
 credit/debit sign, counterparty, remittance and value date; closing balance
 either as reported or computed from the entries. `pain.001` payment initiation:
 read and generate, with the control sum and transaction count computed from the
-transfers so the output cannot disagree with itself. `pacs.008` interbank
-customer credit transfers, read and generate. `pacs.002` payment status reports,
-the answer to a `pacs.008`: group and per-transaction status, with the reason
-codes kept as written. Generated `pacs.008` and `pacs.002` documents are checked
-against the official schemas.
+transfers so the output cannot disagree with itself. `pain.002` customer payment
+status reports, the bank's answer to a `pain.001`: the group outcome, the outcome
+of each payment instruction and of each payment inside it, with the reason codes
+kept as written. `pacs.008` interbank customer credit transfers, read and
+generate. `pacs.002` payment status reports, the answer to a `pacs.008`: group
+and per-transaction status, with the reason codes kept as written. Generated
+`pacs.008`, `pacs.002`, `pain.001` and `pain.002` documents are checked against
+the official schemas.
 
 **Not covered.** The other `pacs` and `camt` variants, schema validation inside
 the crate, and the full generated type set. Amounts use `f64` with the original
