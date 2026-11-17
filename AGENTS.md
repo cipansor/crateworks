@@ -308,6 +308,16 @@ that branch order or the held-out check tests the wrong thing.
   children, so its line stays 16px and the empty inline box is missing. A
   whitespace-only node is different and already handled (see `push_text`): it
   survives as an empty text box, not an empty inline box.
+- **A trailing space only makes a phantom line when it shares its text node with
+  the content.** When a trailing collapsible space overflows a line that already
+  has an internal break opportunity, WeasyPrint starts a line of its own for the
+  space, drops it, and counts it - so the line it left is not last and takes
+  `text-align` rather than `text-align-last`. A whitespace-only node never does
+  this: the reference drops it from the box the line keeps and leaves that box
+  empty, so the line stays last. `cssprint` had the phantom test fire for both;
+  the fix is the `!space.lone` guard in `shape_lines`. The two differ only in how
+  the space was written, so a curated case for each sits side by side
+  (`align_last_trailing_space_overflow`, `align_last_trailing_lone_space_keeps_line`).
 - **`cargo publish` resolves path dependencies against the registry.** A crate
   that depends on `xmlkit` cannot be packaged until `xmlkit` is *published*, and
   the error ("no matching package named `xmlkit` found") reads like a broken

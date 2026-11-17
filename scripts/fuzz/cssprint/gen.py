@@ -70,7 +70,12 @@ _NO_CLIP_HEIGHT = 100_000_000
 # a difference is a bug rather than an unimplemented property. Keep this list in
 # step with the crate: adding a property here is how it gets checked.
 _RANDOM_SEED = 20261116
-_RANDOM_COUNT = 400
+# A few thousand inputs, as the repository standard asks for. At 400 the corpus
+# missed a whole class of divergence - a redundant space dropped at a line break
+# inside an inline box - because the draw rarely put a whitespace-only node
+# between two elements. The TSV is ~30 MB of text but compresses to ~2 MB in git,
+# and the replay is a couple of seconds.
+_RANDOM_COUNT = 2000
 _ALIGNMENTS = ["left", "right", "center", "start", "end", "justify"]
 _WORDS = [
     "a", "ab", "abc", "hello", "world", "lorem", "ipsum", "dolor", "sit",
@@ -168,7 +173,15 @@ def _inline(rng: random.Random, depth: int) -> str:
     would compare a face the crate does not have.
     """
     parts = []
-    for _ in range(rng.randrange(1, 4)):
+    for index in range(rng.randrange(1, 4)):
+        if index > 0 and rng.random() < 0.4:
+            # A bare whitespace-only text node between two pieces. The first
+            # piece is never preceded by one, so a nested `span` is never left
+            # holding only whitespace, which the crate does not model as a box.
+            # These nodes are what carry the whitespace-collapse state across an
+            # element boundary, where a redundant space can otherwise pick up the
+            # wrong font.
+            parts.append(rng.choice([" ", "  ", " \n ", "\t"]))
         if depth < 2 and rng.random() < 0.4:
             style = ""
             if rng.random() < 0.3:
@@ -176,6 +189,10 @@ def _inline(rng: random.Random, depth: int) -> str:
             parts.append(f"<span{style}>{_inline(rng, depth + 1)}</span>")
         else:
             parts.append(_text(rng))
+    if rng.random() < 0.15:
+        # A trailing whitespace-only node, which a line break drops like one in
+        # the middle and which leaves the same empty box behind.
+        parts.append(rng.choice([" ", "  "]))
     return "".join(parts)
 
 
@@ -446,6 +463,15 @@ def cases() -> list[tuple[str, str]]:
                                                "div{font-family:weasyprint;font-size:16px;"
                                                "width:90px;text-align:end;text-align-last:start}"
                                                "</style><div>ab cd </div><div>lorem </div>"),
+        # The phantom line only happens when the trailing space shares its text
+        # node with the line's content. A whitespace-only node is dropped from a
+        # box the line keeps, so it leaves the empty box behind (above) rather
+        # than a phantom line, and the line stays last. Same content and width as
+        # the case above, so the two differ only in how the space was written.
+        ("align_last_trailing_lone_space_keeps_line", f"<style>{page}body{{margin:0}}"
+                                                      "div{font-family:weasyprint;font-size:16px;"
+                                                      "width:90px;text-align:end;text-align-last:start}"
+                                                      "</style><div>ab cd<span> </span></div>"),
         # When the space itself overflows but the word after it would fit without
         # it, the reference drops the space and keeps the word on the line. The
         # 24px space cannot follow `abc`, but the 16px `a` can, so the line is
@@ -536,6 +562,20 @@ def cases() -> list[tuple[str, str]]:
         ("dropped_lone_space_at_block", f"<style>{page}body{{margin:0}}"
                                         "div{font-family:weasyprint;font-size:16px;width:16px}"
                                         "</style><div><span>a</span> <span>b</span></div>"),
+        # A lone space whose own box is a *strict ancestor* of the line's last
+        # content is the same rule one level in: the empty text box belongs to
+        # the box the space sat in, not to the block. The space's box is the
+        # outer span and the content's box is the inner span, so the empty text
+        # box appears inside the outer span, after the content.
+        ("dropped_lone_space_in_ancestor_box", f"<style>{page}body{{margin:0}}"
+                                               "div{font-family:weasyprint;font-size:16px;width:32px}"
+                                               "</style><div><span><span>aa</span> <span>bb</span></span></div>"),
+        # A whitespace-only node at the *end* of the block is dropped like one at
+        # a break, and leaves the same empty box when it was the whole of its
+        # text node: here the trailing box is the space's own inline box.
+        ("dropped_trailing_lone_space_in_box", f"<style>{page}body{{margin:0}}"
+                                               "div{font-family:weasyprint;font-size:16px;width:32px}"
+                                               "</style><div><span>aa</span><span> </span></div>"),
         # The nested variant: the whole chain of inline boxes the space sat in is
         # left empty, each one wrapping the next down to the empty text box.
         ("dropped_lone_space_nested", f"<style>{page}body{{margin:0}}"
@@ -547,6 +587,27 @@ def cases() -> list[tuple[str, str]]:
         ("dropped_lone_space_smaller_box", f"<style>{page}body{{margin:0}}"
                                            "div{font-family:weasyprint;font-size:16px;width:16px}"
                                            "</style><div>a<span style=\"font-size:10px\"> </span>b</div>"),
+        # A duplicate space removed from a whitespace-only node must not clear
+        # the collapse state: the first space (16px) survives, so the line is
+        # `a ` + `b` = 56px and fits in 60px, rather than keeping the 24px space
+        # of the next element and wrapping. The state is read from the text
+        # before the duplicate is dropped, as the reference does. A whitespace-only
+        # node between two elements is what makes the state carry across a node
+        # boundary; a run of spaces inside one node is folded before it is read.
+        ("redundant_space_between_inline_elements", f"<style>{page}body{{margin:0}}"
+                                                    "div{font-family:weasyprint;font-size:16px;width:60px}"
+                                                    "</style><div><span>a </span> <span style=\"font-size:24px\"> b</span></div>"),
+        # The same with the redundant space written as a line break, which
+        # collapses to the same single space.
+        ("redundant_space_newline_between_elements", f"<style>{page}body{{margin:0}}"
+                                                     "div{font-family:weasyprint;font-size:16px;width:60px}"
+                                                     "</style><div><span>a </span>\n <span style=\"font-size:24px\"> b</span></div>"),
+        # A whitespace-only node whose space is dropped at the end of a line
+        # still leaves the state set, so the next element's leading space is
+        # folded away rather than starting a new line of its own.
+        ("redundant_space_at_line_end", f"<style>{page}body{{margin:0}}"
+                                        "div{font-family:weasyprint;font-size:16px;width:48px}"
+                                        "</style><div><span>abcd </span> <span style=\"font-size:24px\"> b</span></div>"),
     ]
 
 

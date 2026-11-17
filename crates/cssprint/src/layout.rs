@@ -626,10 +626,17 @@ fn collapse(text: &str, following_space: &mut bool) -> String {
     if pending_space {
         collapsed.push(' ');
     }
+    // The state that carries to the next node is read from the collapsed text
+    // *before* a duplicate leading space is removed, so a node that was nothing
+    // but that duplicate still leaves the state set. Reading it after the
+    // removal would clear the state and let the next node's leading space
+    // survive, which brings that node's font size into the line instead of the
+    // first space's.
+    let ends_with_space = collapsed.ends_with(' ');
     if *following_space && collapsed.starts_with(' ') {
         collapsed.remove(0);
     }
-    *following_space = collapsed.ends_with(' ');
+    *following_space = ends_with_space;
     collapsed
 }
 
@@ -1055,11 +1062,15 @@ fn break_boundary(current: &[Piece], space: &Piece) -> Option<(Vec<InlineAncesto
         .count();
     if common == space_path.len() {
         // The space's box is a prefix of the last content's, so the space was
-        // stripped from a box the line keeps, unless the space is at the block
-        // level and the content it preceded is inside an inline box, which the
-        // reference leaves as an empty text box for the block.
-        if space.lone && space_path.is_empty() && !last.ancestors.is_empty() {
-            Some((Vec::new(), 0, true))
+        // stripped from a box the line keeps. A whitespace-only node whose box
+        // is a *strict* ancestor of the content's leaves an empty text box in
+        // that ancestor box, tagged and styled with it; the reference appends it
+        // after the content. The block level is the same case with an empty
+        // prefix. When the space's box is the content's own box (`common ==
+        // space_path.len() == last.ancestors.len()`) the reference strips the
+        // space and leaves nothing.
+        if space.lone && space_path.len() < last.ancestors.len() {
+            Some((Vec::new(), space_path.len(), true))
         } else {
             None
         }
@@ -1224,9 +1235,15 @@ fn shape_lines(
     // not count, which is why `a/b ` wraps its space onto its own line but the
     // `c` that `a-b-c ` ends with does not - `c` begins the line, so there is
     // nothing before it to break from.
+    //
+    // The space must also share its text node with the line's content. A
+    // whitespace-only node never makes the extra line: the reference drops it
+    // from the box the line keeps and leaves that box empty, which is the
+    // boundary case below rather than a phantom line.
     let phantom = match &pending_space {
         Some(space) => {
-            !current.is_empty()
+            !space.lone
+                && !current.is_empty()
                 && current
                     .iter()
                     .enumerate()
@@ -1236,7 +1253,18 @@ fn shape_lines(
         None => false,
     };
     if !current.is_empty() {
-        lines.push((current, leading, None));
+        // A trailing space that ends the block is dropped like one at a break,
+        // and leaves the same empty box behind when it was the whole of its
+        // text node. The phantom case is different: the space starts a line of
+        // its own, which holds nothing and is dropped, so it leaves no box.
+        let boundary = if phantom {
+            None
+        } else {
+            pending_space
+                .as_ref()
+                .and_then(|space| break_boundary(&current, space))
+        };
+        lines.push((current, leading, boundary));
     }
 
     // The last line is aligned by `text-align-last`, every other line by
@@ -1372,16 +1400,20 @@ fn build_line(
     let height = max_y - min_y;
 
     let content_width: f64 = items.iter().map(|item| item.width).sum();
+    let block = Block {
+        style: block_style,
+        tag,
+    };
     let mut children = nest(
         &items,
         0,
         baseline,
-        block_style,
-        tag,
+        &block,
         boundary
             .as_ref()
             .map(|(chain, attach, lone)| (chain.as_slice(), *attach, *lone)),
         content_width,
+        None,
     );
     // The indent shifts the line's content, not the line box itself.
     for child in &mut children {
@@ -1434,6 +1466,13 @@ fn justify(items: &mut [Placed], extra: f64) {
     }
 }
 
+/// The block a line belongs to: its style and tag, which an empty box at the
+/// block level is built from.
+struct Block<'a> {
+    style: &'a Style,
+    tag: &'a str,
+}
+
 /// Group a line's boxes into inline boxes, returning the outermost ones.
 ///
 /// `line_baseline` is the baseline measured from the line's content-box top, so
@@ -1446,15 +1485,18 @@ fn justify(items: &mut [Placed], extra: f64) {
 /// share. The empty boxes go inside that many levels, because the reference
 /// keeps them where the space sat rather than beside the line's content.
 /// `end_x` is the line's content end, from the line's left edge, which is where
-/// the outermost empty box goes.
+/// the outermost empty box goes. `enclosing` is the box this run sits inside,
+/// or `None` for the line itself; an empty chain that creates no box of its own
+/// takes its tag and style from it, because the reference appends the empty text
+/// box to the box the dropped space sat in.
 fn nest(
     items: &[Placed],
     depth: usize,
     line_baseline: f64,
-    block_style: &Style,
-    block_tag: &str,
+    block: &Block,
     tail: Option<(&[InlineAncestor], usize, bool)>,
     end_x: f64,
+    enclosing: Option<&InlineAncestor>,
 ) -> Vec<Fragment> {
     // Split the items into runs that share the ancestor at this depth.
     struct Group {
@@ -1493,7 +1535,7 @@ fn nest(
     let mut out = Vec::new();
     for group in &groups {
         let Some(ancestor) = &group.ancestor else {
-            out.push(text_box(&items[group.start], line_baseline, block_tag));
+            out.push(text_box(&items[group.start], line_baseline, block.tag));
             continue;
         };
         // The tail travels down the run that holds the line's last content,
@@ -1504,10 +1546,10 @@ fn nest(
             &items[group.start..group.end],
             depth + 1,
             line_baseline,
-            block_style,
-            block_tag,
+            block,
             inner_tail,
             end_x,
+            Some(ancestor),
         );
         let left = children.first().map_or(0.0, |child| child.x_offset);
         let right = children
@@ -1547,9 +1589,9 @@ fn nest(
             lone,
             end_x,
             line_baseline,
-            block_style,
-            block_tag,
+            block,
             None,
+            enclosing,
         ));
     }
     out
@@ -1570,23 +1612,27 @@ fn empty_boxes(
     lone: bool,
     x: f64,
     line_baseline: f64,
-    block_style: &Style,
-    block_tag: &str,
+    block: &Block,
     parent_ascent: Option<f64>,
+    enclosing: Option<&InlineAncestor>,
 ) -> Vec<Fragment> {
     let Some(ancestor) = chain.first() else {
-        // The block's own box: an empty text box with the block's line height,
-        // which is what the reference leaves for a whitespace-only node dropped
-        // at the block level when the line's last content sat inside an inline
-        // box.
+        // An empty chain is a dropped space whose box is an ancestor of the
+        // line's last content, so the empty text box belongs to the box the
+        // space sat in: `enclosing` when the space was inside an inline box,
+        // and the block itself at the top level.
+        let (tag, style) = match enclosing {
+            Some(ancestor) => (ancestor.tag.clone(), ancestor.style.clone()),
+            None => (block.tag.to_owned(), block.style.clone()),
+        };
         return vec![Fragment {
             kind: BoxKind::Text,
-            tag: block_tag.to_owned(),
+            tag,
             x_offset: x,
-            y_offset: line_baseline - ascent(block_style),
+            y_offset: line_baseline - ascent(&style),
             width: 0.0,
-            height: block_style.font_size,
-            margin: half_leading_sides(block_style),
+            height: style.font_size,
+            margin: half_leading_sides(&style),
             padding: Sides::default(),
             border: Sides::default(),
             text: Some(String::new()),
@@ -1602,9 +1648,9 @@ fn empty_boxes(
             lone,
             0.0,
             line_baseline,
-            block_style,
-            block_tag,
+            block,
             Some(own_ascent),
+            enclosing,
         ),
         // The innermost box holds the dropped space's text box, which the
         // reference keeps only when the space was its own text node.
