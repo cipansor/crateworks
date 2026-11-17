@@ -502,7 +502,11 @@ placed by `text-align` - `left`, `right`, `center`, `start`, `end` and `justify`
 with `justify` widening the spaces so every line but the last fills the block,
 and `text-align-last` overriding the final line; `text-indent` shifts the first
 line of a block. Styles come from a stylesheet and an inline `style` attribute,
-with the attribute winning.
+with the attribute winning. A stylesheet selector may be a comma-separated list
+of complex selectors, each a chain of compound selectors (a tag, an `#id`, a
+`.class`, the universal `*`, or a combination) joined by a descendant or child
+(`>`) combinator, and the cascade orders by specificity first, source order
+second, as the reference does.
 
 Text is measured for one font: the monospace font the checked corpus uses, where
 every glyph advances exactly one em and the ascent is 819/1024 em. A word's width
@@ -510,8 +514,9 @@ is its character count times the font size, so the fixture is arithmetic. A
 proportional font would need a metrics source, which is future work.
 
 **Not covered.** Floats, `position`, tables, flex, grid and pagination.
-`white-space: pre` and `br` are absent, as are descendant selectors,
-pseudo-classes and at-rules.
+`white-space: pre` and `br` are absent, as are attribute selectors,
+pseudo-classes, pseudo-elements, at-rules, sibling combinators (`+`, `~`) and a
+block box inside an inline box.
 
 **How it is checked.** Against WeasyPrint's own box tree, not against rendered
 PDFs. `tests/fixtures/layout.tsv` holds the tree WeasyPrint produces for each
@@ -525,12 +530,16 @@ so the text cases are arithmetic and the fixture is identical on every machine.
 for a deterministic random corpus of 400 documents over the same property set,
 committed and replayed by the test, so the random cases are a regression gate and
 not only a development aid; `--random N` overrides the count for a fresh seed.
-The crate agrees with the reference on all 400 cases it draws. The random corpus
-is what caught the seam rule: the crate never broke a line at the boundary
-between two adjacent text nodes, and the reference breaks there whenever the two
-adjacent characters are a break opportunity on their own, which is why
-`3%<span>$(3</span>` wraps where `3%$(3` in one node does not. This is what the
-fixture caught while the
+Selector matching has its own pair of corpora, `selector_layout.tsv` /
+`selector_cases.tsv` and `selector_fuzz.tsv` / `selector_fuzz_cases.tsv`, drawn
+from documents whose elements carry ids and classes and a stylesheet of
+descendant and child selectors over them; `--selectors N` overrides the random
+selector count. The crate agrees with the reference on all 400 cases it draws and
+on all 1,200 selector cases. The random corpus is what caught the seam rule: the
+crate never broke a line at the boundary between two adjacent text nodes, and the
+reference breaks there whenever the two adjacent characters are a break
+opportunity on their own, which is why `3%<span>$(3</span>` wraps where `3%$(3`
+in one node does not. This is what the fixture caught while the
 crate was being written: the page box being confused with `html`, the missing
 synthesised `body`, the collapse rule
 attributing a margin to the wrong box, WeasyPrint's departure from CSS 2.1 where

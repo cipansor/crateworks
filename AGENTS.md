@@ -318,6 +318,22 @@ that branch order or the held-out check tests the wrong thing.
   the fix is the `!space.lone` guard in `shape_lines`. The two differ only in how
   the space was written, so a curated case for each sits side by side
   (`align_last_trailing_space_overflow`, `align_last_trailing_lone_space_keeps_line`).
+- **WeasyPrint gives the `style` attribute id specificity, so an id rule beats
+  it.** The spec puts the `style` attribute above every author rule, but
+  WeasyPrint's cascade assigns it specificity `(1,0,0)` - equal to a single id -
+  and then applies the sheet's rules *after* it, so `#x{width:30px}` overrides
+  `style="width:90px"` on the same element. `cssprint` follows the spec and lets
+  the attribute win, so a corpus case pairing an inline style with an id selector
+  would disagree for a reason that is not a crate bug. Pair the inline style with
+  a class selector instead (the attribute still wins there, in both engines) or
+  leave the pair out. See the cascade loop in the reference's
+  `css/__init__.py`, which sets `layer_order = inf` for the attribute and gives
+  it `specificity` `(1,0,0)`.
+- **A descendant selector over an inline ancestor needs the chain, not just the
+  block parents.** `collect` walks the inline subtree separately from
+  `layout_element`, so a selector like `div span` only matches if the inline
+  elements opened so far are pushed onto the same ancestor chain the block walk
+  builds. Both walks now thread that chain (`Walk::ancestors`, `Collector::chain`).
 - **`cargo publish` resolves path dependencies against the registry.** A crate
   that depends on `xmlkit` cannot be packaged until `xmlkit` is *published*, and
   the error ("no matching package named `xmlkit` found") reads like a broken

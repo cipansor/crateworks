@@ -165,10 +165,14 @@ fn initial_display(element: &Element) -> Display {
 /// Returns [`Error::Malformed`] when a declaration cannot be read.
 /// `parent` supplies the inherited properties, which are `font-size` and
 /// `line-height`. The root element passes `None` and gets the defaults.
+/// `ancestors` are the element's ancestors, root first and parent last, which a
+/// descendant or child selector needs to match; the root element passes an
+/// empty slice.
 pub(crate) fn compute(
     element: &Element,
     stylesheet: &Stylesheet,
     parent: Option<&Style>,
+    ancestors: &[&Element],
 ) -> Result<Style, Error> {
     let inherited = parent.cloned().unwrap_or_default();
     let mut style = Style {
@@ -182,10 +186,10 @@ pub(crate) fn compute(
     };
 
     // The stylesheet comes first so that the inline attribute, applied second,
-    // wins. A later declaration of the same property always replaces an earlier
-    // one, which is the cascade this crate supports.
+    // wins. The stylesheet's declarations arrive in cascade order, so a later,
+    // more specific one replaces an earlier one.
     let mut declarations: Vec<Declaration> = stylesheet
-        .declarations_for(element)
+        .declarations_for(element, ancestors)
         .into_iter()
         .cloned()
         .collect();

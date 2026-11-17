@@ -27,14 +27,21 @@ Needs `pip install weasyprint`. Run from the repository root; with no crate
 directory it writes to `crates/cssprint`.
 
 The corpus covers the box model (width, height, margin, padding, border), block
-layout, inline layout, line breaking, text alignment and `text-indent`. The
-committed fixtures are the hand-picked list in `cases()` and the deterministic
-random list in `random_cases()`, with a fixed seed, drawn from the same
-implemented property set. Both are written to the crate and replayed by
+layout, inline layout, line breaking, text alignment, `text-indent`, and selector
+matching. The committed fixtures are the hand-picked list in `cases()` and the
+deterministic random list in `random_cases()`, with a fixed seed, drawn from the
+same implemented property set. Both are written to the crate and replayed by
 `tests/layout.rs`, so the random list is a regression gate and not only a
 development aid. `--random N` overrides the random count, which is how a fresh
 seed is explored: a fresh seed can still surface a divergence the shipped one
 misses.
+
+Selector matching has its own pair of corpora, `selector_cases()` and
+`selector_random_cases()`, so a selector failure is not buried among the
+box-model cases. They draw documents whose elements carry ids and classes and a
+stylesheet of descendant and child selectors over them; the box tree only comes
+out right when both the matching and the specificity ordering are right.
+`--selectors N` overrides the random selector count.
 
 Text is reproducible because the cases load the reference's own test font:
 `weasyprint.otf` is derived from Ahem, so every glyph advances exactly one em,
@@ -242,6 +249,221 @@ def random_cases(count: int = _RANDOM_COUNT, seed: int = _RANDOM_SEED) -> list[t
     """
     rng = random.Random(seed)
     return [(f"random_{index:04d}", random_document(rng)) for index in range(count)]
+
+
+# --- Selector corpus -------------------------------------------------------
+#
+# The block/inline corpus above uses one rule per element kind and never a
+# combinator, so it says nothing about how a selector is matched or how the
+# cascade resolves two rules that both match. This corpus draws documents whose
+# elements carry ids and classes and a stylesheet full of descendant and child
+# selectors over them, so the box tree only comes out right if both the matching
+# and the specificity ordering are right.
+
+# The tags the selector corpus uses. All three are UA-neutral in WeasyPrint's
+# test stylesheet: `div` and `section` are blocks with no margin, `span` is
+# inline, and none of them carries a font or size the crate does not model. A
+# tag with a UA margin (`p`, `h1`) or a list marker (`li`) would compare a value
+# the crate does not model, so they are left out.
+_SELECTOR_TAGS = ["div", "section"]
+_SELECTOR_INLINE_TAGS = ["span"]
+_SELECTOR_CLASSES = ["a", "b", "c", "wide", "box"]
+
+# The random selector corpus: a few thousand documents, fixed seed. The count is
+# smaller than the block/inline corpus because each document carries a whole
+# stylesheet, so it covers more ground per case.
+_SELECTOR_RANDOM_COUNT = 1200
+_SELECTOR_RANDOM_SEED = 20261116
+
+
+def _selector_rule(rng: random.Random) -> tuple[str, bool]:
+    """One random complex selector, and whether its subject is a block.
+
+    The subject is the rightmost compound. Whether it is a block decides which
+    declarations the rule may carry: a box-model declaration on an inline box
+    (margin, padding) is not modelled by the crate, so a rule whose subject may
+    be inline is limited to `width` and `height`, which both engines ignore on a
+    non-replaced inline.
+    """
+    depth = rng.randrange(1, 4)
+    parts = []
+    for index in range(depth):
+        tag = rng.choice(_SELECTOR_TAGS + _SELECTOR_INLINE_TAGS + [""])
+        if index == depth - 1 and rng.random() < 0.6:
+            tag = rng.choice(_SELECTOR_TAGS + _SELECTOR_INLINE_TAGS)
+        compound = tag
+        if rng.random() < 0.5:
+            compound += "." + rng.choice(_SELECTOR_CLASSES)
+        if rng.random() < 0.2:
+            compound += "." + rng.choice(_SELECTOR_CLASSES)
+        if rng.random() < 0.25:
+            compound += "#" + rng.choice(["x", "y", "z"])
+        if not compound:
+            compound = rng.choice(_SELECTOR_TAGS + _SELECTOR_INLINE_TAGS)
+        parts.append(compound)
+    out = parts[0]
+    for part in parts[1:]:
+        out += rng.choice([" ", " > ", ">", "  "]) + part
+    # The subject is a block only when it names a block tag explicitly; a bare
+    # class or id could land on a span.
+    subject_is_block = parts[-1].startswith(tuple(_SELECTOR_TAGS))
+    return out, subject_is_block
+
+
+def _selector_declarations(rng: random.Random, block: bool) -> str:
+    """A declaration list that moves a box, from the supported set only."""
+    out = []
+    if rng.random() < 0.85:
+        out.append(f"width:{rng.choice([10, 20, 30, 40, 50, 60, 80, 120])}px")
+    if rng.random() < 0.4:
+        out.append(f"height:{rng.randrange(0, 40)}px")
+    if block and rng.random() < 0.4:
+        out.append(f"margin:{rng.randrange(0, 20)}px")
+    if block and rng.random() < 0.3:
+        out.append(f"padding:{rng.randrange(0, 10)}px")
+    if not out:
+        out.append("width:25px")
+    return ";".join(out)
+
+
+def _selector_rules(rng: random.Random) -> str:
+    """A stylesheet of random complex selectors, some of them conflicting."""
+    rules = []
+    for _ in range(rng.randrange(2, 7)):
+        selector, block = _selector_rule(rng)
+        rules.append(f"{selector}{{{_selector_declarations(rng, block)}}}")
+    return "".join(rules)
+
+
+def _selector_tree(rng: random.Random, depth: int, serial: list[int]) -> str:
+    """A block element with an id and classes, holding blocks or inline runs."""
+    tag = rng.choice(_SELECTOR_TAGS)
+    serial[0] += 1
+    attributes = []
+    if rng.random() < 0.4:
+        attributes.append(f'id="{rng.choice(["x", "y", "z"])}"')
+    if rng.random() < 0.6:
+        count = rng.randrange(1, 3)
+        classes = " ".join(rng.choice(_SELECTOR_CLASSES) for _ in range(count))
+        attributes.append(f'class="{classes}"')
+    attribute = (" " + " ".join(attributes)) if attributes else ""
+    if depth < 2 and rng.random() < 0.5:
+        inner = "".join(_selector_tree(rng, depth + 1, serial) for _ in range(rng.randrange(1, 3)))
+    elif rng.random() < 0.6:
+        inner = _selector_inline(rng)
+    else:
+        inner = ""
+    return f"<{tag}{attribute}>{inner}</{tag}>"
+
+
+def _selector_inline(rng: random.Random) -> str:
+    """A run of text and inline elements, each maybe carrying a class."""
+    parts = []
+    for _ in range(rng.randrange(1, 3)):
+        if rng.random() < 0.5:
+            classes = rng.choice(_SELECTOR_CLASSES)
+            parts.append(f'<span class="{classes}">ab</span>')
+        else:
+            parts.append("cd")
+    return "".join(parts)
+
+
+def selector_document(rng: random.Random) -> str:
+    """One random document whose layout depends on selector matching."""
+    page = PAGE % (200, _NO_CLIP_HEIGHT)
+    rules = _selector_rules(rng)
+    serial = [0]
+    blocks = "".join(_selector_tree(rng, 0, serial) for _ in range(rng.randrange(1, 3)))
+    return f"<style>{page}body{{margin:0;font-family:weasyprint}}{rules}</style>{blocks}"
+
+
+def selector_random_cases(
+    count: int = _SELECTOR_RANDOM_COUNT, seed: int = _SELECTOR_RANDOM_SEED
+) -> list[tuple[str, str]]:
+    """A deterministic corpus of random selector-matching documents."""
+    rng = random.Random(seed)
+    return [(f"sel_random_{index:04d}", selector_document(rng)) for index in range(count)]
+
+
+def selector_cases() -> list[tuple[str, str]]:
+    """The hand-picked selector cases: the shapes someone thought to write down.
+
+    The tags are `div`, `section` and `span`, which WeasyPrint's test stylesheet
+    leaves with no margin, padding or font of their own, so a box that differs is
+    a selector bug and not a user-agent rule the crate does not model.
+    """
+    page = PAGE % (200, 200)
+    body = "body{margin:0;font-family:weasyprint}"
+    return [
+        # A descendant selector reaches a grandchild and leaves a sibling alone.
+        ("descendant_matches_nested", f"<style>{page}{body}"
+                                      "div section{width:30px;height:10px}</style>"
+                                      "<div><div><section></section></div></div>"
+                                      "<section></section>"),
+        # The child combinator stops at the immediate parent: only the `section`
+        # whose parent is the `div` is matched, not the one nested in a section.
+        ("child_stops_at_parent", f"<style>{page}{body}"
+                                  "div > section{width:40px;height:10px}</style>"
+                                  "<div><section><section></section></section></div>"),
+        # A descendant chain of depth three.
+        ("descendant_chain_three", f"<style>{page}{body}"
+                                   "div div section{width:44px;height:10px}</style>"
+                                   "<div><div><section></section></div></div>"),
+        # A class in the middle of a chain.
+        ("descendant_with_class", f"<style>{page}{body}"
+                                  "div.card section{width:33px;height:10px}</style>"
+                                  '<div class="card"><section></section></div>'
+                                  "<div><section></section></div>"),
+        # Specificity: `div section` (0,0,2) beats a later `section` (0,0,1).
+        ("specificity_beats_later", f"<style>{page}{body}"
+                                    "section{width:30px;height:10px}"
+                                    "div section{width:60px}</style>"
+                                    "<div><section></section></div>"),
+        # Specificity: a class (0,1,0) beats two tags (0,0,2).
+        ("class_beats_two_tags", f"<style>{page}{body}"
+                                 "div section{width:30px;height:10px}"
+                                 ".c{width:70px}</style>"
+                                 '<div><section class="c"></section></div>'),
+        # Specificity: an id (1,0,0) beats a class and any number of tags.
+        ("id_beats_class", f"<style>{page}{body}"
+                           '.c{width:30px;height:10px}#x{width:70px}</style>'
+                           '<div><section id="x" class="c"></section></div>'),
+        # Equal specificity falls back to source order: the later rule wins.
+        ("equal_specificity_later_wins", f"<style>{page}{body}"
+                                         "div section{width:30px;height:10px}"
+                                         "div section{width:70px}</style>"
+                                         "<div><section></section></div>"),
+        # The universal selector contributes no specificity, so a later tag rule
+        # of the same specificity still wins, and `*` alone matches everything.
+        ("universal_loses_to_tag", f"<style>{page}{body}"
+                                   "*{width:30px;height:10px}"
+                                   "section{width:70px}</style>"
+                                   "<div><section></section></div>"),
+        # Backtracking: `div > section div` must skip the inner section that has
+        # no div above it and use the outer one. The subject is a block so the
+        # match shows up as a width; an inline subject would only differ by the
+        # empty line box both engines agree to leave out.
+        ("backtracking_child_step", f"<style>{page}{body}"
+                                    "div > section div{width:18px;height:10px}</style>"
+                                    "<div><section><section><div></div>"
+                                    "</section></section></div>"),
+        # A comma-separated list where one selector is complex.
+        ("selector_list_mixed", f"<style>{page}{body}"
+                                "span, div > section{width:20px;height:10px}</style>"
+                                "<div><section></section></div>"),
+        # An inline `style` attribute wins over a sheet rule that also matches,
+        # which both engines agree on for a class selector. (WeasyPrint gives the
+        # attribute id specificity, so it differs from an id selector; the crate
+        # follows the spec and lets the attribute win, so that pair is left out.)
+        ("inline_beats_class_selector", f"<style>{page}{body}"
+                                        ".c{width:30px;height:10px}</style>"
+                                        '<div><section class="c" style="width:90px">'
+                                        "</section></div>"),
+        # A selector that matches nothing leaves the box at its default width.
+        ("selector_matches_nothing", f"<style>{page}{body}"
+                                     "section > div{width:30px;height:10px}</style>"
+                                     "<div><section></section></div>"),
+    ]
 
 
 def all_cases(random_count: int = 0) -> list[tuple[str, str]]:
@@ -728,6 +950,11 @@ def main() -> int:
              "committed corpus); pass 0 for the curated list alone",
     )
     parser.add_argument("--font", help="path to the reference's weasyprint.otf")
+    parser.add_argument(
+        "--selectors", type=int, default=_SELECTOR_RANDOM_COUNT, metavar="N",
+        help="how many random selector documents to generate (default "
+             "%(default)s, the committed corpus); pass 0 for the curated list alone",
+    )
     args = parser.parse_args()
 
     try:
@@ -744,9 +971,16 @@ def main() -> int:
     # laid out and walked here, and both are replayed by `tests/layout.rs`.
     curated = cases()
     random_corpus = random_cases(args.random) if args.random else []
+    # The selector corpus is separate again, so a selector failure is not buried
+    # among the box-model cases.
+    selector_curated = selector_cases()
+    selector_random = selector_random_cases(args.selectors) if args.selectors else []
+    every_case = (
+        all_cases(args.random) + selector_curated + selector_random
+    )
     rows: list[tuple[str, ...]] = []
     per_case: list[tuple[str, list[tuple]]] = []
-    for case, html in all_cases(args.random):
+    for case, html in every_case:
         page = render(html, font, font_config)
         out: list[tuple] = []
         walk(page, "", out)
@@ -779,60 +1013,44 @@ def main() -> int:
     fixtures = pathlib.Path(args.crate) / "tests" / "fixtures"
     fixtures.mkdir(parents=True, exist_ok=True)
 
-    curated_ids = {case for case, _ in curated}
-    curated_boxes = sum(len(out) for case, out in per_case if case in curated_ids)
-    fuzz_boxes = len(rows) - curated_boxes
-
     # The Rust test needs the same inputs, so they are written beside the
     # expected tree. A tab or a newline would break the TSV, so they are escaped
     # and the test unescapes them; the layout fixture needs no escaping, because
     # whitespace collapsing means a text box never contains either.
-    inputs = fixtures / "cases.tsv"
-    with inputs.open("w") as handle:
-        handle.write("# Generated by scripts/fuzz/cssprint/gen.py. Do not edit.\n")
-        handle.write("# case\thtml\n")
-        for case, html in curated:
-            handle.write(f"{case}\t{escape(html)}\n")
+    header = (
+        "# WeasyPrint box tree: case\tpath\ttag\tbox\tcontent_x\tcontent_y"
+        "\twidth\theight"
+        "\tcontent_x\tcontent_y"
+        "\tmargin_l\tmargin_r\tmargin_t\tmargin_b"
+        "\tpadding_l\tpadding_r\tpadding_t\tpadding_b"
+        "\tborder_l\tborder_r\tborder_t\tborder_b\ttext\n"
+    )
 
-    target = fixtures / "layout.tsv"
-    with target.open("w") as handle:
-        handle.write("# Generated by scripts/fuzz/cssprint/gen.py. Do not edit.\n")
-        handle.write(
-            "# WeasyPrint box tree: case\tpath\ttag\tbox\tcontent_x\tcontent_y"
-            "\twidth\theight"
-            "\tcontent_x\tcontent_y"
-            "\tmargin_l\tmargin_r\tmargin_t\tmargin_b"
-            "\tpadding_l\tpadding_r\tpadding_t\tpadding_b"
-            "\tborder_l\tborder_r\tborder_t\tborder_b\ttext\n")
-        for row in rows:
-            if row[0] in curated_ids:
-                handle.write("\t".join(row) + "\n")
+    def write_corpus(
+        inputs_name: str, tree_name: str, corpus: list[tuple[str, str]]
+    ) -> None:
+        """Write one corpus's inputs and its box tree."""
+        ids = {case for case, _ in corpus}
+        boxes = sum(len(out) for case, out in per_case if case in ids)
+        inputs = fixtures / inputs_name
+        with inputs.open("w") as handle:
+            handle.write("# Generated by scripts/fuzz/cssprint/gen.py. Do not edit.\n")
+            handle.write("# case\thtml\n")
+            for case, html in corpus:
+                handle.write(f"{case}\t{escape(html)}\n")
+        target = fixtures / tree_name
+        with target.open("w") as handle:
+            handle.write("# Generated by scripts/fuzz/cssprint/gen.py. Do not edit.\n")
+            handle.write(header)
+            for row in rows:
+                if row[0] in ids:
+                    handle.write("\t".join(row) + "\n")
+        print(f"{len(corpus)} inputs, {boxes} boxes -> {inputs}, {target}")
 
-    fuzz_inputs = fixtures / "fuzz_cases.tsv"
-    with fuzz_inputs.open("w") as handle:
-        handle.write("# Generated by scripts/fuzz/cssprint/gen.py. Do not edit.\n")
-        handle.write("# case\thtml\n")
-        for case, html in random_corpus:
-            handle.write(f"{case}\t{escape(html)}\n")
-
-    fuzz_target = fixtures / "fuzz.tsv"
-    with fuzz_target.open("w") as handle:
-        handle.write("# Generated by scripts/fuzz/cssprint/gen.py. Do not edit.\n")
-        handle.write(
-            "# WeasyPrint box tree: case\tpath\ttag\tbox\tcontent_x\tcontent_y"
-            "\twidth\theight"
-            "\tcontent_x\tcontent_y"
-            "\tmargin_l\tmargin_r\tmargin_t\tmargin_b"
-            "\tpadding_l\tpadding_r\tpadding_t\tpadding_b"
-            "\tborder_l\tborder_r\tborder_t\tborder_b\ttext\n")
-        for row in rows:
-            if row[0] not in curated_ids:
-                handle.write("\t".join(row) + "\n")
-
-    print(f"{len(curated)} curated inputs -> {inputs}")
-    print(f"{curated_boxes} curated boxes -> {target}")
-    print(f"{len(random_corpus)} random inputs -> {fuzz_inputs}")
-    print(f"{fuzz_boxes} random boxes -> {fuzz_target}")
+    write_corpus("cases.tsv", "layout.tsv", curated)
+    write_corpus("fuzz_cases.tsv", "fuzz.tsv", random_corpus)
+    write_corpus("selector_cases.tsv", "selector_layout.tsv", selector_curated)
+    write_corpus("selector_fuzz_cases.tsv", "selector_fuzz.tsv", selector_random)
     return 0
 
 
