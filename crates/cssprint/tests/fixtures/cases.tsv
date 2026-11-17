@@ -74,3 +74,10 @@ numeric_close_bracket_postfix	<style>@page { size: 200px 200px; margin: 0 }body{
 numeric_slash_between_letters	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;font-size:16px;width:32px}</style><div>a/b</div>
 seam_numeric_breaks_between_nodes	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;font-size:16px;width:32px}</style><div><span>3%</span><span>$(3</span></div>
 seam_numeric_whole_in_one_node	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;font-size:16px;width:32px}</style><div>3%$(3</div>
+whitespace_between_inline_elements	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;font-size:16px;width:32px}</style><div><span>a</span> <span>b</span></div>
+no_whitespace_between_inline_elements	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;font-size:16px;width:32px}</style><div><span>a</span><span>b</span></div>
+dropped_lone_space_in_inline_box	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;font-size:16px;width:16px}</style><div>a<span> </span>b</div>
+dropped_shared_space_in_inline_box	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;font-size:16px;width:16px}</style><div>a<span> b</span></div>
+dropped_lone_space_at_block	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;font-size:16px;width:16px}</style><div><span>a</span> <span>b</span></div>
+dropped_lone_space_nested	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;font-size:16px;width:16px}</style><div>a<span><span> </span></span>b</div>
+dropped_lone_space_smaller_box	<style>@page { size: 200px 200px; margin: 0 }body{margin:0}div{font-family:weasyprint;font-size:16px;width:16px}</style><div>a<span style="font-size:10px"> </span>b</div>

@@ -642,6 +642,12 @@ struct Piece {
     style: Style,
     text: String,
     is_space: bool,
+    /// Whether this space is the whole of its text node (`<span>a</span> <span>b</span>`),
+    /// as opposed to a space inside a node that holds other text (`a b`). The
+    /// reference strips a dropped space from its text box and leaves the box in
+    /// place; only a node that was nothing but that space is left as an empty
+    /// text box, which is what `break_boundary` reads.
+    lone: bool,
     /// Whether a line may break immediately before this piece with no space,
     /// because it follows a break opportunity inside a word (`foo-bar`).
     breakable: bool,
@@ -687,11 +693,12 @@ struct Atom {
 /// box reading `a b` while leaving `<i>a</i> <b>c</b>` with a space box of its
 /// own between the two elements.
 fn pieces(items: &[Item]) -> Vec<Piece> {
-    let space = |item: &Item| Piece {
+    let space = |item: &Item, lone: bool| Piece {
         ancestors: item.ancestors.clone(),
         style: item.style.clone(),
         text: " ".to_owned(),
         is_space: true,
+        lone,
         breakable: false,
     };
     let mut out = Vec::new();
@@ -702,15 +709,17 @@ fn pieces(items: &[Item]) -> Vec<Piece> {
             .filter(|word| !word.is_empty())
             .collect();
         if words.is_empty() {
-            out.push(space(item));
+            // The node was nothing but whitespace, so the reference keeps its
+            // text box and leaves it empty when the space is dropped.
+            out.push(space(item, true));
             continue;
         }
         if item.text.starts_with(' ') {
-            out.push(space(item));
+            out.push(space(item, false));
         }
         for (index, word) in words.iter().enumerate() {
             if index > 0 {
-                out.push(space(item));
+                out.push(space(item, false));
             }
             for (unit_index, unit) in break_units(word).into_iter().enumerate() {
                 // Every unit but the first begins after a break opportunity
@@ -730,12 +739,13 @@ fn pieces(items: &[Item]) -> Vec<Piece> {
                     style: item.style.clone(),
                     text: unit.to_owned(),
                     is_space: false,
+                    lone: false,
                     breakable,
                 });
             }
         }
         if item.text.ends_with(' ') {
-            out.push(space(item));
+            out.push(space(item, false));
         }
     }
     out
@@ -1018,14 +1028,23 @@ enum LineClass {
 /// The empty boxes a line break leaves at the end of a line.
 ///
 /// A break drops the space that would have separated the two lines, and the
-/// reference keeps the box that space was in when the line has nothing else in
-/// it. A space in the same box as the line's last content simply goes away. A
-/// space in a box the last content sits deeper inside leaves nothing, because
-/// that box is still on the line. A space at the block level, with the last
-/// content inside an inline box, leaves an empty text box for the block. A space
-/// in an inline box the last content is not inside leaves that box, and the
-/// boxes between them, nested and empty. `None` means no box is left.
-fn break_boundary(current: &[Piece], space: &Piece) -> Option<(Vec<InlineAncestor>, usize)> {
+/// reference keeps the box that space was in: `remove_last_whitespace` walks the
+/// line's rightmost chain, strips the trailing space from that text box and
+/// leaves it zero-width when nothing else was in it. The boxes between the
+/// space's box and the block are therefore left empty, and the innermost one
+/// keeps an empty text box of its own only when the space was the whole of its
+/// text node - a space inside a node that holds other text (`a b`) is stripped
+/// from a box the line still needs, so nothing is left empty.
+///
+/// A space at the block level with the line's last content deeper inside an
+/// inline box (`<span>a</span> <span>b</span>`) leaves an empty text box for the
+/// block, but only when the space was its own node: `<span>a</span> b` shares
+/// the space with `b` and leaves nothing.
+///
+/// The returned chain is the boxes to leave empty, outermost first, the depth in
+/// the line where the outermost one attaches, and whether the innermost box also
+/// keeps an empty text box. `None` means no box is left.
+fn break_boundary(current: &[Piece], space: &Piece) -> Option<(Vec<InlineAncestor>, usize, bool)> {
     let last = current.last()?;
     let space_path = &space.ancestors;
     let common = last
@@ -1035,18 +1054,25 @@ fn break_boundary(current: &[Piece], space: &Piece) -> Option<(Vec<InlineAncesto
         .take_while(|(left, right)| left.id == right.id)
         .count();
     if common == space_path.len() {
-        // The space's box holds the last content, so that box stays on the line
-        // whether or not the space was in it. Nothing is left empty.
-        None
+        // The space's box is a prefix of the last content's, so the space was
+        // stripped from a box the line keeps, unless the space is at the block
+        // level and the content it preceded is inside an inline box, which the
+        // reference leaves as an empty text box for the block.
+        if space.lone && space_path.is_empty() && !last.ancestors.is_empty() {
+            Some((Vec::new(), 0, true))
+        } else {
+            None
+        }
     } else {
-        Some((space_path[common..].to_vec(), common))
+        Some((space_path[common..].to_vec(), common, space.lone))
     }
 }
 
 /// A line's content, the indent applied to it, and the empty inline chain a break
-/// left behind with the depth in the line where that chain attaches. The chain is
-/// `None` when no break ended the line.
-type PendingLine = (Vec<Piece>, f64, Option<(Vec<InlineAncestor>, usize)>);
+/// left behind with the depth in the line where that chain attaches and whether
+/// its innermost box keeps an empty text box. The chain is `None` when no break
+/// ended the line.
+type PendingLine = (Vec<Piece>, f64, Option<(Vec<InlineAncestor>, usize, bool)>);
 
 /// Break the pieces into lines.
 ///
@@ -1284,7 +1310,7 @@ fn build_line(
     align: TextAlign,
     indent: f64,
     block_style: &Style,
-    boundary: Option<(Vec<InlineAncestor>, usize)>,
+    boundary: Option<(Vec<InlineAncestor>, usize, bool)>,
 ) -> Option<Fragment> {
     let mut items = place_pieces(pieces);
     if items.is_empty() && boundary.is_none() {
@@ -1333,7 +1359,9 @@ fn build_line(
             max_y = max_y.max(-baseline + style.used_line_height());
         }
     }
-    if let Some((chain, _)) = &boundary {
+    if let Some((chain, _, _)) = &boundary {
+        // The empty boxes left on the line still contribute their own struts, so
+        // an empty wrapper with a larger font raises the line.
         for ancestor in chain {
             let baseline = child_baseline(&ancestor.style);
             min_y = min_y.min(-baseline);
@@ -1348,10 +1376,11 @@ fn build_line(
         &items,
         0,
         baseline,
+        block_style,
         tag,
         boundary
             .as_ref()
-            .map(|(chain, attach)| (chain.as_slice(), *attach)),
+            .map(|(chain, attach, lone)| (chain.as_slice(), *attach, *lone)),
         content_width,
     );
     // The indent shifts the line's content, not the line box itself.
@@ -1422,8 +1451,9 @@ fn nest(
     items: &[Placed],
     depth: usize,
     line_baseline: f64,
+    block_style: &Style,
     block_tag: &str,
-    tail: Option<(&[InlineAncestor], usize)>,
+    tail: Option<(&[InlineAncestor], usize, bool)>,
     end_x: f64,
 ) -> Vec<Fragment> {
     // Split the items into runs that share the ancestor at this depth.
@@ -1469,11 +1499,12 @@ fn nest(
         // The tail travels down the run that holds the line's last content,
         // because that is the box the empty chain belongs inside.
         let is_last_run = group.end == items.len();
-        let inner_tail = tail.filter(|(_, attach)| is_last_run && *attach > depth);
+        let inner_tail = tail.filter(|(_, attach, _)| is_last_run && *attach > depth);
         let mut children = nest(
             &items[group.start..group.end],
             depth + 1,
             line_baseline,
+            block_style,
             block_tag,
             inner_tail,
             end_x,
@@ -1508,38 +1539,54 @@ fn nest(
     }
 
     // The tail's depth is this one, so its boxes are siblings of the boxes here.
-    if let Some((chain, attach)) = tail
+    if let Some((chain, attach, lone)) = tail
         && attach == depth
     {
-        out.extend(empty_boxes(chain, end_x, line_baseline, block_tag, None));
+        out.extend(empty_boxes(
+            chain,
+            lone,
+            end_x,
+            line_baseline,
+            block_style,
+            block_tag,
+            None,
+        ));
     }
     out
 }
 
 /// Build the empty boxes a line break leaves at the end of a line.
 ///
-/// An empty chain is the block itself, which the reference leaves as an empty
-/// text box for the block. A non-empty chain nests, so each box wraps the next
-/// and only the outermost is placed against the line; the innermost holds
-/// nothing. The nested boxes stay on the line's shared baseline, so each one's
-/// offset is its parent's ascent less its own - the same alignment a text box
-/// gets, which is what puts a smaller nested box lower on the line.
+/// An empty chain with `lone` is the block itself, which the reference leaves as
+/// an empty text box for the block. A non-empty chain nests, so each box wraps
+/// the next and only the outermost is placed against the line. The innermost box
+/// keeps an empty text box only when the dropped space was the whole of its text
+/// node (`lone`); otherwise the chain stops at the innermost inline box. The
+/// nested boxes stay on the line's shared baseline, so each one's offset is its
+/// parent's ascent less its own - the same alignment a text box gets, which is
+/// what puts a smaller nested box lower on the line.
 fn empty_boxes(
     chain: &[InlineAncestor],
+    lone: bool,
     x: f64,
     line_baseline: f64,
+    block_style: &Style,
     block_tag: &str,
     parent_ascent: Option<f64>,
 ) -> Vec<Fragment> {
     let Some(ancestor) = chain.first() else {
+        // The block's own box: an empty text box with the block's line height,
+        // which is what the reference leaves for a whitespace-only node dropped
+        // at the block level when the line's last content sat inside an inline
+        // box.
         return vec![Fragment {
             kind: BoxKind::Text,
             tag: block_tag.to_owned(),
             x_offset: x,
-            y_offset: 0.0,
+            y_offset: line_baseline - ascent(block_style),
             width: 0.0,
-            height: 0.0,
-            margin: Sides::default(),
+            height: block_style.font_size,
+            margin: half_leading_sides(block_style),
             padding: Sides::default(),
             border: Sides::default(),
             text: Some(String::new()),
@@ -1550,9 +1597,32 @@ fn empty_boxes(
     };
     let own_ascent = ascent(&ancestor.style);
     let children = match chain.get(1..) {
-        Some(rest) if !rest.is_empty() => {
-            empty_boxes(rest, 0.0, line_baseline, block_tag, Some(own_ascent))
-        }
+        Some(rest) if !rest.is_empty() => empty_boxes(
+            rest,
+            lone,
+            0.0,
+            line_baseline,
+            block_style,
+            block_tag,
+            Some(own_ascent),
+        ),
+        // The innermost box holds the dropped space's text box, which the
+        // reference keeps only when the space was its own text node.
+        _ if lone => vec![Fragment {
+            kind: BoxKind::Text,
+            tag: ancestor.tag.clone(),
+            x_offset: 0.0,
+            y_offset: 0.0,
+            width: 0.0,
+            height: ancestor.style.font_size,
+            margin: half_leading_sides(&ancestor.style),
+            padding: Sides::default(),
+            border: Sides::default(),
+            text: Some(String::new()),
+            collapses_through: false,
+            inner_bottom: 0.0,
+            children: Vec::new(),
+        }],
         _ => Vec::new(),
     };
     let y_offset = match parent_ascent {
@@ -1839,6 +1909,7 @@ mod tests {
             style: Style::default(),
             text: text.to_owned(),
             is_space: false,
+            lone: false,
             breakable: false,
         };
         assert!(seam_breakable(Some(&word("3/")), "4"));

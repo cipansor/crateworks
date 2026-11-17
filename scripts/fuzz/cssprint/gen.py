@@ -507,6 +507,46 @@ def cases() -> list[tuple[str, str]]:
         ("seam_numeric_whole_in_one_node", f"<style>{page}body{{margin:0}}"
                                            "div{font-family:weasyprint;font-size:16px;width:32px}"
                                            "</style><div>3%$(3</div>"),
+        # A whitespace-only text node between two inline elements is a space the
+        # line has to see: `<span>a</span> <span>b</span>` wraps between the two
+        # boxes with a zero-width text box left at the line end, not `ab` on one
+        # line. The node must survive the parse rather than be dropped as
+        # whitespace.
+        ("whitespace_between_inline_elements", f"<style>{page}body{{margin:0}}"
+                                               "div{font-family:weasyprint;font-size:16px;width:32px}"
+                                               "</style><div><span>a</span> <span>b</span></div>"),
+        # The counter-case: no whitespace node, so the two boxes are one atom and
+        # the line does not break between them.
+        ("no_whitespace_between_inline_elements", f"<style>{page}body{{margin:0}}"
+                                                  "div{font-family:weasyprint;font-size:16px;width:32px}"
+                                                  "</style><div><span>a</span><span>b</span></div>"),
+        # What is left of a dropped space depends on whether the space was the
+        # whole of its text node. A whitespace-only node in its own inline box
+        # keeps that box and an empty text box inside it; a space inside a node
+        # that holds text is stripped from a box the line still needs, so nothing
+        # is left. The two cases differ only in which side of `b` the space sits.
+        ("dropped_lone_space_in_inline_box", f"<style>{page}body{{margin:0}}"
+                                             "div{font-family:weasyprint;font-size:16px;width:16px}"
+                                             "</style><div>a<span> </span>b</div>"),
+        ("dropped_shared_space_in_inline_box", f"<style>{page}body{{margin:0}}"
+                                               "div{font-family:weasyprint;font-size:16px;width:16px}"
+                                               "</style><div>a<span> b</span></div>"),
+        # A lone space dropped at the block level with the line's last content
+        # inside an inline box leaves an empty text box for the block itself.
+        ("dropped_lone_space_at_block", f"<style>{page}body{{margin:0}}"
+                                        "div{font-family:weasyprint;font-size:16px;width:16px}"
+                                        "</style><div><span>a</span> <span>b</span></div>"),
+        # The nested variant: the whole chain of inline boxes the space sat in is
+        # left empty, each one wrapping the next down to the empty text box.
+        ("dropped_lone_space_nested", f"<style>{page}body{{margin:0}}"
+                                      "div{font-family:weasyprint;font-size:16px;width:16px}"
+                                      "</style><div>a<span><span> </span></span>b</div>"),
+        # A lone space dropped in a nested box whose font is smaller keeps the
+        # inner box on the shared baseline, so its offset is the parent's ascent
+        # less its own rather than the line's top.
+        ("dropped_lone_space_smaller_box", f"<style>{page}body{{margin:0}}"
+                                           "div{font-family:weasyprint;font-size:16px;width:16px}"
+                                           "</style><div>a<span style=\"font-size:10px\"> </span>b</div>"),
     ]
 
 

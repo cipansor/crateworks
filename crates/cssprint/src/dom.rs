@@ -246,8 +246,13 @@ fn attribute(attributes: &str, wanted: &str) -> Option<String> {
 }
 
 /// Append text to the element on top of the stack.
+///
+/// A whitespace-only node is kept, not dropped: `<span>a</span> <span>b</span>`
+/// has a space between the two elements that the collapsing rules must still
+/// see, and dropping the node loses it. `collapse` reduces it to a single space
+/// later, and a run that ends up at a line's edge is removed there.
 fn push_text(stack: &mut [Element], text: &str) {
-    if text.trim().is_empty() {
+    if text.is_empty() {
         return;
     }
     stack
