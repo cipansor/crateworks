@@ -40,6 +40,23 @@ impl LogScale {
     pub const fn reference(&self) -> f64 {
         self.reference
     }
+
+    /// The value on this scale that a quantity on `source` with value `value`
+    /// converts to, staying in log space.
+    ///
+    /// Both scales describe the same quantity, so the conversion is
+    /// `divisor * (log(value / source.divisor) * ln(source.base) - ln(self.reference
+    /// / source.reference)) / ln(self.base)`. Exponentiating the source and taking
+    /// the logarithm of the target - what [`Unit::base_of`] and
+    /// [`Unit::value_from`] do - would lose a finite result whenever the
+    /// intermediate base quantity overflows or underflows, and a logarithmic
+    /// scale can name a value far outside `f64`'s range: `400 Np` is about
+    /// `3474 dB`, whose linear equivalent is `e^800`.
+    pub(crate) fn value_from(self, source: Self, value: f64) -> f64 {
+        let ratio = value / source.divisor;
+        self.divisor * (ratio * source.base.ln() + source.reference.ln() - self.reference.ln())
+            / self.base.ln()
+    }
 }
 
 /// A scale to the SI base units, together with the dimension it measures and an

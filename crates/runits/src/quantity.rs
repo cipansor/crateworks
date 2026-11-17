@@ -88,6 +88,12 @@ impl Quantity {
         if target.unit.factor() == 0.0 && !target.unit.is_logarithmic() {
             return Err(ConvertError::ZeroScale);
         }
+        // Two logarithmic scales convert in log space, so a finite value whose
+        // linear equivalent overflows `f64` still converts: `400 Np` is about
+        // `3474 dB`, and `e^800` would have been the lost intermediate.
+        if let (Some(from), Some(to)) = (self.unit.log_scale(), target.unit.log_scale()) {
+            return Ok(Self::new(to.value_from(from, self.value), target.unit));
+        }
         let base = self.base();
         // A zero or negative quantity has no logarithm, so it cannot be written
         // on a logarithmic scale; the reference raises the same way.
@@ -215,7 +221,13 @@ impl Quantity {
         if !self.dimension().is_dimensionless() {
             return Err(ArithmeticError::LogarithmicUnit);
         }
-        let in_self = self.unit.value_from(other.base());
+        // Both operands are logarithms, so express the right one in `self`'s
+        // scale in log space and add the two numbers. This keeps a finite
+        // result whose linear equivalent is outside `f64`: `200 Np + 200 Np` is
+        // `400 Np`, whose base quantity is `e^800`.
+        let right = self.unit.log_scale().expect("self is logarithmic");
+        let other_scale = other.unit.log_scale().expect("other is logarithmic");
+        let in_self = right.value_from(other_scale, other.value);
         Ok(Self::new(self.value + sign * in_self, self.unit))
     }
 }

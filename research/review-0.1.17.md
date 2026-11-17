@@ -58,16 +58,45 @@ library rather than by a hand-written expectation.
   `crates/runits/tests/fixtures/pint_log_units.tsv`. `tests/pint.rs` replays that
   fixture against `unit(name).log_scale()`, so the numbers come from `pint` and
   the crate is checked against them.
-* `research/tools/gen_units_arithmetic.py` is the oracle for `add` and
-  `subtract`. It gained a slice of the four dimensionless scales, where `pint`'s
-  sum is the expectation, and a slice of the three power ratios, where `pint`
-  returns a base quantity the crate refuses, so every row there expects an error.
+* `scripts/fuzz/runits/gen.py` (moved from `research/tools/`, per the corpus
+  rule that a generator lives under `scripts/fuzz/<name>/`) is the oracle for
+  `add` and `subtract`. It gained a slice of the four dimensionless scales, where
+  `pint`'s sum is the expectation, and a slice of the three power ratios, where
+  `pint` returns a base quantity the crate refuses, so every row there expects an
+  error. The dimensionless slice is 2,000 pairs and the power-ratio slice covers
+  every ordered pair of scales and every magnitude, so the corpus is now 4,730
+  rows rather than 1,378.
 
 | Gate | Reference | Result |
 | --- | --- | --- |
 | `verify_units.py` | PyPI `pint` 0.26.2 | 973 names and 13 log scales agree, 0 mismatches |
-| `gen_units_arithmetic.py` | PyPI `pint` | 1,378 sums replayed as sums and differences, 121 expected errors |
-| `cargo test -p runits` | the crate's own suite | 16 integration tests, 1 README test and 8 doctests pass |
+| `scripts/fuzz/runits/gen.py` | PyPI `pint` | 4,730 sums replayed as sums and differences, 1,633 expected errors |
+| `cargo test -p runits` | the crate's own suite | 17 integration tests, 1 README test and 8 doctests pass |
+
+### Three defects the first version carried, found in review
+
+1. **A finite logarithm outside the linear range was lost.** Converting `400 Np`
+   to `dB` is `3474.36 dB`, but the first version went through the base quantity
+   `e^800`, which overflows `f64` to infinity; `-400 Np` underflowed to zero and
+   came back as `NotPositive`. Both scales describe the same quantity, so the
+   conversion is now done in log space - `divisor * (log(value) * ln(from.base)
+   + ln(from.reference) - ln(to.reference)) / ln(to.base)` - and the same helper
+   backs the dimensionless-logarithm sum, so `200 Np + 200 Np` is `400 Np`. The
+   positive-base check stays for a linear-to-logarithmic conversion, where the
+   reference genuinely has to be positive. `tests/pint.rs::a_logarithm_outside_the_linear_range_still_converts`
+   covers the positive and negative out-of-range cases, the round trip and the
+   sum.
+2. **The logarithmic corpus was a sample, not a corpus.** 160 pairs and the
+   generator outside `scripts/fuzz/`; both are now fixed, and the magnitudes stop
+   at 150 because that is the last value `pint`, the oracle, can label before it
+   overflows on its own linear intermediate. The crate's behaviour above that
+   range is checked by the regression test above rather than by a fixture, since
+   the oracle has no answer there.
+3. **The name table listed 46 names twice.** Both builders appended the same
+   unsupported names, so the table held 1,066 entries for 1,020 distinct names
+   and the README's name count was inflated. The two builders agree on the index,
+   so merging by name changes no lookup; the count is 1,020, and the README and
+   `PLAN.md` say so.
 
 The rest of the workspace was checked too: `cargo test --workspace --all-targets`
 ran 114 test binaries with no failure, and `cargo clippy --workspace

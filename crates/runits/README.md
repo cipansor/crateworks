@@ -39,7 +39,7 @@ assert!((power.to("W").unwrap().value() - 1.0).abs() < 1e-9);
 assert!((Quantity::parse("1 W").unwrap().to("dBm").unwrap().value() - 30.0).abs() < 1e-9);
 ```
 
-The crate carries **365 unit definitions and 7 logarithmic scales under 1066
+The crate carries **365 unit definitions and 7 logarithmic scales under 1020
 names**, the whole of Pint's `default_en.txt` and `constants_en.txt` that can be
 written as a vector over the seven SI base dimensions. There is no network call,
 no file to load and no database to build: a lookup is a binary search over a
@@ -121,16 +121,15 @@ name ever resolves by prefix decomposition when it should not. The logarithmic
 scales are compared on their base, divisor and reference rather than on a linear
 factor, and `tests/fixtures/pint_log_units.tsv` pins the 13 of them.
 
-Arithmetic has its own oracle. `research/tools/gen_units_arithmetic.py` asks
-Pint to add two quantities and records the number it returns in the left
-operand's unit, which is the unit Pint keeps. The 1,378 rows in
-`tests/fixtures/pint_arithmetic.tsv` cover every dimension the crate knows,
-magnitudes from micro to mega, the four dimensionless logarithmic scales, and
-121 pairs Pint refuses or turns into a unit neither operand named - a dimension
-mismatch, an affine scale such as `degC`, or two dimensioned logarithms such as
-`dBm` - where the crate must refuse them too. `tests/pint.rs` replays each row
-as both a sum and a difference, so the two operations are pinned by the same
-corpus.
+Arithmetic has its own oracle. `scripts/fuzz/runits/gen.py` asks Pint to add two
+quantities and records the number it returns in the left operand's unit, which is
+the unit Pint keeps. The 4,730 rows in `tests/fixtures/pint_arithmetic.tsv` cover
+every dimension the crate knows, magnitudes from micro to mega, 2,000 pairs of
+the four dimensionless logarithmic scales, and 1,633 pairs Pint refuses or turns
+into a unit neither operand named - a dimension mismatch, an affine scale such
+as `degC`, or two dimensioned logarithms such as `dBm` - where the crate must
+refuse them too. `tests/pint.rs` replays each row as both a sum and a difference,
+so the two operations are pinned by the same corpus.
 
 ## Data provenance
 

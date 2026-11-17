@@ -543,7 +543,11 @@ def main() -> int:
     log_rows, log_name_rows, _log_skipped = build_log_rows(
         logarithmic, dims, skipped_names
     )
-    name_rows = sorted(name_rows + log_name_rows)
+    # Both builders append the same unsupported names, so merge by name rather
+    # than concatenating: the table would otherwise list 46 names twice and
+    # report more coverage than it has. The two agree on the index, so the
+    # last write wins without changing a lookup.
+    name_rows = sorted(dict(name_rows + log_name_rows).items())
 
     # Longest first, so a lookup can stop at the first prefix that matches
     # without `d` shadowing `da`.

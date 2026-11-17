@@ -318,6 +318,16 @@ that branch order or the held-out check tests the wrong thing.
   sum of two dimensionless logarithms is well defined and allowed: `3 dB + 3 dB`
   is `6 dB` and `3 dB + 1 Np` is `11.686 dB`. When extending log arithmetic,
   check which side of that line the reference falls on before copying it.
+- **A logarithmic conversion must stay in log space.** `runits` converts between
+  two logarithmic scales with `divisor * (log(value) * ln(from.base) +
+  ln(from.reference) - ln(to.reference)) / ln(to.base)` rather than by
+  exponentiating the source and taking the logarithm of the target. A
+  logarithmic scale names a value far outside `f64`'s range - `400 Np` is about
+  `3474 dB`, whose linear equivalent is `e^800` - so the round trip through the
+  base quantity overflows to infinity (or underflows to zero, which then reads as
+  `NotPositive`). The oracle cannot cover that range either: `pint` overflows on
+  its own linear intermediate above about `150 Np`, which is why the corpus stops
+  there and the out-of-range cases live in `tests/pint.rs` instead.
 - **`xmlkit` name matching.** `Element::child` and `children_named` match the
   full name including the prefix, so `child(el, "IssueDateTime")` does **not**
   find `ram:IssueDateTime`. Match on the local name. `Element::text()`

@@ -46,6 +46,7 @@ never a dependency of any crate.
 | `fast-redact` | `fast-redact/gen.js` | `fast-redact` npm 3.5.0 | `NODE_PATH=<modules> node fast-redact/gen.js [fixture-dir]` |
 | `pdfmake` | `pdfmake/gen_zlib_vectors.py` | Python `zlib` (stdlib) | `python3 pdfmake/gen_zlib_vectors.py [out]` |
 | `cssprint` | `cssprint/gen.py` | WeasyPrint PyPI 70.0 | `python3 cssprint/gen.py [crate dir]` |
+| `runits` | `runits/gen.py` | `pint` PyPI 0.26.2 | `python3 runits/gen.py` |
 
 With no `out` argument each writes to the crate's own fixture, which is the path
 you want when rebuilding it in place. The recorded versions are the ones the
