@@ -300,6 +300,14 @@ that branch order or the held-out check tests the wrong thing.
   find `ram:IssueDateTime`. Match on the local name. `Element::text()`
   concatenates only direct text children, so a value nested in a sub-element
   comes back empty.
+- **An empty inline element is still a box.** WeasyPrint gives `<span></span>`
+  an empty inline box with its own strut, even with no text in it: `<div>a<span
+  style="font-size:24px"></span></div>` raises the line to 24px, and an empty
+  `<span>` on its own leaves a line box of height 0 that holds the 16px inline
+  box. `cssprint` currently emits no box for an element with no in-flow
+  children, so its line stays 16px and the empty inline box is missing. A
+  whitespace-only node is different and already handled (see `push_text`): it
+  survives as an empty text box, not an empty inline box.
 - **`cargo publish` resolves path dependencies against the registry.** A crate
   that depends on `xmlkit` cannot be packaged until `xmlkit` is *published*, and
   the error ("no matching package named `xmlkit` found") reads like a broken
