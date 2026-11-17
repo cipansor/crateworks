@@ -13,28 +13,29 @@ WeasyPrint, walks the resulting box tree, and writes a TSV of
     case  path  tag  box  cx  cy  width  height  ml  mr  mt  mb  pl  pr  pt  pb
     bl  br  bt  bb  text
 
-where `cx`/`cy` are the absolute content-box origin.
+where `cx`/`cy` are the absolute content-box origin and `path` is the
+child-index route from the root (for example `0.1.0`), so a Rust implementation
+can walk its own tree in the same order and compare position by position. The
+margins, paddings and border widths are recorded separately because
+`position_x` is the margin-box origin: an `auto` margin is invisible in the
+position alone.
 
-where `path` is the child-index route from the root (for example `0.1.0`), so a
-Rust implementation can walk its own tree in the same order and compare
-position by position. The margins, paddings and border widths are recorded
-separately because `position_x` is the margin-box origin: an `auto` margin is
-invisible in the position alone.
+    python3 scripts/fuzz/cssprint/gen.py [crate dir]   # rebuild the fixtures
+    python3 scripts/fuzz/cssprint/gen.py --show        # print each tree
 
-    python3 gen_weasyprint_layout.py            # writes tests/fixtures/layout.tsv
-    python3 gen_weasyprint_layout.py --show     # print the tree for each case
-
-Needs `pip install weasyprint`. Run from the repository root:
-
-    python3 research/tools/gen_weasyprint_layout.py crates/cssprint
+Needs `pip install weasyprint`. Run from the repository root; with no crate
+directory it writes to `crates/cssprint`.
 
 The corpus covers the box model (width, height, margin, padding, border), block
 layout, inline layout, line breaking, text alignment and `text-indent`. The
-committed fixture is the hand-picked list in `cases()`. `--random N` appends a
-deterministic random list from the same implemented property set, with a fixed
-seed, for differential testing; the crate agrees with the reference on the
-shipped seed, so the corpus is a regression check, but a fresh seed can still
-surface a divergence and those cases are not written to the committed fixture.
+committed fixtures are the hand-picked list in `cases()` and the deterministic
+random list in `random_cases()`, with a fixed seed, drawn from the same
+implemented property set. Both are written to the crate and replayed by
+`tests/layout.rs`, so the random list is a regression gate and not only a
+development aid. `--random N` overrides the random count, which is how a fresh
+seed is explored: a fresh seed can still surface a divergence the shipped one
+misses.
+
 Text is reproducible because the cases load the reference's own test font:
 `weasyprint.otf` is derived from Ahem, so every glyph advances exactly one em,
 the ascent is 819/1024 em, the descent 205/1024 em and the normal line height is
@@ -78,6 +79,10 @@ _WORDS = [
     # the hyphen, `3-4` may not.
     "foo-bar", "well-known", "e-mail", "self-test", "a/b", "foo/bar", "3-4",
     "a-b", "x!y", "p|q", "a-b-c",
+    # Numeric expressions, which have no break opportunity inside them even
+    # where the class-pair rule would allow one: `3/4`, `$(3` and `(3)$` each
+    # stay whole, while `a/b` still wraps after the slash.
+    "3/4", "$(3", "(3)$", "1,000", "3%", "+3", "3.5",
 ]
 
 
@@ -214,7 +219,9 @@ def random_cases(count: int = _RANDOM_COUNT, seed: int = _RANDOM_SEED) -> list[t
     The curated cases above are hand-picked, so they check the shapes someone
     thought of. These are drawn from the same property set at random, which is
     what turns "the cases we thought of agree" into "the cases we checked
-    agree". The seed is fixed so the committed fixture rebuilds byte for byte.
+    agree". The seed is fixed so the committed fixture rebuilds byte for byte,
+    and the corpus is written to the crate so `tests/layout.rs` replays it: a
+    change that keeps the curated cases green but moves a random box fails CI.
     """
     rng = random.Random(seed)
     return [(f"random_{index:04d}", random_document(rng)) for index in range(count)]
@@ -460,6 +467,46 @@ def cases() -> list[tuple[str, str]]:
                                            "div{font-family:weasyprint;font-size:8px;"
                                            "width:58px}</style>"
                                            '<div><span style="font-size:10px">ab cd </span>a</div>'),
+        # A break is not allowed inside a numeric expression even where the
+        # class-pair rule would permit it, so the whole expression overflows one
+        # line rather than splitting. `3/4` is the fraction case: the pair rule
+        # sees `Sy` before `Nu` and breaks, but Pango keeps the number whole. The
+        # 32px block holds two 16px glyphs and not three, so a wrong rule splits
+        # it into `3/` and `4`.
+        ("numeric_fraction", f"<style>{page}body{{margin:0}}"
+                             "div{font-family:weasyprint;font-size:16px;width:32px}</style>"
+                             "<div>3/4</div>"),
+        # A numeric prefix before an opening bracket and the number it opens:
+        # `$(3` stays whole. The pair rule breaks after `$` because `$` is not in
+        # its no-break set, but the prefix belongs to the number inside.
+        ("numeric_prefix_open_bracket", f"<style>{page}body{{margin:0}}"
+                                        "div{font-family:weasyprint;font-size:16px;width:32px}"
+                                        "</style><div>$(3</div>"),
+        # A closing bracket followed by a numeric suffix: `(3)$` stays whole. The
+        # pair rule breaks after `)` before `$`, but the suffix closes the number
+        # the bracket holds.
+        ("numeric_close_bracket_postfix", f"<style>{page}body{{margin:0}}"
+                                          "div{font-family:weasyprint;font-size:16px;width:32px}"
+                                          "</style><div>(3)$</div>"),
+        # The counter-case the fix must keep: a slash between letters is still a
+        # break opportunity, so `a/b` wraps after the slash as before. Same width
+        # as the fraction, so only the operands' classes separate them.
+        ("numeric_slash_between_letters", f"<style>{page}body{{margin:0}}"
+                                          "div{font-family:weasyprint;font-size:16px;width:32px}"
+                                          "</style><div>a/b</div>"),
+        # A break at the seam between two adjacent text nodes is decided from the
+        # two characters beside it alone, not from the whole word. `3%` then
+        # `$(3` in two spans breaks at the seam (`%` before `$`), where the same
+        # text in one node does not, because the numeric rule needs the whole
+        # expression and the seam sees only the pair.
+        ("seam_numeric_breaks_between_nodes", f"<style>{page}body{{margin:0}}"
+                                              "div{font-family:weasyprint;font-size:16px;width:32px}"
+                                              "</style><div><span>3%</span><span>$(3</span></div>"),
+        # The same characters in one text node stay whole: the counter-case that
+        # separates the seam rule from the intra-word rule.
+        ("seam_numeric_whole_in_one_node", f"<style>{page}body{{margin:0}}"
+                                           "div{font-family:weasyprint;font-size:16px;width:32px}"
+                                           "</style><div>3%$(3</div>"),
     ]
 
 
@@ -575,10 +622,9 @@ def main() -> int:
     parser.add_argument("crate", nargs="?", help="crate directory, e.g. crates/cssprint")
     parser.add_argument("--show", action="store_true", help="print each tree to stdout")
     parser.add_argument(
-        "--random", type=int, default=0, metavar="N",
-        help="append N random documents, for differential testing; the shipped "
-             "seed matches, but a fresh seed can still surface a divergence, so "
-             "they are not written to the committed fixture",
+        "--random", type=int, default=_RANDOM_COUNT, metavar="N",
+        help="how many random documents to generate (default %(default)s, the "
+             "committed corpus); pass 0 for the curated list alone",
     )
     parser.add_argument("--font", help="path to the reference's weasyprint.otf")
     args = parser.parse_args()
@@ -592,13 +638,23 @@ def main() -> int:
     font = find_font(args.font)
     font_config = FontConfiguration()
 
+    # The curated and random corpora are written to separate fixtures so the
+    # hand-picked cases and the regression corpus can be read apart. Each is
+    # laid out and walked here, and both are replayed by `tests/layout.rs`.
+    curated = cases()
+    random_corpus = random_cases(args.random) if args.random else []
     rows: list[tuple[str, ...]] = []
-    corpus = all_cases(args.random)
-    for case, html in corpus:
+    per_case: list[tuple[str, list[tuple]]] = []
+    for case, html in all_cases(args.random):
         page = render(html, font, font_config)
         out: list[tuple] = []
         walk(page, "", out)
-        if args.show:
+        per_case.append((case, out))
+        for row in out:
+            rows.append((case, row[0] or "0", *row[1:]))
+
+    if args.show:
+        for case, out in per_case:
             print(f"\n=== {case} ===")
             for row in out:
                 path, tag, name, x, y, w, h = row[:7]
@@ -614,10 +670,6 @@ def main() -> int:
                     box_model += f" border={bl},{br},{bt},{bb}"
                 print(f"  {pad}{name} <{tag}> cx={x} cy={y} w={w} h={h}{box_model}"
                       + (f" text={text!r}" if text else ""))
-        for row in out:
-            rows.append((case, row[0] or "0", *row[1:]))
-
-    if args.show:
         return 0
 
     if not args.crate:
@@ -626,22 +678,24 @@ def main() -> int:
     fixtures = pathlib.Path(args.crate) / "tests" / "fixtures"
     fixtures.mkdir(parents=True, exist_ok=True)
 
+    curated_ids = {case for case, _ in curated}
+    curated_boxes = sum(len(out) for case, out in per_case if case in curated_ids)
+    fuzz_boxes = len(rows) - curated_boxes
+
     # The Rust test needs the same inputs, so they are written beside the
     # expected tree. A tab or a newline would break the TSV, so they are escaped
     # and the test unescapes them; the layout fixture needs no escaping, because
     # whitespace collapsing means a text box never contains either.
     inputs = fixtures / "cases.tsv"
     with inputs.open("w") as handle:
-        handle.write("# Generated by research/tools/gen_weasyprint_layout.py."
-                     " Do not edit.\n")
+        handle.write("# Generated by scripts/fuzz/cssprint/gen.py. Do not edit.\n")
         handle.write("# case\thtml\n")
-        for case, html in corpus:
+        for case, html in curated:
             handle.write(f"{case}\t{escape(html)}\n")
 
     target = fixtures / "layout.tsv"
     with target.open("w") as handle:
-        handle.write("# Generated by research/tools/gen_weasyprint_layout.py."
-                     " Do not edit.\n")
+        handle.write("# Generated by scripts/fuzz/cssprint/gen.py. Do not edit.\n")
         handle.write(
             "# WeasyPrint box tree: case\tpath\ttag\tbox\tcontent_x\tcontent_y"
             "\twidth\theight"
@@ -650,9 +704,34 @@ def main() -> int:
             "\tpadding_l\tpadding_r\tpadding_t\tpadding_b"
             "\tborder_l\tborder_r\tborder_t\tborder_b\ttext\n")
         for row in rows:
-            handle.write("\t".join(row) + "\n")
-    print(f"{len(rows)} boxes from {len(corpus)} cases -> {target}")
-    print(f"{len(corpus)} inputs -> {inputs}")
+            if row[0] in curated_ids:
+                handle.write("\t".join(row) + "\n")
+
+    fuzz_inputs = fixtures / "fuzz_cases.tsv"
+    with fuzz_inputs.open("w") as handle:
+        handle.write("# Generated by scripts/fuzz/cssprint/gen.py. Do not edit.\n")
+        handle.write("# case\thtml\n")
+        for case, html in random_corpus:
+            handle.write(f"{case}\t{escape(html)}\n")
+
+    fuzz_target = fixtures / "fuzz.tsv"
+    with fuzz_target.open("w") as handle:
+        handle.write("# Generated by scripts/fuzz/cssprint/gen.py. Do not edit.\n")
+        handle.write(
+            "# WeasyPrint box tree: case\tpath\ttag\tbox\tcontent_x\tcontent_y"
+            "\twidth\theight"
+            "\tcontent_x\tcontent_y"
+            "\tmargin_l\tmargin_r\tmargin_t\tmargin_b"
+            "\tpadding_l\tpadding_r\tpadding_t\tpadding_b"
+            "\tborder_l\tborder_r\tborder_t\tborder_b\ttext\n")
+        for row in rows:
+            if row[0] not in curated_ids:
+                handle.write("\t".join(row) + "\n")
+
+    print(f"{len(curated)} curated inputs -> {inputs}")
+    print(f"{curated_boxes} curated boxes -> {target}")
+    print(f"{len(random_corpus)} random inputs -> {fuzz_inputs}")
+    print(f"{fuzz_boxes} random boxes -> {fuzz_target}")
     return 0
 
 

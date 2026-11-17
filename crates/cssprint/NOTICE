@@ -10,11 +10,13 @@ which CourtBouillon publishes under the BSD 3-Clause licence:
     Copyright (c) 2011-2021, Simon Sapin and contributors.
     All rights reserved.
 
-`crates/cssprint/tests/fixtures/layout.tsv` and
-`crates/cssprint/tests/fixtures/cases.tsv` are generated from WeasyPrint by
-`research/tools/gen_weasyprint_layout.py`. They are data, not code: each row
-records the box tree WeasyPrint produces for a small HTML document, so that this
-crate's layout can be compared against it without WeasyPrint present.
+`crates/cssprint/tests/fixtures/layout.tsv`,
+`crates/cssprint/tests/fixtures/cases.tsv`,
+`crates/cssprint/tests/fixtures/fuzz.tsv` and
+`crates/cssprint/tests/fixtures/fuzz_cases.tsv` are generated from WeasyPrint by
+`scripts/fuzz/cssprint/gen.py`. They are data, not code: each row records the box
+tree WeasyPrint produces for a small HTML document, so that this crate's layout
+can be compared against it without WeasyPrint present.
 
 The generator loads WeasyPrint's test font, `tests/resources/weasyprint.otf`,
 which is derived from Ahem and is published under the same BSD 3-Clause licence.

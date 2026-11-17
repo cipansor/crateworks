@@ -713,14 +713,24 @@ fn pieces(items: &[Item]) -> Vec<Piece> {
                 out.push(space(item));
             }
             for (unit_index, unit) in break_units(word).into_iter().enumerate() {
+                // Every unit but the first begins after a break opportunity
+                // inside the word, so a line may start there. The first unit of
+                // an item's first word can also begin after a break opportunity
+                // at a seam with the previous item, which is where two adjacent
+                // text nodes meet with no space between them.
+                let breakable = if unit_index > 0 {
+                    true
+                } else if index == 0 {
+                    seam_breakable(out.last(), unit)
+                } else {
+                    false
+                };
                 out.push(Piece {
                     ancestors: item.ancestors.clone(),
                     style: item.style.clone(),
                     text: unit.to_owned(),
                     is_space: false,
-                    // Every unit but the first begins after a break
-                    // opportunity inside the word, so a line may start there.
-                    breakable: unit_index > 0,
+                    breakable,
                 });
             }
         }
@@ -729,6 +739,31 @@ fn pieces(items: &[Item]) -> Vec<Piece> {
         }
     }
     out
+}
+
+/// Whether a line may break between the piece before this one and the first
+/// unit of a new text node.
+///
+/// Two adjacent text nodes with no space between them meet at a *seam*
+/// (`3%<span>$(3</span>`), and the reference allows a break there exactly when
+/// the two characters beside it are a break opportunity on their own - the same
+/// rule that governs a break inside one word, but read from the two characters
+/// alone, because the reference asks Pango about `last_letter + first_letter`
+/// and nothing wider. `3/` followed by `4` therefore breaks at the seam even
+/// though `3/4` inside one text node does not: the numeric rule needs the whole
+/// expression, and the seam sees only two characters.
+fn seam_breakable(previous: Option<&Piece>, unit: &str) -> bool {
+    let Some(previous) = previous else {
+        return false;
+    };
+    if previous.is_space {
+        return false;
+    }
+    let (Some(before), Some(after)) = (previous.text.chars().next_back(), unit.chars().next())
+    else {
+        return false;
+    };
+    break_allowed(&[before, after], 1)
 }
 
 /// The break opportunities inside one word, as maximal runs that may not be
@@ -745,20 +780,24 @@ fn pieces(items: &[Item]) -> Vec<Piece> {
 /// so a word with no punctuation stays indivisible; `foo-bar` yields `foo-` and
 /// `bar`.
 fn break_units(word: &str) -> Vec<&str> {
+    let characters: Vec<char> = word.chars().collect();
+    // The byte offset each character starts at, plus the word's length, so a
+    // split at a character boundary can slice the original string.
+    let mut offsets = Vec::with_capacity(characters.len() + 1);
+    let mut offset = 0;
+    for character in &characters {
+        offsets.push(offset);
+        offset += character.len_utf8();
+    }
+    offsets.push(offset);
+
     let mut units = Vec::new();
     let mut start = 0;
-    let mut previous: Option<(usize, char)> = None;
-    for (index, character) in word.char_indices() {
-        if let Some((before_index, before)) = previous
-            && break_after(before, character)
-            // A word-initial hyphen does not break (UAX #14 LB20a): `-bar`
-            // stays whole even though `a-bar` breaks after its hyphen.
-            && !(before == '-' && before_index == 0)
-        {
-            units.push(&word[start..index]);
-            start = index;
+    for index in 1..characters.len() {
+        if break_allowed(&characters, index) {
+            units.push(&word[start..offsets[index]]);
+            start = offsets[index];
         }
-        previous = Some((index, character));
     }
     if start < word.len() {
         units.push(&word[start..]);
@@ -767,6 +806,124 @@ fn break_units(word: &str) -> Vec<&str> {
         units.push(word);
     }
     units
+}
+
+/// Whether a line may break before the character at `index`, which is at least
+/// one character into `characters`.
+///
+/// The context-free part is the class-pair rule; the two rules that need more
+/// than the adjacent characters are the word-initial hyphen and the numeric
+/// expression, both of which the reference applies across the whole word.
+fn break_allowed(characters: &[char], index: usize) -> bool {
+    let before = characters[index - 1];
+    let after = characters[index];
+    // A word-initial hyphen does not break before a letter or a digit (UAX #14
+    // LB20a): `-bar` and `-3` stay whole even though `a-bar` breaks after its
+    // hyphen. Before anything else (`-$`, `-(`) the hyphen still breaks.
+    if before == '-'
+        && index == 1
+        && matches!(line_class(after), Some(LineClass::Al | LineClass::Nu))
+    {
+        return false;
+    }
+    // A break inside a numeric expression is not allowed even though the pair
+    // rule would permit it (UAX #14 LB25).
+    if inside_numeric_expression(characters, index) {
+        return false;
+    }
+    break_after(before, after)
+}
+
+/// Whether the boundary at `index` falls inside a numeric expression.
+///
+/// The pair rule decides every boundary from the two characters beside it, but
+/// LB25 is not a pair rule: `3/4`, `$(3` and `(3)$` each contain a boundary the
+/// pair rule would break at and the reference keeps whole. The expression is
+/// recognised from the characters around the boundary, reading outwards:
+///
+/// * `NU (SY|IS)* (CL|CP)? x (PO|PR)` - a currency sign after a number, with an
+///   optional closing bracket in between.
+/// * `NU (SY|IS)* x NU` - a second digit, as in `3/4` or `1,000`.
+/// * `NU (SY|IS)* x (PO|PR)` - a postfix percent after a number, as in `3%`.
+/// * `(PO|PR) x (OP|HY)? (IS)? NU` - a numeric prefix before a number, as in
+///   `$(3` or `+3`, with an optional opening bracket and separator in between.
+///
+/// The last rule is where the prefix sits before the boundary; the others read
+/// the run before it. Together they reproduce Pango's table exactly over every
+/// printable ASCII string up to length three and hundreds of thousands of
+/// longer random ones.
+fn inside_numeric_expression(characters: &[char], index: usize) -> bool {
+    let before = characters[index - 1];
+    let after = characters[index];
+    if is_numeric_prefix_or_postfix(after) {
+        // `NU (SY|IS)* (CL|CP)? x (PO|PR)`
+        if is_close_bracket(before) && numeric_run_before(characters, index - 1) {
+            return true;
+        }
+        // `NU (SY|IS)* x (PO|PR)`
+        if numeric_run_before(characters, index) {
+            return true;
+        }
+    }
+    // `NU (SY|IS)* x NU`
+    if after.is_ascii_digit() && numeric_run_before(characters, index) {
+        return true;
+    }
+    // `(PO|PR) x (OP|HY)? (IS)? NU`
+    if is_numeric_prefix_or_postfix(before) {
+        let mut look = index;
+        if look < characters.len() && (is_open_bracket(characters[look]) || characters[look] == '-')
+        {
+            look += 1;
+        }
+        if look < characters.len() && is_infix_separator(characters[look]) {
+            look += 1;
+        }
+        if look < characters.len() && characters[look].is_ascii_digit() {
+            return true;
+        }
+    }
+    false
+}
+
+/// Whether `characters[..end]` ends with `NU (SY|IS)*`, so the boundary at
+/// `end` follows a number that may still be continued.
+fn numeric_run_before(characters: &[char], end: usize) -> bool {
+    let mut start = end;
+    while start > 0 && is_infix_or_symbol(characters[start - 1]) {
+        start -= 1;
+    }
+    start > 0 && characters[start - 1].is_ascii_digit()
+}
+
+/// Whether `character` is a numeric prefix (`$`, `+`, `\`) or postfix (`%`).
+fn is_numeric_prefix_or_postfix(character: char) -> bool {
+    matches!(character, '$' | '+' | '\\' | '%')
+}
+
+/// Whether `character` is an infix separator (`,`, `.`, `:`, `;`).
+fn is_infix_separator(character: char) -> bool {
+    matches!(character, ',' | '.' | ':' | ';')
+}
+
+/// Whether `character` is a symbol that may sit between digits (`/`).
+fn is_symbol(character: char) -> bool {
+    character == '/'
+}
+
+/// Whether `character` may sit between two digits of one number.
+fn is_infix_or_symbol(character: char) -> bool {
+    is_infix_separator(character) || is_symbol(character)
+}
+
+/// Whether `character` is an opening bracket (`(`, `[`, `{`).
+fn is_open_bracket(character: char) -> bool {
+    matches!(character, '(' | '[' | '{')
+}
+
+/// Whether `character` is a closing bracket (`)`, `]`, `}`).
+fn is_close_bracket(character: char) -> bool {
+    matches!(character, ')' | ']' | '}')
 }
 
 /// Whether a line may break between two adjacent characters with no space.
@@ -1620,5 +1777,80 @@ fn place(fragment: &Fragment, parent_content_x: f64, parent_content_y: f64) -> L
         border: fragment.border,
         text: fragment.text.clone(),
         children,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Piece, Style, break_units, seam_breakable};
+
+    /// The units a word splits into, as a `Vec` of strings for easy comparison.
+    fn units(word: &str) -> Vec<String> {
+        break_units(word)
+            .iter()
+            .map(|unit| (*unit).to_owned())
+            .collect()
+    }
+
+    #[test]
+    fn a_word_with_no_opportunity_is_one_unit() {
+        assert_eq!(units("abc"), ["abc"]);
+        assert_eq!(units("3-4"), ["3-4"]);
+        assert_eq!(units("-bar"), ["-bar"]);
+    }
+
+    #[test]
+    fn a_hyphen_between_letters_is_an_opportunity() {
+        assert_eq!(units("foo-bar"), ["foo-", "bar"]);
+        assert_eq!(units("a-b-c"), ["a-", "b-", "c"]);
+    }
+
+    #[test]
+    fn a_slash_between_letters_is_an_opportunity() {
+        assert_eq!(units("a/b"), ["a/", "b"]);
+    }
+
+    #[test]
+    fn a_numeric_expression_has_no_internal_opportunity() {
+        // The class-pair rule would break each of these; LB25 keeps them whole.
+        assert_eq!(units("3/4"), ["3/4"]);
+        assert_eq!(units("$(3"), ["$(3"]);
+        assert_eq!(units("(3)$"), ["(3)$"]);
+        assert_eq!(units("1,000"), ["1,000"]);
+        assert_eq!(units("3%"), ["3%"]);
+        assert_eq!(units("+3"), ["+3"]);
+    }
+
+    #[test]
+    fn a_word_initial_hyphen_does_not_break_before_a_letter() {
+        // LB20a: `-bar` stays whole, but the hyphen before a symbol still breaks.
+        assert_eq!(units("-bar"), ["-bar"]);
+        assert_eq!(units("-$"), ["-", "$"]);
+    }
+
+    #[test]
+    fn a_seam_between_text_nodes_uses_the_adjacent_characters_alone() {
+        // Two adjacent text nodes meet with no space between them. The reference
+        // asks Pango about the last character of one and the first of the next,
+        // so the seam sees only that pair, not the whole expression: `3/` before
+        // `4` breaks even though `3/4` inside one node does not.
+        let word = |text: &str| Piece {
+            ancestors: Vec::new(),
+            style: Style::default(),
+            text: text.to_owned(),
+            is_space: false,
+            breakable: false,
+        };
+        assert!(seam_breakable(Some(&word("3/")), "4"));
+        assert!(seam_breakable(Some(&word("a/")), "b"));
+        assert!(seam_breakable(Some(&word("%")), "$"));
+        assert!(!seam_breakable(Some(&word("a")), "b"));
+        assert!(!seam_breakable(Some(&word("1,")), "000"));
+        assert!(!seam_breakable(Some(&word("ab")), "cd"));
+        // A seam after a space is a normal space break, not this rule.
+        let mut space = word(" ");
+        space.is_space = true;
+        assert!(!seam_breakable(Some(&space), "b"));
+        assert!(!seam_breakable(None, "b"));
     }
 }
