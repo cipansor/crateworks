@@ -58,7 +58,7 @@ version = "0.6.0"
 
 [[package]]
 name = "iso20022-rs"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "xmlkit",
 ]

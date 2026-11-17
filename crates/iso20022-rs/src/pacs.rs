@@ -566,7 +566,7 @@ impl PaymentStatusReport {
         find_all(&body, "OrgnlGrpInfAndSts", &mut group_elements);
         let mut original_groups = Vec::with_capacity(group_elements.len());
         for element in group_elements {
-            original_groups.push(Self::read_original_group(element)?);
+            original_groups.push(read_original_group(element)?);
         }
 
         let mut status_elements = Vec::new();
@@ -583,24 +583,6 @@ impl PaymentStatusReport {
             instructed_agent_bic,
             original_groups,
             statuses,
-        })
-    }
-
-    fn read_original_group(element: &Element) -> Result<OriginalGroupStatus> {
-        let original_message_id = required_text(element, "OrgnlMsgId")?;
-        let original_message_name_id = required_text(element, "OrgnlMsgNmId")?;
-        let original_creation_datetime = optional_text(element, "OrgnlCreDtTm");
-        let original_number_of_transactions = optional_text(element, "OrgnlNbOfTxs");
-        let original_control_sum = optional_decimal(element, "OrgnlCtrlSum")?;
-        let group_status = optional_text(element, "GrpSts");
-        Ok(OriginalGroupStatus {
-            original_message_id,
-            original_message_name_id,
-            original_creation_datetime,
-            original_number_of_transactions,
-            original_control_sum,
-            group_status,
-            status_reasons: read_status_reasons(element),
         })
     }
 
@@ -665,35 +647,7 @@ impl PaymentStatusReport {
         out.push_str("    </GrpHdr>\n");
 
         for group in &self.original_groups {
-            out.push_str("    <OrgnlGrpInfAndSts>\n");
-            let _ = writeln!(
-                out,
-                "      <OrgnlMsgId>{}</OrgnlMsgId>",
-                escape(&group.original_message_id)
-            );
-            let _ = writeln!(
-                out,
-                "      <OrgnlMsgNmId>{}</OrgnlMsgNmId>",
-                escape(&group.original_message_name_id)
-            );
-            if let Some(dt) = &group.original_creation_datetime {
-                let _ = writeln!(out, "      <OrgnlCreDtTm>{}</OrgnlCreDtTm>", escape(dt));
-            }
-            if let Some(n) = &group.original_number_of_transactions {
-                let _ = writeln!(out, "      <OrgnlNbOfTxs>{}</OrgnlNbOfTxs>", escape(n));
-            }
-            if let Some(sum) = group.original_control_sum {
-                let _ = writeln!(
-                    out,
-                    "      <OrgnlCtrlSum>{}</OrgnlCtrlSum>",
-                    format_decimal(sum)
-                );
-            }
-            if let Some(status) = &group.group_status {
-                let _ = writeln!(out, "      <GrpSts>{}</GrpSts>", escape(status));
-            }
-            write_status_reasons(&mut out, 6, &group.status_reasons);
-            out.push_str("    </OrgnlGrpInfAndSts>\n");
+            write_original_group(&mut out, 4, group);
         }
 
         for status in &self.statuses {
@@ -760,34 +714,58 @@ impl PaymentStatusReport {
 }
 
 /// Reads every `StsRsnInf` under `parent` into a reason.
-fn read_status_reasons(parent: &Element) -> Vec<StatusReason> {
+///
+/// This descends the whole subtree, so it is right only where no descendant
+/// repeats the element: a group header, or a transaction, which is a leaf.
+/// Use [`read_status_reasons_direct`] at a payment-instruction level, where
+/// each nested transaction carries a `StsRsnInf` of its own.
+pub(crate) fn read_status_reasons(parent: &Element) -> Vec<StatusReason> {
     let mut elements = Vec::new();
     find_all(parent, "StsRsnInf", &mut elements);
-    elements
+    elements.iter().map(|e| read_one_status_reason(e)).collect()
+}
+
+/// Reads only the direct `StsRsnInf` children of `parent`.
+///
+/// A `pain.002` payment instruction nests a `StsRsnInf` of its own inside each
+/// transaction, so a recursive walk would report a transaction's reason as the
+/// instruction's. This stops at the first level, which is what an instruction
+/// level needs; a transaction, which is a leaf, can use the recursive
+/// [`read_status_reasons`].
+pub(crate) fn read_status_reasons_direct(parent: &Element) -> Vec<StatusReason> {
+    parent
+        .children
         .iter()
-        .map(|element| {
-            let reason = find(element, "Rsn");
-            let code = reason.and_then(|r| optional_text(r, "Cd"));
-            let proprietary = reason.and_then(|r| optional_text(r, "Prtry"));
-            let mut additional = Vec::new();
-            find_all(element, "AddtlInf", &mut additional);
-            StatusReason {
-                code,
-                proprietary,
-                additional_information: additional
-                    .iter()
-                    .filter_map(|e| {
-                        let text = e.deep_text().trim().to_string();
-                        (!text.is_empty()).then_some(text)
-                    })
-                    .collect(),
-            }
+        .filter_map(|node| match node {
+            xmlkit::Node::Element(e) if xmlkit::local_name(&e.name) == "StsRsnInf" => Some(e),
+            _ => None,
         })
+        .map(read_one_status_reason)
         .collect()
 }
 
+/// Reads one `StsRsnInf` block.
+fn read_one_status_reason(element: &Element) -> StatusReason {
+    let reason = find(element, "Rsn");
+    let code = reason.and_then(|r| optional_text(r, "Cd"));
+    let proprietary = reason.and_then(|r| optional_text(r, "Prtry"));
+    let mut additional = Vec::new();
+    find_all(element, "AddtlInf", &mut additional);
+    StatusReason {
+        code,
+        proprietary,
+        additional_information: additional
+            .iter()
+            .filter_map(|e| {
+                let text = e.deep_text().trim().to_string();
+                (!text.is_empty()).then_some(text)
+            })
+            .collect(),
+    }
+}
+
 /// Writes `StsRsnInf` blocks at the given indentation.
-fn write_status_reasons(out: &mut String, indent: usize, reasons: &[StatusReason]) {
+pub(crate) fn write_status_reasons(out: &mut String, indent: usize, reasons: &[StatusReason]) {
     let pad = " ".repeat(indent);
     for reason in reasons {
         let _ = writeln!(out, "{pad}<StsRsnInf>");
@@ -808,7 +786,7 @@ fn write_status_reasons(out: &mut String, indent: usize, reasons: &[StatusReason
 }
 
 /// Reads an optional decimal child, as the control sums are.
-fn optional_decimal(element: &Element, name: &'static str) -> Result<Option<f64>> {
+pub(crate) fn optional_decimal(element: &Element, name: &'static str) -> Result<Option<f64>> {
     match optional_text(element, name) {
         None => Ok(None),
         Some(text) => text
@@ -822,7 +800,7 @@ fn optional_decimal(element: &Element, name: &'static str) -> Result<Option<f64>
 }
 
 /// Writes a `<XxxAgt><FinInstnId><BICFI>..</BICFI></FinInstnId></XxxAgt>` block.
-fn write_agent(out: &mut String, tag: &str, bic: &str) {
+pub(crate) fn write_agent(out: &mut String, tag: &str, bic: &str) {
     let _ = writeln!(
         out,
         "      <{tag}>\n        <FinInstnId>\n          <BICFI>{}</BICFI>\n        </FinInstnId>\n      </{tag}>",
@@ -834,19 +812,84 @@ fn write_agent(out: &mut String, tag: &str, bic: &str) {
 ///
 /// The code lives in `FinInstnId` and may be tagged `BICFI` (the current name)
 /// or `BIC` (the older one), so both are accepted.
-fn agent_bic(agent: &Element) -> Option<String> {
+pub(crate) fn agent_bic(agent: &Element) -> Option<String> {
     let fin = find(agent, "FinInstnId").unwrap_or(agent);
     optional_text(fin, "BICFI").or_else(|| optional_text(fin, "BIC"))
 }
 
 /// Formats a decimal with two places, the usual convention for currency.
-fn format_decimal(value: f64) -> String {
+pub(crate) fn format_decimal(value: f64) -> String {
     format!("{value:.2}")
 }
 
 /// Escapes text for XML content.
-fn escape(s: &str) -> String {
+pub(crate) fn escape(s: &str) -> String {
     xmlkit::escape_text(s)
+}
+
+/// Reads an `OrgnlGrpInfAndSts` (a `pacs.002`) or `OrgnlGrpInfAndSts` group
+/// header, the ISO 20022 `OriginalGroupHeader17`.
+///
+/// Both `pacs.002` and `pain.002` use this shape for the group the report
+/// answers, so it lives here rather than in either module.
+pub(crate) fn read_original_group(element: &Element) -> Result<OriginalGroupStatus> {
+    Ok(OriginalGroupStatus {
+        original_message_id: required_text(element, "OrgnlMsgId")?,
+        original_message_name_id: required_text(element, "OrgnlMsgNmId")?,
+        original_creation_datetime: optional_text(element, "OrgnlCreDtTm"),
+        original_number_of_transactions: optional_text(element, "OrgnlNbOfTxs"),
+        original_control_sum: optional_decimal(element, "OrgnlCtrlSum")?,
+        group_status: optional_text(element, "GrpSts"),
+        status_reasons: read_status_reasons(element),
+    })
+}
+
+/// Writes an `OriginalGroupHeader17` block at the given indentation, wrapping it
+/// in the tag the caller names (`OrgnlGrpInfAndSts` in both `pacs.002` and
+/// `pain.002`).
+pub(crate) fn write_original_group_tagged(
+    out: &mut String,
+    indent: usize,
+    tag: &str,
+    group: &OriginalGroupStatus,
+) {
+    let pad = " ".repeat(indent);
+    let _ = writeln!(out, "{pad}<{tag}>");
+    let inner = indent + 2;
+    let ipad = " ".repeat(inner);
+    let _ = writeln!(
+        out,
+        "{ipad}<OrgnlMsgId>{}</OrgnlMsgId>",
+        escape(&group.original_message_id)
+    );
+    let _ = writeln!(
+        out,
+        "{ipad}<OrgnlMsgNmId>{}</OrgnlMsgNmId>",
+        escape(&group.original_message_name_id)
+    );
+    if let Some(dt) = &group.original_creation_datetime {
+        let _ = writeln!(out, "{ipad}<OrgnlCreDtTm>{}</OrgnlCreDtTm>", escape(dt));
+    }
+    if let Some(n) = &group.original_number_of_transactions {
+        let _ = writeln!(out, "{ipad}<OrgnlNbOfTxs>{}</OrgnlNbOfTxs>", escape(n));
+    }
+    if let Some(sum) = group.original_control_sum {
+        let _ = writeln!(
+            out,
+            "{ipad}<OrgnlCtrlSum>{}</OrgnlCtrlSum>",
+            format_decimal(sum)
+        );
+    }
+    if let Some(status) = &group.group_status {
+        let _ = writeln!(out, "{ipad}<GrpSts>{}</GrpSts>", escape(status));
+    }
+    write_status_reasons(out, inner, &group.status_reasons);
+    let _ = writeln!(out, "{pad}</{tag}>");
+}
+
+/// Writes an `OrgnlGrpInfAndSts` block, the tag `pacs.002` uses.
+pub(crate) fn write_original_group(out: &mut String, indent: usize, group: &OriginalGroupStatus) {
+    write_original_group_tagged(out, indent, "OrgnlGrpInfAndSts", group);
 }
 
 #[cfg(test)]

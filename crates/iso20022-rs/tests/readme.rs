@@ -60,3 +60,26 @@ fn readme_pacs002_example() {
         Some("ACSC")
     );
 }
+
+#[test]
+fn readme_pain002_example() {
+    use iso20022_rs::pain::CustomerPaymentStatusReport;
+
+    let xml = r#"<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pain.002.001.10">
+  <CstmrPmtStsRpt>
+    <GrpHdr><MsgId>S1</MsgId><CreDtTm>2026-01-01T00:00:00Z</CreDtTm></GrpHdr>
+    <OrgnlGrpInfAndSts>
+      <OrgnlMsgId>MSG-1</OrgnlMsgId>
+      <OrgnlMsgNmId>pain.001.001.09</OrgnlMsgNmId>
+      <GrpSts>ACCP</GrpSts>
+    </OrgnlGrpInfAndSts>
+  </CstmrPmtStsRpt>
+</Document>"#;
+
+    let report = CustomerPaymentStatusReport::parse(xml).unwrap();
+    assert_eq!(
+        report.original_group.original_message_name_id,
+        "pain.001.001.09"
+    );
+    assert_eq!(report.original_group.group_status.as_deref(), Some("ACCP"));
+}

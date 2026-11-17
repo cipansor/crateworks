@@ -241,6 +241,15 @@ that branch order or the held-out check tests the wrong thing.
 
 ## Known traps
 
+- **A recursive descendant read reports a nested element's data at the wrong
+  level.** `iso20022-rs` reads status reasons with `find_all`, which walks the
+  whole subtree. That is right for a `pacs.002`, where a group header and a
+  transaction never nest a `StsRsnInf` of the same type, but a `pain.002`
+  payment instruction *contains* its transactions, each with its own
+  `StsRsnInf`, so a recursive read would report a transaction's reason as the
+  instruction's. The instruction level uses `read_status_reasons_direct`, which
+  stops at the direct children. When a message nests an element that also
+  appears at the level above, read the direct children, not the subtree.
 - **A newer clippy can fail an untouched crate.** `-D warnings` turns every new
   lint into a build failure, so a green build on one toolchain says nothing about
   the next. A clippy bump to 1.99 produced 17 failures across nine crates, none of
