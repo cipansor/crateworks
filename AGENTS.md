@@ -304,13 +304,20 @@ that branch order or the held-out check tests the wrong thing.
 - **`cargo clippy` prints nothing on a cached build.** If a lint seems to have
   vanished, `touch crates/*/src/lib.rs` (or `find crates -name '*.rs' -exec touch {} +`)
   to force a rebuild before believing the result.
-- **A generated table cannot carry a bare `std::f64::consts::E` by accident.**
-  `runits` emits the logarithm base of `Np` as `std::f64::consts::E` rather than
-  `2.718281828459045`, because clippy's `approx_constant` fires on the literal
-  and the crate forbids an `allow`. `gen_units.py` detects a base equal to `e`
-  and writes the constant by name. Any new generated float that equals a named
-  maths constant needs the same treatment; the check is in `main`, not in the
-  emitter.
+- **A generated float that equals a named maths constant must be written by
+  name.** `runits` emits the logarithm base of `Np` as `std::f64::consts::E`
+  rather than `2.718281828459045`, because clippy's `approx_constant` fires on
+  the literal and the crate forbids an `allow`. `gen_units.py`'s `main` detects a
+  base equal to `e` and writes the constant by name. Any new generated float
+  that equals a named maths constant needs the same treatment; the data table
+  itself is allowed to hold the literal, but a hand-written line is not.
+- **A sum of two dimensioned logarithms has no logarithm to return.** `pint`
+  computes `0 dBm + 1 dBm` by multiplying the two reference quantities and
+  returning a *squared* watt, a quantity neither operand named, so `runits`
+  refuses it (`ArithmeticError::LogarithmicUnit`) rather than invent a number. A
+  sum of two dimensionless logarithms is well defined and allowed: `3 dB + 3 dB`
+  is `6 dB` and `3 dB + 1 Np` is `11.686 dB`. When extending log arithmetic,
+  check which side of that line the reference falls on before copying it.
 - **`xmlkit` name matching.** `Element::child` and `children_named` match the
   full name including the prefix, so `child(el, "IssueDateTime")` does **not**
   find `ram:IssueDateTime`. Match on the local name. `Element::text()`
