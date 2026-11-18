@@ -290,6 +290,19 @@ in every later year - Madagascar's `easter` offset 56 at 2050 did exactly that.
 `rule_applies`, the tool's model of what the Rust rule fires, has to reproduce
 that branch order or the held-out check tests the wrong thing.
 
+**A weekend move is not always forward, and not always one day.** The
+`ObservedShift` shift table is keyed on the base's weekday, so a country may move
+a Saturday holiday *back* to the preceding Friday (`(6, -1)`, the Solomon
+Islands), two days forward past a Sunday (`(0, 1), (6, 2)`, Gibraltar and
+Bermuda) or leave the pair of Christmas and Boxing Day on a shared two-day move
+so they never collide. A fitter that assumes "a weekend holiday goes to the next
+Monday" fits those countries with a base a day or two off and then hides the
+error behind a larger table; when a fit for a weekend-moving country disagrees,
+read the reference's own shift for that date rather than the shape you expect.
+The filter itself is cheap to re-run and its refusals are stable, so the cheapest
+way to grow the crate is to point `derive_holidays.py` at every uncovered country
+again after any generator change and keep exactly what it accepts.
+
 ## Known traps
 
 - **A recursive descendant read reports a nested element's data at the wrong
