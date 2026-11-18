@@ -514,7 +514,11 @@ general sibling (`~`). The attribute selectors `[a]`, `[a=v]`, `[a~=v]`,
 `[a|=v]`, `[a^=v]`, `[a$=v]` and `[a*=v]` are supported, as are the structural
 pseudo-classes `:root`, `:first-child`, `:last-child`, `:only-child`,
 `:nth-child()` and `:nth-last-child()` (with `odd`, `even`, an index or an `an+b`
-argument) and the negation `:not()`. The cascade orders by specificity first,
+argument) and the negation `:not()`; a compound may carry several negations, and
+pseudo-class names are ASCII case-insensitive. A quoted attribute value is read
+as a CSS string, so a comma, `]` or `)` inside it is text, a backslash escapes
+the character after it, and the string's escapes are decoded before the value is
+compared. The cascade orders by specificity first,
 source order second, as the reference does; an attribute selector and a
 pseudo-class each count as a class, and `:not()` counts as its argument.
 
@@ -544,7 +548,8 @@ Selector matching has its own pair of corpora, `selector_layout.tsv` /
 `selector_cases.tsv` and `selector_fuzz.tsv` / `selector_fuzz_cases.tsv`, drawn
 from documents whose elements carry ids, classes and attributes and a stylesheet
 of complex selectors over them, including the sibling combinators, the attribute
-selectors and the structural pseudo-classes; `--selectors N` overrides the random
+selectors (quoted and bare, with escapes) and the structural pseudo-classes;
+`--selectors N` overrides the random
 selector count. The elements nest, including spans inside spans, and a rule whose
 subject may be inline carries `font-size`, which moves the text, so an inline
 match is visible in the tree - a box-model declaration there is ignored on a

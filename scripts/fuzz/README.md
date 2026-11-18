@@ -187,7 +187,11 @@ to write down.
 - `cssprint` — 2000 random documents over the implemented property set, laid out
   by WeasyPrint and recorded as a box tree, plus a selector corpus of 1200
   documents whose elements carry ids, classes and attributes under a stylesheet
-  of attribute selectors, structural pseudo-classes and sibling combinators. The
+  of attribute selectors (quoted and bare, with escapes), structural
+  pseudo-classes and sibling combinators. `--seed N` redraws both random corpora
+  from a fresh seed; the layout fixture and the selector fixture both take the
+  seed, so a fresh seed describes one set of documents in both, and the crate can
+  be checked against the reference on inputs the committed seed never drew. The
   curated cases were the shapes
   someone thought of; the random ones are the shapes nobody wrote down. Adding
   numeric expressions to the word pool surfaced a real bug the curated cases

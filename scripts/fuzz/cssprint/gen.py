@@ -687,12 +687,53 @@ def selector_cases() -> list[tuple[str, str]]:
         ("root_pseudo", f"<style>{page}{body}"
                         "html:root{width:44px;height:11px}</style>"
                         "<div></div>"),
+        # A quoted attribute value may hold a comma, which is not a selector-list
+        # separator inside the string. A comma-splitting parser reads two broken
+        # selectors and the rule is lost.
+        ("attribute_quoted_comma", f"<style>{page}{body}"
+                                   '[title="Doe, Jane"]{width:40px;height:10px}</style>'
+                                   '<div title="Doe, Jane"></div><div title="Doe"></div>'),
+        # A quoted value may hold the `]` that would otherwise close the
+        # attribute selector.
+        ("attribute_quoted_bracket", f"<style>{page}{body}"
+                                     '[title="a]b"]{width:40px;height:10px}</style>'
+                                     '<div title="a]b"></div><div title="a"></div>'),
+        # A quoted value may hold the `)` that would otherwise close `:not()`.
+        ("not_quoted_paren", f"<style>{page}{body}"
+                             'div:not([title=")"]){width:40px;height:10px}</style>'
+                             '<div title=")"></div><div title="x"></div>'),
+        # A comment marker inside a quoted value is text, not a comment, so the
+        # rest of the stylesheet after it still parses.
+        ("comment_marker_in_string", f"<style>{page}{body}"
+                                     '[title="/*"]{width:40px;height:10px}'
+                                     "div{height:9px}</style>"
+                                     '<div title="/*"></div>'),
+        # Two separate negations on one compound: neither class may be present.
+        ("not_chained", f"<style>{page}{body}"
+                        "div:not(.a):not(.b){width:40px;height:10px}</style>"
+                        '<div class="a"></div><div class="b"></div><div></div>'),
+        # Pseudo-class names are ASCII case-insensitive, so an upper-case name
+        # still parses and matches.
+        ("uppercase_pseudo", f"<style>{page}{body}"
+                             "div:FIRST-CHILD{width:40px;height:10px}</style>"
+                             "<div></div><div></div>"),
+        # A quoted attribute value with a backslash escape decodes to the
+        # character it names before comparing.
+        ("attribute_escaped_quote", f"<style>{page}{body}"
+                                    '[title="a\\"b"]{width:40px;height:10px}</style>'
+                                    '<div title=\'a"b\'></div><div title="ab"></div>'),
+        # A signed boundary coefficient in `:nth-child()` matches nothing rather
+        # than overflowing the arithmetic.
+        ("nth_boundary_negative", f"<style>{page}{body}"
+                                  "div:nth-child(-n-9223372036854775807)"
+                                  "{width:40px;height:10px}</style>"
+                                  "<div></div><div></div>"),
     ]
 
 
-def all_cases(random_count: int = 0) -> list[tuple[str, str]]:
+def all_cases(random_count: int = 0, seed: int | None = None) -> list[tuple[str, str]]:
     """The curated corpus, and optionally the random one after it."""
-    return cases() + (random_cases(random_count) if random_count else [])
+    return cases() + (random_cases(random_count, seed) if random_count else [])
 
 
 def cases() -> list[tuple[str, str]]:
@@ -1208,7 +1249,7 @@ def main() -> int:
         selector_random_cases(args.selectors, seed) if args.selectors else []
     )
     every_case = (
-        all_cases(args.random) + selector_curated + selector_random
+        all_cases(args.random, seed) + selector_curated + selector_random
     )
     rows: list[tuple[str, ...]] = []
     per_case: list[tuple[str, list[tuple]]] = []

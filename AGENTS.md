@@ -376,6 +376,16 @@ that branch order or the held-out check tests the wrong thing.
   stops only at `=` or whitespace swallows the sigil into the name (`data-x~`
   then `=v`) and the rule silently never matches. Stop the name at `~ | ^ $ *`
   as well, then read the operator from what follows.
+- **A quoted string in a selector is not syntax.** An attribute value may be a
+  CSS string holding any character, so `[title="Doe, Jane"]` must not split on
+  the comma, `[title="a]b"]` must not close at the quoted `]`, and
+  `:not([title=")"])` must not close at the quoted `)`. Every scanner that looks
+  for a delimiter - the comment stripper, the rule-brace finder, the
+  selector-list splitter, the attribute-close finder and `read_parenthesized` -
+  has to step over a quoted string, honouring `\` escapes, rather than read its
+  contents as syntax. They now share `string_length`, `find_unquoted` and
+  `split_unquoted` for that reason. A quoted value's escapes are decoded
+  (`\62` is `b`) before it is compared, as the reference's tokenizer does.
 - **A selector engine grows in lockstep with its corpus, or the corpus is a
   rubber stamp.** The `cssprint` selector grammar (attribute selectors, the
   structural pseudo-classes, `:not()`, the sibling combinators) was added
@@ -384,6 +394,23 @@ that branch order or the held-out check tests the wrong thing.
   hand-written expectation. Extend `scripts/fuzz/cssprint/gen.py` in the same
   change as the grammar, and regenerate the selector fixtures, or the random
   corpus keeps testing only the old shapes.
+- **A structural pseudo-class must not re-count siblings per rule.** The
+  sibling position and count a `:nth-child()` or a sibling combinator reads are
+  computed once by the DOM traversal that already walks the parent
+  (`element_children(element).count()`), and threaded down as `Ancestor { element,
+  index, total }`. Computing them inside matching - walking the parent's children
+  to count and again to locate the subject, for every rule against every element
+  - is quadratic on a flat document: a 1000-child list with one `div` rule cost
+  ~1.5M sibling visits. The fix took the 4x-scaling ratio from 15.2 to 3.5 on an
+  8000-child document. A selector with no structural pseudo-class and no sibling
+  combinator reads none of it, so `index`/`total` are free for the caller to
+  pass as `0`.
+- **An `an+b` coefficient is an `i64` and its arithmetic can overflow.** The
+  `:nth-child()` parser accepts a signed 64-bit coefficient, so
+  `-n-9223372036854775807` makes `index - b` overflow `i64` (panicking in debug,
+  wrapping then panicking on `% -1` in release). Widen the subtraction, remainder
+  and division to `i128`, where the difference of two `i64`s is exact in every
+  profile.
 - **`cargo publish` resolves path dependencies against the registry.** A crate
   that depends on `xmlkit` cannot be packaged until `xmlkit` is *published*, and
   the error ("no matching package named `xmlkit` found") reads like a broken

@@ -137,14 +137,21 @@ The attribute selectors `[a]`, `[a=v]`, `[a~=v]`, `[a|=v]`, `[a^=v]`, `[a$=v]`
 and `[a*=v]` are supported. So are the structural pseudo-classes `:root`,
 `:first-child`, `:last-child`, `:only-child`, `:nth-child()` and
 `:nth-last-child()` (with `odd`, `even`, an index or an `an+b` argument), and the
-negation `:not()`, which takes a single compound. A tag name may contain any
-alphanumeric character, ASCII or not, plus `-` and `_`, matching what the HTML
-parser keeps, so `café` parses like `div` does. The cascade orders by
+negation `:not()`, which takes a single compound; a compound may carry several
+negations, as in `div:not(.a):not(.b)`. Pseudo-class names are ASCII
+case-insensitive, so `:FIRST-CHILD` and `:first-child` are the same. A tag name
+may contain any alphanumeric character, ASCII or not, plus `-` and `_`, matching
+what the HTML parser keeps, so `café` parses like `div` does.
+
+A quoted attribute value is read as a CSS string: a comma, `]` or `)` inside it
+is text rather than syntax, a backslash escapes the character after it, and the
+string's escapes are decoded before the value is compared, so `[title="Doe, Jane"]`
+and `[title="a\62"]` (which names `ab`) both work. The cascade orders by
 specificity first and source order second, as the reference does: a more
 specific selector wins however early it appears, and equal specificity falls
 back to the later rule. An attribute selector and a structural pseudo-class each
-count as a class; `:not()` counts as its argument. `display: none` removes an
-element from the tree.
+count as a class; `:not()` counts as its argument, and two negations add
+together. `display: none` removes an element from the tree.
 
 ### Text and the font
 

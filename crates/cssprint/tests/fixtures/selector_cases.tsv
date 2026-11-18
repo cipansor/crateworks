@@ -44,3 +44,11 @@ combinator_with_pseudo	<style>@page { size: 200px 200px; margin: 0 }body{margin:
 root_first_child	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}html:first-child{width:44px;height:11px}</style><div></div>
 root_only_child	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}html:only-child{width:44px;height:11px}</style><div></div>
 root_pseudo	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}html:root{width:44px;height:11px}</style><div></div>
+attribute_quoted_comma	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}[title="Doe, Jane"]{width:40px;height:10px}</style><div title="Doe, Jane"></div><div title="Doe"></div>
+attribute_quoted_bracket	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}[title="a]b"]{width:40px;height:10px}</style><div title="a]b"></div><div title="a"></div>
+not_quoted_paren	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}div:not([title=")"]){width:40px;height:10px}</style><div title=")"></div><div title="x"></div>
+comment_marker_in_string	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}[title="/*"]{width:40px;height:10px}div{height:9px}</style><div title="/*"></div>
+not_chained	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}div:not(.a):not(.b){width:40px;height:10px}</style><div class="a"></div><div class="b"></div><div></div>
+uppercase_pseudo	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}div:FIRST-CHILD{width:40px;height:10px}</style><div></div><div></div>
+attribute_escaped_quote	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}[title="a\\"b"]{width:40px;height:10px}</style><div title='a"b'></div><div title="ab"></div>
+nth_boundary_negative	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}div:nth-child(-n-9223372036854775807){width:40px;height:10px}</style><div></div><div></div>
