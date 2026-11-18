@@ -41,7 +41,9 @@ Islands, the Caribbean Netherlands, Curaçao, Georgia, Guatemala, Honduras,
 Hungary, Moldova, Namibia, Seychelles, Sint Maarten, Antigua and Barbuda, the
 Cayman Islands, the Cook Islands, the Isle of Man, Saint Kitts and Nevis, Saint
 Helena (Ascension and Tristan da Cunha), San Marino, the Turks and Caicos
-Islands, Vatican City, Saint Vincent and the Grenadines and South Africa.
+Islands, Vatican City, Saint Vincent and the Grenadines, South Africa, Bermuda,
+Dominica, Grenada, Gibraltar, the Solomon Islands and the British Virgin
+Islands.
 `Country::ALL` lists them.
 
 Greece, Cyprus and Romania keep the Orthodox calendar, so their movable feasts

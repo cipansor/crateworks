@@ -290,6 +290,32 @@ in every later year - Madagascar's `easter` offset 56 at 2050 did exactly that.
 `rule_applies`, the tool's model of what the Rust rule fires, has to reproduce
 that branch order or the held-out check tests the wrong thing.
 
+**A weekend move is not always forward, and not always one day.** The
+`ObservedShift` shift table is keyed on the base's weekday, so a country may move
+a Saturday holiday *back* to the preceding Friday (`(6, -1)`, the Solomon
+Islands), two days forward past a Sunday (`(0, 1), (6, 2)`, Gibraltar and
+Bermuda) or leave the pair of Christmas and Boxing Day on a shared two-day move
+so they never collide. A fitter that assumes "a weekend holiday goes to the next
+Monday" fits those countries with a base a day or two off and then hides the
+error behind a larger table; when a fit for a weekend-moving country disagrees,
+read the reference's own shift for that date rather than the shape you expect.
+The filter itself is cheap to re-run and its refusals are stable, so the cheapest
+way to grow the crate is to point `derive_holidays.py` at every uncovered country
+again after any generator change and keep exactly what it accepts.
+
+**A weekend shift needs a corpus, not a spot test.** A hand-written case names
+one year's date - "Bermuda Day is 22 May 2026" - and that year happens to move the
+holiday the way the test expects, so the test passes whatever the shift does in
+the years it does not name. Changing Bermuda's Saturday New Year's shift from
+`(0, 1), (6, 2)` to `(0, 1), (6, 1)` leaves every hand-picked case green while the
+calendar reports the wrong day in every year the base falls on a Saturday. The
+corpus at `crates/holidays-rs/tests/fixtures/holidays_oracle.tsv`, built by
+`scripts/fuzz/holidays-rs/gen.py`, is what catches it: it lists the reference's
+answer for the whole window, so a shift that diverges anywhere fails. `verify_holidays.py`
+is the same check but live - it needs the reference installed and CI does not run
+it - so a calendar whose behaviour is not frozen as a committed fixture has no
+regression coverage in CI at all.
+
 ## Known traps
 
 - **A recursive descendant read reports a nested element's data at the wrong
@@ -352,6 +378,13 @@ that branch order or the held-out check tests the wrong thing.
   directory that is not under `$HOME` (for example
   `CARGO_HOME=/workspace/.toolchain/cargo RUSTUP_HOME=/workspace/.toolchain/rustup`)
   to keep it across restarts. `pip` packages are wiped too.
+- **A toolchain that survives the restart is still off `PATH`.** A
+  `CARGO_HOME=/workspace/.toolchain/cargo` install persists, but nothing adds its
+  `bin/` to the shell, so `cargo: command not found` means "find it", not
+  "reinstall it": `export PATH=/workspace/.toolchain/cargo/bin:$PATH
+  CARGO_HOME=/workspace/.toolchain/cargo` before the first `cargo`. The same
+  restart drops the credential in `$HOME/.openhands/git-credentials`, so a push
+  that worked earlier fails with `403` until a token is supplied again.
 - **`cargo clippy` prints nothing on a cached build.** If a lint seems to have
   vanished, `touch crates/*/src/lib.rs` (or `find crates -name '*.rs' -exec touch {} +`)
   to force a rebuild before believing the result.

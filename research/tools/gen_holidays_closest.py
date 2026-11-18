@@ -65,6 +65,9 @@ COUNTRIES = {
     "SaintKittsAndNevis": "KN", "CaymanIslands": "KY", "SaintHelena": "SH",
     "SanMarino": "SM", "TurksAndCaicosIslands": "TC", "VaticanCity": "VA",
     "SaintVincentAndTheGrenadines": "VC", "SouthAfrica": "ZA",
+    # Added in 0.8.0.
+    "Bermuda": "BM", "Dominica": "DM", "Grenada": "GD", "Gibraltar": "GI",
+    "SolomonIslands": "SB", "BritishVirginIslands": "VG",
 }
 
 # Countries whose holiday *set* already differs from the reference in a way
@@ -127,6 +130,14 @@ EXCLUDED = {
     "TurksAndCaicosIslands": "reference carries '(observed)' duplicate dates",
     "SaintVincentAndTheGrenadines": "reference carries '(observed)' duplicate dates",
     "SouthAfrica": "reference carries '(observed)' duplicate dates",
+    # Added in 0.8.0. All six move at least one holiday, so each lists the raw
+    # date and the observed one and the sets differ the same way.
+    "Bermuda": "reference carries '(observed)' duplicate dates",
+    "Dominica": "reference carries '(observed)' duplicate dates",
+    "Grenada": "reference carries '(observed)' duplicate dates",
+    "Gibraltar": "reference carries '(observed)' duplicate dates",
+    "SolomonIslands": "reference carries '(observed)' duplicate dates",
+    "BritishVirginIslands": "reference carries '(observed)' duplicate dates",
 }
 
 YEARS = list(range(2018, 2034))
