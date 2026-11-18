@@ -16,17 +16,41 @@ Numbers come from two places:
 
 Run from the repository root:
 
+    pip install 'python-stdnum==2.2'
     python3 research/tools/gen_stdnum_vectors.py
+
+**Pin the version.** The reference's own data moves between releases - a
+country's registry entry, a check-digit routine, a doctest - so a fixture
+regenerated against a different release would change the crate's expectations
+without a crate change, and two maintainers on two releases would get two
+fixtures from one checkout. The version is asserted below, so an environment
+with another release stops the run instead of silently re-baselining it.
 
 It rewrites the fixture in place and prints a per-country summary.
 """
 
 from __future__ import annotations
 
+import itertools
 import random
 import re
 import sys
 from pathlib import Path
+
+import stdnum
+
+# The reference release this fixture is baselined against. The docstring above
+# explains why: the reference's data moves, and a regenerated fixture would
+# otherwise differ between environments. Asserting it here means another
+# release stops the run instead of silently rewriting the oracle.
+PINNED = "2.2"
+if stdnum.__version__ != PINNED:
+    raise SystemExit(
+        f"python-stdnum {stdnum.__version__} is installed, but this fixture is "
+        f"baselined against {PINNED}. Install 'python-stdnum=={PINNED}' "
+        f"(pip install 'python-stdnum=={PINNED}') or re-pin this file and "
+        f"research/tools/README.md together."
+    )
 
 # Rust `Country` variant name -> dotted python-stdnum module path.
 # Add a row here and a matching `Country` arm in the crate, and the gate covers
@@ -650,16 +674,21 @@ def _iban_bban(structure: str, rng) -> str:
 def iban_corpus(mod, rng) -> list[str]:
     """IBANs that exercise the three checks the crate performs.
 
-    Three kinds of row, each isolating one check from the MOD-97 check that
+    Four kinds of row, each isolating one check from the MOD-97 check that
     would otherwise reject it first:
 
     * a valid IBAN, which both implementations accept;
+    * for the countries with an arithmetic national check, a *valid* IBAN whose
+      national check digits were solved rather than drawn, so the accepted side
+      of the national check is covered as well as the rejected side. Without
+      this the only ES/NO/ME rows were rejections, and a crate that rejected
+      every ES/NO/ME IBAN would agree with the fixture;
     * a BBAN with a letter where the registry requires a digit, closed with the
       *correct* MOD-97 check digits, so only the structure check separates the
       two;
-    * for the countries with a national check, a structurally valid BBAN with
-      wrong national check digits, again closed with correct MOD-97 check
-      digits, so only the national check separates them.
+    * a structurally valid BBAN with wrong national check digits, again closed
+      with correct MOD-97 check digits, so only the national check separates
+      them.
 
     Belgium is left out of the national-check rows: the reference looks the bank
     code up in a register this crate deliberately does not ship, so a Belgian
@@ -681,6 +710,17 @@ def iban_corpus(mod, rng) -> list[str]:
         if not structure:
             continue
         bban = _iban_bban(structure, rng)
+        if country in NATIONAL_CHECK_POSITIONS:
+            # Solve the national check digits so the base row is accepted, not
+            # only the wrong-check row derived from it. Norway's `0000` postgiro
+            # prefix takes a different branch the position solver cannot fill,
+            # so a draw that lands on it is retried.
+            for _ in range(20):
+                solved = _iban_solve_national_check(mod, country, bban)
+                if solved is not None:
+                    bban = solved
+                    break
+                bban = _iban_bban(structure, rng)
         out.append(country + mod.calc_check_digits(country + "00" + bban) + bban)
 
         # A letter where the structure requires a digit, with correct MOD-97.
@@ -696,10 +736,44 @@ def iban_corpus(mod, rng) -> list[str]:
         # A valid structure and MOD-97 but a wrong national check digit, for
         # the countries whose national check is arithmetic. The reference
         # rejects these with InvalidChecksum; the crate must too.
-        if country in ("ES", "NO", "ME"):
+        if country in NATIONAL_CHECK_POSITIONS:
             wrong = _break_national_check(country, bban, rng)
             out.append(country + mod.calc_check_digits(country + "00" + wrong) + wrong)
     return out
+
+
+# The BBAN positions holding each country's national check digits. Negative
+# indexes count from the end. The set is the countries whose national IBAN
+# check is arithmetic; Belgium is absent because its check is a register
+# lookup this crate does not ship.
+NATIONAL_CHECK_POSITIONS: dict[str, tuple[int, ...]] = {
+    "ES": (8, 9),
+    "NO": (10,),
+    "ME": (-2, -1),
+}
+
+
+def _iban_solve_national_check(mod, country: str, bban: str) -> str | None:
+    """Fill in the national check digits so the reference accepts the IBAN.
+
+    The check digits are solved by asking the reference's own `is_valid` for
+    the one combination it accepts, rather than by reimplementing each
+    country's arithmetic - the reference is the oracle, and a reimplementation
+    here could agree with the crate while disagreeing with the reference.
+    Returns `None` if no combination is accepted (Norway's postgiro branch).
+    """
+    indexes = [
+        len(bban) + pos if pos < 0 else pos for pos in NATIONAL_CHECK_POSITIONS[country]
+    ]
+    chars = list(bban)
+    for combo in itertools.product("0123456789", repeat=len(indexes)):
+        for index, digit in zip(indexes, combo):
+            chars[index] = digit
+        candidate = "".join(chars)
+        iban = country + mod.calc_check_digits(country + "00" + candidate) + candidate
+        if mod.is_valid(iban):
+            return candidate
+    return None
 
 
 def _break_national_check(country: str, bban: str, rng) -> str:

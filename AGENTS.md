@@ -635,6 +635,25 @@ regression coverage in CI at all.
   close; the crate requires a payload and a check digit (two characters). This
   is the crate's rule, not a defect: the fixture records the reference's verdict
   and the crate's test records the reason. Do not "fix" it to match.
+- **A corpus of only-rejected rows agrees with a crate that rejects
+  everything.** The first IBAN corpus drew a random BBAN and closed the MOD-97
+  check, so every Spanish, Norwegian and Montenegrin row it produced was a
+  *rejection*: the reference rejects a random national check digit, and so did
+  the crate, and a crate that rejected every `ES`/`NO`/`ME` IBAN outright would
+  have passed the whole file. The fix is to generate the *accepted* side too -
+  solve the national check digits by asking the reference's own `is_valid` for
+  the one combination it accepts, rather than reimplementing the arithmetic -
+  and prove the gate bites by mutating the crate to reject them all. A fixture
+  whose every row for a check is negative tests only half of it.
+- **A generator that reads the oracle must assert its version.** `gen_stdnum_vectors.py`
+  and `gen_iban_structures.py` both read the installed `python-stdnum` (the
+  first asks it for verdicts, the second reads its `iban.dat`), so a fixture
+  regenerated against another release re-baselines the oracle silently and two
+  maintainers on two releases get two fixtures from one checkout. Both now
+  assert `PINNED = "2.2"` and stop the run otherwise, the same guard
+  `verify_holidays.py` uses for `holidays==0.108`. Pin beside the generator and
+  in `research/tools/README.md`, and keep a deliberate oracle upgrade its own
+  change.
 
 ## Boundaries
 

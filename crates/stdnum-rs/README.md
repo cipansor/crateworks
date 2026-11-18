@@ -144,7 +144,7 @@ contributors, which in turn follows each authority's published specification.
 This is an independent reimplementation and shares no code with it; see
 [`NOTICE`](https://github.com/cipansor/crateworks/blob/main/crates/stdnum-rs/NOTICE).
 
-`tests/fixtures/stdnum_vectors.tsv` holds 132,573 numbers labelled by that
+`tests/fixtures/stdnum_vectors.tsv` holds 132,548 numbers labelled by that
 reference: every number in its own documentation plus each single-digit
 substitution of a valid number, the last character dropped and a character
 appended. Damm and Verhoeff also carry a 1,500-number random corpus each, built
@@ -158,15 +158,22 @@ Catastral, the French RCS and the German Leitweg-ID each build valid numbers
 from the reference's own check-digit routine. The four number types the crate
 opens with - `Ean`, `Iban`, `Isbn` and `Luhn` - are in the file too: their
 doctests are thin, so each builds valid numbers from the reference and, for
-`Iban`, adds a BBAN with a letter where the registry requires a digit and a BBAN
-whose national check digit is wrong, both closed with correct MOD-97 check
-digits so only the structure or the national check separates the two
-implementations. `tests/readme.rs` replays the whole
+`Iban`, adds a BBAN with a letter where the registry requires a digit and, for
+Belgium, Spain, Norway and Montenegro, both a BBAN whose national check digit
+was solved to be *accepted* and one made wrong, each closed with correct MOD-97
+check digits so only the structure or the national check separates the two
+implementations. The accepted national-check rows are what let the file catch a
+crate that rejected every Spanish, Norwegian or Montenegrin IBAN; without them
+the fixture would have agreed with a blanket rejection.
+`tests/readme.rs` replays the whole
 file, so a change that makes this crate disagree with the reference fails the
 build. The check digit, the accepted shapes and the separator characters all
 came out of that comparison, and `research/tools/gen_stdnum_vectors.py`
 regenerates the file when a type is added; the IBAN structure table is written by
-`research/tools/gen_iban_structures.py` from the same registry file.
+`research/tools/gen_iban_structures.py` from the same registry file. Both
+generators assert the `python-stdnum` version they are baselined against, so a
+fixture or table regenerated against another release stops rather than silently
+re-baselining the oracle.
 
 A conversion has an output rather than a verdict, so the validation fixture
 cannot record one. `tests/fixtures/isbn_conversions.tsv` is a second oracle for

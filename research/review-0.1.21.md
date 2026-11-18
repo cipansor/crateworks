@@ -88,12 +88,46 @@ on purpose, because the reference looks the bank code up in a register this crat
 deliberately does not ship.
 
 The regenerated `crates/stdnum-rs/tests/fixtures/stdnum_vectors.tsv` holds
-132,573 rows, up from 85,713. Replaying the *old* crate logic against the new
-fixture finds 126 IBAN rows and 11 ISBN rows it would have accepted but the
+132,548 rows, up from 85,713. Replaying the *old* crate logic against the new
+fixture finds 109 IBAN rows and 11 ISBN rows it would have accepted but the
 fixture labels rejected - those rows are exactly the divergences the fixes close,
 and they are the evidence that the gate is a guard and not a formality. For Luhn
 the count is zero, which is correct: the divergence there is the crate's own
 stricter rule, and the corpus documents it rather than contradicting it.
+
+### The accepted side of the national checks
+
+The first version of the IBAN corpus drew a random BBAN and closed it with the
+correct MOD-97 check digits, so the only Spanish, Norwegian and Montenegrin rows
+it produced were *rejections*: the reference rejects a random national check
+digit, and so did the crate. A review of the generator pointed out what that
+misses - a crate that rejected every Spanish, Norwegian or Montenegrin IBAN
+outright would have agreed with the fixture on every row, and the accepted side
+of the national check was covered only by hand-written unit tests.
+
+The corpus now solves the national check digits before closing the MOD-97 check,
+by asking the reference's own `is_valid` for the one combination it accepts
+rather than reimplementing each country's arithmetic. Every one of the 89
+countries now has at least one *accepted* row, and the gate fails a blanket
+rejection: mutating `national_check` to reject every `ES`/`NO`/`ME` IBAN fails
+`tests/readme.rs` on the first such row (`ES3508940849433174372622`,
+`ME25698715870912177203`, `NO5173266543619`), which the earlier corpus did not.
+Norway's `0000` postgiro prefix takes a branch the position solver cannot fill,
+so a draw that lands on it is retried rather than emitted as a mismatch.
+
+### The oracle version is pinned
+
+Both generators read the installed `python-stdnum` - the vectors generator asks
+it for every verdict, the structure generator reads its `iban.dat` - so a
+fixture regenerated against another release would re-baseline the oracle
+silently, and two maintainers on two releases would get two fixtures from one
+checkout. That is the failure `verify_holidays.py` already guards against with
+its `PINNED` constant, and both generators now assert `PINNED = "2.2"` in the
+same way: a different release stops the run with the `pip install
+'python-stdnum==2.2'` command rather than rewriting the fixture.
+`research/tools/README.md` records the pin beside each generator. 2.2 is the
+release the committed 89 structures and 132,548 rows were generated from, and it
+reproduces both byte-for-byte.
 
 The full suite passes: `cargo fmt --all -- --check`, `cargo clippy --workspace
 --all-targets -- -D warnings` and `cargo test --workspace --all-targets`, with
@@ -101,16 +135,19 @@ The full suite passes: `cargo fmt --all -- --check`, `cargo clippy --workspace
 
 | Gate | Reference | Result |
 | --- | --- | --- |
-| `gen_stdnum_vectors.py` | PyPI `python-stdnum` | 132,573 rows; `Ean`/`Iban`/`Isbn`/`Luhn` added |
+| `gen_stdnum_vectors.py` | PyPI `python-stdnum` 2.2 (asserted) | 132,548 rows; `Ean`/`Iban`/`Isbn`/`Luhn` added; all 89 countries have an accepted row |
+| `gen_iban_structures.py` | PyPI `python-stdnum` 2.2 (asserted) | 89 structures, reproduced byte-for-byte |
 | `tests/readme.rs` | the frozen corpus | every labelled number agrees; 0 divergences |
-| old logic vs new fixture | the frozen corpus | 126 IBAN and 11 ISBN rows caught that the old crate accepted |
+| old logic vs new fixture | the frozen corpus | 109 IBAN and 11 ISBN rows caught that the old crate accepted |
+| blanket-rejection mutation | the frozen corpus | caught on `ES3508940849433174372622`, `ME25698715870912177203`, `NO5173266543619` |
 | `cargo test --workspace` | the crate's own suite | all pass, 0 failed |
 
 ## Documentation
 
 * `crates/stdnum-rs/README.md` - the IBAN paragraph names the three checks and
   the four national checks, the ISBN paragraph names the nine-digit form and the
-  Bookland prefix, the fixture count moves to 132,573, and a new paragraph records
+  Bookland prefix, the fixture count moves to 132,548, the accepted-national-check
+  rows and the asserted oracle version are described, and a new paragraph records
   the two deliberate divergences (Luhn's minimum length, the missing Belgian bank
   register).
 * `PLAN.md` - the `stdnum-rs` "Covers today" line moves from "78 countries" to
@@ -124,7 +161,9 @@ The full suite passes: `cargo fmt --all -- --check`, `cargo clippy --workspace
   rejected.
 * `research/tools/gen_iban_structures.py` and the IBAN/ISBN/EAN/Luhn corpora in
   `research/tools/gen_stdnum_vectors.py` are the generators, committed so the
-  fixture can be rebuilt.
+  fixture can be rebuilt. Both assert `PINNED = "2.2"`, and
+  `research/tools/README.md` records the pin and the `pip install
+  'python-stdnum==2.2'` command beside each.
 
 ## Follow-up
 
@@ -134,3 +173,8 @@ way where a doctest is thin. The reference's remaining national IBAN modules are
 only the four this round added, so no country's national check is left out except
 Belgium's register-backed one, which stays out by the crate's standing rule that
 it ships no registry for any identifier.
+
+The oracle pin is the same pattern `verify_holidays.py` uses, and the other
+generators that read a Python reference without asserting its version -
+`gen_isbn_conversions.py`, `gen_aviation.py`'s upstream download - are candidates
+for the same treatment in their own rounds.

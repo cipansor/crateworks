@@ -11,8 +11,16 @@ IBAN registry (see the file's own header), so the table's authority is the
 registry and python-stdnum is only the transcription this crate is checked
 against. The output replaces the block between the BEGIN/END markers.
 
+**Pin the version.** The registry python-stdnum ships moves between releases:
+a country added, a BBAN structure corrected. A table regenerated against a
+different release would change the crate's validation without a crate change,
+and two maintainers on two releases would get two tables from one checkout.
+The version is asserted below, so an environment with another release stops
+the run instead of silently rewriting the table.
+
 Run from the repository root:
 
+    pip install 'python-stdnum==2.2'
     python3 research/tools/gen_iban_structures.py
 """
 
@@ -22,13 +30,25 @@ import os
 import re
 import sys
 
+import stdnum
+
+# The reference release whose `iban.dat` reproduces the committed table. 2.2
+# is the release the 89 structures were generated from; re-pin this line and
+# `research/tools/README.md` together if the crate is moved to a newer one.
+PINNED = "2.2"
+if stdnum.__version__ != PINNED:
+    raise SystemExit(
+        f"python-stdnum {stdnum.__version__} is installed, but this generator "
+        f"is baselined against {PINNED}. Install 'python-stdnum=={PINNED}' "
+        f"(pip install 'python-stdnum=={PINNED}') or re-pin this file and "
+        f"research/tools/README.md together."
+    )
+
 BEGIN = "// BEGIN GENERATED IBAN STRUCTURES"
 END = "// END GENERATED IBAN STRUCTURES"
 
 
 def structures() -> list[tuple[str, str]]:
-    import stdnum
-
     root = os.path.dirname(stdnum.__file__)
     rows: list[tuple[str, str]] = []
     for line in open(os.path.join(root, "iban.dat"), encoding="utf-8"):
