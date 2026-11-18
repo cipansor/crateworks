@@ -116,4 +116,14 @@ mod tests {
         assert!(matches!(Luhn::parse("7"), Err(Error::WrongLength { .. })));
         assert_eq!(Luhn::parse("  "), Err(Error::Empty));
     }
+
+    #[test]
+    fn a_lone_zero_is_rejected_though_the_reference_accepts_it() {
+        // The reference's checksum of a single digit is that digit, so `0`
+        // passes there; a one-character number has no payload and no check
+        // digit, so this crate requires at least two. The fixture records the
+        // reference's verdict and this test records the reason for the
+        // difference.
+        assert!(matches!(Luhn::parse("0"), Err(Error::WrongLength { .. })));
+    }
 }

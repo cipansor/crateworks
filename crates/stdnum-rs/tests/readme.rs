@@ -64,6 +64,10 @@ fn every_labelled_number_agrees_with_python_stdnum() {
 /// not tied to a country.
 fn known_type(name: &str) -> Option<NumberType> {
     Some(match name {
+        "Ean" => NumberType::Ean,
+        "Iban" => NumberType::Iban,
+        "Isbn" => NumberType::Isbn,
+        "Luhn" => NumberType::Luhn,
         "Damm" => NumberType::Damm,
         "Verhoeff" => NumberType::Verhoeff,
         "Isin" => NumberType::Isin,

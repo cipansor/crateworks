@@ -303,6 +303,14 @@ INTERNATIONAL: dict[str, str] = {
     # Identification Code, the two remaining self-contained `eu` modules.
     "SepaCreditorIdentifier": "eu.at_02",
     "Eic": "eu.eic",
+    # Added in 0.8.0: the four number types the crate's README opens with, which
+    # the gate had omitted even though the crate implements them. Their absence
+    # is why the IBAN structure and national checks, the ISBN nine-digit form
+    # and the ISBN 978/979 prefix rule could drift from the reference unseen.
+    "Ean": "ean",
+    "Iban": "iban",
+    "Isbn": "isbn",
+    "Luhn": "luhn",
 }
 
 
@@ -615,6 +623,162 @@ def leitweg_corpus(mod, rng) -> list[str]:
     return out
 
 
+def _iban_structure(mod, country: str) -> str:
+    """The BBAN structure the reference holds for `country`."""
+    info = mod._ibandb.info(country + "0" * 40)
+    return info[0][1].get("bban", "")
+
+
+def _iban_bban(structure: str, rng) -> str:
+    """A BBAN that satisfies a structure, one character per class."""
+    out: list[str] = []
+    rest = structure
+    while rest:
+        count, tail = rest.split("!", 1)
+        cls = tail[0]
+        for _ in range(int(count)):
+            if cls == "a":
+                out.append(rng.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ"))
+            elif cls == "n":
+                out.append(rng.choice("0123456789"))
+            else:
+                out.append(rng.choice("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"))
+        rest = tail[1:]
+    return "".join(out)
+
+
+def iban_corpus(mod, rng) -> list[str]:
+    """IBANs that exercise the three checks the crate performs.
+
+    Three kinds of row, each isolating one check from the MOD-97 check that
+    would otherwise reject it first:
+
+    * a valid IBAN, which both implementations accept;
+    * a BBAN with a letter where the registry requires a digit, closed with the
+      *correct* MOD-97 check digits, so only the structure check separates the
+      two;
+    * for the countries with a national check, a structurally valid BBAN with
+      wrong national check digits, again closed with correct MOD-97 check
+      digits, so only the national check separates them.
+
+    Belgium is left out of the national-check rows: the reference looks the bank
+    code up in a register this crate deliberately does not ship, so a Belgian
+    IBAN is only required to match on structure and MOD-97.
+    """
+    countries = [
+        "AD", "AE", "AL", "AT", "AZ", "BA", "BG", "BH", "BI", "BR", "BY",
+        "CH", "CR", "CY", "CZ", "DE", "DK", "DJ", "DO", "EE", "EG", "ES",
+        "FI", "FK", "FO", "FR", "GB", "GE", "GI", "GL", "GR", "GT", "HN",
+        "HR", "HU", "IE", "IL", "IQ", "IS", "IT", "JO", "KW", "KZ", "LB",
+        "LC", "LI", "LT", "LU", "LV", "LY", "MC", "MD", "ME", "MK", "MN",
+        "MR", "MT", "MU", "NI", "NL", "NO", "OM", "PK", "PL", "PS", "PT",
+        "QA", "RO", "RS", "RU", "SA", "SC", "SD", "SE", "SI", "SK", "SM",
+        "SO", "ST", "SV", "TL", "TN", "TR", "UA", "VA", "VG", "XK", "YE",
+    ]
+    out: list[str] = []
+    for country in countries:
+        structure = _iban_structure(mod, country)
+        if not structure:
+            continue
+        bban = _iban_bban(structure, rng)
+        out.append(country + mod.calc_check_digits(country + "00" + bban) + bban)
+
+        # A letter where the structure requires a digit, with correct MOD-97.
+        for index, cls in _structure_classes(structure):
+            if cls != "n":
+                continue
+            broken = bban[:index] + rng.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ") + bban[index + 1 :]
+            out.append(
+                country + mod.calc_check_digits(country + "00" + broken) + broken
+            )
+            break
+
+        # A valid structure and MOD-97 but a wrong national check digit, for
+        # the countries whose national check is arithmetic. The reference
+        # rejects these with InvalidChecksum; the crate must too.
+        if country in ("ES", "NO", "ME"):
+            wrong = _break_national_check(country, bban, rng)
+            out.append(country + mod.calc_check_digits(country + "00" + wrong) + wrong)
+    return out
+
+
+def _break_national_check(country: str, bban: str, rng) -> str:
+    """A BBAN identical to `bban` but with its national check digit made wrong.
+
+    The check digits are moved by one (modulo ten) so the change is a real
+    error rather than a re-normalisation that could land on the same value.
+    """
+    if country == "ES":
+        index = 8 if rng.random() < 0.5 else 9
+    elif country == "NO":
+        index = 10
+    else:  # ME: the last two digits close the whole BBAN to 1 modulo 97.
+        index = len(bban) - 1
+    digit = (int(bban[index]) + 1) % 10
+    return bban[:index] + str(digit) + bban[index + 1 :]
+
+
+
+def _structure_classes(structure: str) -> list[tuple[int, str]]:
+    """Every BBAN position with the class the structure requires there."""
+    out: list[tuple[int, str]] = []
+    pos = 0
+    rest = structure
+    while rest:
+        count, tail = rest.split("!", 1)
+        cls = tail[0]
+        for _ in range(int(count)):
+            out.append((pos, cls))
+            pos += 1
+        rest = tail[1:]
+    return out
+
+
+
+def isbn_corpus(mod, rng) -> list[str]:
+    """Valid ISBN-10 and ISBN-13 numbers, plus the nine-digit ISBN-10 form.
+
+    A nine-digit ISBN-10 is a printed number whose leading zero was dropped;
+    the reference pads it back before checking, and this crate must agree.
+    """
+    from stdnum import ean
+
+    out: list[str] = []
+    for _ in range(10):
+        prefix = rng.choice(["978", "979"])
+        body = "".join(rng.choice("0123456789") for _ in range(9))
+        out.append(prefix + body + ean.calc_check_digit(prefix + body))
+        # A valid ISBN-10 that starts with zero, and its nine-digit form.
+        head = "0" + "".join(rng.choice("0123456789") for _ in range(8))
+        ten = head + mod._calc_isbn10_check_digit(head)
+        out.append(ten)
+        out.append(ten[1:])
+    return out
+
+
+def ean_corpus(mod, rng) -> list[str]:
+    """Valid EAN-8, UPC-A, EAN-13 and GTIN-14 barcodes, one per length."""
+    out: list[str] = []
+    for length in (8, 12, 13, 14):
+        for _ in range(5):
+            body = "".join(rng.choice("0123456789") for _ in range(length - 1))
+            out.append(body + mod.calc_check_digit(body))
+    return out
+
+
+def luhn_corpus(mod, rng) -> list[str]:
+    """Valid Luhn numbers over a range of lengths.
+
+    Lengths start at two: a lone digit is a degenerate number the reference
+    accepts only when it is `0` (its checksum of one digit is zero), and this
+    crate deliberately requires a payload and a check digit.
+    """
+    out: list[str] = []
+    for _ in range(30):
+        length = rng.randint(2, 18)
+        body = "".join(rng.choice("0123456789") for _ in range(length - 1))
+        out.append(body + mod.calc_check_digit(body))
+    return out
 
 
 CUSTOM_CORPUS: dict[str, object] = {
@@ -631,6 +795,10 @@ CUSTOM_CORPUS: dict[str, object] = {
     "es.nif": nif_corpus,
     "fr.rcs": rcs_corpus,
     "de.leitweg": leitweg_corpus,
+    "iban": iban_corpus,
+    "isbn": isbn_corpus,
+    "ean": ean_corpus,
+    "luhn": luhn_corpus,
 }
 
 CORPUS_SIZE = 1500
