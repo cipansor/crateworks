@@ -38,7 +38,10 @@ Guam, Micronesia, the Northern Mariana Islands, Palau, Sao Tome and Principe,
 the United States Minor Outlying Islands, the United States Virgin Islands, the
 Pitcairn Islands, Tokelau, Samoa, Armenia, Aruba, Barbados, Belarus, the Åland
 Islands, the Caribbean Netherlands, Curaçao, Georgia, Guatemala, Honduras,
-Hungary, Moldova, Namibia, Seychelles and Sint Maarten.
+Hungary, Moldova, Namibia, Seychelles, Sint Maarten, Antigua and Barbuda, the
+Cayman Islands, the Cook Islands, the Isle of Man, Saint Kitts and Nevis, Saint
+Helena (Ascension and Tristan da Cunha), San Marino, the Turks and Caicos
+Islands, Vatican City, Saint Vincent and the Grenadines and South Africa.
 `Country::ALL` lists them.
 
 Greece, Cyprus and Romania keep the Orthodox calendar, so their movable feasts
@@ -126,7 +129,7 @@ python3 research/tools/verify_holidays.py
 
 `closest_holiday` is checked separately against the same package by
 `research/tools/gen_holidays_closest.py` and the `closest` test: 26,000 rows over
-65 countries whose holiday set already matches the reference, three probes a
+67 countries whose holiday set already matches the reference, three probes a
 month for eleven years plus the year boundaries where the answer crosses into
 the next year. The countries it skips are the ones `verify_holidays.py` already
 marks as deliberate differences - a nearest-holiday query over a different set

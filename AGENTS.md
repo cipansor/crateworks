@@ -201,6 +201,18 @@ is never installed by CI.
 the port.** Most failures turn out to be a wrong expectation, not a bug in the
 crate. Diff them.
 
+**Pin the oracle's version, or its next release becomes your defect.** A
+differential gate compares the crate against whatever the oracle is today, so a
+release that moves the reference's own data reports as a crate defect. Running
+`verify_holidays.py` against `holidays` 0.109 failed four countries
+(Martinique, Jamaica, Namibia, Hungary) that the round had not touched, and the
+same four failed on a clean checkout with the change stashed - the reference had
+moved, not the crate. The version that reconciles the crate is 0.108; 0.107
+fails two others (Botswana, Namibia). Read a new failure as "the reference
+moved", diff the two oracle releases before editing a table, and record the
+version the gate is pinned to beside the gate (`pip install 'holidays==0.108'`
+in `verify_holidays.py` and `research/tools/README.md`).
+
 **Hand-picked cases are not enough when the output must match a reference.**
 Generate a few thousand random inputs, run them through the oracle, commit the
 result as a corpus under `crates/<name>/tests/fixtures/`, and **commit the

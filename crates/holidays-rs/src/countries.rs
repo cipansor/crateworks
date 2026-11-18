@@ -260,6 +260,28 @@ countries! {
     CaribbeanNetherlands,
     /// Sint Maarten.
     SintMaarten,
+    /// Antigua and Barbuda.
+    AntiguaAndBarbuda,
+    /// Cook Islands.
+    CookIslands,
+    /// Isle of Man.
+    IsleOfMan,
+    /// Saint Kitts and Nevis.
+    SaintKittsAndNevis,
+    /// Cayman Islands.
+    CaymanIslands,
+    /// Saint Helena, Ascension and Tristan da Cunha.
+    SaintHelena,
+    /// San Marino.
+    SanMarino,
+    /// Turks and Caicos Islands.
+    TurksAndCaicosIslands,
+    /// Vatican City.
+    VaticanCity,
+    /// Saint Vincent and the Grenadines.
+    SaintVincentAndTheGrenadines,
+    /// South Africa.
+    SouthAfrica,
 }
 
 impl Country {
@@ -368,6 +390,17 @@ impl Country {
             Self::AlandIslands => ALAND_ISLANDS,
             Self::CaribbeanNetherlands => CARIBBEAN_NETHERLANDS,
             Self::SintMaarten => SINT_MAARTEN,
+            Self::AntiguaAndBarbuda => ANTIGUA_AND_BARBUDA,
+            Self::CookIslands => COOK_ISLANDS,
+            Self::IsleOfMan => ISLE_OF_MAN,
+            Self::SaintKittsAndNevis => SAINT_KITTS_AND_NEVIS,
+            Self::CaymanIslands => CAYMAN_ISLANDS,
+            Self::SaintHelena => SAINT_HELENA,
+            Self::SanMarino => SAN_MARINO,
+            Self::TurksAndCaicosIslands => TURKS_AND_CAICOS_ISLANDS,
+            Self::VaticanCity => VATICAN_CITY,
+            Self::SaintVincentAndTheGrenadines => SAINT_VINCENT_AND_THE_GRENADINES,
+            Self::SouthAfrica => SOUTH_AFRICA,
         }
     }
 
@@ -473,7 +506,18 @@ impl Country {
             | Self::AlandIslands
             | Self::CaribbeanNetherlands
             | Self::SintMaarten
-            | Self::UnitedStatesVirginIslands => SubstituteStyle::None,
+            | Self::UnitedStatesVirginIslands
+            | Self::AntiguaAndBarbuda
+            | Self::CookIslands
+            | Self::IsleOfMan
+            | Self::SaintKittsAndNevis
+            | Self::CaymanIslands
+            | Self::SaintHelena
+            | Self::SanMarino
+            | Self::TurksAndCaicosIslands
+            | Self::VaticanCity
+            | Self::SaintVincentAndTheGrenadines
+            | Self::SouthAfrica => SubstituteStyle::None,
             // Latvia moves a weekend holiday to the next Monday from 2007; the
             // two holidays that do not are wrapped in `Rule::NeverSubstituted`.
             Self::Latvia => SubstituteStyle::NextMonday,
@@ -585,6 +629,17 @@ impl Country {
             Self::AlandIslands => "Åland Islands",
             Self::CaribbeanNetherlands => "Caribbean Netherlands",
             Self::SintMaarten => "Sint Maarten",
+            Self::AntiguaAndBarbuda => "Antigua and Barbuda",
+            Self::CookIslands => "Cook Islands",
+            Self::IsleOfMan => "Isle of Man",
+            Self::SaintKittsAndNevis => "Saint Kitts and Nevis",
+            Self::CaymanIslands => "Cayman Islands",
+            Self::SaintHelena => "Saint Helena, Ascension and Tristan da Cunha",
+            Self::SanMarino => "San Marino",
+            Self::TurksAndCaicosIslands => "Turks and Caicos Islands",
+            Self::VaticanCity => "Vatican City",
+            Self::SaintVincentAndTheGrenadines => "Saint Vincent and the Grenadines",
+            Self::SouthAfrica => "South Africa",
         }
     }
 }
@@ -8625,6 +8680,72 @@ impl Calendar {
         Self::new(Country::Iceland)
     }
 
+    /// Builds the Antigua and Barbuda calendar.
+    #[must_use]
+    pub const fn antigua_and_barbuda() -> Self {
+        Self::new(Country::AntiguaAndBarbuda)
+    }
+
+    /// Builds the Cook Islands calendar.
+    #[must_use]
+    pub const fn cook_islands() -> Self {
+        Self::new(Country::CookIslands)
+    }
+
+    /// Builds the Isle of Man calendar.
+    #[must_use]
+    pub const fn isle_of_man() -> Self {
+        Self::new(Country::IsleOfMan)
+    }
+
+    /// Builds the Saint Kitts and Nevis calendar.
+    #[must_use]
+    pub const fn saint_kitts_and_nevis() -> Self {
+        Self::new(Country::SaintKittsAndNevis)
+    }
+
+    /// Builds the Cayman Islands calendar.
+    #[must_use]
+    pub const fn cayman_islands() -> Self {
+        Self::new(Country::CaymanIslands)
+    }
+
+    /// Builds the Saint Helena, Ascension and Tristan da Cunha calendar.
+    #[must_use]
+    pub const fn saint_helena() -> Self {
+        Self::new(Country::SaintHelena)
+    }
+
+    /// Builds the San Marino calendar.
+    #[must_use]
+    pub const fn san_marino() -> Self {
+        Self::new(Country::SanMarino)
+    }
+
+    /// Builds the Turks and Caicos Islands calendar.
+    #[must_use]
+    pub const fn turks_and_caicos_islands() -> Self {
+        Self::new(Country::TurksAndCaicosIslands)
+    }
+
+    /// Builds the Vatican City calendar.
+    #[must_use]
+    pub const fn vatican_city() -> Self {
+        Self::new(Country::VaticanCity)
+    }
+
+    /// Builds the Saint Vincent and the Grenadines calendar.
+    #[must_use]
+    pub const fn saint_vincent_and_the_grenadines() -> Self {
+        Self::new(Country::SaintVincentAndTheGrenadines)
+    }
+
+    /// Builds the South Africa calendar.
+    #[must_use]
+    pub const fn south_africa() -> Self {
+        Self::new(Country::SouthAfrica)
+    }
+
     /// The underlying country.
     #[must_use]
     pub const fn country(&self) -> Country {
@@ -10435,6 +10556,1959 @@ static MATARIKI_DATES: &[(i32, u8, u8)] = &[
     (2052, 6, 21),
 ];
 
+/// Antigua and Barbuda.
+static ANTIGUA_AND_BARBUDA: &[Holiday] = &[
+    h(
+        "New Year's Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 1, day: 1 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h("Good Friday", Rule::EasterOffset(-2)),
+    h("Easter Monday", Rule::EasterOffset(1)),
+    h(
+        "Labour Day",
+        Rule::NthWeekday {
+            month: 5,
+            weekday: 1,
+            nth: 1,
+        },
+    ),
+    h("Whit Monday", Rule::EasterOffset(50)),
+    h(
+        "Carnival Monday",
+        Rule::NthWeekday {
+            month: 8,
+            weekday: 1,
+            nth: 1,
+        },
+    ),
+    h(
+        "Carnival Tuesday",
+        Rule::Since {
+            year: 2006,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 8,
+                day: 2,
+                weekday: 2,
+            },
+        },
+    ),
+    h(
+        "Independence Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 11, day: 1 },
+            from: 2004,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Sir Vere Cornwall Bird Snr. Day",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2014,
+                base: &Rule::Fixed { month: 12, day: 9 },
+            },
+            from: 2019,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Christmas Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 25 },
+            from: 2000,
+            shifts: &[(0, 2), (6, 2)],
+        },
+    ),
+    h(
+        "Boxing Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 26 },
+            from: 2000,
+            shifts: &[(0, 2), (6, 2)],
+        },
+    ),
+    h(
+        "Caribbean Community (Caricom) Day",
+        Rule::Until {
+            year: 2005,
+            base: &Rule::NthWeekday {
+                month: 7,
+                weekday: 1,
+                nth: 1,
+            },
+        },
+    ),
+    h(
+        "National Heroes Day",
+        Rule::Once {
+            year: 2005,
+            month: 12,
+            day: 9,
+        },
+    ),
+    h(
+        "National Heroes Day",
+        Rule::Between {
+            from: 2007,
+            to: 2011,
+            base: &Rule::Fixed { month: 12, day: 9 },
+        },
+    ),
+    h(
+        "National Heroes Day",
+        Rule::Once {
+            year: 2013,
+            month: 12,
+            day: 9,
+        },
+    ),
+    h(
+        "National Heroes Day",
+        Rule::Between {
+            from: 2006,
+            to: 2006,
+            base: &Rule::NthWeekday {
+                month: 12,
+                weekday: 1,
+                nth: 2,
+            },
+        },
+    ),
+    h(
+        "National Heroes Day",
+        Rule::Between {
+            from: 2012,
+            to: 2012,
+            base: &Rule::NthWeekday {
+                month: 12,
+                weekday: 1,
+                nth: 2,
+            },
+        },
+    ),
+    h(
+        "State Funeral of the late The Honourable Charlesworth T. Samuel",
+        Rule::Once {
+            year: 2008,
+            month: 2,
+            day: 19,
+        },
+    ),
+    h(
+        "State Funeral of the late The Honourable Sir George Herbert Walter",
+        Rule::Once {
+            year: 2008,
+            month: 3,
+            day: 18,
+        },
+    ),
+    h(
+        "Day after the General Election",
+        Rule::ObservedShift {
+            base: &Rule::Once {
+                year: 2018,
+                month: 3,
+                day: 22,
+            },
+            from: 2000,
+            shifts: &[(3, -62)],
+        },
+    ),
+    h(
+        "Day after the General Election",
+        Rule::ObservedShift {
+            base: &Rule::Once {
+                year: 2023,
+                month: 3,
+                day: 22,
+            },
+            from: 2000,
+            shifts: &[(3, -62)],
+        },
+    ),
+];
+
+/// Cook Islands.
+static COOK_ISLANDS: &[Holiday] = &[
+    h(
+        "New Year's Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 1, day: 1 },
+            from: 2000,
+            shifts: &[(0, 2), (6, 2)],
+        },
+    ),
+    h(
+        "Day after New Year's Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 1, day: 2 },
+            from: 2000,
+            shifts: &[(0, 2), (6, 2)],
+        },
+    ),
+    h("Anzac Day", Rule::Fixed { month: 4, day: 25 }),
+    h("Good Friday", Rule::EasterOffset(-2)),
+    h("Easter Monday", Rule::EasterOffset(1)),
+    h(
+        "Sovereign's Birthday",
+        Rule::NthWeekday {
+            month: 6,
+            weekday: 1,
+            nth: 1,
+        },
+    ),
+    h(
+        "Ra o te Ui Ariki",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2012,
+                base: &Rule::Fixed { month: 6, day: 6 },
+            },
+            from: 2013,
+            shifts: &[
+                (0, 26),
+                (1, 25),
+                (2, 31),
+                (3, 30),
+                (4, 29),
+                (5, 28),
+                (6, 27),
+            ],
+        },
+    ),
+    h(
+        "Constitution Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 8, day: 4 },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Cook Islands Gospel Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 10, day: 26 },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Christmas Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 25 },
+            from: 2000,
+            shifts: &[(0, 2), (6, 2)],
+        },
+    ),
+    h(
+        "Boxing Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 26 },
+            from: 2000,
+            shifts: &[(0, 2), (6, 2)],
+        },
+    ),
+    h(
+        "Penrhyn Gospel Day",
+        Rule::ObservedShift {
+            base: &Rule::Until {
+                year: 2011,
+                base: &Rule::Fixed { month: 3, day: 13 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Palmerston Gospel Day",
+        Rule::ObservedShift {
+            base: &Rule::Until {
+                year: 2011,
+                base: &Rule::Fixed { month: 5, day: 25 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Mangaia Gospel Day",
+        Rule::ObservedShift {
+            base: &Rule::Until {
+                year: 2011,
+                base: &Rule::Fixed { month: 6, day: 15 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Atiu Gospel Day",
+        Rule::ObservedShift {
+            base: &Rule::Until {
+                year: 2011,
+                base: &Rule::Fixed { month: 7, day: 20 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Mitiaro Gospel Day",
+        Rule::ObservedShift {
+            base: &Rule::Until {
+                year: 2011,
+                base: &Rule::Fixed { month: 7, day: 21 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Mauke Gospel Day",
+        Rule::ObservedShift {
+            base: &Rule::Until {
+                year: 2011,
+                base: &Rule::Fixed { month: 7, day: 23 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, 3)],
+        },
+    ),
+    h(
+        "Rarotonga Gospel Day",
+        Rule::ObservedShift {
+            base: &Rule::Until {
+                year: 2011,
+                base: &Rule::Fixed { month: 7, day: 25 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Manihiki Gospel Day",
+        Rule::ObservedShift {
+            base: &Rule::Until {
+                year: 2011,
+                base: &Rule::Fixed { month: 8, day: 8 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Rakahanga Gospel Day",
+        Rule::ObservedShift {
+            base: &Rule::Until {
+                year: 2011,
+                base: &Rule::Fixed { month: 8, day: 15 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Aitutaki Gospel Day",
+        Rule::ObservedShift {
+            base: &Rule::Until {
+                year: 2011,
+                base: &Rule::Fixed { month: 10, day: 27 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Pukapuka Gospel Day",
+        Rule::ObservedShift {
+            base: &Rule::Until {
+                year: 2011,
+                base: &Rule::Fixed { month: 12, day: 8 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+];
+
+/// Isle of Man.
+static ISLE_OF_MAN: &[Holiday] = &[
+    h("Good Friday", Rule::EasterOffset(-2)),
+    h(
+        "May Day",
+        Rule::Until {
+            year: 2019,
+            base: &Rule::NthWeekday {
+                month: 5,
+                weekday: 1,
+                nth: 1,
+            },
+        },
+    ),
+    h(
+        "May Day",
+        Rule::Since {
+            year: 2021,
+            base: &Rule::NthWeekday {
+                month: 5,
+                weekday: 1,
+                nth: 1,
+            },
+        },
+    ),
+    h(
+        "May Day",
+        Rule::Once {
+            year: 2020,
+            month: 5,
+            day: 8,
+        },
+    ),
+    h(
+        "Spring Bank Holiday",
+        Rule::Until {
+            year: 2001,
+            base: &Rule::WeekdayOnOrBefore {
+                month: 5,
+                day: 31,
+                weekday: 1,
+            },
+        },
+    ),
+    h(
+        "Spring Bank Holiday",
+        Rule::Between {
+            from: 2003,
+            to: 2011,
+            base: &Rule::WeekdayOnOrBefore {
+                month: 5,
+                day: 31,
+                weekday: 1,
+            },
+        },
+    ),
+    h(
+        "Spring Bank Holiday",
+        Rule::Between {
+            from: 2013,
+            to: 2021,
+            base: &Rule::WeekdayOnOrBefore {
+                month: 5,
+                day: 31,
+                weekday: 1,
+            },
+        },
+    ),
+    h(
+        "Spring Bank Holiday",
+        Rule::Since {
+            year: 2023,
+            base: &Rule::WeekdayOnOrBefore {
+                month: 5,
+                day: 31,
+                weekday: 1,
+            },
+        },
+    ),
+    h(
+        "Spring Bank Holiday",
+        Rule::Once {
+            year: 2002,
+            month: 6,
+            day: 4,
+        },
+    ),
+    h(
+        "Spring Bank Holiday",
+        Rule::Once {
+            year: 2012,
+            month: 6,
+            day: 4,
+        },
+    ),
+    h(
+        "Spring Bank Holiday",
+        Rule::Once {
+            year: 2022,
+            month: 6,
+            day: 2,
+        },
+    ),
+    h("Easter Monday", Rule::EasterOffset(1)),
+    h(
+        "Late Summer Bank Holiday",
+        Rule::WeekdayOnOrBefore {
+            month: 8,
+            day: 31,
+            weekday: 1,
+        },
+    ),
+    h(
+        "TT Bank Holiday",
+        Rule::NthWeekday {
+            month: 6,
+            weekday: 5,
+            nth: 1,
+        },
+    ),
+    h(
+        "Tynwald Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 7, day: 6 },
+            from: 2000,
+            shifts: &[(0, 1), (2, -1), (3, -1), (4, -1), (5, -1), (6, -1)],
+        },
+    ),
+    h(
+        "New Year's Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 1, day: 1 },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Christmas Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 25 },
+            from: 2000,
+            shifts: &[(0, 2), (6, 2)],
+        },
+    ),
+    h(
+        "Boxing Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 26 },
+            from: 2000,
+            shifts: &[(0, 2), (6, 2)],
+        },
+    ),
+    h(
+        "Golden Jubilee of Elizabeth II",
+        Rule::Once {
+            year: 2002,
+            month: 6,
+            day: 3,
+        },
+    ),
+    h(
+        "Wedding of William and Catherine",
+        Rule::Once {
+            year: 2011,
+            month: 4,
+            day: 29,
+        },
+    ),
+    h(
+        "Diamond Jubilee of Elizabeth II",
+        Rule::Once {
+            year: 2012,
+            month: 6,
+            day: 5,
+        },
+    ),
+    h(
+        "Platinum Jubilee of Elizabeth II",
+        Rule::Once {
+            year: 2022,
+            month: 6,
+            day: 3,
+        },
+    ),
+    h(
+        "State Funeral of Queen Elizabeth II",
+        Rule::Once {
+            year: 2022,
+            month: 9,
+            day: 19,
+        },
+    ),
+    h(
+        "Coronation of Charles III",
+        Rule::Once {
+            year: 2023,
+            month: 5,
+            day: 8,
+        },
+    ),
+];
+
+/// Saint Kitts and Nevis.
+static SAINT_KITTS_AND_NEVIS: &[Holiday] = &[
+    h(
+        "Carnival Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 1, day: 1 },
+            from: 2000,
+            shifts: &[(0, 2)],
+        },
+    ),
+    h(
+        "Carnival Day - Last Lap",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 1, day: 2 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h("Good Friday", Rule::EasterOffset(-2)),
+    h("Easter Monday", Rule::EasterOffset(1)),
+    h(
+        "Labour Day",
+        Rule::NthWeekday {
+            month: 5,
+            weekday: 1,
+            nth: 1,
+        },
+    ),
+    h("Whit Monday", Rule::EasterOffset(50)),
+    h(
+        "Emancipation Day",
+        Rule::NthWeekday {
+            month: 8,
+            weekday: 1,
+            nth: 1,
+        },
+    ),
+    h(
+        "Culturama Day - Last Lap",
+        Rule::WeekdayOnOrAfter {
+            month: 8,
+            day: 2,
+            weekday: 2,
+        },
+    ),
+    h(
+        "National Heroes Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 9, day: 16 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Independence Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 9, day: 19 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Christmas Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 25 },
+            from: 2000,
+            shifts: &[(0, 2)],
+        },
+    ),
+    h(
+        "Boxing Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 26 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Federal Election Victory Day",
+        Rule::ObservedShift {
+            base: &Rule::Once {
+                year: 2015,
+                month: 2,
+                day: 18,
+            },
+            from: 2000,
+            shifts: &[(5, 171)],
+        },
+    ),
+    h(
+        "Federal Election Victory Day",
+        Rule::ObservedShift {
+            base: &Rule::Once {
+                year: 2022,
+                month: 2,
+                day: 18,
+            },
+            from: 2000,
+            shifts: &[(5, 171)],
+        },
+    ),
+    h(
+        "National Clean Up Day",
+        Rule::Once {
+            year: 2017,
+            month: 9,
+            day: 20,
+        },
+    ),
+    h(
+        "Local Election Victory Day",
+        Rule::Once {
+            year: 2017,
+            month: 12,
+            day: 19,
+        },
+    ),
+    h(
+        "50th Anniversary of the Establishment of the Caribbean Community (CARICOM)",
+        Rule::Once {
+            year: 2023,
+            month: 7,
+            day: 4,
+        },
+    ),
+];
+
+/// Cayman Islands.
+static CAYMAN_ISLANDS: &[Holiday] = &[
+    h(
+        "New Year's Day",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2006,
+                base: &Rule::Fixed { month: 1, day: 1 },
+            },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "National Heroes Day",
+        Rule::Since {
+            year: 2006,
+            base: &Rule::NthWeekday {
+                month: 1,
+                weekday: 1,
+                nth: 4,
+            },
+        },
+    ),
+    h(
+        "Ash Wednesday",
+        Rule::Since {
+            year: 2006,
+            base: &Rule::EasterOffset(-46),
+        },
+    ),
+    h(
+        "Good Friday",
+        Rule::Since {
+            year: 2006,
+            base: &Rule::EasterOffset(-2),
+        },
+    ),
+    h(
+        "Easter Monday",
+        Rule::Since {
+            year: 2006,
+            base: &Rule::EasterOffset(1),
+        },
+    ),
+    h(
+        "Emancipation Day",
+        Rule::Since {
+            year: 2024,
+            base: &Rule::NthWeekday {
+                month: 5,
+                weekday: 1,
+                nth: 1,
+            },
+        },
+    ),
+    h(
+        "Discovery Day",
+        Rule::Since {
+            year: 2006,
+            base: &Rule::NthWeekday {
+                month: 5,
+                weekday: 1,
+                nth: 3,
+            },
+        },
+    ),
+    h(
+        "King's Birthday",
+        Rule::Since {
+            year: 2023,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 6,
+                day: 17,
+                weekday: 1,
+            },
+        },
+    ),
+    h(
+        "Constitution Day",
+        Rule::Since {
+            year: 2006,
+            base: &Rule::NthWeekday {
+                month: 7,
+                weekday: 1,
+                nth: 1,
+            },
+        },
+    ),
+    h(
+        "Remembrance Day",
+        Rule::Since {
+            year: 2006,
+            base: &Rule::NthWeekday {
+                month: 11,
+                weekday: 1,
+                nth: 2,
+            },
+        },
+    ),
+    h(
+        "Christmas Day",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2006,
+                base: &Rule::Fixed { month: 12, day: 25 },
+            },
+            from: 2000,
+            shifts: &[(0, 2), (6, 2)],
+        },
+    ),
+    h(
+        "Boxing Day",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2006,
+                base: &Rule::Fixed { month: 12, day: 26 },
+            },
+            from: 2000,
+            shifts: &[(0, 2), (6, 2)],
+        },
+    ),
+    h(
+        "Queen's Birthday",
+        Rule::Between {
+            from: 2006,
+            to: 2016,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 6,
+                day: 12,
+                weekday: 1,
+            },
+        },
+    ),
+    h(
+        "Queen's Birthday",
+        Rule::Between {
+            from: 2020,
+            to: 2021,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 6,
+                day: 12,
+                weekday: 1,
+            },
+        },
+    ),
+    h(
+        "Queen's Birthday",
+        Rule::Between {
+            from: 2018,
+            to: 2019,
+            base: &Rule::WeekdayOnOrBefore {
+                month: 6,
+                day: 11,
+                weekday: 1,
+            },
+        },
+    ),
+    h(
+        "Queen's Birthday",
+        Rule::Between {
+            from: 2022,
+            to: 2022,
+            base: &Rule::WeekdayOnOrBefore {
+                month: 6,
+                day: 11,
+                weekday: 1,
+            },
+        },
+    ),
+    h(
+        "Queen's Birthday",
+        Rule::Once {
+            year: 2017,
+            month: 6,
+            day: 19,
+        },
+    ),
+    h(
+        "2009 Cayman Islands Constitution Day",
+        Rule::Once {
+            year: 2009,
+            month: 11,
+            day: 6,
+        },
+    ),
+    h(
+        "General Election Day",
+        Rule::ObservedShift {
+            base: &Rule::Once {
+                year: 2009,
+                month: 5,
+                day: 20,
+            },
+            from: 2000,
+            shifts: &[(1, 2), (2, -20), (4, -36), (6, 4)],
+        },
+    ),
+    h(
+        "General Election Day",
+        Rule::ObservedShift {
+            base: &Rule::Once {
+                year: 2013,
+                month: 5,
+                day: 20,
+            },
+            from: 2000,
+            shifts: &[(1, 2), (2, -20), (4, -36), (6, 4)],
+        },
+    ),
+    h(
+        "General Election Day",
+        Rule::ObservedShift {
+            base: &Rule::Once {
+                year: 2017,
+                month: 5,
+                day: 20,
+            },
+            from: 2000,
+            shifts: &[(1, 2), (2, -20), (4, -36), (6, 4)],
+        },
+    ),
+    h(
+        "General Election Day",
+        Rule::ObservedShift {
+            base: &Rule::Once {
+                year: 2021,
+                month: 5,
+                day: 20,
+            },
+            from: 2000,
+            shifts: &[(1, 2), (2, -20), (4, -36), (6, 4)],
+        },
+    ),
+    h(
+        "General Election Day",
+        Rule::ObservedShift {
+            base: &Rule::Once {
+                year: 2025,
+                month: 5,
+                day: 20,
+            },
+            from: 2000,
+            shifts: &[(1, 2), (2, -20), (4, -36), (6, 4)],
+        },
+    ),
+    h(
+        "UK Royal Wedding",
+        Rule::Once {
+            year: 2011,
+            month: 4,
+            day: 29,
+        },
+    ),
+    h(
+        "Queen Elizabeth II's Diamond Jubilee",
+        Rule::Once {
+            year: 2012,
+            month: 6,
+            day: 4,
+        },
+    ),
+    h(
+        "Referendum Day",
+        Rule::ObservedShift {
+            base: &Rule::Once {
+                year: 2012,
+                month: 7,
+                day: 18,
+            },
+            from: 2000,
+            shifts: &[(4, 154)],
+        },
+    ),
+    h(
+        "Referendum Day",
+        Rule::ObservedShift {
+            base: &Rule::Once {
+                year: 2019,
+                month: 7,
+                day: 18,
+            },
+            from: 2000,
+            shifts: &[(4, 154)],
+        },
+    ),
+    h(
+        "Queen Elizabeth II's Funeral",
+        Rule::Once {
+            year: 2022,
+            month: 9,
+            day: 19,
+        },
+    ),
+    h(
+        "Coronation of His Majesty King Charles III",
+        Rule::Once {
+            year: 2023,
+            month: 5,
+            day: 8,
+        },
+    ),
+];
+
+/// Saint Helena, Ascension and Tristan da Cunha.
+static SAINT_HELENA: &[Holiday] = &[
+    h(
+        "Good Friday",
+        Rule::Since {
+            year: 2015,
+            base: &Rule::EasterOffset(-2),
+        },
+    ),
+    h(
+        "Easter Monday",
+        Rule::Since {
+            year: 2015,
+            base: &Rule::EasterOffset(1),
+        },
+    ),
+    h(
+        "King's Birthday",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2023,
+                base: &Rule::Fixed { month: 6, day: 19 },
+            },
+            from: 2024,
+            shifts: &[
+                (0, 145),
+                (1, 151),
+                (2, 150),
+                (3, 149),
+                (4, 148),
+                (5, 147),
+                (6, 146),
+            ],
+        },
+    ),
+    h(
+        "Christmas Day",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2015,
+                base: &Rule::Fixed { month: 12, day: 25 },
+            },
+            from: 2000,
+            shifts: &[(0, 2), (6, 2)],
+        },
+    ),
+    h(
+        "Boxing Day",
+        Rule::ObservedShift {
+            base: &Rule::Since {
+                year: 2015,
+                base: &Rule::Fixed { month: 12, day: 26 },
+            },
+            from: 2000,
+            shifts: &[(0, 2), (6, 2)],
+        },
+    ),
+    h(
+        "Queen's Birthday",
+        Rule::ObservedShift {
+            base: &Rule::Between {
+                from: 2015,
+                to: 2022,
+                base: &Rule::NthWeekday {
+                    month: 6,
+                    weekday: 1,
+                    nth: 3,
+                },
+            },
+            from: 2020,
+            shifts: &[(1, -7)],
+        },
+    ),
+    h(
+        "Final Departure of R.M.S. St Helena",
+        Rule::Once {
+            year: 2018,
+            month: 2,
+            day: 9,
+        },
+    ),
+    h(
+        "Queen Elizabeth II's Platinum Jubilee",
+        Rule::Once {
+            year: 2022,
+            month: 6,
+            day: 3,
+        },
+    ),
+    h(
+        "Queen Elizabeth II's State Funeral",
+        Rule::Once {
+            year: 2022,
+            month: 9,
+            day: 19,
+        },
+    ),
+    h(
+        "The Duke of Edinburgh's Visit",
+        Rule::Once {
+            year: 2023,
+            month: 1,
+            day: 24,
+        },
+    ),
+    h(
+        "Coronation of His Majesty King Charles III",
+        Rule::Once {
+            year: 2023,
+            month: 5,
+            day: 8,
+        },
+    ),
+];
+
+/// San Marino.
+static SAN_MARINO: &[Holiday] = &[
+    h("Capodanno", Rule::Fixed { month: 1, day: 1 }),
+    h("Epifania", Rule::Fixed { month: 1, day: 6 }),
+    h(
+        "Anniversario della Liberazione della Repubblica e Festa di Sant'Agata",
+        Rule::Fixed { month: 2, day: 5 },
+    ),
+    h(
+        "Anniversario dell'Arengo",
+        Rule::Fixed { month: 3, day: 25 },
+    ),
+    h("Pasqua", Rule::EasterOffset(0)),
+    h("Lunedì dell'angelo", Rule::EasterOffset(1)),
+    h(
+        "Investitura Capitani Reggenti",
+        Rule::Fixed { month: 4, day: 1 },
+    ),
+    h(
+        "Investitura Capitani Reggenti",
+        Rule::Fixed { month: 10, day: 1 },
+    ),
+    h("Festa dei lavoratori", Rule::Fixed { month: 5, day: 1 }),
+    h("Corpus Domini", Rule::EasterOffset(60)),
+    h(
+        "Anniversario della Caduta del Fascismo e Festa della Libertà",
+        Rule::Fixed { month: 7, day: 28 },
+    ),
+    h(
+        "Assunzione della B.V. Maria",
+        Rule::Fixed { month: 8, day: 15 },
+    ),
+    h(
+        "San Marino, Anniversario di Fondazione della Repubblica",
+        Rule::Fixed { month: 9, day: 3 },
+    ),
+    h("Tutti i Santi", Rule::Fixed { month: 11, day: 1 }),
+    h(
+        "Commemorazione dei defunti",
+        Rule::Fixed { month: 11, day: 2 },
+    ),
+    h("Immacolata Concezione", Rule::Fixed { month: 12, day: 8 }),
+    h("Natale", Rule::Fixed { month: 12, day: 25 }),
+    h("Santo Stefano", Rule::Fixed { month: 12, day: 26 }),
+];
+
+/// Turks and Caicos Islands.
+static TURKS_AND_CAICOS_ISLANDS: &[Holiday] = &[
+    h(
+        "New Year's Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 1, day: 1 },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "Commonwealth Day",
+        Rule::NthWeekday {
+            month: 3,
+            weekday: 1,
+            nth: 2,
+        },
+    ),
+    h("Good Friday", Rule::EasterOffset(-2)),
+    h("Easter Monday", Rule::EasterOffset(1)),
+    h(
+        "JAGS McCartney Day",
+        Rule::Since {
+            year: 2020,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 5,
+                day: 25,
+                weekday: 1,
+            },
+        },
+    ),
+    h(
+        "King's Birthday",
+        Rule::Since {
+            year: 2026,
+            base: &Rule::NthWeekday {
+                month: 6,
+                weekday: 1,
+                nth: 2,
+            },
+        },
+    ),
+    h(
+        "King's Birthday",
+        Rule::Between {
+            from: 2023,
+            to: 2025,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 6,
+                day: 17,
+                weekday: 1,
+            },
+        },
+    ),
+    h(
+        "Emancipation Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 8, day: 1 },
+            from: 2000,
+            shifts: &[(0, 1), (6, 2)],
+        },
+    ),
+    h(
+        "National Day of Thanksgiving",
+        Rule::Since {
+            year: 2026,
+            base: &Rule::WeekdayOnOrBefore {
+                month: 8,
+                day: 30,
+                weekday: 0,
+            },
+        },
+    ),
+    h(
+        "National Day of Thanksgiving",
+        Rule::Between {
+            from: 2014,
+            to: 2025,
+            base: &Rule::NthWeekday {
+                month: 11,
+                weekday: 5,
+                nth: 4,
+            },
+        },
+    ),
+    h(
+        "Constitution Day",
+        Rule::Since {
+            year: 2026,
+            base: &Rule::WeekdayOnOrBefore {
+                month: 8,
+                day: 31,
+                weekday: 1,
+            },
+        },
+    ),
+    h(
+        "National Youth Day",
+        Rule::WeekdayOnOrAfter {
+            month: 9,
+            day: 24,
+            weekday: 5,
+        },
+    ),
+    h(
+        "National Heritage Day",
+        Rule::Since {
+            year: 2014,
+            base: &Rule::NthWeekday {
+                month: 10,
+                weekday: 1,
+                nth: 2,
+            },
+        },
+    ),
+    h(
+        "Christmas Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 25 },
+            from: 2000,
+            shifts: &[(0, 2), (6, 2)],
+        },
+    ),
+    h(
+        "Boxing Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 26 },
+            from: 2000,
+            shifts: &[(0, 2), (6, 2)],
+        },
+    ),
+    h(
+        "National Heroes Day",
+        Rule::Until {
+            year: 2019,
+            base: &Rule::WeekdayOnOrBefore {
+                month: 5,
+                day: 31,
+                weekday: 1,
+            },
+        },
+    ),
+    h(
+        "Queen's Birthday",
+        Rule::ObservedShift {
+            base: &Rule::Until {
+                year: 2022,
+                base: &Rule::NthWeekday {
+                    month: 6,
+                    weekday: 1,
+                    nth: 2,
+                },
+            },
+            from: 2022,
+            shifts: &[(1, -10)],
+        },
+    ),
+    h(
+        "Columbus Day",
+        Rule::Until {
+            year: 2013,
+            base: &Rule::NthWeekday {
+                month: 10,
+                weekday: 1,
+                nth: 2,
+            },
+        },
+    ),
+];
+
+/// Vatican City.
+static VATICAN_CITY: &[Holiday] = &[
+    h(
+        "Solennità di Maria Santissima Madre di Dio",
+        Rule::Fixed { month: 1, day: 1 },
+    ),
+    h("Epifania del Signore", Rule::Fixed { month: 1, day: 6 }),
+    h(
+        "Anniversario della istituzione dello Stato della Città del Vaticano",
+        Rule::Fixed { month: 2, day: 11 },
+    ),
+    h(
+        "Onomastico del Santo Padre",
+        Rule::Since {
+            year: 2025,
+            base: &Rule::Fixed { month: 9, day: 17 },
+        },
+    ),
+    h(
+        "Onomastico del Santo Padre",
+        Rule::Between {
+            from: 2013,
+            to: 2025,
+            base: &Rule::Fixed { month: 4, day: 23 },
+        },
+    ),
+    h(
+        "Onomastico del Santo Padre",
+        Rule::Between {
+            from: 2006,
+            to: 2012,
+            base: &Rule::Fixed { month: 3, day: 19 },
+        },
+    ),
+    h(
+        "Onomastico del Santo Padre",
+        Rule::Until {
+            year: 2004,
+            base: &Rule::Fixed { month: 11, day: 4 },
+        },
+    ),
+    h(
+        "Anniversario dell'Elezione del Santo Padre",
+        Rule::Since {
+            year: 2026,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
+    h(
+        "Anniversario dell'Elezione del Santo Padre",
+        Rule::Between {
+            from: 2014,
+            to: 2025,
+            base: &Rule::Fixed { month: 3, day: 13 },
+        },
+    ),
+    h(
+        "Anniversario dell'Elezione del Santo Padre",
+        Rule::Between {
+            from: 2006,
+            to: 2012,
+            base: &Rule::Fixed { month: 4, day: 19 },
+        },
+    ),
+    h(
+        "Anniversario dell'Elezione del Santo Padre",
+        Rule::Until {
+            year: 2004,
+            base: &Rule::Fixed { month: 10, day: 16 },
+        },
+    ),
+    h("San Giuseppe", Rule::Fixed { month: 3, day: 19 }),
+    h("Giovedì Santo", Rule::EasterOffset(-3)),
+    h("Venerdì Santo", Rule::EasterOffset(-2)),
+    h("Sabato Santo", Rule::EasterOffset(-1)),
+    h("Pasqua di Resurrezione", Rule::EasterOffset(0)),
+    h("Lunedì dell'Angelo", Rule::EasterOffset(1)),
+    h("Martedì in Albis", Rule::EasterOffset(2)),
+    h("San Giuseppe Artigiano", Rule::Fixed { month: 5, day: 1 }),
+    h("Solennità della Pentecoste", Rule::EasterOffset(49)),
+    h("Solennità della Santissima Trinità", Rule::EasterOffset(56)),
+    h("Ascensione del Signore", Rule::EasterOffset(39)),
+    h("Corpus Domini", Rule::EasterOffset(60)),
+    h("Santi Pietro e Paolo", Rule::Fixed { month: 6, day: 29 }),
+    h(
+        "Vigilia dell'Assunzione di Maria Santissima",
+        Rule::Fixed { month: 8, day: 14 },
+    ),
+    h(
+        "Assunzione di Maria Santissima",
+        Rule::Fixed { month: 8, day: 15 },
+    ),
+    h(
+        "Giorno Successivo all'Assunzione di Maria Santissima",
+        Rule::Fixed { month: 8, day: 16 },
+    ),
+    h("Tutti i Santi", Rule::Fixed { month: 11, day: 1 }),
+    h("Tutti i Fedeli Defunti", Rule::Fixed { month: 11, day: 2 }),
+    h("Immacolata Concezione", Rule::Fixed { month: 12, day: 8 }),
+    h("Vigilia di Natale", Rule::Fixed { month: 12, day: 24 }),
+    h("Natale", Rule::Fixed { month: 12, day: 25 }),
+    h("Santo Stefano", Rule::Fixed { month: 12, day: 26 }),
+    h("San Giovanni", Rule::Fixed { month: 12, day: 27 }),
+    h(
+        "Ultimo giorno dell'anno",
+        Rule::Fixed { month: 12, day: 31 },
+    ),
+];
+
+/// Saint Vincent and the Grenadines.
+static SAINT_VINCENT_AND_THE_GRENADINES: &[Holiday] = &[
+    h(
+        "New Year's Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 1, day: 1 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "National Heroes' Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 3, day: 14 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h("Good Friday", Rule::EasterOffset(-2)),
+    h("Easter Monday", Rule::EasterOffset(1)),
+    h(
+        "National Workers' Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 5, day: 1 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "National Spiritual Baptist Day",
+        Rule::Since {
+            year: 2025,
+            base: &Rule::Fixed { month: 5, day: 21 },
+        },
+    ),
+    h("Whit Monday", Rule::EasterOffset(50)),
+    h(
+        "Carnival Monday",
+        Rule::Until {
+            year: 2012,
+            base: &Rule::NthWeekday {
+                month: 7,
+                weekday: 1,
+                nth: 1,
+            },
+        },
+    ),
+    h(
+        "Carnival Monday",
+        Rule::Between {
+            from: 2014,
+            to: 2017,
+            base: &Rule::NthWeekday {
+                month: 7,
+                weekday: 1,
+                nth: 1,
+            },
+        },
+    ),
+    h(
+        "Carnival Monday",
+        Rule::Between {
+            from: 2022,
+            to: 2022,
+            base: &Rule::NthWeekday {
+                month: 7,
+                weekday: 1,
+                nth: 1,
+            },
+        },
+    ),
+    h(
+        "Carnival Monday",
+        Rule::Since {
+            year: 2025,
+            base: &Rule::NthWeekday {
+                month: 7,
+                weekday: 1,
+                nth: 1,
+            },
+        },
+    ),
+    h(
+        "Carnival Monday",
+        Rule::Between {
+            from: 2013,
+            to: 2013,
+            base: &Rule::NthWeekday {
+                month: 7,
+                weekday: 1,
+                nth: 2,
+            },
+        },
+    ),
+    h(
+        "Carnival Monday",
+        Rule::Between {
+            from: 2018,
+            to: 2019,
+            base: &Rule::NthWeekday {
+                month: 7,
+                weekday: 1,
+                nth: 2,
+            },
+        },
+    ),
+    h(
+        "Carnival Monday",
+        Rule::Between {
+            from: 2023,
+            to: 2024,
+            base: &Rule::NthWeekday {
+                month: 7,
+                weekday: 1,
+                nth: 2,
+            },
+        },
+    ),
+    h(
+        "Carnival Monday",
+        Rule::Once {
+            year: 2020,
+            month: 8,
+            day: 3,
+        },
+    ),
+    h(
+        "Carnival Monday",
+        Rule::Once {
+            year: 2021,
+            month: 9,
+            day: 6,
+        },
+    ),
+    h(
+        "Carnival Tuesday",
+        Rule::Until {
+            year: 2012,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 7,
+                day: 2,
+                weekday: 2,
+            },
+        },
+    ),
+    h(
+        "Carnival Tuesday",
+        Rule::Between {
+            from: 2014,
+            to: 2017,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 7,
+                day: 2,
+                weekday: 2,
+            },
+        },
+    ),
+    h(
+        "Carnival Tuesday",
+        Rule::Between {
+            from: 2022,
+            to: 2022,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 7,
+                day: 2,
+                weekday: 2,
+            },
+        },
+    ),
+    h(
+        "Carnival Tuesday",
+        Rule::Since {
+            year: 2025,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 7,
+                day: 2,
+                weekday: 2,
+            },
+        },
+    ),
+    h(
+        "Carnival Tuesday",
+        Rule::Between {
+            from: 2013,
+            to: 2013,
+            base: &Rule::NthWeekday {
+                month: 7,
+                weekday: 2,
+                nth: 2,
+            },
+        },
+    ),
+    h(
+        "Carnival Tuesday",
+        Rule::Between {
+            from: 2018,
+            to: 2019,
+            base: &Rule::NthWeekday {
+                month: 7,
+                weekday: 2,
+                nth: 2,
+            },
+        },
+    ),
+    h(
+        "Carnival Tuesday",
+        Rule::Between {
+            from: 2023,
+            to: 2024,
+            base: &Rule::NthWeekday {
+                month: 7,
+                weekday: 2,
+                nth: 2,
+            },
+        },
+    ),
+    h(
+        "Carnival Tuesday",
+        Rule::Once {
+            year: 2020,
+            month: 8,
+            day: 4,
+        },
+    ),
+    h(
+        "Carnival Tuesday",
+        Rule::Once {
+            year: 2021,
+            month: 9,
+            day: 7,
+        },
+    ),
+    h(
+        "Emancipation Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 8, day: 1 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Independence Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 10, day: 27 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Christmas Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 25 },
+            from: 2000,
+            shifts: &[(0, 2)],
+        },
+    ),
+    h(
+        "Boxing Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 26 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Public Health Holiday",
+        Rule::Once {
+            year: 2021,
+            month: 1,
+            day: 22,
+        },
+    ),
+    h(
+        "Public Health Holiday",
+        Rule::Once {
+            year: 2021,
+            month: 1,
+            day: 25,
+        },
+    ),
+];
+
+/// South Africa.
+static SOUTH_AFRICA: &[Holiday] = &[
+    h(
+        "New Year's Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 1, day: 1 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h("Good Friday", Rule::EasterOffset(-2)),
+    h("Family Day", Rule::EasterOffset(1)),
+    h(
+        "Workers' Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 5, day: 1 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Human Rights Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 3, day: 21 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Freedom Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 4, day: 27 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Youth Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 6, day: 16 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "National Women's Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 8, day: 9 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Heritage Day",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 9, day: 24 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Day of Reconciliation",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 16 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h("Christmas Day", Rule::Fixed { month: 12, day: 25 }),
+    h(
+        "Day of Goodwill",
+        Rule::ObservedShift {
+            base: &Rule::Fixed { month: 12, day: 26 },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Y2K Changeover",
+        Rule::ObservedShift {
+            base: &Rule::Once {
+                year: 2000,
+                month: 1,
+                day: 2,
+            },
+            from: 2000,
+            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "National and Provincial Government Elections",
+        Rule::Between {
+            from: 2004,
+            to: 2004,
+            base: &Rule::OrthodoxEasterOffset(3),
+        },
+    ),
+    h(
+        "National and Provincial Government Elections",
+        Rule::Between {
+            from: 2009,
+            to: 2009,
+            base: &Rule::OrthodoxEasterOffset(3),
+        },
+    ),
+    h(
+        "National and Provincial Government Elections",
+        Rule::Between {
+            from: 2014,
+            to: 2014,
+            base: &Rule::EasterOffset(17),
+        },
+    ),
+    h(
+        "National and Provincial Government Elections",
+        Rule::Between {
+            from: 2019,
+            to: 2019,
+            base: &Rule::EasterOffset(17),
+        },
+    ),
+    h(
+        "National and Provincial Government Elections",
+        Rule::Once {
+            year: 2024,
+            month: 5,
+            day: 29,
+        },
+    ),
+    h(
+        "Local Government Elections",
+        Rule::Once {
+            year: 2006,
+            month: 3,
+            day: 1,
+        },
+    ),
+    h(
+        "Local Government Elections",
+        Rule::Once {
+            year: 2011,
+            month: 5,
+            day: 18,
+        },
+    ),
+    h(
+        "Local Government Elections",
+        Rule::Once {
+            year: 2016,
+            month: 8,
+            day: 3,
+        },
+    ),
+    h(
+        "Local Government Elections",
+        Rule::Once {
+            year: 2026,
+            month: 11,
+            day: 4,
+        },
+    ),
+    h(
+        "Public Holiday by Presidential Decree",
+        Rule::ObservedShift {
+            base: &Rule::Once {
+                year: 2008,
+                month: 5,
+                day: 2,
+            },
+            from: 2000,
+            shifts: &[(1, 239), (2, 227)],
+        },
+    ),
+    h(
+        "Public Holiday by Presidential Decree",
+        Rule::ObservedShift {
+            base: &Rule::Once {
+                year: 2011,
+                month: 5,
+                day: 2,
+            },
+            from: 2000,
+            shifts: &[(1, 239), (2, 227)],
+        },
+    ),
+    h(
+        "Public Holiday by Presidential Decree",
+        Rule::ObservedShift {
+            base: &Rule::Once {
+                year: 2016,
+                month: 5,
+                day: 2,
+            },
+            from: 2000,
+            shifts: &[(1, 239), (2, 227)],
+        },
+    ),
+    h(
+        "Public Holiday by Presidential Decree",
+        Rule::ObservedShift {
+            base: &Rule::Between {
+                from: 2022,
+                to: 2023,
+                base: &Rule::Fixed { month: 5, day: 2 },
+            },
+            from: 2000,
+            shifts: &[(1, 239), (2, 227)],
+        },
+    ),
+    h(
+        "Municipal elections",
+        Rule::Once {
+            year: 2021,
+            month: 11,
+            day: 1,
+        },
+    ),
+];
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -10933,7 +13007,7 @@ mod tests {
         // so a variant cannot be missing from the list. Pin the count so adding
         // a country forces this test to be updated deliberately, and reject a
         // repeated one.
-        assert_eq!(Country::ALL.len(), 101, "update when a country is added");
+        assert_eq!(Country::ALL.len(), 112, "update when a country is added");
         let mut names: Vec<&str> = Country::ALL.iter().map(|c| c.name()).collect();
         names.sort_unstable();
         let mut unique = names.clone();
@@ -11355,6 +13429,77 @@ mod tests {
         // Before 2003 it was Heroes Day on 4 April; Africa Day fell on 25 May.
         assert_eq!(cal.holiday_name(d(2001, 4, 4)), Some("Heroes Day"));
         assert!(cal.holiday_name(d(2001, 5, 25)).is_none());
+    }
+
+    #[test]
+    fn south_africa_moves_a_sunday_holiday_to_monday() {
+        let cal = Calendar::south_africa();
+        // 27 April 2025 is a Sunday, so Freedom Day is observed on the 28th.
+        assert_eq!(cal.holiday_name(d(2025, 4, 28)), Some("Freedom Day"));
+        assert!(cal.holiday_name(d(2025, 4, 27)).is_none());
+        // Christmas is not in the shift set, so it stays on the Sunday.
+        assert_eq!(cal.holiday_name(d(2022, 12, 25)), Some("Christmas Day"));
+        assert_eq!(cal.holiday_name(d(2022, 12, 26)), Some("Day of Goodwill"));
+    }
+
+    #[test]
+    fn isle_of_man_keeps_tynwald_day_off_the_weekend() {
+        let cal = Calendar::isle_of_man();
+        // Tynwald Day is 6 July, but moved to the following Monday when it
+        // falls at a weekend, so 2025 observes it on the 7th.
+        assert_eq!(cal.holiday_name(d(2025, 7, 7)), Some("Tynwald Day"));
+        // 6 July 2026 is a Monday, so it is left where it is.
+        assert_eq!(cal.holiday_name(d(2026, 7, 6)), Some("Tynwald Day"));
+    }
+
+    #[test]
+    fn cook_islands_moves_a_weekend_holiday_forward() {
+        let cal = Calendar::cook_islands();
+        // Constitution Day is 4 August; in 2024 that is a Sunday, so the
+        // reference observes it on the Monday.
+        assert_eq!(cal.holiday_name(d(2024, 8, 5)), Some("Constitution Day"));
+        assert!(cal.holiday_name(d(2024, 8, 4)).is_none());
+        // Gospel Day on 26 October 2025 is a Sunday and moves to the 27th.
+        assert_eq!(
+            cal.holiday_name(d(2025, 10, 27)),
+            Some("Cook Islands Gospel Day")
+        );
+    }
+
+    #[test]
+    fn saint_helena_king_birthday_tracks_the_reference() {
+        let cal = Calendar::saint_helena();
+        // The date is not a simple nth-weekday rule: the reference moves it by
+        // a day each year, so pin the value the reference reports for 2026.
+        assert_eq!(cal.holiday_name(d(2026, 11, 13)), Some("King's Birthday"));
+    }
+
+    #[test]
+    fn vatican_city_follows_the_reigning_pope() {
+        let cal = Calendar::vatican_city();
+        // The papal name day moved with the pontiff: 23 April under Benedict
+        // XVI and Francis, 17 September from 2025.
+        assert_eq!(
+            cal.holiday_name(d(2020, 4, 23)),
+            Some("Onomastico del Santo Padre")
+        );
+        assert_eq!(
+            cal.holiday_name(d(2026, 9, 17)),
+            Some("Onomastico del Santo Padre")
+        );
+    }
+
+    #[test]
+    fn san_marino_holds_two_reggent_investitures() {
+        let cal = Calendar::san_marino();
+        assert_eq!(
+            cal.holiday_name(d(2026, 4, 1)),
+            Some("Investitura Capitani Reggenti")
+        );
+        assert_eq!(
+            cal.holiday_name(d(2026, 10, 1)),
+            Some("Investitura Capitani Reggenti")
+        );
     }
 
     #[test]

@@ -60,6 +60,11 @@ COUNTRIES = {
     "Armenia": "AM", "Barbados": "BB", "Belarus": "BY", "Georgia": "GE",
     "Guatemala": "GT", "Honduras": "HN", "Hungary": "HU",
     "Moldova": "MD", "Seychelles": "SC",
+    # Added in 0.7.0.
+    "AntiguaAndBarbuda": "AG", "CookIslands": "CK", "IsleOfMan": "IM",
+    "SaintKittsAndNevis": "KN", "CaymanIslands": "KY", "SaintHelena": "SH",
+    "SanMarino": "SM", "TurksAndCaicosIslands": "TC", "VaticanCity": "VA",
+    "SaintVincentAndTheGrenadines": "VC", "SouthAfrica": "ZA",
 }
 
 # Countries whose holiday *set* already differs from the reference in a way
@@ -110,6 +115,18 @@ EXCLUDED = {
     "Barbados": "reference carries '(observed)' duplicate dates",
     "Namibia": "reference carries '(observed)' duplicate dates",
     "Seychelles": "reference carries '(observed)' duplicate dates",
+    # Added in 0.7.0. San Marino and Vatican City are not here: neither moves a
+    # holiday, so both sets match and both are compared. The other nine all
+    # list a moved holiday twice, raw and '(observed)'.
+    "AntiguaAndBarbuda": "reference carries '(observed)' duplicate dates",
+    "CookIslands": "reference carries '(observed)' duplicate dates",
+    "IsleOfMan": "reference carries '(observed)' duplicate dates",
+    "SaintKittsAndNevis": "reference carries '(observed)' duplicate dates",
+    "CaymanIslands": "reference carries '(observed)' duplicate dates",
+    "SaintHelena": "reference carries '(observed)' duplicate dates",
+    "TurksAndCaicosIslands": "reference carries '(observed)' duplicate dates",
+    "SaintVincentAndTheGrenadines": "reference carries '(observed)' duplicate dates",
+    "SouthAfrica": "reference carries '(observed)' duplicate dates",
 }
 
 YEARS = list(range(2018, 2034))
