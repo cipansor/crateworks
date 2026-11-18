@@ -372,7 +372,7 @@ fn layout_element<'a>(
         children: Vec::new(),
         has_in_flow: false,
     };
-    let mut run: Vec<&Node> = Vec::new();
+    let mut run: Vec<RunNode> = Vec::new();
 
     for (node, info) in element.children.iter().zip(&child_info) {
         let block_child = match (node, info) {
@@ -409,7 +409,14 @@ fn layout_element<'a>(
                 flow.children.push(frag);
                 flow.has_in_flow = true;
             }
-            None => run.push(node),
+            None => {
+                // The run drops block and hidden siblings, so a node's position
+                // in it is not its element-child position. Carry the original
+                // index so a structural pseudo-class on an inline element reads
+                // the position it has in the element, not in the run.
+                let index = info.map_or(0, |(index, _)| index);
+                run.push((index, node));
+            }
         }
     }
     flush_run(&mut run, &ctx, &walk.ancestors, &mut flow)?;
@@ -514,6 +521,12 @@ struct Flow {
     has_in_flow: bool,
 }
 
+/// One node in an inline run, paired with its original 0-based position among
+/// the parent's element children. The run holds only the nodes between block
+/// children and omits hidden ones, so that position cannot be recovered from the
+/// run itself and is carried alongside the node.
+type RunNode<'a> = (usize, &'a Node);
+
 /// Lay out one run of inline content and append its line boxes to the flow.
 ///
 /// `has_block` says the element also holds a block-level child, so the run is
@@ -521,7 +534,7 @@ struct Flow {
 /// children. Either way the run ends the adjoining-margin chain, because a line
 /// box carries no margin to collapse.
 fn flush_run(
-    run: &mut Vec<&Node>,
+    run: &mut Vec<RunNode<'_>>,
     ctx: &RunCtx,
     ancestors: &[Ancestor<'_>],
     flow: &mut Flow,
@@ -620,12 +633,13 @@ struct InlineAncestor {
 /// node. The collapsing state is carried across nodes, which is what stops the
 /// space between two inline elements from being doubled.
 ///
-/// `child_total` is the number of element children of the block that holds this
-/// run; an inline element opened here carries its own position and this count
-/// into `collector.chain`, so a structural pseudo-class matches an inline
-/// element like any other.
+/// Each entry is a node and its original element-child index, so an inline
+/// element carries the position it has in the element rather than one derived
+/// from the run, which omits the block and hidden siblings. `child_total` is the
+/// number of element children of the block that holds this run; together they
+/// let a structural pseudo-class match an inline element like any other.
 fn collect_items(
-    nodes: &[&Node],
+    nodes: &[RunNode<'_>],
     stylesheet: &crate::Stylesheet,
     parent_style: &Style,
     ancestors: &[Ancestor<'_>],
@@ -638,8 +652,7 @@ fn collect_items(
         following_space: false,
         items: Vec::new(),
     };
-    let mut index = 0usize;
-    for node in nodes {
+    for &(index, node) in nodes {
         collect(
             node,
             parent_style,
@@ -648,9 +661,6 @@ fn collect_items(
             index,
             child_total,
         )?;
-        if matches!(node, Node::Element(_)) {
-            index += 1;
-        }
     }
     Ok(collector.items)
 }
@@ -2043,6 +2053,45 @@ mod tests {
             .iter()
             .map(|unit| (*unit).to_owned())
             .collect()
+    }
+
+    /// Every text fragment in the tree, depth first.
+    fn texts(box_: &crate::LayoutBox, out: &mut Vec<String>) {
+        if let Some(text) = &box_.text {
+            out.push(text.clone());
+        }
+        for child in &box_.children {
+            texts(child, out);
+        }
+    }
+
+    #[test]
+    fn an_inline_element_keeps_its_index_after_a_block_sibling() {
+        // The span is the element's second element child, so `:first-child` must
+        // not match it. A run that renumbers from zero reads it as the first and
+        // hides its text.
+        let sheet = crate::Stylesheet::parse("span:first-child{display:none}").unwrap();
+        let document = crate::layout("<div><div></div><span>visible</span></div>", &sheet, 200.0)
+            .expect("the document lays out");
+        let mut found = Vec::new();
+        texts(&document.root, &mut found);
+        assert!(found.iter().any(|text| text == "visible"), "{found:?}");
+    }
+
+    #[test]
+    fn an_inline_element_keeps_its_index_after_a_hidden_sibling() {
+        // The run omits the hidden span, but the visible one is still the second
+        // element child.
+        let sheet = crate::Stylesheet::parse("span:first-child{display:none}").unwrap();
+        let document = crate::layout(
+            "<div><span style=\"display:none\">x</span><span>visible</span></div>",
+            &sheet,
+            200.0,
+        )
+        .expect("the document lays out");
+        let mut found = Vec::new();
+        texts(&document.root, &mut found);
+        assert!(found.iter().any(|text| text == "visible"), "{found:?}");
     }
 
     #[test]

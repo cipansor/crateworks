@@ -52,3 +52,9 @@ not_chained	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-fami
 uppercase_pseudo	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}div:FIRST-CHILD{width:40px;height:10px}</style><div></div><div></div>
 attribute_escaped_quote	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}[title="a\\"b"]{width:40px;height:10px}</style><div title='a"b'></div><div title="ab"></div>
 nth_boundary_negative	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}div:nth-child(-n-9223372036854775807){width:40px;height:10px}</style><div></div><div></div>
+attribute_continuation_lf	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}[title="a\\\nb"]{width:40px;height:10px}</style><div title="ab"></div><div title="a"></div>
+attribute_continuation_crlf	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}[title="a\\\r\nb"]{width:40px;height:10px}</style><div title="ab"></div><div title="a"></div>
+attribute_continuation_cr	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}[title="a\\\rb"]{width:40px;height:10px}</style><div title="ab"></div><div title="a"></div>
+attribute_continuation_ff	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}[title="a\\b"]{width:40px;height:10px}</style><div title="ab"></div><div title="a"></div>
+inline_after_block_keeps_index	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}span:first-child{display:none}</style><div><div></div><span>ab</span></div>
+inline_after_hidden_keeps_index	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}span:first-child{display:none}</style><div><span style="display:none">x</span><span>ab</span></div>

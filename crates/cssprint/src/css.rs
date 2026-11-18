@@ -572,7 +572,12 @@ impl Stylesheet {
     /// Returns [`Error::Malformed`] when a block is not closed, a declaration
     /// has no `:`, or a declaration has an empty value.
     pub fn parse(source: &str) -> Result<Self, Error> {
-        let source = strip_comments(source);
+        // CSS turns a CRLF pair, a lone CR and a form feed into LF before it
+        // tokenizes, so a `\`-continuation or a string may not contain a raw CR
+        // or form feed. Normalising once here keeps every scanner below
+        // (comment stripping, delimiter search, string reading) seeing only LF.
+        let source = normalize_newlines(source);
+        let source = strip_comments(&source);
         let mut rules = Vec::new();
         let mut rest = source.as_str();
 
@@ -834,8 +839,27 @@ fn decode_string_escapes(body: &str) -> String {
     out
 }
 
-/// Remove `/* ... */` comments, leaving other text untouched.
-///
+/// Rewrite the newline forms CSS treats as one line break into a single LF: a
+/// CRLF pair becomes one LF (not two), and a lone CR or a form feed each become
+/// an LF. Every scanner then only has to know about LF.
+fn normalize_newlines(source: &str) -> String {
+    let mut out = String::with_capacity(source.len());
+    let mut characters = source.chars().peekable();
+    while let Some(character) = characters.next() {
+        match character {
+            '\r' => {
+                if characters.peek() == Some(&'\n') {
+                    characters.next();
+                }
+                out.push('\n');
+            }
+            '\u{c}' => out.push('\n'),
+            _ => out.push(character),
+        }
+    }
+    out
+}
+
 /// A comment marker inside a quoted string is text, not a comment, so the scan
 /// steps over strings; otherwise `[title="/*"]` would swallow the rest of the
 /// stylesheet.
@@ -1783,5 +1807,23 @@ mod tests {
         assert!(!nth.matches(i64::MAX));
         let nth = parse_nth("-n+9223372036854775807").unwrap();
         assert!(nth.matches(1));
+    }
+
+    #[test]
+    fn a_line_continuation_survives_every_newline_spelling() {
+        // CSS normalizes CRLF, a lone CR and a form feed to LF, so a `\`
+        // continuation inside a quoted value decodes the same for all of them.
+        let matches = |source: &str| {
+            let sheet = Stylesheet::parse(source).expect("the stylesheet parses");
+            let target = element_with("div", &[("title", "ab")]);
+            sheet
+                .declarations_for(&target, &ancestors_of(&[]), 0, 1)
+                .iter()
+                .any(|declaration| declaration.property == "width")
+        };
+        assert!(matches("[title=\"a\\\nb\"]{width:40px}"));
+        assert!(matches("[title=\"a\\\r\nb\"]{width:40px}"));
+        assert!(matches("[title=\"a\\\rb\"]{width:40px}"));
+        assert!(matches("[title=\"a\\\u{c}b\"]{width:40px}"));
     }
 }

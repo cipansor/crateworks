@@ -411,6 +411,30 @@ that branch order or the held-out check tests the wrong thing.
   wrapping then panicking on `% -1` in release). Widen the subtraction, remainder
   and division to `i128`, where the difference of two `i64`s is exact in every
   profile.
+- **An inline run must carry its nodes' original element-child index.** The run
+  of inline content inside a block holds the nodes between the block's
+  block-level children, and omits the hidden ones, so a node's position in the
+  run is not its position among the element's children. Renumbering from zero
+  inside the run makes an inline element read the wrong `index`, and a structural
+  pseudo-class then hides or shows the wrong box: with
+  `<div><div></div><span>visible</span></div>` and
+  `span:first-child { display: none }`, the span is the parent's second element
+  child and must stay, but a run that restarts at zero reads it as the first and
+  drops its text. A preceding `display: none` sibling triggers the same with no
+  block boundary. Carry the index from where the block's `child_info` is built
+  (`Vec<Option<(usize, Display)>>`) through the run into the inline walk, rather
+  than deriving it from the filtered nodes.
+- **CSS normalizes newlines before it tokenizes, so a string scanner must see
+  only LF.** A CRLF pair, a lone CR and a form feed each become one LF, and that
+  happens before strings are read. A scanner that knows only LF reads a
+  backslash-CRLF continuation inside a quoted value as an unescaped line end and
+  rejects the whole stylesheet, and a decoder that recognizes only LF as a
+  continuation leaves the CR or form feed in the value. Normalize once, at the top
+  of `Stylesheet::parse`, before comment stripping and delimiter scanning, so every
+  scanner below - `string_length`, `find_unquoted`, `split_unquoted`,
+  `decode_string_escapes` - only has to handle LF. Do not normalize the source
+  again anywhere below, or a literal `\r`/`\f` inside a string is silently
+  rewritten twice.
 - **`cargo publish` resolves path dependencies against the registry.** A crate
   that depends on `xmlkit` cannot be packaged until `xmlkit` is *published*, and
   the error ("no matching package named `xmlkit` found") reads like a broken

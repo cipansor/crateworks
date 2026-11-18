@@ -304,3 +304,39 @@ nth_boundary_negative	0	html	BlockBox	0.00	0.00	200.00	0.00	0.00	0.00	0.00	0.00	
 nth_boundary_negative	0.0	body	BlockBox	0.00	0.00	200.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
 nth_boundary_negative	0.0.0	div	BlockBox	0.00	0.00	200.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
 nth_boundary_negative	0.0.1	div	BlockBox	0.00	0.00	200.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+attribute_continuation_lf	0		PageBox	0.00	0.00	200.00	200.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+attribute_continuation_lf	0	html	BlockBox	0.00	0.00	200.00	10.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+attribute_continuation_lf	0.0	body	BlockBox	0.00	0.00	200.00	10.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+attribute_continuation_lf	0.0.0	div	BlockBox	0.00	0.00	40.00	10.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+attribute_continuation_lf	0.0.1	div	BlockBox	0.00	10.00	200.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+attribute_continuation_crlf	0		PageBox	0.00	0.00	200.00	200.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+attribute_continuation_crlf	0	html	BlockBox	0.00	0.00	200.00	10.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+attribute_continuation_crlf	0.0	body	BlockBox	0.00	0.00	200.00	10.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+attribute_continuation_crlf	0.0.0	div	BlockBox	0.00	0.00	40.00	10.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+attribute_continuation_crlf	0.0.1	div	BlockBox	0.00	10.00	200.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+attribute_continuation_cr	0		PageBox	0.00	0.00	200.00	200.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+attribute_continuation_cr	0	html	BlockBox	0.00	0.00	200.00	10.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+attribute_continuation_cr	0.0	body	BlockBox	0.00	0.00	200.00	10.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+attribute_continuation_cr	0.0.0	div	BlockBox	0.00	0.00	40.00	10.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+attribute_continuation_cr	0.0.1	div	BlockBox	0.00	10.00	200.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+attribute_continuation_ff	0		PageBox	0.00	0.00	200.00	200.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+attribute_continuation_ff	0	html	BlockBox	0.00	0.00	200.00	10.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+attribute_continuation_ff	0.0	body	BlockBox	0.00	0.00	200.00	10.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+attribute_continuation_ff	0.0.0	div	BlockBox	0.00	0.00	40.00	10.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+attribute_continuation_ff	0.0.1	div	BlockBox	0.00	10.00	200.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+inline_after_block_keeps_index	0		PageBox	0.00	0.00	200.00	200.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+inline_after_block_keeps_index	0	html	BlockBox	0.00	0.00	200.00	16.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+inline_after_block_keeps_index	0.0	body	BlockBox	0.00	0.00	200.00	16.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+inline_after_block_keeps_index	0.0.0	div	BlockBox	0.00	0.00	200.00	16.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+inline_after_block_keeps_index	0.0.0.0	div	BlockBox	0.00	0.00	200.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+inline_after_block_keeps_index	0.0.0.1	div	BlockBox	0.00	0.00	200.00	16.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+inline_after_block_keeps_index	0.0.0.1.0	div	LineBox	0.00	0.00	32.00	16.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+inline_after_block_keeps_index	0.0.0.1.0.0	span	InlineBox	0.00	0.00	32.00	16.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+inline_after_block_keeps_index	0.0.0.1.0.0.0	span	TextBox	0.00	0.00	32.00	16.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	ab
+inline_after_hidden_keeps_index	0		PageBox	0.00	0.00	200.00	200.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+inline_after_hidden_keeps_index	0	html	BlockBox	0.00	0.00	200.00	16.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+inline_after_hidden_keeps_index	0.0	body	BlockBox	0.00	0.00	200.00	16.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+inline_after_hidden_keeps_index	0.0.0	div	BlockBox	0.00	0.00	200.00	16.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+inline_after_hidden_keeps_index	0.0.0.0	div	LineBox	0.00	0.00	32.00	16.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+inline_after_hidden_keeps_index	0.0.0.0.0	span	InlineBox	0.00	0.00	32.00	16.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	
+inline_after_hidden_keeps_index	0.0.0.0.0.0	span	TextBox	0.00	0.00	32.00	16.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00	ab

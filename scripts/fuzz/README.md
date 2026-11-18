@@ -204,7 +204,10 @@ to write down.
   selector corpus is what a change to the selector engine is measured against:
   the random cases draw every attribute operator and every structural
   pseudo-class, so a matching bug that the curated shapes miss still moves a box
-  in the random corpus.
+  in the random corpus. The generator escapes a backslash, tab, CR and LF in a
+  case, so a document holding a literal CRLF (a backslash-continuation spelled
+  with a Windows line end, say) stays one TSV row and the crate's reader restores
+  it; the two escaping tables must be kept in step.
 
 ## Companion extractors
 

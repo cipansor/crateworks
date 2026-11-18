@@ -119,8 +119,11 @@ margins collapse, including through a parent.
 Text and inline elements are gathered into line boxes, wrapped to the block's
 width, and placed on a shared baseline. Whitespace collapses, a space at a line
 break is removed, and `font-size` and `line-height` are inherited and honoured.
-Each line is aligned by `text-align` (`left`, `right`, `center`, `start`, `end`
-and `justify`); `justify` stretches the spaces so the line fills the block, and
+An inline element keeps its position among the parent's element children even
+when it follows a block sibling or a hidden one, so a structural pseudo-class on
+it reads the same position a browser would give it. Each line is aligned by
+`text-align` (`left`, `right`, `center`, `start`, `end` and `justify`);
+`justify` stretches the spaces so the line fills the block, and
 `text-align-last` overrides the final line, as in the reference. `text-indent`
 shifts the first line of a block, in pixels or as a percentage of the block's
 width.
@@ -146,7 +149,10 @@ what the HTML parser keeps, so `café` parses like `div` does.
 A quoted attribute value is read as a CSS string: a comma, `]` or `)` inside it
 is text rather than syntax, a backslash escapes the character after it, and the
 string's escapes are decoded before the value is compared, so `[title="Doe, Jane"]`
-and `[title="a\62"]` (which names `ab`) both work. The cascade orders by
+and `[title="a\62"]` (which names `ab`) both work. The three newline forms CSS
+treats as one line break (a CRLF pair, a lone CR, and a form feed) are normalized
+to LF before tokenizing, so a backslash-continuation inside a quoted value decodes
+the same however the source spells the break. The cascade orders by
 specificity first and source order second, as the reference does: a more
 specific selector wins however early it appears, and equal specificity falls
 back to the later rule. An attribute selector and a structural pseudo-class each

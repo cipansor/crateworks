@@ -728,6 +728,36 @@ def selector_cases() -> list[tuple[str, str]]:
                                   "div:nth-child(-n-9223372036854775807)"
                                   "{width:40px;height:10px}</style>"
                                   "<div></div><div></div>"),
+        # A backslash-newline inside a quoted value is a line continuation: the
+        # break is dropped, so the value is `ab`. CSS normalizes CRLF and a lone
+        # CR to LF first, so the three spellings decode the same; a parser that
+        # reads only LF rejects the CRLF and lone-CR forms.
+        ("attribute_continuation_lf", f"<style>{page}{body}"
+                                      '[title="a\\\nb"]{width:40px;height:10px}</style>'
+                                      '<div title="ab"></div><div title="a"></div>'),
+        ("attribute_continuation_crlf", f"<style>{page}{body}"
+                                        '[title="a\\\r\nb"]{width:40px;height:10px}</style>'
+                                        '<div title="ab"></div><div title="a"></div>'),
+        ("attribute_continuation_cr", f"<style>{page}{body}"
+                                      '[title="a\\\rb"]{width:40px;height:10px}</style>'
+                                      '<div title="ab"></div><div title="a"></div>'),
+        ("attribute_continuation_ff", f"<style>{page}{body}"
+                                      '[title="a\\\fb"]{width:40px;height:10px}</style>'
+                                      '<div title="ab"></div><div title="a"></div>'),
+        # An inline element after a block sibling is still its parent's second
+        # element child, so `:first-child` must not match it and it stays. A run
+        # that renumbers from zero reads the span as the first child and hides
+        # its text.
+        ("inline_after_block_keeps_index", f"<style>{page}{body}"
+                                           "span:first-child{display:none}</style>"
+                                           "<div><div></div><span>ab</span></div>"),
+        # The same, triggered by a hidden sibling rather than a block boundary:
+        # the run omits the hidden span, and renumbering would hide the visible
+        # one behind it.
+        ("inline_after_hidden_keeps_index", f"<style>{page}{body}"
+                                            "span:first-child{display:none}</style>"
+                                            '<div><span style="display:none">x</span>'
+                                            "<span>ab</span></div>"),
     ]
 
 
@@ -1144,9 +1174,14 @@ def walk(box, path: str, out: list[tuple]) -> None:
 
 
 def escape(text: str) -> str:
-    """Make `text` safe for one TSV field, escaping the two characters that
-    would otherwise split the row. The Rust reader reverses this."""
-    return text.replace("\\", "\\\\").replace("\t", "\\t").replace("\n", "\\n")
+    """Make `text` safe for one TSV field, escaping the characters that would
+    otherwise split or corrupt the row. The Rust reader reverses this."""
+    return (
+        text.replace("\\", "\\\\")
+        .replace("\t", "\\t")
+        .replace("\r", "\\r")
+        .replace("\n", "\\n")
+    )
 
 
 def _accessor(box, name: str) -> str:

@@ -518,7 +518,11 @@ argument) and the negation `:not()`; a compound may carry several negations, and
 pseudo-class names are ASCII case-insensitive. A quoted attribute value is read
 as a CSS string, so a comma, `]` or `)` inside it is text, a backslash escapes
 the character after it, and the string's escapes are decoded before the value is
-compared. The cascade orders by specificity first,
+compared; the three newline forms CSS folds to one line break (CRLF, lone CR,
+form feed) are normalized to LF before tokenizing. An inline element keeps its
+position among the parent's element children even after a block sibling or a
+hidden one, so a structural pseudo-class on it reads the reference's position.
+The cascade orders by specificity first,
 source order second, as the reference does; an attribute selector and a
 pseudo-class each count as a class, and `:not()` counts as its argument.
 
