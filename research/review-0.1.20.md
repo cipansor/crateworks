@@ -75,7 +75,30 @@ rule rather than a lookup:
 
 ### Verification
 
-Every one of the six is checked the same two ways as the rest of the crate.
+Every one of the six is checked the same two ways as the rest of the crate, and
+a third way added in this round.
+
+**A committed oracle corpus.** `verify_holidays.py` is the gate, but it runs
+live: it needs the reference installed and CI does not run it, so a calendar
+whose behaviour is only checked there has no regression coverage in the
+repository. The six are the first calendars whose answer is frozen as a fixture:
+`scripts/fuzz/holidays-rs/gen.py` reads the reference over each country's whole
+window and writes `crates/holidays-rs/tests/fixtures/holidays_oracle.tsv`, and
+`crates/holidays-rs/tests/holidays_oracle.rs` replays it with no reference
+installed. Each date is one of three classes - `must` (a reference holiday on a
+working day the crate owes), `allow` (a weekend reference date the crate may keep
+or move) or `absent` (a seeded date the reference has nothing for) - so the test
+checks both directions, the same invented/missing split the gate uses, over
+6,331 required dates rather than the six a hand-written case would name.
+
+The corpus is the whole reference over the window, not a sample, because that is
+the part a spot test cannot do. The reviewer's example is exact: changing
+Bermuda's Saturday New Year's shift from `(0, 1), (6, 2)` to `(0, 1), (6, 1)`
+leaves every hand-picked date green - the year each one names happens to move the
+way the test expects - while the calendar reports the wrong day in every year the
+base falls on a Saturday. The corpus fails on the first such year
+(`Bermuda 1955-01-02: reported but the reference has no holiday`), which is what
+turns "the cases we thought of are right" into "the cases we checked agree".
 
 `research/tools/verify_holidays.py` compares each whole table against the
 reference over the historical window, from the country's own start year, and
@@ -114,6 +137,12 @@ fixture is byte-identical: 26,800 rows over 67 compared countries.
 * `research/tools/verify_holidays.py` and
   `research/tools/gen_holidays_closest.py` gain the six, with the closest script
   recording why each is excluded from the comparison.
+* `scripts/fuzz/holidays-rs/gen.py` and
+  `crates/holidays-rs/tests/fixtures/holidays_oracle.tsv` are new: the first
+  seeded oracle corpus for a holiday calendar, and
+  `crates/holidays-rs/tests/holidays_oracle.rs` replays it. `scripts/fuzz/README.md`
+  registers the generator and describes the corpus's `must`/`allow`/`absent`
+  shape.
 * `crates/holidays-rs/src/countries.rs` gains six unit tests, one per country,
   each asserting a date the reference reports - Bermuda Day's move off 24 May,
   Dominica's Carnival Monday and Tuesday, Grenada's Thanksgiving move off a
@@ -133,7 +162,8 @@ and the six it accepts are the ones that are.
 | --- | --- | --- |
 | `verify_holidays.py` | PyPI `holidays` 0.108 | 0 undocumented defects across the 6 new calendars; 63 pre-existing remain |
 | `gen_holidays_closest.py` | PyPI `holidays` 0.108 | 26,800 rows over 67 compared countries, unchanged |
-| `cargo test -p holidays-rs` | the crate's own suite | 117 unit tests, 1 closest test, 1 README test and 4 doctests pass |
+| `holidays_oracle.rs` | the frozen corpus (`holidays` 0.108) | 6,331 required dates agree; 0 invented, 0 missing |
+| `cargo test -p holidays-rs` | the crate's own suite | 117 unit tests, 1 oracle test, 1 closest test, 1 README test and 4 doctests pass |
 
 ## Follow-up
 

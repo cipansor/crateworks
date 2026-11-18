@@ -303,6 +303,19 @@ The filter itself is cheap to re-run and its refusals are stable, so the cheapes
 way to grow the crate is to point `derive_holidays.py` at every uncovered country
 again after any generator change and keep exactly what it accepts.
 
+**A weekend shift needs a corpus, not a spot test.** A hand-written case names
+one year's date - "Bermuda Day is 22 May 2026" - and that year happens to move the
+holiday the way the test expects, so the test passes whatever the shift does in
+the years it does not name. Changing Bermuda's Saturday New Year's shift from
+`(0, 1), (6, 2)` to `(0, 1), (6, 1)` leaves every hand-picked case green while the
+calendar reports the wrong day in every year the base falls on a Saturday. The
+corpus at `crates/holidays-rs/tests/fixtures/holidays_oracle.tsv`, built by
+`scripts/fuzz/holidays-rs/gen.py`, is what catches it: it lists the reference's
+answer for the whole window, so a shift that diverges anywhere fails. `verify_holidays.py`
+is the same check but live - it needs the reference installed and CI does not run
+it - so a calendar whose behaviour is not frozen as a committed fixture has no
+regression coverage in CI at all.
+
 ## Known traps
 
 - **A recursive descendant read reports a nested element's data at the wrong

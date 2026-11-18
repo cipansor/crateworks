@@ -47,6 +47,7 @@ never a dependency of any crate.
 | `pdfmake` | `pdfmake/gen_zlib_vectors.py` | Python `zlib` (stdlib) | `python3 pdfmake/gen_zlib_vectors.py [out]` |
 | `cssprint` | `cssprint/gen.py` | WeasyPrint PyPI 70.0 | `python3 cssprint/gen.py [crate dir]` |
 | `runits` | `runits/gen.py` | `pint` PyPI 0.26.2 | `python3 runits/gen.py` |
+| `holidays-rs` | `holidays-rs/gen.py` | `holidays` PyPI 0.108 | `python3 holidays-rs/gen.py [crate dir]` |
 
 With no `out` argument each writes to the crate's own fixture, which is the path
 you want when rebuilding it in place. The recorded versions are the ones the
@@ -66,6 +67,15 @@ change, because the `pdfa` tests check the container as a whole rather than
 answer a question per case. The reference stamps its output with the wall clock,
 so the generator pins the two timestamp functions to a fixed instant to keep the
 result reproducible.
+
+`holidays-rs/gen.py` takes the reference's answer whole rather than sampling it,
+because a calendar's oracle is small enough to list and a random sample can miss
+the one year a weekend-shift rule diverges - which is the part the hand-written
+cases miss. It labels each date `must` (a reference holiday on a working day the
+crate owes), `allow` (a weekend reference date the crate may keep or move) or
+`absent` (a seeded date the reference has nothing for), and the crate's test
+checks both directions against them. Only the `absent` probes are random, so the
+corpus is a superset of the reference over the window, not a sample of it.
 
 ## Determinism
 
