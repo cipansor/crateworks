@@ -602,6 +602,58 @@ regression coverage in CI at all.
   space at, so the space stays and the line is last. Getting this wrong moves a
   line by the whole alignment offset, which is what `cssprint`'s
   `align_last_trailing_space_overflow` fixture pins.
+- **The oracle gate can omit the types the README opens with.** `stdnum-rs`
+  documents `Iban`, `Ean`, `Isbn` and `Luhn` first, and none of the four was in
+  `gen_stdnum_vectors.py`'s type list, so the crate's own flagship types were
+  the only ones with no differential coverage - and all three defects the round
+  found (`Iban` structure, `Isbn` nine-digit form, `Isbn` Bookland prefix) lived
+  there. A type is covered when its name is in the gate, not when the crate
+  implements it; check the gate's list against the README's opening before
+  trusting a green build.
+- **A structure check is not a length check.** `Iban::parse` claimed to check
+  "length and structure" while checking length only, so a BBAN with a letter
+  where the registry requires a digit (`DE171OCTNFFVAV1D4OWFYE`) closed MOD-97
+  and passed. The registry lives in the reference's own `iban.dat`; the fix is a
+  generated `<count>!<class>` table, and the class vocabulary is exactly `n`
+  (digit), `a` (upper-case letter) and `c` (either).
+- **The reference's national IBAN checks are all arithmetic, except Belgium's.**
+  `be, es, me, no` are the only national IBAN modules; `es`, `me` and `no` are
+  arithmetic (Spain's CCC, Montenegro's mod-97, Norway's mod-11 after a leading
+  `0000` postgiro strip), but Belgium also looks the bank code up in a 793-entry
+  register. The crate ships no register for any identifier, so it checks the
+  Belgian check digit and skips the lookup - the same boundary the MAC address
+  and the BIC registry already observe. `u32` overflows on Belgium's ten-digit
+  `first * 10` fold; use `u64`.
+- **A nine-digit ISBN-10 is a dropped leading zero, not a short number.** The
+  reference's `compact` prepends `0` before checking, so `010010351` validates
+  as `0010010351`. Without the pad the check digit is computed over the wrong
+  positions and a published number is rejected. A 13-digit ISBN is a Bookland
+  EAN, so its prefix must be `978` or `979`; any other GS1 prefix is an EAN, not
+  a book number, and the reference raises `InvalidComponent` for it.
+- **Luhn accepts the lone digit `0`, and that is deliberate.** The reference's
+  one-digit checksum is the digit itself, so `0`, `00`, `000` and `0000` all
+  close; the crate requires a payload and a check digit (two characters). This
+  is the crate's rule, not a defect: the fixture records the reference's verdict
+  and the crate's test records the reason. Do not "fix" it to match.
+- **A corpus of only-rejected rows agrees with a crate that rejects
+  everything.** The first IBAN corpus drew a random BBAN and closed the MOD-97
+  check, so every Spanish, Norwegian and Montenegrin row it produced was a
+  *rejection*: the reference rejects a random national check digit, and so did
+  the crate, and a crate that rejected every `ES`/`NO`/`ME` IBAN outright would
+  have passed the whole file. The fix is to generate the *accepted* side too -
+  solve the national check digits by asking the reference's own `is_valid` for
+  the one combination it accepts, rather than reimplementing the arithmetic -
+  and prove the gate bites by mutating the crate to reject them all. A fixture
+  whose every row for a check is negative tests only half of it.
+- **A generator that reads the oracle must assert its version.** `gen_stdnum_vectors.py`
+  and `gen_iban_structures.py` both read the installed `python-stdnum` (the
+  first asks it for verdicts, the second reads its `iban.dat`), so a fixture
+  regenerated against another release re-baselines the oracle silently and two
+  maintainers on two releases get two fixtures from one checkout. Both now
+  assert `PINNED = "2.2"` and stop the run otherwise, the same guard
+  `verify_holidays.py` uses for `holidays==0.108`. Pin beside the generator and
+  in `research/tools/README.md`, and keep a deliberate oracle upgrade its own
+  change.
 
 ## Boundaries
 

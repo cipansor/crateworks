@@ -64,8 +64,12 @@ entry point, and no crate that covers IBAN alongside barcodes and tax numbers.
 The Python `python-stdnum` library covers 200+ types; this is the start of the
 Rust equivalent.
 
-**Covers today.** IBAN (78 countries, MOD-97, check-digit generation), ISBN-10
-and ISBN-13 with conversion, EAN-8/EAN-13/UPC-A with UPC-to-EAN conversion,
+**Covers today.** IBAN (89 countries in the SWIFT ISO 13616 registry, checking
+the country length, the BBAN character structure, the MOD-97 check and the
+national check digit Belgium, Spain, Norway and Montenegro carry, plus
+check-digit generation), ISBN-10
+and ISBN-13 with conversion (a nine-digit ISBN-10 has its dropped leading zero
+restored, and a 13-digit number must carry a `978` or `979` prefix), EAN-8/EAN-13/UPC-A with UPC-to-EAN conversion,
 Luhn, Damm and Verhoeff with check-digit generation, twenty-one international
 identifiers (ISIN, CUSIP, FIGI, LEI, BIC, GRID, ISSN, ISRC, IMEI, ISMN, ISNI,
 CAS number, ISO 11649 creditor reference, IMO number, MEID, ISAN, a Bitcoin

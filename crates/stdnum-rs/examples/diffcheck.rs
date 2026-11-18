@@ -1,8 +1,8 @@
-//! Reads "Country<TAB>value" lines and prints the verdict for each, so the
+//! Reads "Type<TAB>value" lines and prints the verdict for each, so the
 //! crate can be compared against an independent implementation.
 use std::io::{self, BufRead};
 
-use stdnum_rs::{Country, IdNumber};
+use stdnum_rs::{Country, IdNumber, NumberType, validate};
 
 fn country(name: &str) -> Option<Country> {
     Some(match name {
@@ -38,6 +38,44 @@ fn country(name: &str) -> Option<Country> {
     })
 }
 
+/// The international types, which the fixture names by their Rust type rather
+/// than by a `Country` variant. The four the crate's README opens with are
+/// listed first so the tool can replay the fixture for them too.
+fn international(name: &str) -> Option<NumberType> {
+    Some(match name {
+        "Ean" => NumberType::Ean,
+        "Iban" => NumberType::Iban,
+        "Isbn" => NumberType::Isbn,
+        "Luhn" => NumberType::Luhn,
+        "Damm" => NumberType::Damm,
+        "Verhoeff" => NumberType::Verhoeff,
+        "Isin" => NumberType::Isin,
+        "Cusip" => NumberType::Cusip,
+        "Figi" => NumberType::Figi,
+        "Lei" => NumberType::Lei,
+        "Bic" => NumberType::Bic,
+        "Grid" => NumberType::Grid,
+        "Issn" => NumberType::Issn,
+        "Isrc" => NumberType::Isrc,
+        "Imei" => NumberType::Imei,
+        "Ismn" => NumberType::Ismn,
+        "Isni" => NumberType::Isni,
+        "CasNumber" => NumberType::CasNumber,
+        "CreditorReference" => NumberType::CreditorReference,
+        "Imo" => NumberType::Imo,
+        "Meid" => NumberType::Meid,
+        "Isan" => NumberType::Isan,
+        "BitcoinAddress" => NumberType::BitcoinAddress,
+        "Mac" => NumberType::Mac,
+        "Isil" => NumberType::Isil,
+        "EcNumber" => NumberType::EcNumber,
+        "EuropeanBanknote" => NumberType::EuropeanBanknote,
+        "SepaCreditorIdentifier" => NumberType::SepaCreditorIdentifier,
+        "Eic" => NumberType::Eic,
+        _ => return None,
+    })
+}
+
 fn main() {
     let stdin = io::stdin();
     for line in stdin.lock().lines() {
@@ -45,12 +83,18 @@ fn main() {
         let Some((name, value)) = line.split_once('\t') else {
             continue;
         };
-        let Some(c) = country(name) else { continue };
-        let verdict = if IdNumber::parse(c, value).is_ok() {
-            "accept"
+        // A `Country` name is validated through `IdNumber`; anything else is
+        // an international type the crate dispatches by name.
+        let verdict = if let Some(c) = country(name) {
+            IdNumber::parse(c, value).is_ok()
+        } else if let Some(kind) = international(name) {
+            validate(kind, value).is_ok()
         } else {
-            "reject"
+            continue;
         };
-        println!("{name}\t{value}\t{verdict}");
+        println!(
+            "{name}\t{value}\t{}",
+            if verdict { "accept" } else { "reject" }
+        );
     }
 }

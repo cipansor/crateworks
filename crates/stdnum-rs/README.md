@@ -106,12 +106,18 @@ type of its own:
 
 `Cusip::to_isin` and `Isin::from_national_id` move a national identifier to the
 international form. `Iban` covers every country in the SWIFT ISO 13616 registry,
-checking the country-specific length and the MOD-97-10 check; `Iban::check_digits_for`
-computes the two check digits for a country and national part, so an IBAN can be
-built as well as checked. `Isbn::to_isbn13` and `Isbn::to_isbn10` move a book
+checking the country-specific length and character structure, the MOD-97-10
+check, and the national check digit Belgium, Spain, Norway and Montenegro carry
+inside the BBAN; `Iban::check_digits_for` computes the two check digits for a
+country and national part, so an IBAN can be built as well as checked. Belgium's
+bank-code register is not shipped, so a Belgian IBAN is checked for its national
+check digit but not looked up, the same boundary the MAC address and the BIC
+registry observe. `Isbn::to_isbn13` and `Isbn::to_isbn10` move a book
 number between its ten- and thirteen-digit forms; only the `978` Bookland prefix
 has a ten-digit form, so a `979` ISBN-13 is rejected by `to_isbn10` with
-`Error::InvalidPrefix`. `Ismn` accepts both the current thirteen-digit form and the
+`Error::InvalidPrefix`, and a 13-digit ISBN whose GS1 prefix is neither `978` nor
+`979` is rejected as not a book number. `Ismn` accepts both the current
+thirteen-digit form and the
 legacy `M` form. `Imei` accepts all three lengths and reports which one it is.
 `Imo` also exposes `check_digit_for`, `Meid` `check_digit` and `to_decimal`, and
 `Isan` a hyphenated `formatted` form that fills in a missing check character.
@@ -138,7 +144,7 @@ contributors, which in turn follows each authority's published specification.
 This is an independent reimplementation and shares no code with it; see
 [`NOTICE`](https://github.com/cipansor/crateworks/blob/main/crates/stdnum-rs/NOTICE).
 
-`tests/fixtures/stdnum_vectors.tsv` holds 85,713 numbers labelled by that
+`tests/fixtures/stdnum_vectors.tsv` holds 132,548 numbers labelled by that
 reference: every number in its own documentation plus each single-digit
 substitution of a valid number, the last character dropped and a character
 appended. Damm and Verhoeff also carry a 1,500-number random corpus each, built
@@ -149,11 +155,25 @@ their documentation offers one example too, and the identifier ports whose
 documentation shows a single example get one as well: the Ukrainian РНОКПП, the
 Argentine CBU, the Slovenian EMŠO, the Spanish CCC, CUPS, NIF and Referencia
 Catastral, the French RCS and the German Leitweg-ID each build valid numbers
-from the reference's own check-digit routine. `tests/readme.rs` replays the whole
+from the reference's own check-digit routine. The four number types the crate
+opens with - `Ean`, `Iban`, `Isbn` and `Luhn` - are in the file too: their
+doctests are thin, so each builds valid numbers from the reference and, for
+`Iban`, adds a BBAN with a letter where the registry requires a digit and, for
+Belgium, Spain, Norway and Montenegro, both a BBAN whose national check digit
+was solved to be *accepted* and one made wrong, each closed with correct MOD-97
+check digits so only the structure or the national check separates the two
+implementations. The accepted national-check rows are what let the file catch a
+crate that rejected every Spanish, Norwegian or Montenegrin IBAN; without them
+the fixture would have agreed with a blanket rejection.
+`tests/readme.rs` replays the whole
 file, so a change that makes this crate disagree with the reference fails the
 build. The check digit, the accepted shapes and the separator characters all
 came out of that comparison, and `research/tools/gen_stdnum_vectors.py`
-regenerates the file when a type is added.
+regenerates the file when a type is added; the IBAN structure table is written by
+`research/tools/gen_iban_structures.py` from the same registry file. Both
+generators assert the `python-stdnum` version they are baselined against, so a
+fixture or table regenerated against another release stops rather than silently
+re-baselining the oracle.
 
 A conversion has an output rather than a verdict, so the validation fixture
 cannot record one. `tests/fixtures/isbn_conversions.tsv` is a second oracle for
@@ -172,6 +192,14 @@ over the whole concatenation rather than over the one character the reference
 computes, and a Base58 Bitcoin address is compared case-sensitively, because
 the fixture contains an address whose alphabet letter would otherwise be
 rejected.
+
+Two more are deliberate strictness, so the fixture records the reference's
+verdict and the crate's tests record the reason. `Luhn` requires a payload and a
+check digit, at least two characters; the reference accepts the lone digit `0`,
+whose one-digit checksum is zero, which is not a number anyone issues. And a
+Belgian IBAN is checked for its national check digit but not looked up in the
+bank-code register the reference consults, because this crate ships no register
+for any identifier.
 
 Each number type lives in its own module so that a program only pays for
 what it uses, and `validate` offers a uniform entry point when the type

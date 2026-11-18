@@ -14,12 +14,15 @@ impl Isbn {
     /// Validates `input`.
     ///
     /// Accepts an optional `ISBN` or `ISBN-13` prefix, spaces and hyphens. The
-    /// final character of an ISBN-10 may be `X`, standing for ten.
+    /// final character of an ISBN-10 may be `X`, standing for ten. A nine-digit
+    /// ISBN-10 is accepted, with the leading zero a printed form drops added
+    /// back.
     ///
     /// # Errors
     ///
     /// Returns [`Error::Empty`], [`Error::InvalidCharacter`],
-    /// [`Error::WrongLength`] or [`Error::BadChecksum`].
+    /// [`Error::WrongLength`], [`Error::InvalidPrefix`] (a 13-digit number
+    /// whose GS1 prefix is neither `978` nor `979`) or [`Error::BadChecksum`].
     pub fn parse(input: &str) -> Result<Self> {
         let mut normalized = crate::normalize(input);
         for prefix in ["ISBN-13", "ISBN13", "ISBN"] {
@@ -27,6 +30,12 @@ impl Isbn {
                 normalized = rest.to_string();
                 break;
             }
+        }
+        // A nine-digit ISBN-10 is a leading zero dropped in printing, so the
+        // reference pads it back; without this the check digit is computed over
+        // the wrong positions and a published number is rejected.
+        if normalized.len() == 9 {
+            normalized.insert(0, '0');
         }
         if normalized.is_empty() {
             return Err(Error::Empty);
@@ -46,6 +55,11 @@ impl Isbn {
                 let (payload, check) = digits.split_at(12);
                 if checksum::gs1_check_digit(payload) != check[0] {
                     return Err(Error::BadChecksum);
+                }
+                // A 13-digit ISBN is a Bookland EAN, so the first three digits
+                // are 978 or 979; any other GS1 prefix is an EAN, not an ISBN.
+                if !normalized.starts_with("978") && !normalized.starts_with("979") {
+                    return Err(Error::InvalidPrefix);
                 }
                 Ok(Self {
                     digits: normalized,
@@ -195,6 +209,28 @@ mod tests {
             Isbn::parse("978030640615A"),
             Err(Error::InvalidCharacter('A'))
         ));
+    }
+
+    #[test]
+    fn a_nine_digit_isbn10_gains_its_leading_zero() {
+        // The printed form of an ISBN-10 whose first digit is zero drops it;
+        // the reference pads it back, so the number validates and comes out in
+        // its ten-digit form.
+        let i = Isbn::parse("010010351").unwrap();
+        assert_eq!(i.as_str(), "0010010351");
+        assert!(!i.is_isbn13());
+        // The padded form is the same number.
+        assert_eq!(Isbn::parse("0010010351").unwrap().as_str(), "0010010351");
+    }
+
+    #[test]
+    fn a_thirteen_digit_number_must_carry_a_bookland_prefix() {
+        // 7721340212856 closes its GS1 check digit but its prefix is neither
+        // 978 nor 979, so it is an EAN and not an ISBN; the reference raises
+        // InvalidComponent and the old crate accepted it.
+        assert_eq!(Isbn::parse("7721340212856"), Err(Error::InvalidPrefix));
+        // The 979 form is a real ISBN-13 with no ISBN-10 counterpart.
+        assert!(Isbn::parse("9791234567896").is_ok());
     }
 
     #[test]
