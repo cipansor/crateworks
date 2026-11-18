@@ -107,9 +107,13 @@ and not on the raw one, which is the date a payroll or a calendar grid needs.
 
 ## Verification
 
-Every country table is checked against the Python `holidays` package over
-2000-2050 by `research/tools/verify_holidays.py`, which exits non-zero on any
-difference that is not listed as deliberate. `research/tools/derive_holidays.py`
+Every country table is checked against the Python `holidays` package from each
+country's own reference start year through 2050 by
+`research/tools/verify_holidays.py`, which exits non-zero on any difference that
+is not listed as deliberate. The window starts where the reference does rather
+than at a fixed 2000, so a holiday introduced later (South Africa's Human Rights
+Day, from 1995) is checked where it actually begins instead of being
+back-projected to 2000. `research/tools/derive_holidays.py`
 additionally re-resolves a fitted table over a held-out window (2051-2075),
 refuses a table that stops agreeing there, and refuses one whose entries stop
 producing a holiday the reference reports every year - so a calendar that only

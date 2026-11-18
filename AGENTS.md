@@ -226,6 +226,45 @@ thought of are right" into "the cases we checked agree".
 concluding the crate is wrong, print the failing case and check that the fixture
 means what you think it means. This has cost two separate debugging rounds.
 
+**A fixed fit window back-projects every introduction year to its start.** The
+generator originally fitted 2000-2050 for every country. That is invisible over
+the fitted window and wrong the moment a caller asks for an earlier year: a
+holiday introduced in 1995 is fitted as if it had always existed, and the fit
+absorbs the mismatch by shifting the base. The Isle of Man answered Tynwald Day
+on 6 July because the fitter hid the real 5 July base behind an `ObservedShift`,
+and South Africa answered Human Rights Day for 1990, five years before the
+holiday existed. The window must start at the reference's own `start_year`
+(`getattr(CountryHolidays, "start_year")`), so the introduction year and every
+`ObservedShift.from` are fitted where they actually are. Then check the result
+over that same range, not just from 2000: `verify_holidays.py` now defaults to
+`[start_year(code), 2050]`, which is what surfaced the defect - the modern
+window was clean throughout. The trap generalises: any gate whose window is
+narrower than the data it checks can only ever confirm what it already fitted.
+
+**A large shift table is a wrong base wearing a disguise.** `ObservedShift` is
+the crate's rule for a holiday moved to a nearby weekday, so a shift is days,
+not months. A candidate whose table needs a shift beyond a week is not an
+observance rule but a different date hidden under the same name: South Africa's
+Y2K Changeover is 31 December 1999 *and* 2 January 2000, and the fitter accepted
+31 December with a 363-day shift for the 2000 weekday rather than split the two
+dates. `fit_shift` now rejects any shift beyond seven days. The same code pooled
+a name's observed dates across every year, so a substitute near a year boundary
+was attributed to the wrong base - the 3 January 2000 substitute for the 2
+January date was three days from 31 December 1999 too. Attribute each observed
+date to its nearest base once per name (`attribute_observed`), not once per rule
+being fitted.
+
+**A run that starts at `FIRST` is not a run that starts at the beginning of
+time.** When the reference genuinely starts later than the floor (South Africa
+1911, Cayman Islands 2006), `FIRST` is a real year. Rendering its runs ungated,
+or as an `Until` that leaves the lower end open, invents the holiday in every
+earlier year - the defect that a historical gate sees and a 2000-onward gate
+cannot. `rust_rule` and `rule_applies` gate a partial run at `FIRST` unless
+`FIRST` is the floor itself, and the two must keep mirroring each other: the
+Rust side decides what ships, the Python side decides what the held-out check
+believes, and a divergence between them makes the check certify the wrong
+thing.
+
 **A fit that is right for 51 years can still be a table, and the date check
 cannot see it.** `derive_holidays.py` reproduces the reference exactly over the
 fitted window and then re-resolves the fit over 2051-2075, refusing a table that

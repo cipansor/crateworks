@@ -10561,28 +10561,55 @@ static ANTIGUA_AND_BARBUDA: &[Holiday] = &[
     h(
         "New Year's Day",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 1, day: 1 },
-            from: 2000,
+            base: &Rule::Since {
+                year: 1955,
+                base: &Rule::Fixed { month: 1, day: 1 },
+            },
+            from: 1955,
             shifts: &[(0, 1)],
         },
     ),
-    h("Good Friday", Rule::EasterOffset(-2)),
-    h("Easter Monday", Rule::EasterOffset(1)),
     h(
-        "Labour Day",
-        Rule::NthWeekday {
-            month: 5,
-            weekday: 1,
-            nth: 1,
+        "Good Friday",
+        Rule::Since {
+            year: 1955,
+            base: &Rule::EasterOffset(-2),
         },
     ),
-    h("Whit Monday", Rule::EasterOffset(50)),
+    h(
+        "Easter Monday",
+        Rule::Since {
+            year: 1955,
+            base: &Rule::EasterOffset(1),
+        },
+    ),
+    h(
+        "Labour Day",
+        Rule::Since {
+            year: 1955,
+            base: &Rule::NthWeekday {
+                month: 5,
+                weekday: 1,
+                nth: 1,
+            },
+        },
+    ),
+    h(
+        "Whit Monday",
+        Rule::Since {
+            year: 1955,
+            base: &Rule::EasterOffset(50),
+        },
+    ),
     h(
         "Carnival Monday",
-        Rule::NthWeekday {
-            month: 8,
-            weekday: 1,
-            nth: 1,
+        Rule::Since {
+            year: 1955,
+            base: &Rule::NthWeekday {
+                month: 8,
+                weekday: 1,
+                nth: 1,
+            },
         },
     ),
     h(
@@ -10599,7 +10626,10 @@ static ANTIGUA_AND_BARBUDA: &[Holiday] = &[
     h(
         "Independence Day",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 11, day: 1 },
+            base: &Rule::Since {
+                year: 1955,
+                base: &Rule::Fixed { month: 11, day: 1 },
+            },
             from: 2004,
             shifts: &[(0, 1), (6, 2)],
         },
@@ -10618,28 +10648,43 @@ static ANTIGUA_AND_BARBUDA: &[Holiday] = &[
     h(
         "Christmas Day",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 12, day: 25 },
-            from: 2000,
+            base: &Rule::Since {
+                year: 1955,
+                base: &Rule::Fixed { month: 12, day: 25 },
+            },
+            from: 1955,
             shifts: &[(0, 2), (6, 2)],
         },
     ),
     h(
         "Boxing Day",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 12, day: 26 },
-            from: 2000,
+            base: &Rule::Since {
+                year: 1955,
+                base: &Rule::Fixed { month: 12, day: 26 },
+            },
+            from: 1955,
             shifts: &[(0, 2), (6, 2)],
         },
     ),
     h(
         "Caribbean Community (Caricom) Day",
-        Rule::Until {
-            year: 2005,
+        Rule::Between {
+            from: 1955,
+            to: 2005,
             base: &Rule::NthWeekday {
                 month: 7,
                 weekday: 1,
                 nth: 1,
             },
+        },
+    ),
+    h(
+        "Public Holiday",
+        Rule::Once {
+            year: 1993,
+            month: 8,
+            day: 3,
         },
     ),
     h(
@@ -10708,26 +10753,18 @@ static ANTIGUA_AND_BARBUDA: &[Holiday] = &[
     ),
     h(
         "Day after the General Election",
-        Rule::ObservedShift {
-            base: &Rule::Once {
-                year: 2018,
-                month: 3,
-                day: 22,
-            },
-            from: 2000,
-            shifts: &[(3, -62)],
+        Rule::Once {
+            year: 2018,
+            month: 3,
+            day: 22,
         },
     ),
     h(
         "Day after the General Election",
-        Rule::ObservedShift {
-            base: &Rule::Once {
-                year: 2023,
-                month: 3,
-                day: 22,
-            },
-            from: 2000,
-            shifts: &[(3, -62)],
+        Rule::Once {
+            year: 2023,
+            month: 1,
+            day: 19,
         },
     ),
 ];
@@ -10737,7 +10774,10 @@ static COOK_ISLANDS: &[Holiday] = &[
     h(
         "New Year's Day",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 1, day: 1 },
+            base: &Rule::Since {
+                year: 2000,
+                base: &Rule::Fixed { month: 1, day: 1 },
+            },
             from: 2000,
             shifts: &[(0, 2), (6, 2)],
         },
@@ -10745,45 +10785,72 @@ static COOK_ISLANDS: &[Holiday] = &[
     h(
         "Day after New Year's Day",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 1, day: 2 },
+            base: &Rule::Since {
+                year: 2000,
+                base: &Rule::Fixed { month: 1, day: 2 },
+            },
             from: 2000,
             shifts: &[(0, 2), (6, 2)],
         },
     ),
-    h("Anzac Day", Rule::Fixed { month: 4, day: 25 }),
-    h("Good Friday", Rule::EasterOffset(-2)),
-    h("Easter Monday", Rule::EasterOffset(1)),
+    h(
+        "Anzac Day",
+        Rule::Since {
+            year: 2000,
+            base: &Rule::Fixed { month: 4, day: 25 },
+        },
+    ),
+    h(
+        "Good Friday",
+        Rule::Since {
+            year: 2000,
+            base: &Rule::EasterOffset(-2),
+        },
+    ),
+    h(
+        "Easter Monday",
+        Rule::Since {
+            year: 2000,
+            base: &Rule::EasterOffset(1),
+        },
+    ),
     h(
         "Sovereign's Birthday",
-        Rule::NthWeekday {
-            month: 6,
-            weekday: 1,
-            nth: 1,
+        Rule::Since {
+            year: 2000,
+            base: &Rule::NthWeekday {
+                month: 6,
+                weekday: 1,
+                nth: 1,
+            },
         },
     ),
     h(
         "Ra o te Ui Ariki",
-        Rule::ObservedShift {
-            base: &Rule::Since {
-                year: 2012,
-                base: &Rule::Fixed { month: 6, day: 6 },
+        Rule::Since {
+            year: 2013,
+            base: &Rule::NthWeekday {
+                month: 7,
+                weekday: 5,
+                nth: 1,
             },
-            from: 2013,
-            shifts: &[
-                (0, 26),
-                (1, 25),
-                (2, 31),
-                (3, 30),
-                (4, 29),
-                (5, 28),
-                (6, 27),
-            ],
+        },
+    ),
+    h(
+        "Ra o te Ui Ariki",
+        Rule::Once {
+            year: 2012,
+            month: 6,
+            day: 6,
         },
     ),
     h(
         "Constitution Day",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 8, day: 4 },
+            base: &Rule::Since {
+                year: 2000,
+                base: &Rule::Fixed { month: 8, day: 4 },
+            },
             from: 2000,
             shifts: &[(0, 1), (6, 2)],
         },
@@ -10791,7 +10858,10 @@ static COOK_ISLANDS: &[Holiday] = &[
     h(
         "Cook Islands Gospel Day",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 10, day: 26 },
+            base: &Rule::Since {
+                year: 2000,
+                base: &Rule::Fixed { month: 10, day: 26 },
+            },
             from: 2000,
             shifts: &[(0, 1), (6, 2)],
         },
@@ -10799,7 +10869,10 @@ static COOK_ISLANDS: &[Holiday] = &[
     h(
         "Christmas Day",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 12, day: 25 },
+            base: &Rule::Since {
+                year: 2000,
+                base: &Rule::Fixed { month: 12, day: 25 },
+            },
             from: 2000,
             shifts: &[(0, 2), (6, 2)],
         },
@@ -10807,7 +10880,10 @@ static COOK_ISLANDS: &[Holiday] = &[
     h(
         "Boxing Day",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 12, day: 26 },
+            base: &Rule::Since {
+                year: 2000,
+                base: &Rule::Fixed { month: 12, day: 26 },
+            },
             from: 2000,
             shifts: &[(0, 2), (6, 2)],
         },
@@ -10815,8 +10891,9 @@ static COOK_ISLANDS: &[Holiday] = &[
     h(
         "Penrhyn Gospel Day",
         Rule::ObservedShift {
-            base: &Rule::Until {
-                year: 2011,
+            base: &Rule::Between {
+                from: 2000,
+                to: 2011,
                 base: &Rule::Fixed { month: 3, day: 13 },
             },
             from: 2000,
@@ -10826,8 +10903,9 @@ static COOK_ISLANDS: &[Holiday] = &[
     h(
         "Palmerston Gospel Day",
         Rule::ObservedShift {
-            base: &Rule::Until {
-                year: 2011,
+            base: &Rule::Between {
+                from: 2000,
+                to: 2011,
                 base: &Rule::Fixed { month: 5, day: 25 },
             },
             from: 2000,
@@ -10837,8 +10915,9 @@ static COOK_ISLANDS: &[Holiday] = &[
     h(
         "Mangaia Gospel Day",
         Rule::ObservedShift {
-            base: &Rule::Until {
-                year: 2011,
+            base: &Rule::Between {
+                from: 2000,
+                to: 2011,
                 base: &Rule::Fixed { month: 6, day: 15 },
             },
             from: 2000,
@@ -10848,8 +10927,9 @@ static COOK_ISLANDS: &[Holiday] = &[
     h(
         "Atiu Gospel Day",
         Rule::ObservedShift {
-            base: &Rule::Until {
-                year: 2011,
+            base: &Rule::Between {
+                from: 2000,
+                to: 2011,
                 base: &Rule::Fixed { month: 7, day: 20 },
             },
             from: 2000,
@@ -10859,8 +10939,9 @@ static COOK_ISLANDS: &[Holiday] = &[
     h(
         "Mitiaro Gospel Day",
         Rule::ObservedShift {
-            base: &Rule::Until {
-                year: 2011,
+            base: &Rule::Between {
+                from: 2000,
+                to: 2011,
                 base: &Rule::Fixed { month: 7, day: 21 },
             },
             from: 2000,
@@ -10870,8 +10951,9 @@ static COOK_ISLANDS: &[Holiday] = &[
     h(
         "Mauke Gospel Day",
         Rule::ObservedShift {
-            base: &Rule::Until {
-                year: 2011,
+            base: &Rule::Between {
+                from: 2000,
+                to: 2011,
                 base: &Rule::Fixed { month: 7, day: 23 },
             },
             from: 2000,
@@ -10881,8 +10963,9 @@ static COOK_ISLANDS: &[Holiday] = &[
     h(
         "Rarotonga Gospel Day",
         Rule::ObservedShift {
-            base: &Rule::Until {
-                year: 2011,
+            base: &Rule::Between {
+                from: 2000,
+                to: 2011,
                 base: &Rule::Fixed { month: 7, day: 25 },
             },
             from: 2000,
@@ -10892,8 +10975,9 @@ static COOK_ISLANDS: &[Holiday] = &[
     h(
         "Manihiki Gospel Day",
         Rule::ObservedShift {
-            base: &Rule::Until {
-                year: 2011,
+            base: &Rule::Between {
+                from: 2000,
+                to: 2011,
                 base: &Rule::Fixed { month: 8, day: 8 },
             },
             from: 2000,
@@ -10903,8 +10987,9 @@ static COOK_ISLANDS: &[Holiday] = &[
     h(
         "Rakahanga Gospel Day",
         Rule::ObservedShift {
-            base: &Rule::Until {
-                year: 2011,
+            base: &Rule::Between {
+                from: 2000,
+                to: 2011,
                 base: &Rule::Fixed { month: 8, day: 15 },
             },
             from: 2000,
@@ -10914,8 +10999,9 @@ static COOK_ISLANDS: &[Holiday] = &[
     h(
         "Aitutaki Gospel Day",
         Rule::ObservedShift {
-            base: &Rule::Until {
-                year: 2011,
+            base: &Rule::Between {
+                from: 2000,
+                to: 2011,
                 base: &Rule::Fixed { month: 10, day: 27 },
             },
             from: 2000,
@@ -10925,8 +11011,9 @@ static COOK_ISLANDS: &[Holiday] = &[
     h(
         "Pukapuka Gospel Day",
         Rule::ObservedShift {
-            base: &Rule::Until {
-                year: 2011,
+            base: &Rule::Between {
+                from: 2000,
+                to: 2011,
                 base: &Rule::Fixed { month: 12, day: 8 },
             },
             from: 2000,
@@ -10940,8 +11027,21 @@ static ISLE_OF_MAN: &[Holiday] = &[
     h("Good Friday", Rule::EasterOffset(-2)),
     h(
         "May Day",
-        Rule::Until {
-            year: 2019,
+        Rule::Between {
+            from: 1978,
+            to: 1994,
+            base: &Rule::NthWeekday {
+                month: 5,
+                weekday: 1,
+                nth: 1,
+            },
+        },
+    ),
+    h(
+        "May Day",
+        Rule::Between {
+            from: 1996,
+            to: 2019,
             base: &Rule::NthWeekday {
                 month: 5,
                 weekday: 1,
@@ -10963,6 +11063,14 @@ static ISLE_OF_MAN: &[Holiday] = &[
     h(
         "May Day",
         Rule::Once {
+            year: 1995,
+            month: 5,
+            day: 8,
+        },
+    ),
+    h(
+        "May Day",
+        Rule::Once {
             year: 2020,
             month: 5,
             day: 8,
@@ -10970,8 +11078,9 @@ static ISLE_OF_MAN: &[Holiday] = &[
     ),
     h(
         "Spring Bank Holiday",
-        Rule::Until {
-            year: 2001,
+        Rule::Between {
+            from: 1971,
+            to: 2001,
             base: &Rule::WeekdayOnOrBefore {
                 month: 5,
                 day: 31,
@@ -11041,10 +11150,13 @@ static ISLE_OF_MAN: &[Holiday] = &[
     h("Easter Monday", Rule::EasterOffset(1)),
     h(
         "Late Summer Bank Holiday",
-        Rule::WeekdayOnOrBefore {
-            month: 8,
-            day: 31,
-            weekday: 1,
+        Rule::Since {
+            year: 1971,
+            base: &Rule::WeekdayOnOrBefore {
+                month: 8,
+                day: 31,
+                weekday: 1,
+            },
         },
     ),
     h(
@@ -11058,16 +11170,19 @@ static ISLE_OF_MAN: &[Holiday] = &[
     h(
         "Tynwald Day",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 7, day: 6 },
-            from: 2000,
-            shifts: &[(0, 1), (2, -1), (3, -1), (4, -1), (5, -1), (6, -1)],
+            base: &Rule::Fixed { month: 7, day: 5 },
+            from: 1988,
+            shifts: &[(0, 1), (6, 2)],
         },
     ),
     h(
         "New Year's Day",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 1, day: 1 },
-            from: 2000,
+            base: &Rule::Since {
+                year: 1975,
+                base: &Rule::Fixed { month: 1, day: 1 },
+            },
+            from: 1900,
             shifts: &[(0, 1), (6, 2)],
         },
     ),
@@ -11075,7 +11190,7 @@ static ISLE_OF_MAN: &[Holiday] = &[
         "Christmas Day",
         Rule::ObservedShift {
             base: &Rule::Fixed { month: 12, day: 25 },
-            from: 2000,
+            from: 1900,
             shifts: &[(0, 2), (6, 2)],
         },
     ),
@@ -11083,8 +11198,39 @@ static ISLE_OF_MAN: &[Holiday] = &[
         "Boxing Day",
         Rule::ObservedShift {
             base: &Rule::Fixed { month: 12, day: 26 },
-            from: 2000,
+            from: 1900,
             shifts: &[(0, 2), (6, 2)],
+        },
+    ),
+    h(
+        "Whit Monday",
+        Rule::Until {
+            year: 1970,
+            base: &Rule::EasterOffset(50),
+        },
+    ),
+    h(
+        "Silver Jubilee of Elizabeth II",
+        Rule::Once {
+            year: 1977,
+            month: 6,
+            day: 7,
+        },
+    ),
+    h(
+        "Wedding of Charles and Diana",
+        Rule::Once {
+            year: 1981,
+            month: 7,
+            day: 29,
+        },
+    ),
+    h(
+        "Millennium Celebrations",
+        Rule::Once {
+            year: 1999,
+            month: 12,
+            day: 31,
         },
     ),
     h(
@@ -11142,100 +11288,149 @@ static SAINT_KITTS_AND_NEVIS: &[Holiday] = &[
     h(
         "Carnival Day",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 1, day: 1 },
-            from: 2000,
+            base: &Rule::Since {
+                year: 1983,
+                base: &Rule::Fixed { month: 1, day: 1 },
+            },
+            from: 1983,
             shifts: &[(0, 2)],
         },
     ),
     h(
         "Carnival Day - Last Lap",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 1, day: 2 },
-            from: 2000,
+            base: &Rule::Since {
+                year: 1983,
+                base: &Rule::Fixed { month: 1, day: 2 },
+            },
+            from: 1983,
             shifts: &[(0, 1)],
         },
     ),
-    h("Good Friday", Rule::EasterOffset(-2)),
-    h("Easter Monday", Rule::EasterOffset(1)),
     h(
-        "Labour Day",
-        Rule::NthWeekday {
-            month: 5,
-            weekday: 1,
-            nth: 1,
+        "Good Friday",
+        Rule::Since {
+            year: 1983,
+            base: &Rule::EasterOffset(-2),
         },
     ),
-    h("Whit Monday", Rule::EasterOffset(50)),
+    h(
+        "Easter Monday",
+        Rule::Since {
+            year: 1983,
+            base: &Rule::EasterOffset(1),
+        },
+    ),
+    h(
+        "Labour Day",
+        Rule::Since {
+            year: 1983,
+            base: &Rule::NthWeekday {
+                month: 5,
+                weekday: 1,
+                nth: 1,
+            },
+        },
+    ),
+    h(
+        "Whit Monday",
+        Rule::Since {
+            year: 1983,
+            base: &Rule::EasterOffset(50),
+        },
+    ),
     h(
         "Emancipation Day",
-        Rule::NthWeekday {
-            month: 8,
-            weekday: 1,
-            nth: 1,
+        Rule::Since {
+            year: 1998,
+            base: &Rule::NthWeekday {
+                month: 8,
+                weekday: 1,
+                nth: 1,
+            },
         },
     ),
     h(
         "Culturama Day - Last Lap",
-        Rule::WeekdayOnOrAfter {
-            month: 8,
-            day: 2,
-            weekday: 2,
+        Rule::Since {
+            year: 1983,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 8,
+                day: 2,
+                weekday: 2,
+            },
         },
     ),
     h(
         "National Heroes Day",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 9, day: 16 },
-            from: 2000,
+            base: &Rule::Since {
+                year: 1998,
+                base: &Rule::Fixed { month: 9, day: 16 },
+            },
+            from: 1983,
             shifts: &[(0, 1)],
         },
     ),
     h(
         "Independence Day",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 9, day: 19 },
-            from: 2000,
+            base: &Rule::Since {
+                year: 1983,
+                base: &Rule::Fixed { month: 9, day: 19 },
+            },
+            from: 1983,
             shifts: &[(0, 1)],
         },
     ),
     h(
         "Christmas Day",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 12, day: 25 },
-            from: 2000,
+            base: &Rule::Since {
+                year: 1983,
+                base: &Rule::Fixed { month: 12, day: 25 },
+            },
+            from: 1983,
             shifts: &[(0, 2)],
         },
     ),
     h(
         "Boxing Day",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 12, day: 26 },
-            from: 2000,
+            base: &Rule::Since {
+                year: 1983,
+                base: &Rule::Fixed { month: 12, day: 26 },
+            },
+            from: 1983,
             shifts: &[(0, 1)],
         },
     ),
     h(
-        "Federal Election Victory Day",
-        Rule::ObservedShift {
-            base: &Rule::Once {
-                year: 2015,
-                month: 2,
-                day: 18,
+        "First Monday of August",
+        Rule::Between {
+            from: 1983,
+            to: 1997,
+            base: &Rule::NthWeekday {
+                month: 8,
+                weekday: 1,
+                nth: 1,
             },
-            from: 2000,
-            shifts: &[(5, 171)],
         },
     ),
     h(
         "Federal Election Victory Day",
-        Rule::ObservedShift {
-            base: &Rule::Once {
-                year: 2022,
-                month: 2,
-                day: 18,
-            },
-            from: 2000,
-            shifts: &[(5, 171)],
+        Rule::Once {
+            year: 2015,
+            month: 2,
+            day: 18,
+        },
+    ),
+    h(
+        "Federal Election Victory Day",
+        Rule::Once {
+            year: 2022,
+            month: 8,
+            day: 8,
         },
     ),
     h(
@@ -11273,7 +11468,7 @@ static CAYMAN_ISLANDS: &[Holiday] = &[
                 year: 2006,
                 base: &Rule::Fixed { month: 1, day: 1 },
             },
-            from: 2000,
+            from: 2006,
             shifts: &[(0, 1), (6, 2)],
         },
     ),
@@ -11371,7 +11566,7 @@ static CAYMAN_ISLANDS: &[Holiday] = &[
                 year: 2006,
                 base: &Rule::Fixed { month: 12, day: 25 },
             },
-            from: 2000,
+            from: 2006,
             shifts: &[(0, 2), (6, 2)],
         },
     ),
@@ -11382,7 +11577,7 @@ static CAYMAN_ISLANDS: &[Holiday] = &[
                 year: 2006,
                 base: &Rule::Fixed { month: 12, day: 26 },
             },
-            from: 2000,
+            from: 2006,
             shifts: &[(0, 2), (6, 2)],
         },
     ),
@@ -11452,62 +11647,54 @@ static CAYMAN_ISLANDS: &[Holiday] = &[
     ),
     h(
         "General Election Day",
-        Rule::ObservedShift {
-            base: &Rule::Once {
-                year: 2009,
+        Rule::Between {
+            from: 2009,
+            to: 2009,
+            base: &Rule::WeekdayOnOrAfter {
                 month: 5,
                 day: 20,
+                weekday: 3,
             },
-            from: 2000,
-            shifts: &[(1, 2), (2, -20), (4, -36), (6, 4)],
         },
     ),
     h(
         "General Election Day",
-        Rule::ObservedShift {
-            base: &Rule::Once {
-                year: 2013,
+        Rule::Between {
+            from: 2013,
+            to: 2013,
+            base: &Rule::WeekdayOnOrAfter {
                 month: 5,
                 day: 20,
+                weekday: 3,
             },
-            from: 2000,
-            shifts: &[(1, 2), (2, -20), (4, -36), (6, 4)],
         },
     ),
     h(
         "General Election Day",
-        Rule::ObservedShift {
-            base: &Rule::Once {
-                year: 2017,
+        Rule::Between {
+            from: 2017,
+            to: 2017,
+            base: &Rule::WeekdayOnOrAfter {
                 month: 5,
                 day: 20,
+                weekday: 3,
             },
-            from: 2000,
-            shifts: &[(1, 2), (2, -20), (4, -36), (6, 4)],
         },
     ),
     h(
         "General Election Day",
-        Rule::ObservedShift {
-            base: &Rule::Once {
-                year: 2021,
-                month: 5,
-                day: 20,
-            },
-            from: 2000,
-            shifts: &[(1, 2), (2, -20), (4, -36), (6, 4)],
+        Rule::Between {
+            from: 2021,
+            to: 2021,
+            base: &Rule::EasterOffset(10),
         },
     ),
     h(
         "General Election Day",
-        Rule::ObservedShift {
-            base: &Rule::Once {
-                year: 2025,
-                month: 5,
-                day: 20,
-            },
-            from: 2000,
-            shifts: &[(1, 2), (2, -20), (4, -36), (6, 4)],
+        Rule::Between {
+            from: 2025,
+            to: 2025,
+            base: &Rule::EasterOffset(10),
         },
     ),
     h(
@@ -11528,26 +11715,18 @@ static CAYMAN_ISLANDS: &[Holiday] = &[
     ),
     h(
         "Referendum Day",
-        Rule::ObservedShift {
-            base: &Rule::Once {
-                year: 2012,
-                month: 7,
-                day: 18,
-            },
-            from: 2000,
-            shifts: &[(4, 154)],
+        Rule::Once {
+            year: 2012,
+            month: 7,
+            day: 18,
         },
     ),
     h(
         "Referendum Day",
-        Rule::ObservedShift {
-            base: &Rule::Once {
-                year: 2019,
-                month: 7,
-                day: 18,
-            },
-            from: 2000,
-            shifts: &[(4, 154)],
+        Rule::Once {
+            year: 2019,
+            month: 12,
+            day: 19,
         },
     ),
     h(
@@ -11586,21 +11765,21 @@ static SAINT_HELENA: &[Holiday] = &[
     ),
     h(
         "King's Birthday",
-        Rule::ObservedShift {
-            base: &Rule::Since {
-                year: 2023,
-                base: &Rule::Fixed { month: 6, day: 19 },
+        Rule::Since {
+            year: 2024,
+            base: &Rule::WeekdayOnOrBefore {
+                month: 11,
+                day: 17,
+                weekday: 5,
             },
-            from: 2024,
-            shifts: &[
-                (0, 145),
-                (1, 151),
-                (2, 150),
-                (3, 149),
-                (4, 148),
-                (5, 147),
-                (6, 146),
-            ],
+        },
+    ),
+    h(
+        "King's Birthday",
+        Rule::Once {
+            year: 2023,
+            month: 6,
+            day: 19,
         },
     ),
     h(
@@ -11610,7 +11789,7 @@ static SAINT_HELENA: &[Holiday] = &[
                 year: 2015,
                 base: &Rule::Fixed { month: 12, day: 25 },
             },
-            from: 2000,
+            from: 2015,
             shifts: &[(0, 2), (6, 2)],
         },
     ),
@@ -11621,7 +11800,7 @@ static SAINT_HELENA: &[Holiday] = &[
                 year: 2015,
                 base: &Rule::Fixed { month: 12, day: 26 },
             },
-            from: 2000,
+            from: 2015,
             shifts: &[(0, 2), (6, 2)],
         },
     ),
@@ -11685,48 +11864,132 @@ static SAINT_HELENA: &[Holiday] = &[
 
 /// San Marino.
 static SAN_MARINO: &[Holiday] = &[
-    h("Capodanno", Rule::Fixed { month: 1, day: 1 }),
-    h("Epifania", Rule::Fixed { month: 1, day: 6 }),
+    h(
+        "Capodanno",
+        Rule::Since {
+            year: 1962,
+            base: &Rule::Fixed { month: 1, day: 1 },
+        },
+    ),
+    h(
+        "Epifania",
+        Rule::Since {
+            year: 1962,
+            base: &Rule::Fixed { month: 1, day: 6 },
+        },
+    ),
     h(
         "Anniversario della Liberazione della Repubblica e Festa di Sant'Agata",
-        Rule::Fixed { month: 2, day: 5 },
+        Rule::Since {
+            year: 1962,
+            base: &Rule::Fixed { month: 2, day: 5 },
+        },
     ),
     h(
         "Anniversario dell'Arengo",
-        Rule::Fixed { month: 3, day: 25 },
-    ),
-    h("Pasqua", Rule::EasterOffset(0)),
-    h("Lunedì dell'angelo", Rule::EasterOffset(1)),
-    h(
-        "Investitura Capitani Reggenti",
-        Rule::Fixed { month: 4, day: 1 },
+        Rule::Since {
+            year: 1962,
+            base: &Rule::Fixed { month: 3, day: 25 },
+        },
     ),
     h(
-        "Investitura Capitani Reggenti",
-        Rule::Fixed { month: 10, day: 1 },
+        "Pasqua",
+        Rule::Since {
+            year: 1962,
+            base: &Rule::EasterOffset(0),
+        },
     ),
-    h("Festa dei lavoratori", Rule::Fixed { month: 5, day: 1 }),
-    h("Corpus Domini", Rule::EasterOffset(60)),
+    h(
+        "Lunedì dell'angelo",
+        Rule::Since {
+            year: 1962,
+            base: &Rule::EasterOffset(1),
+        },
+    ),
+    h(
+        "Investitura Capitani Reggenti",
+        Rule::Since {
+            year: 1962,
+            base: &Rule::Fixed { month: 4, day: 1 },
+        },
+    ),
+    h(
+        "Investitura Capitani Reggenti",
+        Rule::Since {
+            year: 1962,
+            base: &Rule::Fixed { month: 10, day: 1 },
+        },
+    ),
+    h(
+        "Festa dei lavoratori",
+        Rule::Since {
+            year: 1962,
+            base: &Rule::Fixed { month: 5, day: 1 },
+        },
+    ),
+    h(
+        "Corpus Domini",
+        Rule::Since {
+            year: 1962,
+            base: &Rule::EasterOffset(60),
+        },
+    ),
     h(
         "Anniversario della Caduta del Fascismo e Festa della Libertà",
-        Rule::Fixed { month: 7, day: 28 },
+        Rule::Since {
+            year: 1962,
+            base: &Rule::Fixed { month: 7, day: 28 },
+        },
     ),
     h(
         "Assunzione della B.V. Maria",
-        Rule::Fixed { month: 8, day: 15 },
+        Rule::Since {
+            year: 1962,
+            base: &Rule::Fixed { month: 8, day: 15 },
+        },
     ),
     h(
         "San Marino, Anniversario di Fondazione della Repubblica",
-        Rule::Fixed { month: 9, day: 3 },
+        Rule::Since {
+            year: 1962,
+            base: &Rule::Fixed { month: 9, day: 3 },
+        },
     ),
-    h("Tutti i Santi", Rule::Fixed { month: 11, day: 1 }),
+    h(
+        "Tutti i Santi",
+        Rule::Since {
+            year: 1962,
+            base: &Rule::Fixed { month: 11, day: 1 },
+        },
+    ),
     h(
         "Commemorazione dei defunti",
-        Rule::Fixed { month: 11, day: 2 },
+        Rule::Since {
+            year: 1962,
+            base: &Rule::Fixed { month: 11, day: 2 },
+        },
     ),
-    h("Immacolata Concezione", Rule::Fixed { month: 12, day: 8 }),
-    h("Natale", Rule::Fixed { month: 12, day: 25 }),
-    h("Santo Stefano", Rule::Fixed { month: 12, day: 26 }),
+    h(
+        "Immacolata Concezione",
+        Rule::Since {
+            year: 1962,
+            base: &Rule::Fixed { month: 12, day: 8 },
+        },
+    ),
+    h(
+        "Natale",
+        Rule::Since {
+            year: 1962,
+            base: &Rule::Fixed { month: 12, day: 25 },
+        },
+    ),
+    h(
+        "Santo Stefano",
+        Rule::Since {
+            year: 1962,
+            base: &Rule::Fixed { month: 12, day: 26 },
+        },
+    ),
 ];
 
 /// Turks and Caicos Islands.
@@ -11734,21 +11997,39 @@ static TURKS_AND_CAICOS_ISLANDS: &[Holiday] = &[
     h(
         "New Year's Day",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 1, day: 1 },
-            from: 2000,
+            base: &Rule::Since {
+                year: 1963,
+                base: &Rule::Fixed { month: 1, day: 1 },
+            },
+            from: 1979,
             shifts: &[(0, 1), (6, 2)],
         },
     ),
     h(
         "Commonwealth Day",
-        Rule::NthWeekday {
-            month: 3,
-            weekday: 1,
-            nth: 2,
+        Rule::Since {
+            year: 1963,
+            base: &Rule::NthWeekday {
+                month: 3,
+                weekday: 1,
+                nth: 2,
+            },
         },
     ),
-    h("Good Friday", Rule::EasterOffset(-2)),
-    h("Easter Monday", Rule::EasterOffset(1)),
+    h(
+        "Good Friday",
+        Rule::Since {
+            year: 1963,
+            base: &Rule::EasterOffset(-2),
+        },
+    ),
+    h(
+        "Easter Monday",
+        Rule::Since {
+            year: 1963,
+            base: &Rule::EasterOffset(1),
+        },
+    ),
     h(
         "JAGS McCartney Day",
         Rule::Since {
@@ -11786,8 +12067,11 @@ static TURKS_AND_CAICOS_ISLANDS: &[Holiday] = &[
     h(
         "Emancipation Day",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 8, day: 1 },
-            from: 2000,
+            base: &Rule::Since {
+                year: 1963,
+                base: &Rule::Fixed { month: 8, day: 1 },
+            },
+            from: 1977,
             shifts: &[(0, 1), (6, 2)],
         },
     ),
@@ -11827,10 +12111,13 @@ static TURKS_AND_CAICOS_ISLANDS: &[Holiday] = &[
     ),
     h(
         "National Youth Day",
-        Rule::WeekdayOnOrAfter {
-            month: 9,
-            day: 24,
-            weekday: 5,
+        Rule::Since {
+            year: 1963,
+            base: &Rule::WeekdayOnOrAfter {
+                month: 9,
+                day: 24,
+                weekday: 5,
+            },
         },
     ),
     h(
@@ -11847,49 +12134,62 @@ static TURKS_AND_CAICOS_ISLANDS: &[Holiday] = &[
     h(
         "Christmas Day",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 12, day: 25 },
-            from: 2000,
+            base: &Rule::Since {
+                year: 1963,
+                base: &Rule::Fixed { month: 12, day: 25 },
+            },
+            from: 1978,
             shifts: &[(0, 2), (6, 2)],
         },
     ),
     h(
         "Boxing Day",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 12, day: 26 },
-            from: 2000,
+            base: &Rule::Since {
+                year: 1963,
+                base: &Rule::Fixed { month: 12, day: 26 },
+            },
+            from: 1977,
             shifts: &[(0, 2), (6, 2)],
         },
     ),
     h(
         "National Heroes Day",
-        Rule::Until {
-            year: 2019,
-            base: &Rule::WeekdayOnOrBefore {
+        Rule::Between {
+            from: 1963,
+            to: 2019,
+            base: &Rule::WeekdayOnOrAfter {
                 month: 5,
-                day: 31,
+                day: 25,
                 weekday: 1,
             },
         },
     ),
     h(
         "Queen's Birthday",
-        Rule::ObservedShift {
-            base: &Rule::Until {
-                year: 2022,
-                base: &Rule::NthWeekday {
-                    month: 6,
-                    weekday: 1,
-                    nth: 2,
-                },
+        Rule::Between {
+            from: 1963,
+            to: 2021,
+            base: &Rule::NthWeekday {
+                month: 6,
+                weekday: 1,
+                nth: 2,
             },
-            from: 2022,
-            shifts: &[(1, -10)],
+        },
+    ),
+    h(
+        "Queen's Birthday",
+        Rule::Once {
+            year: 2022,
+            month: 6,
+            day: 3,
         },
     ),
     h(
         "Columbus Day",
-        Rule::Until {
-            year: 2013,
+        Rule::Between {
+            from: 1963,
+            to: 2013,
             base: &Rule::NthWeekday {
                 month: 10,
                 weekday: 1,
@@ -11903,12 +12203,32 @@ static TURKS_AND_CAICOS_ISLANDS: &[Holiday] = &[
 static VATICAN_CITY: &[Holiday] = &[
     h(
         "Solennità di Maria Santissima Madre di Dio",
-        Rule::Fixed { month: 1, day: 1 },
+        Rule::Since {
+            year: 1929,
+            base: &Rule::Fixed { month: 1, day: 1 },
+        },
     ),
-    h("Epifania del Signore", Rule::Fixed { month: 1, day: 6 }),
+    h(
+        "Epifania del Signore",
+        Rule::Since {
+            year: 1929,
+            base: &Rule::Fixed { month: 1, day: 6 },
+        },
+    ),
     h(
         "Anniversario della istituzione dello Stato della Città del Vaticano",
-        Rule::Fixed { month: 2, day: 11 },
+        Rule::Since {
+            year: 1929,
+            base: &Rule::Fixed { month: 2, day: 11 },
+        },
+    ),
+    h(
+        "Onomastico del Santo Padre",
+        Rule::Between {
+            from: 1978,
+            to: 2004,
+            base: &Rule::Fixed { month: 11, day: 4 },
+        },
     ),
     h(
         "Onomastico del Santo Padre",
@@ -11934,10 +12254,11 @@ static VATICAN_CITY: &[Holiday] = &[
         },
     ),
     h(
-        "Onomastico del Santo Padre",
-        Rule::Until {
-            year: 2004,
-            base: &Rule::Fixed { month: 11, day: 4 },
+        "Anniversario dell'Elezione del Santo Padre",
+        Rule::Between {
+            from: 1979,
+            to: 2004,
+            base: &Rule::Fixed { month: 10, day: 16 },
         },
     ),
     h(
@@ -11945,6 +12266,22 @@ static VATICAN_CITY: &[Holiday] = &[
         Rule::Since {
             year: 2026,
             base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
+    h(
+        "Anniversario dell'Elezione del Santo Padre",
+        Rule::Between {
+            from: 1940,
+            to: 1958,
+            base: &Rule::Fixed { month: 3, day: 2 },
+        },
+    ),
+    h(
+        "Anniversario dell'Elezione del Santo Padre",
+        Rule::Between {
+            from: 1964,
+            to: 1978,
+            base: &Rule::Fixed { month: 6, day: 21 },
         },
     ),
     h(
@@ -11958,6 +12295,14 @@ static VATICAN_CITY: &[Holiday] = &[
     h(
         "Anniversario dell'Elezione del Santo Padre",
         Rule::Between {
+            from: 1929,
+            to: 1939,
+            base: &Rule::Fixed { month: 2, day: 6 },
+        },
+    ),
+    h(
+        "Anniversario dell'Elezione del Santo Padre",
+        Rule::Between {
             from: 2006,
             to: 2012,
             base: &Rule::Fixed { month: 4, day: 19 },
@@ -11965,46 +12310,179 @@ static VATICAN_CITY: &[Holiday] = &[
     ),
     h(
         "Anniversario dell'Elezione del Santo Padre",
-        Rule::Until {
-            year: 2004,
-            base: &Rule::Fixed { month: 10, day: 16 },
+        Rule::Between {
+            from: 1959,
+            to: 1962,
+            base: &Rule::Fixed { month: 10, day: 28 },
         },
     ),
-    h("San Giuseppe", Rule::Fixed { month: 3, day: 19 }),
-    h("Giovedì Santo", Rule::EasterOffset(-3)),
-    h("Venerdì Santo", Rule::EasterOffset(-2)),
-    h("Sabato Santo", Rule::EasterOffset(-1)),
-    h("Pasqua di Resurrezione", Rule::EasterOffset(0)),
-    h("Lunedì dell'Angelo", Rule::EasterOffset(1)),
-    h("Martedì in Albis", Rule::EasterOffset(2)),
-    h("San Giuseppe Artigiano", Rule::Fixed { month: 5, day: 1 }),
-    h("Solennità della Pentecoste", Rule::EasterOffset(49)),
-    h("Solennità della Santissima Trinità", Rule::EasterOffset(56)),
-    h("Ascensione del Signore", Rule::EasterOffset(39)),
-    h("Corpus Domini", Rule::EasterOffset(60)),
-    h("Santi Pietro e Paolo", Rule::Fixed { month: 6, day: 29 }),
+    h(
+        "San Giuseppe",
+        Rule::Since {
+            year: 1929,
+            base: &Rule::Fixed { month: 3, day: 19 },
+        },
+    ),
+    h(
+        "Giovedì Santo",
+        Rule::Since {
+            year: 1929,
+            base: &Rule::EasterOffset(-3),
+        },
+    ),
+    h(
+        "Venerdì Santo",
+        Rule::Since {
+            year: 1929,
+            base: &Rule::EasterOffset(-2),
+        },
+    ),
+    h(
+        "Sabato Santo",
+        Rule::Since {
+            year: 1929,
+            base: &Rule::EasterOffset(-1),
+        },
+    ),
+    h(
+        "Pasqua di Resurrezione",
+        Rule::Since {
+            year: 1929,
+            base: &Rule::EasterOffset(0),
+        },
+    ),
+    h(
+        "Lunedì dell'Angelo",
+        Rule::Since {
+            year: 1929,
+            base: &Rule::EasterOffset(1),
+        },
+    ),
+    h(
+        "Martedì in Albis",
+        Rule::Since {
+            year: 1929,
+            base: &Rule::EasterOffset(2),
+        },
+    ),
+    h(
+        "San Giuseppe Artigiano",
+        Rule::Since {
+            year: 1955,
+            base: &Rule::Fixed { month: 5, day: 1 },
+        },
+    ),
+    h(
+        "Solennità della Pentecoste",
+        Rule::Since {
+            year: 1929,
+            base: &Rule::EasterOffset(49),
+        },
+    ),
+    h(
+        "Solennità della Santissima Trinità",
+        Rule::Since {
+            year: 1929,
+            base: &Rule::EasterOffset(56),
+        },
+    ),
+    h(
+        "Ascensione del Signore",
+        Rule::Since {
+            year: 1929,
+            base: &Rule::EasterOffset(39),
+        },
+    ),
+    h(
+        "Corpus Domini",
+        Rule::Since {
+            year: 1929,
+            base: &Rule::EasterOffset(60),
+        },
+    ),
+    h(
+        "Santi Pietro e Paolo",
+        Rule::Since {
+            year: 1929,
+            base: &Rule::Fixed { month: 6, day: 29 },
+        },
+    ),
     h(
         "Vigilia dell'Assunzione di Maria Santissima",
-        Rule::Fixed { month: 8, day: 14 },
+        Rule::Since {
+            year: 1929,
+            base: &Rule::Fixed { month: 8, day: 14 },
+        },
     ),
     h(
         "Assunzione di Maria Santissima",
-        Rule::Fixed { month: 8, day: 15 },
+        Rule::Since {
+            year: 1929,
+            base: &Rule::Fixed { month: 8, day: 15 },
+        },
     ),
     h(
         "Giorno Successivo all'Assunzione di Maria Santissima",
-        Rule::Fixed { month: 8, day: 16 },
+        Rule::Since {
+            year: 1929,
+            base: &Rule::Fixed { month: 8, day: 16 },
+        },
     ),
-    h("Tutti i Santi", Rule::Fixed { month: 11, day: 1 }),
-    h("Tutti i Fedeli Defunti", Rule::Fixed { month: 11, day: 2 }),
-    h("Immacolata Concezione", Rule::Fixed { month: 12, day: 8 }),
-    h("Vigilia di Natale", Rule::Fixed { month: 12, day: 24 }),
-    h("Natale", Rule::Fixed { month: 12, day: 25 }),
-    h("Santo Stefano", Rule::Fixed { month: 12, day: 26 }),
-    h("San Giovanni", Rule::Fixed { month: 12, day: 27 }),
+    h(
+        "Tutti i Santi",
+        Rule::Since {
+            year: 1929,
+            base: &Rule::Fixed { month: 11, day: 1 },
+        },
+    ),
+    h(
+        "Tutti i Fedeli Defunti",
+        Rule::Since {
+            year: 1929,
+            base: &Rule::Fixed { month: 11, day: 2 },
+        },
+    ),
+    h(
+        "Immacolata Concezione",
+        Rule::Since {
+            year: 1929,
+            base: &Rule::Fixed { month: 12, day: 8 },
+        },
+    ),
+    h(
+        "Vigilia di Natale",
+        Rule::Since {
+            year: 1929,
+            base: &Rule::Fixed { month: 12, day: 24 },
+        },
+    ),
+    h(
+        "Natale",
+        Rule::Since {
+            year: 1929,
+            base: &Rule::Fixed { month: 12, day: 25 },
+        },
+    ),
+    h(
+        "Santo Stefano",
+        Rule::Since {
+            year: 1929,
+            base: &Rule::Fixed { month: 12, day: 26 },
+        },
+    ),
+    h(
+        "San Giovanni",
+        Rule::Since {
+            year: 1929,
+            base: &Rule::Fixed { month: 12, day: 27 },
+        },
+    ),
     h(
         "Ultimo giorno dell'anno",
-        Rule::Fixed { month: 12, day: 31 },
+        Rule::Since {
+            year: 1929,
+            base: &Rule::Fixed { month: 12, day: 31 },
+        },
     ),
 ];
 
@@ -12013,26 +12491,47 @@ static SAINT_VINCENT_AND_THE_GRENADINES: &[Holiday] = &[
     h(
         "New Year's Day",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 1, day: 1 },
-            from: 2000,
+            base: &Rule::Since {
+                year: 1979,
+                base: &Rule::Fixed { month: 1, day: 1 },
+            },
+            from: 1979,
             shifts: &[(0, 1)],
         },
     ),
     h(
         "National Heroes' Day",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 3, day: 14 },
-            from: 2000,
+            base: &Rule::Since {
+                year: 1979,
+                base: &Rule::Fixed { month: 3, day: 14 },
+            },
+            from: 1979,
             shifts: &[(0, 1)],
         },
     ),
-    h("Good Friday", Rule::EasterOffset(-2)),
-    h("Easter Monday", Rule::EasterOffset(1)),
+    h(
+        "Good Friday",
+        Rule::Since {
+            year: 1979,
+            base: &Rule::EasterOffset(-2),
+        },
+    ),
+    h(
+        "Easter Monday",
+        Rule::Since {
+            year: 1979,
+            base: &Rule::EasterOffset(1),
+        },
+    ),
     h(
         "National Workers' Day",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 5, day: 1 },
-            from: 2000,
+            base: &Rule::Since {
+                year: 1979,
+                base: &Rule::Fixed { month: 5, day: 1 },
+            },
+            from: 1979,
             shifts: &[(0, 1)],
         },
     ),
@@ -12043,11 +12542,18 @@ static SAINT_VINCENT_AND_THE_GRENADINES: &[Holiday] = &[
             base: &Rule::Fixed { month: 5, day: 21 },
         },
     ),
-    h("Whit Monday", Rule::EasterOffset(50)),
+    h(
+        "Whit Monday",
+        Rule::Since {
+            year: 1979,
+            base: &Rule::EasterOffset(50),
+        },
+    ),
     h(
         "Carnival Monday",
-        Rule::Until {
-            year: 2012,
+        Rule::Between {
+            from: 1979,
+            to: 2012,
             base: &Rule::NthWeekday {
                 month: 7,
                 weekday: 1,
@@ -12144,11 +12650,12 @@ static SAINT_VINCENT_AND_THE_GRENADINES: &[Holiday] = &[
     ),
     h(
         "Carnival Tuesday",
-        Rule::Until {
-            year: 2012,
-            base: &Rule::WeekdayOnOrAfter {
+        Rule::Between {
+            from: 1979,
+            to: 2012,
+            base: &Rule::WeekdayOnOrBefore {
                 month: 7,
-                day: 2,
+                day: 8,
                 weekday: 2,
             },
         },
@@ -12158,9 +12665,9 @@ static SAINT_VINCENT_AND_THE_GRENADINES: &[Holiday] = &[
         Rule::Between {
             from: 2014,
             to: 2017,
-            base: &Rule::WeekdayOnOrAfter {
+            base: &Rule::WeekdayOnOrBefore {
                 month: 7,
-                day: 2,
+                day: 8,
                 weekday: 2,
             },
         },
@@ -12170,9 +12677,9 @@ static SAINT_VINCENT_AND_THE_GRENADINES: &[Holiday] = &[
         Rule::Between {
             from: 2022,
             to: 2022,
-            base: &Rule::WeekdayOnOrAfter {
+            base: &Rule::WeekdayOnOrBefore {
                 month: 7,
-                day: 2,
+                day: 8,
                 weekday: 2,
             },
         },
@@ -12181,9 +12688,9 @@ static SAINT_VINCENT_AND_THE_GRENADINES: &[Holiday] = &[
         "Carnival Tuesday",
         Rule::Since {
             year: 2025,
-            base: &Rule::WeekdayOnOrAfter {
+            base: &Rule::WeekdayOnOrBefore {
                 month: 7,
-                day: 2,
+                day: 8,
                 weekday: 2,
             },
         },
@@ -12243,32 +12750,44 @@ static SAINT_VINCENT_AND_THE_GRENADINES: &[Holiday] = &[
     h(
         "Emancipation Day",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 8, day: 1 },
-            from: 2000,
+            base: &Rule::Since {
+                year: 1979,
+                base: &Rule::Fixed { month: 8, day: 1 },
+            },
+            from: 1979,
             shifts: &[(0, 1)],
         },
     ),
     h(
         "Independence Day",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 10, day: 27 },
-            from: 2000,
+            base: &Rule::Since {
+                year: 1979,
+                base: &Rule::Fixed { month: 10, day: 27 },
+            },
+            from: 1979,
             shifts: &[(0, 1)],
         },
     ),
     h(
         "Christmas Day",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 12, day: 25 },
-            from: 2000,
+            base: &Rule::Since {
+                year: 1979,
+                base: &Rule::Fixed { month: 12, day: 25 },
+            },
+            from: 1979,
             shifts: &[(0, 2)],
         },
     ),
     h(
         "Boxing Day",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 12, day: 26 },
-            from: 2000,
+            base: &Rule::Since {
+                year: 1979,
+                base: &Rule::Fixed { month: 12, day: 26 },
+            },
+            from: 1979,
             shifts: &[(0, 1)],
         },
     ),
@@ -12295,88 +12814,297 @@ static SOUTH_AFRICA: &[Holiday] = &[
     h(
         "New Year's Day",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 1, day: 1 },
-            from: 2000,
+            base: &Rule::Since {
+                year: 1911,
+                base: &Rule::Fixed { month: 1, day: 1 },
+            },
+            from: 1990,
             shifts: &[(0, 1)],
         },
     ),
-    h("Good Friday", Rule::EasterOffset(-2)),
-    h("Family Day", Rule::EasterOffset(1)),
+    h(
+        "Good Friday",
+        Rule::Since {
+            year: 1911,
+            base: &Rule::EasterOffset(-2),
+        },
+    ),
+    h(
+        "Family Day",
+        Rule::Since {
+            year: 1980,
+            base: &Rule::EasterOffset(1),
+        },
+    ),
+    h(
+        "Family Day",
+        Rule::Between {
+            from: 1961,
+            to: 1973,
+            base: &Rule::Fixed { month: 7, day: 10 },
+        },
+    ),
+    h(
+        "Workers' Day",
+        Rule::Once {
+            year: 1987,
+            month: 5,
+            day: 1,
+        },
+    ),
     h(
         "Workers' Day",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 5, day: 1 },
-            from: 2000,
+            base: &Rule::Since {
+                year: 1995,
+                base: &Rule::Fixed { month: 5, day: 1 },
+            },
+            from: 1911,
             shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Workers' Day",
+        Rule::Between {
+            from: 1988,
+            to: 1989,
+            base: &Rule::NthWeekday {
+                month: 5,
+                weekday: 5,
+                nth: 1,
+            },
         },
     ),
     h(
         "Human Rights Day",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 3, day: 21 },
-            from: 2000,
+            base: &Rule::Since {
+                year: 1995,
+                base: &Rule::Fixed { month: 3, day: 21 },
+            },
+            from: 1911,
             shifts: &[(0, 1)],
         },
     ),
     h(
         "Freedom Day",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 4, day: 27 },
-            from: 2000,
+            base: &Rule::Since {
+                year: 1995,
+                base: &Rule::Fixed { month: 4, day: 27 },
+            },
+            from: 1911,
             shifts: &[(0, 1)],
         },
     ),
     h(
         "Youth Day",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 6, day: 16 },
-            from: 2000,
+            base: &Rule::Since {
+                year: 1995,
+                base: &Rule::Fixed { month: 6, day: 16 },
+            },
+            from: 1911,
             shifts: &[(0, 1)],
         },
     ),
     h(
         "National Women's Day",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 8, day: 9 },
-            from: 2000,
+            base: &Rule::Since {
+                year: 1995,
+                base: &Rule::Fixed { month: 8, day: 9 },
+            },
+            from: 1911,
             shifts: &[(0, 1)],
         },
     ),
     h(
         "Heritage Day",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 9, day: 24 },
-            from: 2000,
+            base: &Rule::Since {
+                year: 1995,
+                base: &Rule::Fixed { month: 9, day: 24 },
+            },
+            from: 1911,
             shifts: &[(0, 1)],
         },
     ),
     h(
         "Day of Reconciliation",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 12, day: 16 },
-            from: 2000,
+            base: &Rule::Since {
+                year: 1995,
+                base: &Rule::Fixed { month: 12, day: 16 },
+            },
+            from: 1911,
             shifts: &[(0, 1)],
         },
     ),
-    h("Christmas Day", Rule::Fixed { month: 12, day: 25 }),
+    h(
+        "Christmas Day",
+        Rule::Since {
+            year: 1911,
+            base: &Rule::Fixed { month: 12, day: 25 },
+        },
+    ),
     h(
         "Day of Goodwill",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 12, day: 26 },
-            from: 2000,
+            base: &Rule::Since {
+                year: 1980,
+                base: &Rule::Fixed { month: 12, day: 26 },
+            },
+            from: 1994,
             shifts: &[(0, 1)],
         },
     ),
     h(
-        "Y2K Changeover",
-        Rule::ObservedShift {
-            base: &Rule::Once {
-                year: 2000,
-                month: 1,
-                day: 2,
+        "Easter Monday",
+        Rule::Between {
+            from: 1911,
+            to: 1979,
+            base: &Rule::EasterOffset(1),
+        },
+    ),
+    h(
+        "Union Day",
+        Rule::Between {
+            from: 1911,
+            to: 1960,
+            base: &Rule::Fixed { month: 5, day: 31 },
+        },
+    ),
+    h(
+        "Ascension Day",
+        Rule::Between {
+            from: 1911,
+            to: 1993,
+            base: &Rule::EasterOffset(39),
+        },
+    ),
+    h(
+        "Empire Day",
+        Rule::Between {
+            from: 1911,
+            to: 1951,
+            base: &Rule::Fixed { month: 5, day: 24 },
+        },
+    ),
+    h(
+        "King's Birthday",
+        Rule::Between {
+            from: 1911,
+            to: 1951,
+            base: &Rule::NthWeekday {
+                month: 8,
+                weekday: 1,
+                nth: 1,
             },
-            from: 2000,
-            shifts: &[(0, 1)],
+        },
+    ),
+    h(
+        "Dingaan's Day",
+        Rule::Between {
+            from: 1911,
+            to: 1951,
+            base: &Rule::Fixed { month: 12, day: 16 },
+        },
+    ),
+    h(
+        "Boxing Day",
+        Rule::Between {
+            from: 1911,
+            to: 1979,
+            base: &Rule::Fixed { month: 12, day: 26 },
+        },
+    ),
+    h(
+        "Van Riebeeck's Day",
+        Rule::Between {
+            from: 1952,
+            to: 1973,
+            base: &Rule::Fixed { month: 4, day: 6 },
+        },
+    ),
+    h(
+        "Kruger Day",
+        Rule::Between {
+            from: 1952,
+            to: 1993,
+            base: &Rule::Fixed { month: 10, day: 10 },
+        },
+    ),
+    h(
+        "Queen's Birthday",
+        Rule::Between {
+            from: 1952,
+            to: 1960,
+            base: &Rule::NthWeekday {
+                month: 7,
+                weekday: 1,
+                nth: 2,
+            },
+        },
+    ),
+    h(
+        "Settlers' Day",
+        Rule::Between {
+            from: 1952,
+            to: 1979,
+            base: &Rule::NthWeekday {
+                month: 9,
+                weekday: 1,
+                nth: 1,
+            },
+        },
+    ),
+    h(
+        "Day of the Covenant",
+        Rule::Between {
+            from: 1952,
+            to: 1979,
+            base: &Rule::Fixed { month: 12, day: 16 },
+        },
+    ),
+    h(
+        "Republic Day",
+        Rule::Between {
+            from: 1961,
+            to: 1993,
+            base: &Rule::Fixed { month: 5, day: 31 },
+        },
+    ),
+    h(
+        "Founder's Day",
+        Rule::Between {
+            from: 1980,
+            to: 1994,
+            base: &Rule::Fixed { month: 4, day: 6 },
+        },
+    ),
+    h(
+        "Day of the Vow",
+        Rule::Between {
+            from: 1980,
+            to: 1994,
+            base: &Rule::Fixed { month: 12, day: 16 },
+        },
+    ),
+    h(
+        "National and Provincial Government Elections",
+        Rule::Between {
+            from: 1999,
+            to: 1999,
+            base: &Rule::EasterOffset(59),
+        },
+    ),
+    h(
+        "National and Provincial Government Elections",
+        Rule::Between {
+            from: 2024,
+            to: 2024,
+            base: &Rule::EasterOffset(59),
         },
     ),
     h(
@@ -12412,11 +13140,23 @@ static SOUTH_AFRICA: &[Holiday] = &[
         },
     ),
     h(
-        "National and Provincial Government Elections",
+        "Y2K Changeover",
         Rule::Once {
-            year: 2024,
-            month: 5,
-            day: 29,
+            year: 1999,
+            month: 12,
+            day: 31,
+        },
+    ),
+    h(
+        "Y2K Changeover",
+        Rule::ObservedShift {
+            base: &Rule::Once {
+                year: 2000,
+                month: 1,
+                day: 2,
+            },
+            from: 1911,
+            shifts: &[(0, 1)],
         },
     ),
     h(
@@ -12453,50 +13193,42 @@ static SOUTH_AFRICA: &[Holiday] = &[
     ),
     h(
         "Public Holiday by Presidential Decree",
-        Rule::ObservedShift {
-            base: &Rule::Once {
-                year: 2008,
-                month: 5,
-                day: 2,
-            },
-            from: 2000,
-            shifts: &[(1, 239), (2, 227)],
+        Rule::Once {
+            year: 2011,
+            month: 12,
+            day: 27,
         },
     ),
     h(
         "Public Holiday by Presidential Decree",
-        Rule::ObservedShift {
-            base: &Rule::Once {
-                year: 2011,
-                month: 5,
-                day: 2,
-            },
-            from: 2000,
-            shifts: &[(1, 239), (2, 227)],
+        Rule::Once {
+            year: 2016,
+            month: 12,
+            day: 27,
         },
     ),
     h(
         "Public Holiday by Presidential Decree",
-        Rule::ObservedShift {
-            base: &Rule::Once {
-                year: 2016,
-                month: 5,
-                day: 2,
-            },
-            from: 2000,
-            shifts: &[(1, 239), (2, 227)],
+        Rule::Once {
+            year: 2022,
+            month: 12,
+            day: 27,
         },
     ),
     h(
         "Public Holiday by Presidential Decree",
-        Rule::ObservedShift {
-            base: &Rule::Between {
-                from: 2022,
-                to: 2023,
-                base: &Rule::Fixed { month: 5, day: 2 },
-            },
-            from: 2000,
-            shifts: &[(1, 239), (2, 227)],
+        Rule::Once {
+            year: 2008,
+            month: 5,
+            day: 2,
+        },
+    ),
+    h(
+        "Public Holiday by Presidential Decree",
+        Rule::Once {
+            year: 2023,
+            month: 12,
+            day: 15,
         },
     ),
     h(

@@ -101,6 +101,18 @@ the standard text, a government specification, or an established reference
 implementation. A test that only restates your own implementation proves
 nothing.
 
+The rule is about review: one calendar or one validator can be checked against
+its source on its own, and a change that carries several is a change whose
+failures are entangled. It is the shape a contribution from outside the project
+should take. A round the maintainers run themselves is the exception, and only
+when the calendars are the mechanical output of one filter rather than
+hand-written one by one: `holidays-rs` fits each country with
+`research/tools/derive_holidays.py`, so eleven calendars that tool accepted
+share one generator, one gate and one review, and splitting them would mean
+re-running and re-reviewing the same tool eleven times. That is why
+`holidays-rs` grew by eleven calendars in a single round, and why a
+hand-curated table, which no generator reproduces, still goes in alone.
+
 Include real example numbers. Where a source provides one, add it as a test
 case and cite the source in a comment.
 

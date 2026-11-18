@@ -105,3 +105,46 @@ holidays are not rules.
 | `verify_holidays.py` | PyPI `holidays` 0.108 | 0 undocumented defects across 112 calendars |
 | `gen_holidays_closest.py` | PyPI `holidays` 0.108 | 26,800 rows over 67 compared countries |
 | `cargo test -p holidays-rs` | the crate's own suite | 111 unit tests, 1 closest test, 1 README test and 4 doctests pass |
+
+## Follow-up: the gate was only looking where the fit had looked
+
+A review of the eleven calendars above asked the obvious question the round had
+not: if the tables were fitted over 2000-2050, what do they answer *before*
+2000? `verify_holidays.py` compared over the same 2000-2050 window, so it could
+only ever confirm the years the fitter had already reproduced. Widening the gate
+to the reference's own start year turned eleven passing calendars into eleven
+questionable ones, and the causes were all in the generator, not the tables.
+
+**A fixed fit window back-projects every introduction year.** Fitting from 2000
+makes a holiday introduced in 1995 look as though it had always existed, and the
+fit absorbs the mismatch by moving the base. The Isle of Man answered Tynwald
+Day on 6 July, because the fitter hid the real 5 July base behind an
+`ObservedShift`; South Africa answered Human Rights Day for 1990, five years
+before the holiday existed. `derive_holidays.py` now starts the window at the
+reference's `start_year` and gates each run there, so a query before that year
+returns nothing, as the reference does.
+
+**A large shift table is a wrong base in disguise.** South Africa's Y2K
+Changeover is 31 December 1999 and 2 January 2000; the fitter accepted 31
+December with a 363-day shift for the 2000 weekday rather than split the two
+dates. `fit_shift` now rejects any shift beyond a week, and each observed date is
+attributed to its nearest base once per name, so a substitute near a year
+boundary is not handed to the wrong year.
+
+**A run that starts at the fit's first year is not open at the bottom.** With a
+per-country first year, a run starting there rendered as `Until`, which fires
+from the beginning of time. `rust_rule` and `rule_applies` now gate it at that
+year unless it is the floor, and the two keep mirroring each other.
+
+The eleven tables were regenerated; the diff touches only those eleven statics.
+Every one now passes the historical gate (`0 undocumented defect(s) out of 11`)
+and the generator's own held-out check, and the modern window stays clean
+(`0 undocumented defect(s) out of 112`). The remaining historical failures are
+in the 101 pre-existing calendars, which this round did not regenerate: the same
+generator fix applies to them, but regenerating a calendar that carries
+hand-curated rules (New Zealand's transcribed Matariki table, Ireland's
+one-off Oireachtas days) would delete them, and the repository's one-country
+per pull request rule puts that work in its own round rather than this one.
+`verify_holidays.py` now defaults to the historical window, so the next round
+starts from a gate that sees the defect.
+

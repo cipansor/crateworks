@@ -17,13 +17,23 @@ Day (observed)" are two keys). The classification below separates the cases:
 Run:  python3 research/tools/verify_holidays.py [Country ...] [--years A B]
 Needs: pip install 'holidays==0.108'
 
+The default window starts at each country's reference `start_year` (floored at
+1900, the same floor `derive_holidays.py` fits from) rather than 2000, so a
+holiday the reference introduced in 1995 is checked for 1995 and every year
+after. Fitting only from 2000 anchored every introduction year and every
+`ObservedShift.from` at 2000, which made South Africa answer Human Rights Day
+for 1990 and the Isle of Man answer Tynwald Day on 6 July. A country with no
+listed start year is checked from 2000, where its table is known to hold.
+
 **Pin the version.** The reference moves holidays between releases, so a
 difference that appears against a newer release is often the reference changing
 under a crate that has not, not a crate defect: against 0.109 four countries
 (Martinique, Jamaica, Namibia, Hungary) diverge and against 0.107 two do
 (Botswana, Namibia), while 0.108 is clean over all 112. Read a failure as "the
 reference moved", diff the two releases before touching a table, and re-pin this
-line when the crate is reconciled with a newer release.
+line when the crate is reconciled with a newer release. The pin is asserted
+below, not merely documented: another release installed in the environment stops
+the run rather than silently re-baselining it.
 """
 
 import datetime
@@ -33,6 +43,24 @@ import subprocess
 import sys
 
 import holidays as pyholidays
+
+# The reference release this gate is baselined against. The docstring above
+# explains why: a newer release moves holidays, and a failure against one is
+# usually the reference changing rather than a crate defect. Asserting it here
+# means an environment with another release installed stops the run instead of
+# reporting differences the crate did not cause.
+PINNED = "0.108"
+if pyholidays.__version__ != PINNED:
+    raise SystemExit(
+        f"holidays {pyholidays.__version__} is installed, but this gate is "
+        f"baselined against {PINNED}. Install 'holidays=={PINNED}' "
+        f"(pip install 'holidays=={PINNED}') or re-pin this file and "
+        f"research/tools/README.md together."
+    )
+
+# The floor for a country whose reference start year is unknown or earlier than
+# this. Matches `derive_holidays.py`'s `EARLIEST`.
+EARLIEST = 1900
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 CRATE = ROOT / "crates" / "holidays-rs"
@@ -162,6 +190,24 @@ def is_weekend(iso: str) -> bool:
     return datetime.date.fromisoformat(iso).weekday() >= 5
 
 
+def start_year(code: str) -> int:
+    """The first year the reference reports anything for `code`.
+
+    Floored at `EARLIEST`, matching `derive_holidays.py`: the tables are fitted
+    from the same year, so a difference before it would be checked against a
+    window the fit never saw. A reference that exposes no `start_year` is
+    checked from 2000, where every table is known to hold.
+    """
+    if code.endswith("-ENG"):
+        cal = pyholidays.country_holidays(code[:-4], subdiv="ENG", years=2000)
+    else:
+        cal = pyholidays.country_holidays(code, years=2000)
+    start = getattr(type(cal), "start_year", None)
+    if start is None:
+        return 2000
+    return max(start, EARLIEST)
+
+
 def report(country: str, years: list[int]) -> dict[str, list]:
     code = COUNTRIES[country]
     found: dict[str, list] = {"invented": [], "missing": [], "weekend": []}
@@ -217,16 +263,23 @@ KNOWN_DIFFERENCES = {
 
 def main() -> int:
     argv = sys.argv[1:]
-    years = [2000, 2050]
+    # Default to the reference's own start year, so an introduction year and an
+    # `ObservedShift.from` are checked where they actually are rather than only
+    # from 2000. `--years` still overrides it for an ad-hoc probe.
+    explicit_years = None
     if "--years" in argv:
         i = argv.index("--years")
-        years = [int(x) for x in argv[i + 1:i + 3]]
+        explicit_years = [int(x) for x in argv[i + 1:i + 3]]
         argv = argv[:i]
     only = argv or list(COUNTRIES)
     write_example()
 
     undocumented = 0
     for country in only:
+        if explicit_years is not None:
+            years = explicit_years
+        else:
+            years = [start_year(COUNTRIES[country]), 2050]
         f = report(country, years)
         if not (f["invented"] or f["missing"]):
             print(f"ok  {country}")
