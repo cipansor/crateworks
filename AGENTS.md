@@ -378,6 +378,13 @@ regression coverage in CI at all.
   directory that is not under `$HOME` (for example
   `CARGO_HOME=/workspace/.toolchain/cargo RUSTUP_HOME=/workspace/.toolchain/rustup`)
   to keep it across restarts. `pip` packages are wiped too.
+- **A toolchain that survives the restart is still off `PATH`.** A
+  `CARGO_HOME=/workspace/.toolchain/cargo` install persists, but nothing adds its
+  `bin/` to the shell, so `cargo: command not found` means "find it", not
+  "reinstall it": `export PATH=/workspace/.toolchain/cargo/bin:$PATH
+  CARGO_HOME=/workspace/.toolchain/cargo` before the first `cargo`. The same
+  restart drops the credential in `$HOME/.openhands/git-credentials`, so a push
+  that worked earlier fails with `403` until a token is supplied again.
 - **`cargo clippy` prints nothing on a cached build.** If a lint seems to have
   vanished, `touch crates/*/src/lib.rs` (or `find crates -name '*.rs' -exec touch {} +`)
   to force a rebuild before believing the result.
