@@ -2,10 +2,11 @@
 """Derive a holidays-rs country table from the reference and verify it.
 
 Given a country code, this reads every holiday the reference `holidays` package
-reports for 2000-2050, fits each one to the crate's `Rule` vocabulary, emits the
-Rust table, and then re-resolves that table in Python and compares the date set
-to the reference. It refuses to emit a table that does not match, so the output
-can be pasted into `countries.rs` with confidence.
+reports from the reference's own first year through 2050, fits each one to the
+crate's `Rule` vocabulary, emits the Rust table, and then re-resolves that table
+in Python and compares the date set to the reference. It refuses to emit a table
+that does not match, so the output can be pasted into `countries.rs` with
+confidence.
 
 Usage:
     python3 derive_holidays.py SV          # verify only
@@ -19,12 +20,41 @@ import sys
 
 import holidays as pyholidays
 
-FIRST, LAST = 2000, 2050
+# The last year a table is fitted and checked over. The first is the
+# reference's own `start_year` for the country, so a holiday introduced in 1995
+# is fitted with its 1995 gate rather than back-projected to the start of a
+# 2000-onward window. Fitting only from 2000 made every introduction year and
+# every `ObservedShift.from` anchor at 2000, which is wrong for any query before
+# it: South Africa answered Human Rights Day for 1990, and the Isle of Man
+# answered Tynwald Day on 6 July because the fitter hid the real 5 July base
+# behind a shift table.
+LAST = 2050
+# A lower bound on the fitted window. Some references start in the 1700s; fitting
+# that far back buys nothing the crate promises and multiplies the work, so the
+# window starts at the later of the reference's `start_year` and this.
+EARLIEST = 1900
+# The first year of the current fit. `derive` sets it from the country's own
+# reference start year before fitting, so the window is per country.
+FIRST = EARLIEST
 # The most distinct `Rule`s one holiday name may need before the calendar is
 # judged to need a table rather than a rule set. A name that is two observances
 # needs two or three (one per run of years); a name whose dates are decided
 # year by year needs one per year and is refused.
 MAX_GROUPS = 8
+
+
+def first_year(code):
+    """The reference's first year for `code`, floored at `EARLIEST`.
+
+    The reference reports nothing before its own `start_year`, so fitting there
+    is wasted work and would read an empty set. Countries whose reference starts
+    in the 1700s or 1800s are floored at `EARLIEST` because the crate does not
+    promise a table that far back and the fit cost is unbounded.
+    """
+    start = getattr(type(pyholidays.country_holidays(code, years=LAST)), "start_year", None)
+    if start is None:
+        return EARLIEST
+    return max(start, EARLIEST)
 
 
 class Unexpressible(Exception):
@@ -200,7 +230,15 @@ def rust_rule(shape, frm, to):
             f"Rule::WeekdayOnOrBefore {{ month: {shape[1]}, day: {shape[2]}, "
             f"weekday: {shape[3]} }}"
         )
-    if frm == FIRST and to == LAST:
+    # A run that starts at `FIRST` and ends at `LAST` is the whole fitted window.
+    # When `FIRST` is our own floor (`EARLIEST`) that window is "all time" and an
+    # ungated rule is right. When the reference genuinely starts later (South
+    # Africa 1911, Cayman 2006), `FIRST` is a real year: an ungated rule, or an
+    # `Until`/`Since` that leaves one end open, fires in years the reference
+    # reports nothing for, which is the invention this crate refuses. Treating
+    # `FIRST` as a concrete year gates every shape at it.
+    at_floor = FIRST <= EARLIEST
+    if frm == FIRST and to == LAST and at_floor:
         return core
     if frm == to:
         # A run of one year fires in that year only, and the gate has to say so
@@ -212,7 +250,7 @@ def rust_rule(shape, frm, to):
         if kind == "fixed":
             return f"Rule::Once {{ year: {frm}, month: {shape[1]}, day: {shape[2]} }}"
         return f"Rule::Between {{ from: {frm}, to: {to}, base: &{core} }}"
-    if frm == FIRST:
+    if frm == FIRST and at_floor:
         return f"Rule::Until {{ year: {to}, base: &{core} }}"
     if to == LAST:
         return f"Rule::Since {{ year: {frm}, base: &{core} }}"
@@ -286,15 +324,53 @@ def candidate_shapes(dates):
     return out
 
 
-def fit_shift(shape, actual, observed):
+def attribute_observed(falls, observed):
+    """Map each observed date to the base date it substitutes.
+
+    A name's observed dates are pooled across every year, so a date near a year
+    boundary sits within a week of two bases. South Africa's Y2K Changeover is
+    31 December 1999 and 2 January 2000, the second observed on 3 January; that
+    substitute is three days after 31 December too, so a plain seven-day window
+    handed it to the wrong year and moved the 1999 date into 2000. Pairing the
+    closest `(base, observed)` first, each observed date used once, gives the 2
+    January date its own substitute and leaves 31 December - a Friday, kept -
+    without one.
+
+    `falls` is every base date of the name, not one year's, so the pairing is
+    the same however the name is later split into rules. Computing it per rule
+    instead re-attributed the same observed date to whichever subset was being
+    fitted, which is how the 1999 date acquired the 2000 substitute.
+
+    Returns `base date -> observed date`, omitting a base with no substitute.
+    """
+    pairs = sorted(
+        (
+            (abs((o - fall).days), 0 if o.year == fall.year else 1, fall, o)
+            for fall in falls
+            for o in observed
+            if 0 < abs((o - fall).days) <= 7
+        )
+    )
+    used_falls: set = set()
+    used_obs: set = set()
+    out = {}
+    for _, _, fall, o in pairs:
+        if fall in used_falls or o in used_obs:
+            continue
+        used_falls.add(fall)
+        used_obs.add(o)
+        out[fall] = o
+    return out
+
+
+def fit_shift(shape, actual, attributed):
     """Fit `shape` plus a per-weekday shift table to the observed dates.
 
     The crate reports a holiday on the date it is *observed*, and
     `Rule::ObservedShift` carries one shift per weekday of the date it falls on.
-    The reference reports the observed date either under a second key with a
-    trailing parenthetical (Chile) or under the same key as the raw date
-    (Aruba), so the actual date for a year is the parenthetical one when there
-    is one and the reported date otherwise.
+    `attributed` maps each base date to the observed date it substitutes, as
+    `attribute_observed` computes for the whole name, so the shift here is only
+    the distance from the base to that substitute.
 
     Returns `(from_year, table)` when a single table reproduces every year, or
     `None`. An empty table means the shape alone already matches, and the caller
@@ -308,18 +384,18 @@ def fit_shift(shape, actual, observed):
     """
     peryear = {}
     for y, fall in actual.items():
-        near = {o for o in observed if 0 < abs((o - fall).days) <= 7}
-        if near:
-            deltas = {(o - fall).days for o in near}
-            if len(deltas) != 1:
-                return None
-            delta = deltas.pop()
-        else:
-            delta = 0
+        delta = (attributed[fall] - fall).days if fall in attributed else 0
         base = safe_resolve(shape, y)
         if base is None:
             return None
         peryear[y] = (crate_weekday(base), (fall + datetime.timedelta(days=delta) - base).days)
+    # A candidate whose table needs a shift beyond a week is not an observance
+    # rule: `ObservedShift` means the observed date is the nominal one moved by a
+    # weekend, never a different date. Without this bound South Africa's Y2K
+    # Changeover, which is 31 December 1999 and 2 January 2000, "fit" the single
+    # shape 31 December with a 363-day shift for the 2000 weekday, hiding the
+    # second date instead of splitting it. Rejecting it lets `partition` emit the
+    # two dates as two rules.
     for frm in range(FIRST, LAST + 1):
         table: dict = {}
         for y in sorted(peryear):
@@ -328,6 +404,8 @@ def fit_shift(shape, actual, observed):
                 if delta != 0:
                     break
                 continue
+            if abs(delta) > 7:
+                break
             if weekday in table and table[weekday] != delta:
                 break
             table[weekday] = delta
@@ -336,7 +414,7 @@ def fit_shift(shape, actual, observed):
     return None
 
 
-def shift_entries(name, byyear, observed):
+def shift_entries(name, byyear, attributed):
     """Express a name as one base shape with a per-weekday shift, or `None`.
 
     A name that falls on more than one date in a year cannot be one rule with a
@@ -354,7 +432,7 @@ def shift_entries(name, byyear, observed):
     candidates = candidate_shapes(list(actual.values()))
     fits = []
     for shape in candidates:
-        fit = fit_shift(shape, actual, observed)
+        fit = fit_shift(shape, actual, attributed)
         if fit is not None:
             fits.append((shape, fit))
     for shape, (frm_shift, table) in fits:
@@ -404,6 +482,8 @@ def partition(dates):
 
 
 def derive(code):
+    global FIRST
+    FIRST = first_year(code)
     ref = pyholidays.country_holidays(code, years=range(FIRST, LAST + 1))
     bases, observed = split_observed(ref)
     entries = []
@@ -421,8 +501,19 @@ def name_entries(name, byyear, observed):
     A name is tried as a single base rule with a per-weekday shift first, which
     is what most countries need and keeps the table short; only when no single
     shape fits does the name get split into several rules.
+
+    The split path still fits a shift per run. A name with an early observance
+    under one shape and a modern one under another (South Africa's Workers' Day
+    is a one-off in 1987, the first Friday in 1988-1989, then 1 May from 1995)
+    has no single shape, so `shift_entries` gives up and `partition` matches the
+    raw dates - which would silently drop the modern run's observed shift and
+    lose the 2 May substitute. Fitting a shift inside each run keeps it.
     """
-    single = shift_entries(name, byyear, observed.get(name, set()))
+    obs = observed.get(name, set())
+    attributed = attribute_observed(
+        [d for y in byyear for d in byyear[y]], obs
+    )
+    single = shift_entries(name, byyear, attributed)
     if single is not None:
         return single
     groups = partition([(y, d) for y in sorted(byyear) for d in byyear[y]])
@@ -430,8 +521,12 @@ def name_entries(name, byyear, observed):
         raise Unexpressible(name)
     entries = []
     for shape, matched in groups:
-        for frm, to in contiguous(sorted({y for y, _ in matched})):
-            entries.append((frm, name, shape, frm, to, None))
+        actual = dict(matched)
+        for frm, to in contiguous(sorted(actual)):
+            run = {y: actual[y] for y in actual if frm <= y <= to}
+            fit = fit_shift(shape, run, attributed)
+            shifts = fit if fit is not None and fit[1] else None
+            entries.append((frm, name, shape, frm, to, shifts))
     return entries
 
 
@@ -517,11 +612,14 @@ def rule_applies(shape, frm, to, year):
     Madagascar's Mother's Day, a one-year `easter` run at `LAST`, be rendered as
     `Rule::Since` and invent a date in every later year.
     """
+    at_floor = FIRST <= EARLIEST
     if frm == FIRST and to == LAST:
-        return True
+        # Mirrors `rust_rule`: a full-window run is ungated only when the window
+        # starts at `EARLIEST`; otherwise it is gated at `FIRST`.
+        return True if at_floor else year >= FIRST
     if frm == to:
         return year == frm
-    if frm == FIRST:
+    if frm == FIRST and at_floor:
         return year <= to
     if to == LAST:
         return year >= frm
