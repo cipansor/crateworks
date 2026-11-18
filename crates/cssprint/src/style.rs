@@ -3,7 +3,7 @@
 //! Lengths are kept as written until they are resolved against a containing
 //! block, because `50%` and `auto` mean different things at different depths.
 
-use crate::css::{Declaration, Stylesheet};
+use crate::css::{Ancestor, Declaration, Stylesheet};
 use crate::dom::{Element, is_block, is_hidden};
 use crate::error::Error;
 
@@ -165,14 +165,19 @@ fn initial_display(element: &Element) -> Display {
 /// Returns [`Error::Malformed`] when a declaration cannot be read.
 /// `parent` supplies the inherited properties, which are `font-size` and
 /// `line-height`. The root element passes `None` and gets the defaults.
-/// `ancestors` are the element's ancestors, root first and parent last, which a
-/// descendant or child selector needs to match; the root element passes an
-/// empty slice.
+/// `ancestors` are the element's ancestors, root first and parent last, each
+/// carrying its sibling position, which a descendant or child selector needs to
+/// match; the root element passes an empty slice. `index` and `total` are the
+/// element's own position among its parent's element children, which a
+/// structural pseudo-class reads; a caller that has not counted them may pass
+/// `0, 0`, because they are read only when a matching selector needs them.
 pub(crate) fn compute(
     element: &Element,
     stylesheet: &Stylesheet,
     parent: Option<&Style>,
-    ancestors: &[&Element],
+    ancestors: &[Ancestor<'_>],
+    index: usize,
+    total: usize,
 ) -> Result<Style, Error> {
     let inherited = parent.cloned().unwrap_or_default();
     let mut style = Style {
@@ -189,7 +194,7 @@ pub(crate) fn compute(
     // wins. The stylesheet's declarations arrive in cascade order, so a later,
     // more specific one replaces an earlier one.
     let mut declarations: Vec<Declaration> = stylesheet
-        .declarations_for(element, ancestors)
+        .declarations_for(element, ancestors, index, total)
         .into_iter()
         .cloned()
         .collect();

@@ -81,6 +81,7 @@ fn unescape(text: &str) -> String {
         }
         match characters.next() {
             Some('n') => out.push('\n'),
+            Some('r') => out.push('\r'),
             Some('t') => out.push('\t'),
             Some('\\') => out.push('\\'),
             Some(other) => out.push(other),

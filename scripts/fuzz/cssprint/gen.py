@@ -276,6 +276,31 @@ _SELECTOR_TAGS = ["div", "section"]
 _SELECTOR_INLINE_TAGS = ["span"]
 _SELECTOR_CLASSES = ["a", "b", "c", "wide", "box"]
 
+# The attribute names the selector corpus puts on elements and matches on. A
+# plain name and a `data-` one, so a rule keyed on either has something to find.
+# `lang` is left out: WeasyPrint may branch on it, and a difference there would
+# not be a selector bug.
+_SELECTOR_ATTRIBUTES = ["data-x", "data-y", "title"]
+# The values the corpus writes into an attribute and the operators that test
+# them. Short, overlapping values keep a prefix/suffix/substring test from
+# trivially matching or trivially failing.
+_SELECTOR_ATTRIBUTE_VALUES = ["a", "ab", "abc", "b", "x y", "xyz"]
+# The attribute operators, as written in a selector.
+_SELECTOR_ATTRIBUTE_OPERATORS = ["=", "~=", "|=", "^=", "$=", "*="]
+# The structural pseudo-classes the corpus draws, all of which both engines
+# answer from the sibling position.
+_SELECTOR_PSEUDOS = [
+    ":first-child",
+    ":last-child",
+    ":only-child",
+    ":nth-child(odd)",
+    ":nth-child(even)",
+    ":nth-child(2n+1)",
+    ":nth-child(3)",
+    ":nth-last-child(1)",
+    ":nth-last-child(2)",
+]
+
 # The random selector corpus: a few thousand documents, fixed seed. The count is
 # smaller than the block/inline corpus because each document carries a whole
 # stylesheet, so it covers more ground per case.
@@ -305,16 +330,40 @@ def _selector_rule(rng: random.Random) -> tuple[str, bool]:
             compound += "." + rng.choice(_SELECTOR_CLASSES)
         if rng.random() < 0.25:
             compound += "#" + rng.choice(["x", "y", "z"])
+        if rng.random() < 0.25:
+            compound += _selector_attribute(rng)
+        if rng.random() < 0.25:
+            compound += rng.choice(_SELECTOR_PSEUDOS)
+        if rng.random() < 0.15:
+            compound += _selector_negation(rng)
         if not compound:
             compound = rng.choice(_SELECTOR_TAGS + _SELECTOR_INLINE_TAGS)
         parts.append(compound)
     out = parts[0]
     for part in parts[1:]:
-        out += rng.choice([" ", " > ", ">", "  "]) + part
+        out += rng.choice([" ", " > ", ">", "  ", " + ", " ~ "]) + part
     # The subject is a block only when it names a block tag explicitly; a bare
     # class or id could land on a span.
     subject_is_block = parts[-1].startswith(tuple(_SELECTOR_TAGS))
     return out, subject_is_block
+
+
+def _selector_attribute(rng: random.Random) -> str:
+    """One random attribute selector, present-only or a value test."""
+    name = rng.choice(_SELECTOR_ATTRIBUTES)
+    if rng.random() < 0.3:
+        return f"[{name}]"
+    operator = rng.choice(_SELECTOR_ATTRIBUTE_OPERATORS)
+    value = rng.choice(_SELECTOR_ATTRIBUTE_VALUES)
+    return f'[{name}{operator}"{value}"]'
+
+
+def _selector_negation(rng: random.Random) -> str:
+    """A random `:not()` over one simple selector, as level 3 allows."""
+    argument = rng.choice(
+        [f".{rng.choice(_SELECTOR_CLASSES)}", rng.choice(_SELECTOR_PSEUDOS), _selector_attribute(rng)]
+    )
+    return f":not({argument})"
 
 
 def _selector_declarations(rng: random.Random, block: bool) -> str:
@@ -355,7 +404,8 @@ def _selector_rules(rng: random.Random) -> str:
 
 
 def _selector_tree(rng: random.Random, depth: int, serial: list[int]) -> str:
-    """A block element with an id and classes, holding blocks or inline runs."""
+    """A block element with an id, classes and attributes, holding blocks or
+    inline runs."""
     tag = rng.choice(_SELECTOR_TAGS)
     serial[0] += 1
     attributes = []
@@ -365,6 +415,9 @@ def _selector_tree(rng: random.Random, depth: int, serial: list[int]) -> str:
         count = rng.randrange(1, 3)
         classes = " ".join(rng.choice(_SELECTOR_CLASSES) for _ in range(count))
         attributes.append(f'class="{classes}"')
+    if rng.random() < 0.5:
+        name = rng.choice(_SELECTOR_ATTRIBUTES)
+        attributes.append(f'{name}="{rng.choice(_SELECTOR_ATTRIBUTE_VALUES)}"')
     attribute = (" " + " ".join(attributes)) if attributes else ""
     if depth < 2 and rng.random() < 0.5:
         inner = "".join(_selector_tree(rng, depth + 1, serial) for _ in range(rng.randrange(1, 3)))
@@ -526,12 +579,191 @@ def selector_cases() -> list[tuple[str, str]]:
         ("non_ascii_tag_matches", f"<style>{page}{body}"
                                   "café{font-size:24px}</style>"
                                   "<div><café>ab</café></div>"),
+        # The adjacent sibling combinator matches only the box right after a
+        # `div`, so the first and third stay at the default width.
+        ("sibling_adjacent", f"<style>{page}{body}"
+                             "div + div{width:40px;height:10px}</style>"
+                             "<div></div><div></div><div></div>"),
+        # The general sibling combinator matches every later sibling, not just
+        # the next one.
+        ("sibling_general", f"<style>{page}{body}"
+                            "div ~ div{width:40px;height:10px}</style>"
+                            "<div></div><div></div><div></div>"),
+        # A sibling step over a compound: only the `div` after a `div.c` matches.
+        ("sibling_adjacent_with_class", f"<style>{page}{body}"
+                                        "div.c + div{width:40px;height:10px}</style>"
+                                        '<div class="c"></div><div></div><div></div>'),
+        # The adjacent sibling at the inline level: the second span's text grows.
+        ("sibling_adjacent_inline", f"<style>{page}{body}"
+                                    "span + span{font-size:24px}</style>"
+                                    "<div><span>a</span><span>b</span></div>"),
+        # A sibling combinator needs the elements to share a parent, so the
+        # nested `div` is not the adjacent sibling of the outer one.
+        ("sibling_needs_shared_parent", f"<style>{page}{body}"
+                                        "div + div{width:40px;height:10px}</style>"
+                                        "<div><div></div></div>"),
+        # A bare attribute selector matches on presence alone.
+        ("attribute_present", f"<style>{page}{body}"
+                              "[data-x]{width:40px;height:10px}</style>"
+                              '<div data-x="a"></div><div></div>'),
+        # The exact-match attribute selector.
+        ("attribute_equals", f"<style>{page}{body}"
+                             '[data-x="a"]{width:40px;height:10px}</style>'
+                             '<div data-x="a"></div><div data-x="b"></div>'),
+        # The whitespace-word attribute selector, where the word is one of many.
+        ("attribute_includes", f"<style>{page}{body}"
+                               '[data-x~="b"]{width:40px;height:10px}</style>'
+                               '<div data-x="a b c"></div><div data-x="ab"></div>'),
+        # The dash-match attribute selector, matching the exact value and the
+        # value followed by a hyphen.
+        ("attribute_dash", f"<style>{page}{body}"
+                           '[lang|="en"]{width:40px;height:10px}</style>'
+                           '<div lang="en"></div><div lang="en-US"></div>'
+                           '<div lang="english"></div>'),
+        # The prefix, suffix and substring attribute selectors.
+        ("attribute_prefix", f"<style>{page}{body}"
+                             '[data-x^="ab"]{width:40px;height:10px}</style>'
+                             '<div data-x="abc"></div><div data-x="zab"></div>'),
+        ("attribute_suffix", f"<style>{page}{body}"
+                             '[data-x$="bc"]{width:40px;height:10px}</style>'
+                             '<div data-x="abc"></div><div data-x="abz"></div>'),
+        ("attribute_substring", f"<style>{page}{body}"
+                                '[data-x*="b"]{width:40px;height:10px}</style>'
+                                '<div data-x="abc"></div><div data-x="zzz"></div>'),
+        # An attribute selector combined with a class, both of which must hold.
+        ("attribute_and_class", f"<style>{page}{body}"
+                                'div[data-x].c{width:40px;height:10px}</style>'
+                                '<div class="c" data-x="a"></div>'
+                                '<div data-x="a"></div>'),
+        # `:first-child` and `:last-child` read the position among siblings.
+        ("first_child", f"<style>{page}{body}"
+                        "div:first-child{width:40px;height:10px}</style>"
+                        "<section></section><div></div><div></div>"),
+        ("last_child", f"<style>{page}{body}"
+                       "div:last-child{width:40px;height:10px}</style>"
+                       "<div></div><div></div><section></section>"),
+        # `:only-child` matches only a lone element child.
+        ("only_child", f"<style>{page}{body}"
+                       "div:only-child{width:40px;height:10px}</style>"
+                       "<section><div></div></section>"
+                       "<section><div></div><div></div></section>"),
+        # `:nth-child()` with `odd`, a coefficient and a plain index.
+        ("nth_child_odd", f"<style>{page}{body}"
+                          "div:nth-child(odd){width:40px;height:10px}</style>"
+                          "<div></div><div></div><div></div><div></div>"),
+        ("nth_child_2n_plus_1", f"<style>{page}{body}"
+                                "div:nth-child(2n+1){width:40px;height:10px}</style>"
+                                "<div></div><div></div><div></div><div></div>"),
+        ("nth_child_index", f"<style>{page}{body}"
+                            "div:nth-child(3){width:40px;height:10px}</style>"
+                            "<div></div><div></div><div></div><div></div>"),
+        # `:nth-last-child()` counts from the end.
+        ("nth_last_child", f"<style>{page}{body}"
+                           "div:nth-last-child(1){width:40px;height:10px}</style>"
+                           "<div></div><div></div><div></div>"),
+        # `:not()` with a class: the subject is a `div` that does not carry `.c`.
+        ("not_class", f"<style>{page}{body}"
+                      "div:not(.c){width:40px;height:10px}</style>"
+                      '<div class="c"></div><div></div>'),
+        # `:not()` with a structural argument, which needs the sibling position.
+        ("not_first_child", f"<style>{page}{body}"
+                            "div:not(:first-child){width:40px;height:10px}</style>"
+                            "<div></div><div></div><div></div>"),
+        # A structural pseudo-class after a combinator: the left step is a plain
+        # `div` and the subject a `:last-child`.
+        ("combinator_with_pseudo", f"<style>{page}{body}"
+                                   "div > section:last-child{width:40px;height:10px}</style>"
+                                   "<div><section></section><section></section></div>"),
+        # The document element is a child of the page box, so `:first-child`,
+        # `:last-child` and `:only-child` all match `html`, as the reference
+        # treats it. A rule that keyed the position off the parent element alone
+        # would leave the root unmatched.
+        ("root_first_child", f"<style>{page}{body}"
+                             "html:first-child{width:44px;height:11px}</style>"
+                             "<div></div>"),
+        ("root_only_child", f"<style>{page}{body}"
+                            "html:only-child{width:44px;height:11px}</style>"
+                            "<div></div>"),
+        ("root_pseudo", f"<style>{page}{body}"
+                        "html:root{width:44px;height:11px}</style>"
+                        "<div></div>"),
+        # A quoted attribute value may hold a comma, which is not a selector-list
+        # separator inside the string. A comma-splitting parser reads two broken
+        # selectors and the rule is lost.
+        ("attribute_quoted_comma", f"<style>{page}{body}"
+                                   '[title="Doe, Jane"]{width:40px;height:10px}</style>'
+                                   '<div title="Doe, Jane"></div><div title="Doe"></div>'),
+        # A quoted value may hold the `]` that would otherwise close the
+        # attribute selector.
+        ("attribute_quoted_bracket", f"<style>{page}{body}"
+                                     '[title="a]b"]{width:40px;height:10px}</style>'
+                                     '<div title="a]b"></div><div title="a"></div>'),
+        # A quoted value may hold the `)` that would otherwise close `:not()`.
+        ("not_quoted_paren", f"<style>{page}{body}"
+                             'div:not([title=")"]){width:40px;height:10px}</style>'
+                             '<div title=")"></div><div title="x"></div>'),
+        # A comment marker inside a quoted value is text, not a comment, so the
+        # rest of the stylesheet after it still parses.
+        ("comment_marker_in_string", f"<style>{page}{body}"
+                                     '[title="/*"]{width:40px;height:10px}'
+                                     "div{height:9px}</style>"
+                                     '<div title="/*"></div>'),
+        # Two separate negations on one compound: neither class may be present.
+        ("not_chained", f"<style>{page}{body}"
+                        "div:not(.a):not(.b){width:40px;height:10px}</style>"
+                        '<div class="a"></div><div class="b"></div><div></div>'),
+        # Pseudo-class names are ASCII case-insensitive, so an upper-case name
+        # still parses and matches.
+        ("uppercase_pseudo", f"<style>{page}{body}"
+                             "div:FIRST-CHILD{width:40px;height:10px}</style>"
+                             "<div></div><div></div>"),
+        # A quoted attribute value with a backslash escape decodes to the
+        # character it names before comparing.
+        ("attribute_escaped_quote", f"<style>{page}{body}"
+                                    '[title="a\\"b"]{width:40px;height:10px}</style>'
+                                    '<div title=\'a"b\'></div><div title="ab"></div>'),
+        # A signed boundary coefficient in `:nth-child()` matches nothing rather
+        # than overflowing the arithmetic.
+        ("nth_boundary_negative", f"<style>{page}{body}"
+                                  "div:nth-child(-n-9223372036854775807)"
+                                  "{width:40px;height:10px}</style>"
+                                  "<div></div><div></div>"),
+        # A backslash-newline inside a quoted value is a line continuation: the
+        # break is dropped, so the value is `ab`. CSS normalizes CRLF and a lone
+        # CR to LF first, so the three spellings decode the same; a parser that
+        # reads only LF rejects the CRLF and lone-CR forms.
+        ("attribute_continuation_lf", f"<style>{page}{body}"
+                                      '[title="a\\\nb"]{width:40px;height:10px}</style>'
+                                      '<div title="ab"></div><div title="a"></div>'),
+        ("attribute_continuation_crlf", f"<style>{page}{body}"
+                                        '[title="a\\\r\nb"]{width:40px;height:10px}</style>'
+                                        '<div title="ab"></div><div title="a"></div>'),
+        ("attribute_continuation_cr", f"<style>{page}{body}"
+                                      '[title="a\\\rb"]{width:40px;height:10px}</style>'
+                                      '<div title="ab"></div><div title="a"></div>'),
+        ("attribute_continuation_ff", f"<style>{page}{body}"
+                                      '[title="a\\\fb"]{width:40px;height:10px}</style>'
+                                      '<div title="ab"></div><div title="a"></div>'),
+        # An inline element after a block sibling is still its parent's second
+        # element child, so `:first-child` must not match it and it stays. A run
+        # that renumbers from zero reads the span as the first child and hides
+        # its text.
+        ("inline_after_block_keeps_index", f"<style>{page}{body}"
+                                           "span:first-child{display:none}</style>"
+                                           "<div><div></div><span>ab</span></div>"),
+        # The same, triggered by a hidden sibling rather than a block boundary:
+        # the run omits the hidden span, and renumbering would hide the visible
+        # one behind it.
+        ("inline_after_hidden_keeps_index", f"<style>{page}{body}"
+                                            "span:first-child{display:none}</style>"
+                                            '<div><span style="display:none">x</span>'
+                                            "<span>ab</span></div>"),
     ]
 
 
-def all_cases(random_count: int = 0) -> list[tuple[str, str]]:
+def all_cases(random_count: int = 0, seed: int | None = None) -> list[tuple[str, str]]:
     """The curated corpus, and optionally the random one after it."""
-    return cases() + (random_cases(random_count) if random_count else [])
+    return cases() + (random_cases(random_count, seed) if random_count else [])
 
 
 def cases() -> list[tuple[str, str]]:
@@ -942,9 +1174,14 @@ def walk(box, path: str, out: list[tuple]) -> None:
 
 
 def escape(text: str) -> str:
-    """Make `text` safe for one TSV field, escaping the two characters that
-    would otherwise split the row. The Rust reader reverses this."""
-    return text.replace("\\", "\\\\").replace("\t", "\\t").replace("\n", "\\n")
+    """Make `text` safe for one TSV field, escaping the characters that would
+    otherwise split or corrupt the row. The Rust reader reverses this."""
+    return (
+        text.replace("\\", "\\\\")
+        .replace("\t", "\\t")
+        .replace("\r", "\\r")
+        .replace("\n", "\\n")
+    )
 
 
 def _accessor(box, name: str) -> str:
@@ -1014,6 +1251,11 @@ def main() -> int:
     )
     parser.add_argument("--font", help="path to the reference's weasyprint.otf")
     parser.add_argument(
+        "--seed", type=int, default=None,
+        help="seed for the random corpora (default: the committed seed). A fresh "
+             "seed explores inputs the committed corpus never drew.",
+    )
+    parser.add_argument(
         "--selectors", type=int, default=_SELECTOR_RANDOM_COUNT, metavar="N",
         help="how many random selector documents to generate (default "
              "%(default)s, the committed corpus); pass 0 for the curated list alone",
@@ -1032,14 +1274,17 @@ def main() -> int:
     # The curated and random corpora are written to separate fixtures so the
     # hand-picked cases and the regression corpus can be read apart. Each is
     # laid out and walked here, and both are replayed by `tests/layout.rs`.
+    seed = _RANDOM_SEED if args.seed is None else args.seed
     curated = cases()
-    random_corpus = random_cases(args.random) if args.random else []
+    random_corpus = random_cases(args.random, seed) if args.random else []
     # The selector corpus is separate again, so a selector failure is not buried
     # among the box-model cases.
     selector_curated = selector_cases()
-    selector_random = selector_random_cases(args.selectors) if args.selectors else []
+    selector_random = (
+        selector_random_cases(args.selectors, seed) if args.selectors else []
+    )
     every_case = (
-        all_cases(args.random) + selector_curated + selector_random
+        all_cases(args.random, seed) + selector_curated + selector_random
     )
     rows: list[tuple[str, ...]] = []
     per_case: list[tuple[str, list[tuple]]] = []

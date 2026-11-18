@@ -506,10 +506,25 @@ with `justify` widening the spaces so every line but the last fills the block,
 and `text-align-last` overriding the final line; `text-indent` shifts the first
 line of a block. Styles come from a stylesheet and an inline `style` attribute,
 with the attribute winning. A stylesheet selector may be a comma-separated list
-of complex selectors, each a chain of compound selectors (a tag, an `#id`, a
-`.class`, the universal `*`, or a combination) joined by a descendant or child
-(`>`) combinator, and the cascade orders by specificity first, source order
-second, as the reference does.
+of complex selectors, each a chain of compound selectors joined by a combinator.
+A compound is a tag, an `#id`, a `.class`, an attribute selector, a structural
+pseudo-class, the universal `*`, or any combination; the combinators are the
+descendant (whitespace), the child (`>`), the adjacent sibling (`+`) and the
+general sibling (`~`). The attribute selectors `[a]`, `[a=v]`, `[a~=v]`,
+`[a|=v]`, `[a^=v]`, `[a$=v]` and `[a*=v]` are supported, as are the structural
+pseudo-classes `:root`, `:first-child`, `:last-child`, `:only-child`,
+`:nth-child()` and `:nth-last-child()` (with `odd`, `even`, an index or an `an+b`
+argument) and the negation `:not()`; a compound may carry several negations, and
+pseudo-class names are ASCII case-insensitive. A quoted attribute value is read
+as a CSS string, so a comma, `]` or `)` inside it is text, a backslash escapes
+the character after it, and the string's escapes are decoded before the value is
+compared; the three newline forms CSS folds to one line break (CRLF, lone CR,
+form feed) are normalized to LF before tokenizing. An inline element keeps its
+position among the parent's element children even after a block sibling or a
+hidden one, so a structural pseudo-class on it reads the reference's position.
+The cascade orders by specificity first,
+source order second, as the reference does; an attribute selector and a
+pseudo-class each count as a class, and `:not()` counts as its argument.
 
 Text is measured for one font: the monospace font the checked corpus uses, where
 every glyph advances exactly one em and the ascent is 819/1024 em. A word's width
@@ -517,9 +532,9 @@ is its character count times the font size, so the fixture is arithmetic. A
 proportional font would need a metrics source, which is future work.
 
 **Not covered.** Floats, `position`, tables, flex, grid and pagination.
-`white-space: pre` and `br` are absent, as are attribute selectors,
-pseudo-classes, pseudo-elements, at-rules, sibling combinators (`+`, `~`) and a
-block box inside an inline box.
+`white-space: pre` and `br` are absent, as are pseudo-elements, at-rules, the
+non-structural pseudo-classes, a `:not()` that takes a selector list rather than
+a single compound, and a block box inside an inline box.
 
 **How it is checked.** Against WeasyPrint's own box tree, not against rendered
 PDFs. `tests/fixtures/layout.tsv` holds the tree WeasyPrint produces for each
@@ -530,18 +545,21 @@ oracle is the reference's output rather than a transcription of it. The generato
 loads the reference's own test font, which is derived from Ahem and is monospace,
 so the text cases are arithmetic and the fixture is identical on every machine.
 `tests/fixtures/fuzz.tsv` and `tests/fixtures/fuzz_cases.tsv` hold the same pair
-for a deterministic random corpus of 400 documents over the same property set,
+for a deterministic random corpus of 2000 documents over the same property set,
 committed and replayed by the test, so the random cases are a regression gate and
 not only a development aid; `--random N` overrides the count for a fresh seed.
 Selector matching has its own pair of corpora, `selector_layout.tsv` /
 `selector_cases.tsv` and `selector_fuzz.tsv` / `selector_fuzz_cases.tsv`, drawn
-from documents whose elements carry ids and classes and a stylesheet of
-descendant and child selectors over them; `--selectors N` overrides the random
+from documents whose elements carry ids, classes and attributes and a stylesheet
+of complex selectors over them, including the sibling combinators, the attribute
+selectors (quoted and bare, with escapes) and the structural pseudo-classes;
+`--selectors N` overrides the random
 selector count. The elements nest, including spans inside spans, and a rule whose
 subject may be inline carries `font-size`, which moves the text, so an inline
 match is visible in the tree - a box-model declaration there is ignored on a
 non-replaced inline and would hide a broken inline ancestry. The crate agrees
-with the reference on all 400 cases it draws and on all 1,200 selector cases.
+with the reference on all 2000 random cases it draws and on all 1,200 selector
+cases.
 The random corpus is what caught the seam rule: the
 crate never broke a line at the boundary between two adjacent text nodes, and the
 reference breaks there whenever the two adjacent characters are a break

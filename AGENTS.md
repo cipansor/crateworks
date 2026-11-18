@@ -432,6 +432,84 @@ that branch order or the held-out check tests the wrong thing.
   `café { … }` must parse. Rejecting a non-ASCII tag because the check used
   `is_ascii_alphanumeric` is a regression the old permissive parser did not have.
   Accept any alphanumeric character (plus `-` and `_`) via `is_alphanumeric`.
+- **A compound selector's name ends at every sigil that can follow it.** The
+  boundary predicate `ends_name` decides where a tag, `.class` or `#id` stops,
+  so it has to stop at `[`, `:` and the sibling combinators `+`/`~` as well as
+  the descendant space and `>`. A predicate that stops only at whitespace reads
+  `div[a]` as the tag `div[a]` and then fails to parse. The universal `*` is the
+  one sigil that is a whole compound of its own: `ends_name` treats it as a
+  boundary so `*:first-child` splits, which means `parse_compound` must accept a
+  leading `*` (and skip it) before it reads a name, or the earlier universal
+  selector tests fail with "cannot read selector `*`".
+- **A parenthesized selector argument nests.** `:not(:nth-child(2n+1))` puts a
+  `)` inside the `:not()` argument, so `read_parenthesized` has to count depth
+  and take the `)` that closes the opening `(`. Finding the first `)` reads the
+  argument as `:nth-child(2n+1` and then fails on the leftover `)`. The random
+  selector corpus drew this on its first case; the curated cases did not.
+- **An attribute selector's name ends at the operator, not only at `=`.** The
+  operators `~=`, `|=`, `^=` and `$=` begin with a sigil, so a name scan that
+  stops only at `=` or whitespace swallows the sigil into the name (`data-x~`
+  then `=v`) and the rule silently never matches. Stop the name at `~ | ^ $ *`
+  as well, then read the operator from what follows.
+- **A quoted string in a selector is not syntax.** An attribute value may be a
+  CSS string holding any character, so `[title="Doe, Jane"]` must not split on
+  the comma, `[title="a]b"]` must not close at the quoted `]`, and
+  `:not([title=")"])` must not close at the quoted `)`. Every scanner that looks
+  for a delimiter - the comment stripper, the rule-brace finder, the
+  selector-list splitter, the attribute-close finder and `read_parenthesized` -
+  has to step over a quoted string, honouring `\` escapes, rather than read its
+  contents as syntax. They now share `string_length`, `find_unquoted` and
+  `split_unquoted` for that reason. A quoted value's escapes are decoded
+  (`\62` is `b`) before it is compared, as the reference's tokenizer does.
+- **A selector engine grows in lockstep with its corpus, or the corpus is a
+  rubber stamp.** The `cssprint` selector grammar (attribute selectors, the
+  structural pseudo-classes, `:not()`, the sibling combinators) was added
+  together with the generator that draws them and the fixtures regenerated, so
+  the new grammar is checked against WeasyPrint rather than against a
+  hand-written expectation. Extend `scripts/fuzz/cssprint/gen.py` in the same
+  change as the grammar, and regenerate the selector fixtures, or the random
+  corpus keeps testing only the old shapes.
+- **A structural pseudo-class must not re-count siblings per rule.** The
+  sibling position and count a `:nth-child()` or a sibling combinator reads are
+  computed once by the DOM traversal that already walks the parent
+  (`element_children(element).count()`), and threaded down as `Ancestor { element,
+  index, total }`. Computing them inside matching - walking the parent's children
+  to count and again to locate the subject, for every rule against every element
+  - is quadratic on a flat document: a 1000-child list with one `div` rule cost
+  ~1.5M sibling visits. The fix took the 4x-scaling ratio from 15.2 to 3.5 on an
+  8000-child document. A selector with no structural pseudo-class and no sibling
+  combinator reads none of it, so `index`/`total` are free for the caller to
+  pass as `0`.
+- **An `an+b` coefficient is an `i64` and its arithmetic can overflow.** The
+  `:nth-child()` parser accepts a signed 64-bit coefficient, so
+  `-n-9223372036854775807` makes `index - b` overflow `i64` (panicking in debug,
+  wrapping then panicking on `% -1` in release). Widen the subtraction, remainder
+  and division to `i128`, where the difference of two `i64`s is exact in every
+  profile.
+- **An inline run must carry its nodes' original element-child index.** The run
+  of inline content inside a block holds the nodes between the block's
+  block-level children, and omits the hidden ones, so a node's position in the
+  run is not its position among the element's children. Renumbering from zero
+  inside the run makes an inline element read the wrong `index`, and a structural
+  pseudo-class then hides or shows the wrong box: with
+  `<div><div></div><span>visible</span></div>` and
+  `span:first-child { display: none }`, the span is the parent's second element
+  child and must stay, but a run that restarts at zero reads it as the first and
+  drops its text. A preceding `display: none` sibling triggers the same with no
+  block boundary. Carry the index from where the block's `child_info` is built
+  (`Vec<Option<(usize, Display)>>`) through the run into the inline walk, rather
+  than deriving it from the filtered nodes.
+- **CSS normalizes newlines before it tokenizes, so a string scanner must see
+  only LF.** A CRLF pair, a lone CR and a form feed each become one LF, and that
+  happens before strings are read. A scanner that knows only LF reads a
+  backslash-CRLF continuation inside a quoted value as an unescaped line end and
+  rejects the whole stylesheet, and a decoder that recognizes only LF as a
+  continuation leaves the CR or form feed in the value. Normalize once, at the top
+  of `Stylesheet::parse`, before comment stripping and delimiter scanning, so every
+  scanner below - `string_length`, `find_unquoted`, `split_unquoted`,
+  `decode_string_escapes` - only has to handle LF. Do not normalize the source
+  again anywhere below, or a literal `\r`/`\f` inside a string is silently
+  rewritten twice.
 - **`cargo publish` resolves path dependencies against the registry.** A crate
   that depends on `xmlkit` cannot be packaged until `xmlkit` is *published*, and
   the error ("no matching package named `xmlkit` found") reads like a broken

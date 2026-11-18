@@ -44,6 +44,7 @@
 //! the font size, which is what makes the corpus reproducible on any machine. A
 //! proportional font would need a metrics source and is not covered.
 
+use crate::css::{Ancestor, element_children};
 use crate::dom::{Element, Node};
 use crate::error::Error;
 use crate::style::{Display, Length, Sides, Style, TextAlign};
@@ -169,6 +170,10 @@ pub(crate) fn layout_document(
                 parent_content_y: 0.0,
             },
             adjoining: fresh_margins(),
+            // The root's only sibling context is the page, of which it is the
+            // sole element child.
+            index: 0,
+            total: 1,
         },
     )?;
     let html = place(&html, 0.0, 0.0);
@@ -218,19 +223,29 @@ struct Pos {
 
 /// The stylesheet and the ancestor chain, threaded through the walk so a
 /// descendant or child selector can be matched against the element's ancestry.
+///
+/// Each ancestor carries its own sibling position, computed once when its parent
+/// was walked, so matching a structural pseudo-class never re-counts a parent's
+/// children.
 struct Walk<'a> {
     stylesheet: &'a crate::Stylesheet,
-    ancestors: Vec<&'a Element>,
+    ancestors: Vec<Ancestor<'a>>,
 }
 
 /// Where a box is placed: the width it is laid out against, whether it is the
-/// root, the style it inherits from, and the margin run it joins.
+/// root, the style it inherits from, the margin run it joins, and its own
+/// sibling position.
 struct Placement<'s> {
     containing_width: f64,
     is_root: bool,
     parent_style: Option<&'s Style>,
     at: Pos,
     adjoining: Margins,
+    /// The element's 0-based position among its parent's element children, and
+    /// how many the parent has. A structural pseudo-class reads them, so they
+    /// are computed once by the parent's walk and carried down.
+    index: usize,
+    total: usize,
 }
 
 /// Lay out one block-level element and its subtree.
@@ -261,13 +276,26 @@ fn layout_element<'a>(
         parent_style,
         at,
         adjoining,
+        index,
+        total,
     } = placement;
     let Pos {
         cursor_y,
         parent_content_y,
     } = at;
-    let style = crate::style::compute(element, stylesheet, parent_style, &walk.ancestors)?;
-    walk.ancestors.push(element);
+    let style = crate::style::compute(
+        element,
+        stylesheet,
+        parent_style,
+        &walk.ancestors,
+        index,
+        total,
+    )?;
+    walk.ancestors.push(Ancestor {
+        element,
+        index,
+        total,
+    });
     let (width, x_offset, margin_left, margin_right) = resolve_horizontal(&style, containing_width);
     let padding = resolve_sides(&style.padding, containing_width);
     let inner_top = style.border.top + padding.top;
@@ -296,17 +324,38 @@ fn layout_element<'a>(
 
     // Any block-level child makes this a block container, and then every run of
     // inline content it holds is wrapped in an anonymous block.
-    let mut has_block = false;
+    //
+    // The child styles are computed here and reused by the placement loop below,
+    // so a block container walks its children once for `display` and not twice.
+    // Each child's element-child index and the parent's element-child count are
+    // taken here too, once, so a structural pseudo-class on any child reads them
+    // instead of recounting the parent's children per rule.
+    let child_total = element_children(element).count();
+    let mut child_info: Vec<Option<(usize, Display)>> = Vec::with_capacity(element.children.len());
+    let mut child_index = 0usize;
     for node in &element.children {
-        if let Node::Element(child) = node {
-            let child_style =
-                crate::style::compute(child, stylesheet, Some(&style), &walk.ancestors)?;
-            if child_style.display == Display::Block {
-                has_block = true;
-                break;
+        let info = match node {
+            Node::Element(child) => {
+                let display = crate::style::compute(
+                    child,
+                    stylesheet,
+                    Some(&style),
+                    &walk.ancestors,
+                    child_index,
+                    child_total,
+                )?
+                .display;
+                let info = Some((child_index, display));
+                child_index += 1;
+                info
             }
-        }
+            Node::Text(_) => None,
+        };
+        child_info.push(info);
     }
+    let has_block = child_info
+        .iter()
+        .any(|info| matches!(info, Some((_, Display::Block))));
 
     let ctx = RunCtx {
         element,
@@ -315,6 +364,7 @@ fn layout_element<'a>(
         style: &style,
         has_block,
         content_box_y,
+        child_total,
     };
     let mut flow = Flow {
         cursor,
@@ -322,24 +372,18 @@ fn layout_element<'a>(
         children: Vec::new(),
         has_in_flow: false,
     };
-    let mut run: Vec<&Node> = Vec::new();
+    let mut run: Vec<RunNode> = Vec::new();
 
-    for node in &element.children {
-        let block_child = match node {
-            Node::Text(_) => None,
-            Node::Element(child) => {
-                let child_style =
-                    crate::style::compute(child, stylesheet, Some(&style), &walk.ancestors)?;
-                match child_style.display {
-                    Display::None => continue,
-                    Display::Block => Some(child),
-                    Display::Inline => None,
-                }
-            }
+    for (node, info) in element.children.iter().zip(&child_info) {
+        let block_child = match (node, info) {
+            (Node::Element(child), Some((_, Display::Block))) => Some(child),
+            (Node::Element(_), Some((_, Display::None))) => continue,
+            _ => None,
         };
         match block_child {
             Some(child) => {
                 flush_run(&mut run, &ctx, &walk.ancestors, &mut flow)?;
+                let (index, _) = info.expect("a block child has child info");
                 let (mut frag, child_content_y, child_run) = layout_element(
                     child,
                     walk,
@@ -352,6 +396,8 @@ fn layout_element<'a>(
                             parent_content_y: content_box_y,
                         },
                         adjoining: std::rc::Rc::clone(&flow.adjoining),
+                        index,
+                        total: child_total,
                     },
                 )?;
                 flow.adjoining = child_run;
@@ -363,7 +409,14 @@ fn layout_element<'a>(
                 flow.children.push(frag);
                 flow.has_in_flow = true;
             }
-            None => run.push(node),
+            None => {
+                // The run drops block and hidden siblings, so a node's position
+                // in it is not its element-child position. Carry the original
+                // index so a structural pseudo-class on an inline element reads
+                // the position it has in the element, not in the run.
+                let index = info.map_or(0, |(index, _)| index);
+                run.push((index, node));
+            }
         }
     }
     flush_run(&mut run, &ctx, &walk.ancestors, &mut flow)?;
@@ -453,6 +506,9 @@ struct RunCtx<'a> {
     style: &'a Style,
     has_block: bool,
     content_box_y: f64,
+    /// How many element children `element` has, which a structural pseudo-class
+    /// on an inline child reads.
+    child_total: usize,
 }
 
 /// The state a box accumulates while it places its children: its running bottom
@@ -465,6 +521,12 @@ struct Flow {
     has_in_flow: bool,
 }
 
+/// One node in an inline run, paired with its original 0-based position among
+/// the parent's element children. The run holds only the nodes between block
+/// children and omits hidden ones, so that position cannot be recovered from the
+/// run itself and is carried alongside the node.
+type RunNode<'a> = (usize, &'a Node);
+
 /// Lay out one run of inline content and append its line boxes to the flow.
 ///
 /// `has_block` says the element also holds a block-level child, so the run is
@@ -472,9 +534,9 @@ struct Flow {
 /// children. Either way the run ends the adjoining-margin chain, because a line
 /// box carries no margin to collapse.
 fn flush_run(
-    run: &mut Vec<&Node>,
+    run: &mut Vec<RunNode<'_>>,
     ctx: &RunCtx,
-    ancestors: &[&Element],
+    ancestors: &[Ancestor<'_>],
     flow: &mut Flow,
 ) -> Result<(), Error> {
     let RunCtx {
@@ -484,11 +546,12 @@ fn flush_run(
         style,
         has_block,
         content_box_y,
+        child_total,
     } = *ctx;
     if run.is_empty() {
         return Ok(());
     }
-    let items = collect_items(run, stylesheet, style, ancestors)?;
+    let items = collect_items(run, stylesheet, style, ancestors, child_total)?;
     let align = style.text_align;
     let align_last = style.text_align_last.unwrap_or(align);
     let indent = resolve(style.text_indent, width);
@@ -569,11 +632,18 @@ struct InlineAncestor {
 /// Walk inline content, collapsing whitespace and emitting one item per text
 /// node. The collapsing state is carried across nodes, which is what stops the
 /// space between two inline elements from being doubled.
+///
+/// Each entry is a node and its original element-child index, so an inline
+/// element carries the position it has in the element rather than one derived
+/// from the run, which omits the block and hidden siblings. `child_total` is the
+/// number of element children of the block that holds this run; together they
+/// let a structural pseudo-class match an inline element like any other.
 fn collect_items(
-    nodes: &[&Node],
+    nodes: &[RunNode<'_>],
     stylesheet: &crate::Stylesheet,
     parent_style: &Style,
-    ancestors: &[&Element],
+    ancestors: &[Ancestor<'_>],
+    child_total: usize,
 ) -> Result<Vec<Item>, Error> {
     let mut collector = Collector {
         stylesheet,
@@ -582,8 +652,15 @@ fn collect_items(
         following_space: false,
         items: Vec::new(),
     };
-    for node in nodes {
-        collect(node, parent_style, &mut Vec::new(), &mut collector)?;
+    for &(index, node) in nodes {
+        collect(
+            node,
+            parent_style,
+            &mut Vec::new(),
+            &mut collector,
+            index,
+            child_total,
+        )?;
     }
     Ok(collector.items)
 }
@@ -593,7 +670,7 @@ fn collect_items(
 /// running id counter and the items so far.
 struct Collector<'a> {
     stylesheet: &'a crate::Stylesheet,
-    chain: Vec<&'a Element>,
+    chain: Vec<Ancestor<'a>>,
     next_id: usize,
     following_space: bool,
     items: Vec<Item>,
@@ -604,12 +681,16 @@ struct Collector<'a> {
 /// `ancestors` is the inline ancestor stack for the current path, and
 /// `collector.chain` extends the block chain with the inline elements opened so
 /// far; a style is computed against that chain, so a descendant selector matches
-/// an inline ancestor like any other.
+/// an inline ancestor like any other. `index` and `total` are the element's own
+/// position among its parent's element children and how many there are, which a
+/// structural pseudo-class reads.
 fn collect<'a>(
     node: &'a Node,
     parent_style: &Style,
     ancestors: &mut Vec<InlineAncestor>,
     collector: &mut Collector<'a>,
+    index: usize,
+    total: usize,
 ) -> Result<(), Error> {
     match node {
         Node::Text(text) => {
@@ -629,6 +710,8 @@ fn collect<'a>(
                 collector.stylesheet,
                 Some(parent_style),
                 &collector.chain,
+                index,
+                total,
             )?;
             if style.display == Display::None {
                 return Ok(());
@@ -640,9 +723,25 @@ fn collect<'a>(
                 tag: element.tag.clone(),
                 style: style.clone(),
             });
-            collector.chain.push(element);
+            collector.chain.push(Ancestor {
+                element,
+                index,
+                total,
+            });
+            let inner_total = element_children(element).count();
+            let mut inner_index = 0usize;
             for child in &element.children {
-                collect(child, &style, ancestors, collector)?;
+                collect(
+                    child,
+                    &style,
+                    ancestors,
+                    collector,
+                    inner_index,
+                    inner_total,
+                )?;
+                if matches!(child, Node::Element(_)) {
+                    inner_index += 1;
+                }
             }
             collector.chain.pop();
             ancestors.pop();
@@ -1954,6 +2053,45 @@ mod tests {
             .iter()
             .map(|unit| (*unit).to_owned())
             .collect()
+    }
+
+    /// Every text fragment in the tree, depth first.
+    fn texts(box_: &crate::LayoutBox, out: &mut Vec<String>) {
+        if let Some(text) = &box_.text {
+            out.push(text.clone());
+        }
+        for child in &box_.children {
+            texts(child, out);
+        }
+    }
+
+    #[test]
+    fn an_inline_element_keeps_its_index_after_a_block_sibling() {
+        // The span is the element's second element child, so `:first-child` must
+        // not match it. A run that renumbers from zero reads it as the first and
+        // hides its text.
+        let sheet = crate::Stylesheet::parse("span:first-child{display:none}").unwrap();
+        let document = crate::layout("<div><div></div><span>visible</span></div>", &sheet, 200.0)
+            .expect("the document lays out");
+        let mut found = Vec::new();
+        texts(&document.root, &mut found);
+        assert!(found.iter().any(|text| text == "visible"), "{found:?}");
+    }
+
+    #[test]
+    fn an_inline_element_keeps_its_index_after_a_hidden_sibling() {
+        // The run omits the hidden span, but the visible one is still the second
+        // element child.
+        let sheet = crate::Stylesheet::parse("span:first-child{display:none}").unwrap();
+        let document = crate::layout(
+            "<div><span style=\"display:none\">x</span><span>visible</span></div>",
+            &sheet,
+            200.0,
+        )
+        .expect("the document lays out");
+        let mut found = Vec::new();
+        texts(&document.root, &mut found);
+        assert!(found.iter().any(|text| text == "visible"), "{found:?}");
     }
 
     #[test]
