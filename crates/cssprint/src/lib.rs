@@ -14,7 +14,10 @@ mod error;
 mod layout;
 mod style;
 
-pub use css::{Combinator, Compound, Declaration, Rule, Selector, Stylesheet};
+pub use css::{
+    AttributeMatch, AttributeSelector, Combinator, Compound, Declaration, PseudoClass, Rule,
+    Selector, Stylesheet,
+};
 pub use dom::{Element, Node};
 pub use error::Error;
 pub use layout::{BoxKind, Document, LayoutBox};

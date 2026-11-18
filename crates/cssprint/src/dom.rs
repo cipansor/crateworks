@@ -13,6 +13,12 @@ pub struct Element {
     pub classes: Vec<String>,
     /// The `style` attribute, if the element carries one.
     pub style: Option<String>,
+    /// Every attribute in source order, the name lower-cased and the value as
+    /// written. A valueless attribute (`<input disabled>`) is kept with a `None`
+    /// value, so `[disabled]` matches it. This is what an attribute selector
+    /// reads; `id`, `classes` and `style` are the same data unpacked for the
+    /// layout, which reads them far more often than it reads a raw attribute.
+    pub attributes: Vec<(String, Option<String>)>,
     /// The children, in document order.
     pub children: Vec<Node>,
 }
@@ -58,6 +64,7 @@ pub(crate) fn parse(html: &str) -> Result<Element, Error> {
         id: None,
         classes: Vec::new(),
         style: None,
+        attributes: Vec::new(),
         children: Vec::new(),
     }];
     let mut rest = html;
@@ -107,6 +114,7 @@ fn insert_head_and_body(root: Element) -> Element {
         id: None,
         classes: Vec::new(),
         style: None,
+        attributes: Vec::new(),
         children: Vec::new(),
     };
     let mut body = Element {
@@ -114,6 +122,7 @@ fn insert_head_and_body(root: Element) -> Element {
         id: None,
         classes: Vec::new(),
         style: None,
+        attributes: Vec::new(),
         children: Vec::new(),
     };
 
@@ -129,6 +138,7 @@ fn insert_head_and_body(root: Element) -> Element {
         id: root.id,
         classes: root.classes,
         style: root.style,
+        attributes: root.attributes,
         children: vec![Node::Element(head), Node::Element(body)],
     }
 }
@@ -167,13 +177,15 @@ fn handle_tag(stack: &mut Vec<Element>, tag: &str) -> Result<(), Error> {
     if name.is_empty() {
         return Ok(());
     }
+    let attributes = parse_attributes(attributes);
     let element = Element {
-        id: attribute(attributes, "id"),
-        classes: attribute(attributes, "class")
+        id: attribute(&attributes, "id"),
+        classes: attribute(&attributes, "class")
             .map(|value| value.split_whitespace().map(str::to_owned).collect())
             .unwrap_or_default(),
         tag: name,
-        style: attribute(attributes, "style"),
+        style: attribute(&attributes, "style"),
+        attributes,
         children: Vec::new(),
     };
     if VOID_TAGS.contains(&element.tag.as_str()) {
@@ -200,49 +212,74 @@ fn split_name_and_attributes(tag: &str) -> (String, &str) {
     (name, &tag[name_end..])
 }
 
-/// Read one attribute value from an attribute string.
+/// Parse an attribute string into `(name, value)` pairs, name lower-cased.
 ///
-/// `wanted` is matched at a word boundary, so looking for `id` does not match
-/// the `id` inside `data-id`.
-fn attribute(attributes: &str, wanted: &str) -> Option<String> {
+/// A valueless attribute (`<input disabled>`) keeps a `None` value so an
+/// attribute selector can tell it from one set to the empty string. A name is
+/// read up to whitespace, `=`, `/` or the end; a quoted value runs to its
+/// closing quote, an unquoted one to the next whitespace.
+fn parse_attributes(attributes: &str) -> Vec<(String, Option<String>)> {
+    let mut out = Vec::new();
     let mut rest = attributes;
     loop {
-        let start = rest.find(wanted)?;
-        let preceded_by_word = start > 0
-            && rest[..start]
-                .chars()
-                .next_back()
-                .is_some_and(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_');
-        if preceded_by_word {
-            rest = &rest[start + wanted.len()..];
-            continue;
+        rest = rest.trim_start_matches(|c: char| c.is_ascii_whitespace() || c == '/');
+        if rest.is_empty() {
+            break;
         }
-        let followed_by_word = rest[start + wanted.len()..]
-            .chars()
-            .next()
-            .is_some_and(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_');
-        if followed_by_word {
-            rest = &rest[start + wanted.len()..];
-            continue;
-        }
-        let after = &rest[start + wanted.len()..];
-        let after = after.trim_start();
-        let Some(after) = after.strip_prefix('=') else {
-            rest = after;
+        let name_end = rest
+            .find(|c: char| c.is_ascii_whitespace() || c == '=' || c == '/')
+            .unwrap_or(rest.len());
+        let name = rest[..name_end].to_ascii_lowercase();
+        rest = rest[name_end..].trim_start();
+        let Some(after) = rest.strip_prefix('=') else {
+            if name.is_empty() {
+                // A stray character that names nothing; drop it so the loop
+                // cannot spin.
+                rest = &rest[rest.chars().next().map_or(0, char::len_utf8)..];
+                continue;
+            }
+            out.push((name, None));
             continue;
         };
         let after = after.trim_start();
-        let quote = after.chars().next()?;
-        if quote == '"' || quote == '\'' {
-            let value = &after[1..];
-            let end = value.find(quote)?;
-            return Some(value[..end].to_owned());
+        let value = match after.chars().next() {
+            Some(quote @ ('"' | '\'')) => {
+                let body = &after[quote.len_utf8()..];
+                match body.find(quote) {
+                    Some(end) => {
+                        rest = &body[end + quote.len_utf8()..];
+                        body[..end].to_owned()
+                    }
+                    None => {
+                        rest = "";
+                        body.to_owned()
+                    }
+                }
+            }
+            Some(_) => {
+                let end = after.find(char::is_whitespace).unwrap_or(after.len());
+                let value = after[..end].to_owned();
+                rest = &after[end..];
+                value
+            }
+            None => {
+                rest = "";
+                String::new()
+            }
+        };
+        if !name.is_empty() {
+            out.push((name, Some(value)));
         }
-        let end = after
-            .find(|c: char| c.is_ascii_whitespace())
-            .unwrap_or(after.len());
-        return Some(after[..end].to_owned());
     }
+    out
+}
+
+/// Read one attribute value from a parsed attribute list.
+fn attribute(attributes: &[(String, Option<String>)], wanted: &str) -> Option<String> {
+    attributes
+        .iter()
+        .find(|(name, _)| name == wanted)
+        .and_then(|(_, value)| value.clone())
 }
 
 /// Append text to the element on top of the stack.

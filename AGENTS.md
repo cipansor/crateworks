@@ -357,6 +357,33 @@ that branch order or the held-out check tests the wrong thing.
   `café { … }` must parse. Rejecting a non-ASCII tag because the check used
   `is_ascii_alphanumeric` is a regression the old permissive parser did not have.
   Accept any alphanumeric character (plus `-` and `_`) via `is_alphanumeric`.
+- **A compound selector's name ends at every sigil that can follow it.** The
+  boundary predicate `ends_name` decides where a tag, `.class` or `#id` stops,
+  so it has to stop at `[`, `:` and the sibling combinators `+`/`~` as well as
+  the descendant space and `>`. A predicate that stops only at whitespace reads
+  `div[a]` as the tag `div[a]` and then fails to parse. The universal `*` is the
+  one sigil that is a whole compound of its own: `ends_name` treats it as a
+  boundary so `*:first-child` splits, which means `parse_compound` must accept a
+  leading `*` (and skip it) before it reads a name, or the earlier universal
+  selector tests fail with "cannot read selector `*`".
+- **A parenthesized selector argument nests.** `:not(:nth-child(2n+1))` puts a
+  `)` inside the `:not()` argument, so `read_parenthesized` has to count depth
+  and take the `)` that closes the opening `(`. Finding the first `)` reads the
+  argument as `:nth-child(2n+1` and then fails on the leftover `)`. The random
+  selector corpus drew this on its first case; the curated cases did not.
+- **An attribute selector's name ends at the operator, not only at `=`.** The
+  operators `~=`, `|=`, `^=` and `$=` begin with a sigil, so a name scan that
+  stops only at `=` or whitespace swallows the sigil into the name (`data-x~`
+  then `=v`) and the rule silently never matches. Stop the name at `~ | ^ $ *`
+  as well, then read the operator from what follows.
+- **A selector engine grows in lockstep with its corpus, or the corpus is a
+  rubber stamp.** The `cssprint` selector grammar (attribute selectors, the
+  structural pseudo-classes, `:not()`, the sibling combinators) was added
+  together with the generator that draws them and the fixtures regenerated, so
+  the new grammar is checked against WeasyPrint rather than against a
+  hand-written expectation. Extend `scripts/fuzz/cssprint/gen.py` in the same
+  change as the grammar, and regenerate the selector fixtures, or the random
+  corpus keeps testing only the old shapes.
 - **`cargo publish` resolves path dependencies against the registry.** A crate
   that depends on `xmlkit` cannot be packaged until `xmlkit` is *published*, and
   the error ("no matching package named `xmlkit` found") reads like a broken

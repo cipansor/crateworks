@@ -2,10 +2,17 @@
 //!
 //! The supported selector grammar is a comma-separated list of complex
 //! selectors. Each is a chain of compound selectors joined by combinators: a
-//! descendant (a space) or a child (`>`), so `div p`, `div > p` and `div.card p`
-//! all work. A compound selector is a tag name, a `#id`, a `.class`, the
-//! universal `*`, or any combination, such as `div.card#main`. Pseudo-classes,
-//! pseudo-elements, attribute selectors and at-rules are not implemented.
+//! descendant (a space), a child (`>`), an adjacent sibling (`+`) or a general
+//! sibling (`~`), so `div p`, `div > p`, `h1 + p` and `h1 ~ p` all work. A
+//! compound selector is a tag name, a `#id`, a `.class`, an attribute selector,
+//! a structural pseudo-class, the universal `*`, or any combination, such as
+//! `div.card#main[href]`.
+//!
+//! The attribute selectors `[a]`, `[a=v]`, `[a~=v]`, `[a|=v]`, `[a^=v]`,
+//! `[a$=v]` and `[a*=v]` are supported, as are the structural pseudo-classes
+//! `:root`, `:first-child`, `:last-child`, `:only-child`, `:nth-child()` and
+//! `:nth-last-child()`, and the negation `:not()` over a compound. Other
+//! pseudo-classes, pseudo-elements and at-rules are not implemented.
 //!
 //! The cascade orders by specificity, as the reference does: `div p` beats a
 //! later `p`, because a tag-tag selector is more specific than a single tag. See
@@ -13,7 +20,7 @@
 
 use std::collections::HashMap;
 
-use crate::dom::Element;
+use crate::dom::{Element, Node};
 use crate::error::Error;
 
 /// One `property: value` pair.
@@ -34,8 +41,9 @@ pub struct Rule {
     pub declarations: Vec<Declaration>,
 }
 
-/// One compound selector: a tag, an `#id`, some `.class`es, or the universal
-/// `*` when all three are absent.
+/// One compound selector: a tag, an `#id`, some `.class`es, attribute
+/// selectors, structural pseudo-classes and an optional `:not()`, any
+/// combination of which must match.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Compound {
     /// The tag name, when the compound names one. `None` means universal.
@@ -44,11 +52,112 @@ pub struct Compound {
     pub id: Option<String>,
     /// The `.class`es, all of which must match.
     pub classes: Vec<String>,
+    /// The attribute selectors, all of which must match.
+    pub attributes: Vec<AttributeSelector>,
+    /// The structural pseudo-classes, all of which must match.
+    pub pseudo_classes: Vec<PseudoClass>,
+    /// A `:not(...)` argument, which must not match. The reference's
+    /// level-3 `:not()` takes a single simple selector; this holds the one
+    /// compound it names.
+    pub negation: Option<Box<Compound>>,
+}
+
+/// An attribute selector: an attribute name and a test on its value.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AttributeSelector {
+    /// The attribute name, lower-cased as the HTML parser lower-cases it.
+    pub name: String,
+    /// The test, or `None` for a bare `[name]`, which only asks that the
+    /// attribute be present.
+    pub test: Option<(AttributeMatch, String)>,
+}
+
+/// The operator of an attribute selector's value test.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AttributeMatch {
+    /// `=`: the value is exactly this.
+    Equals,
+    /// `~=`: one whitespace-separated word of the value is exactly this.
+    Includes,
+    /// `|=`: the value is this, or this followed by `-`.
+    DashMatch,
+    /// `^=`: the value starts with this.
+    Prefix,
+    /// `$=`: the value ends with this.
+    Suffix,
+    /// `*=`: the value contains this.
+    Substring,
+}
+
+/// A structural pseudo-class.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PseudoClass {
+    /// `:root`, the document element.
+    Root,
+    /// `:first-child`.
+    FirstChild,
+    /// `:last-child`.
+    LastChild,
+    /// `:only-child`.
+    OnlyChild,
+    /// `:nth-child(an+b)`.
+    NthChild(Nth),
+    /// `:nth-last-child(an+b)`.
+    NthLastChild(Nth),
+}
+
+/// The `an+b` of an `:nth-*()` pseudo-class.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Nth {
+    /// The `a` coefficient.
+    pub a: i64,
+    /// The `b` constant.
+    pub b: i64,
+}
+
+impl Nth {
+    /// Does a 1-based index satisfy `an + b` for some non-negative integer `n`?
+    fn matches(self, index: i64) -> bool {
+        // an + b = index has a non-negative integer solution n. With a == 0 the
+        // test is a plain equality; otherwise the division must be exact and
+        // the quotient non-negative.
+        if self.a == 0 {
+            return index == self.b;
+        }
+        let delta = index - self.b;
+        delta % self.a == 0 && delta / self.a >= 0
+    }
 }
 
 impl Compound {
-    /// Does this compound match `element`, ignoring its ancestry?
-    pub(crate) fn matches(&self, element: &Element) -> bool {
+    /// The specificity this compound contributes, `(ids, classes, tags)`.
+    ///
+    /// A tag counts as a type; the universal selector counts as nothing. An
+    /// attribute selector and a structural pseudo-class each count as a class.
+    /// `:not()` counts as its argument and nothing for itself, as the level-3
+    /// reference does.
+    fn specificity(&self) -> (u32, u32, u32) {
+        let mut ids = u32::from(self.id.is_some());
+        let mut classes = self.classes.len() as u32
+            + self.attributes.len() as u32
+            + self.pseudo_classes.len() as u32;
+        let mut tags = u32::from(self.tag.is_some());
+        if let Some(negation) = &self.negation {
+            let (id, class, tag) = negation.specificity();
+            ids += id;
+            classes += class;
+            tags += tag;
+        }
+        (ids, classes, tags)
+    }
+
+    /// Does this compound match `element`, ignoring its ancestry and its
+    /// structural pseudo-classes?
+    ///
+    /// This is the part answerable from the element alone: its tag, id, class
+    /// and attributes. [`Self::matches`] adds the structural pseudo-classes and
+    /// the `:not()`, which need the sibling context.
+    pub(crate) fn matches_simple(&self, element: &Element) -> bool {
         if let Some(tag) = &self.tag
             && &element.tag != tag
         {
@@ -59,9 +168,32 @@ impl Compound {
         {
             return false;
         }
-        self.classes
+        if !self
+            .classes
             .iter()
             .all(|class| element.classes.contains(class))
+        {
+            return false;
+        }
+        self.attributes
+            .iter()
+            .all(|attribute| attribute.matches(element))
+    }
+
+    /// Does this compound match `element` given its siblings and ancestry?
+    ///
+    /// The structural pseudo-classes and a `:not()` argument read the sibling
+    /// position, which is why they need `context`.
+    pub(crate) fn matches(&self, element: &Element, context: &MatchContext<'_>) -> bool {
+        self.matches_simple(element)
+            && self
+                .pseudo_classes
+                .iter()
+                .all(|pseudo| pseudo.matches(context))
+            && self
+                .negation
+                .as_deref()
+                .is_none_or(|negation| !negation.matches(element, context))
     }
 
     /// The bucket this compound files under, for the rule index.
@@ -69,7 +201,9 @@ impl Compound {
     /// An element the selector matches has every key the rightmost compound
     /// names, so keying on the compound's tag, else its id, else its first
     /// class, else the universal bucket, finds every selector that could match
-    /// and only those.
+    /// and only those. An attribute or pseudo-class constraint is not a bucket
+    /// key, so a compound that names only those files under the universal
+    /// bucket and is tested in full.
     fn key(&self) -> Bucket {
         if let Some(tag) = &self.tag {
             Bucket::Tag(tag.clone())
@@ -83,6 +217,111 @@ impl Compound {
     }
 }
 
+impl AttributeSelector {
+    /// Does `element` carry an attribute satisfying this selector?
+    fn matches(&self, element: &Element) -> bool {
+        let Some((_, value)) = element
+            .attributes
+            .iter()
+            .find(|(name, _)| name == &self.name)
+        else {
+            return false;
+        };
+        let Some((operator, wanted)) = &self.test else {
+            // A bare `[name]` asks only for presence, which the `find` proved.
+            return true;
+        };
+        // A valueless attribute matches `[name=""]` and `[name^=""]` but not
+        // `[name="x"]`; treat its value as the empty string.
+        let value = value.as_deref().unwrap_or("");
+        match operator {
+            AttributeMatch::Equals => value == wanted,
+            AttributeMatch::Includes => {
+                !wanted.is_empty() && value.split_whitespace().any(|word| word == wanted)
+            }
+            AttributeMatch::DashMatch => {
+                value == wanted
+                    || value
+                        .strip_prefix(wanted)
+                        .is_some_and(|rest| rest.starts_with('-'))
+            }
+            AttributeMatch::Prefix => !wanted.is_empty() && value.starts_with(wanted),
+            AttributeMatch::Suffix => !wanted.is_empty() && value.ends_with(wanted),
+            AttributeMatch::Substring => !wanted.is_empty() && value.contains(wanted),
+        }
+    }
+}
+
+impl PseudoClass {
+    /// Does an element satisfy this pseudo-class in `context`?
+    fn matches(&self, context: &MatchContext<'_>) -> bool {
+        let index = context.index;
+        let total = context.total;
+        let position = (index + 1) as i64;
+        let from_end = (total - index) as i64;
+        match self {
+            // `:root` is the element with no parent; the crate's document root
+            // is `html`, which the reference makes the root too.
+            Self::Root => context.parent.is_none(),
+            Self::FirstChild => index == 0,
+            Self::LastChild => index + 1 == total,
+            Self::OnlyChild => total == 1,
+            Self::NthChild(nth) => nth.matches(position),
+            Self::NthLastChild(nth) => nth.matches(from_end),
+        }
+    }
+}
+
+/// The context a compound is matched in, beyond the element itself.
+///
+/// A compound that names no structural pseudo-class does not need it, but the
+/// structural pseudo-classes read the element's position among its siblings,
+/// which is not in the element, and a sibling combinator steps to a sibling
+/// that shares the same context.
+#[derive(Clone, Copy)]
+pub struct MatchContext<'a> {
+    /// The elements from the root down to the element's parent, root first.
+    pub ancestors: &'a [&'a Element],
+    /// The element's parent, when it has one.
+    pub parent: Option<&'a Element>,
+    /// The element's position among its parent's element children, 0-based.
+    pub index: usize,
+    /// How many element children the parent has.
+    pub total: usize,
+}
+
+impl<'a> MatchContext<'a> {
+    /// The context of `element`, whose ancestors are `ancestors` (root first).
+    fn of(element: &'a Element, ancestors: &'a [&'a Element]) -> Self {
+        let parent = ancestors.last().copied();
+        let total = parent.map_or(1, |parent| element_children(parent).count());
+        let index = parent.map_or(0, |parent| {
+            element_children(parent)
+                .position(|child| std::ptr::eq(child, element))
+                .unwrap_or(0)
+        });
+        Self {
+            ancestors,
+            parent,
+            index,
+            total,
+        }
+    }
+
+    /// The element children of `element`.
+    fn siblings(self) -> impl Iterator<Item = &'a Element> {
+        self.parent.into_iter().flat_map(element_children)
+    }
+}
+
+/// The element children of `element`, in document order.
+fn element_children(element: &Element) -> impl Iterator<Item = &Element> {
+    element.children.iter().filter_map(|node| match node {
+        Node::Element(child) => Some(child),
+        Node::Text(_) => None,
+    })
+}
+
 /// A combinator joining two compound selectors.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Combinator {
@@ -90,6 +329,12 @@ pub enum Combinator {
     Descendant,
     /// `>`: the right compound is a child of the left.
     Child,
+    /// `+`: the right compound is the immediately following sibling of the
+    /// left, so the left compound matches the sibling just before the subject.
+    AdjacentSibling,
+    /// `~`: the right compound is a following sibling of the left, so the left
+    /// compound matches any earlier sibling of the subject.
+    GeneralSibling,
 }
 
 /// One complex selector: a chain of compound selectors joined by combinators,
@@ -107,19 +352,18 @@ impl Selector {
     /// The specificity `(ids, classes, tags)`, the reference's ordering key.
     ///
     /// A tag and the universal selector differ here: a tag counts as a type
-    /// (the third field), the universal selector counts as nothing.
+    /// (the third field), the universal selector counts as nothing. An
+    /// attribute selector and a structural pseudo-class count as a class;
+    /// `:not()` counts as its argument, as the level-3 reference does.
     pub fn specificity(&self) -> (u32, u32, u32) {
         let mut ids = 0;
         let mut classes = 0;
         let mut tags = 0;
         for compound in &self.compounds {
-            if compound.id.is_some() {
-                ids += 1;
-            }
-            classes += compound.classes.len() as u32;
-            if compound.tag.is_some() {
-                tags += 1;
-            }
+            let (id, class, tag) = compound.specificity();
+            ids += id;
+            classes += class;
+            tags += tag;
         }
         (ids, classes, tags)
     }
@@ -129,7 +373,8 @@ impl Selector {
     ///
     /// The rightmost compound is the subject. The chain is matched right to
     /// left: a child combinator steps to the immediate parent, a descendant
-    /// combinator to any ancestor. Backtracking is needed because a nearer
+    /// combinator to any ancestor, `+` to the immediately preceding sibling and
+    /// `~` to any preceding sibling. Backtracking is needed because a nearer
     /// ancestor may satisfy one step but leave no ancestor for the next, as in
     /// `div > p span` where the nearest `p` sits under no `div`.
     pub(crate) fn matches(&self, element: &Element, ancestors: &[&Element]) -> bool {
@@ -138,31 +383,67 @@ impl Selector {
             .len()
             .checked_sub(1)
             .expect("a selector has at least one compound");
-        self.compounds[last].matches(element) && self.match_chain(last, ancestors)
+        let context = MatchContext::of(element, ancestors);
+        self.compounds[last].matches(element, &context) && self.match_chain(last, &context)
     }
 
     /// Match `compounds[..=index]`, given that `compounds[index]` matches the
-    /// current element and `ancestors` are that element's ancestors.
-    fn match_chain(&self, index: usize, ancestors: &[&Element]) -> bool {
+    /// element `context` describes.
+    fn match_chain(&self, index: usize, context: &MatchContext<'_>) -> bool {
         if index == 0 {
             return true;
         }
         let compound = &self.compounds[index - 1];
         match self.combinators[index - 1] {
-            Combinator::Child => match ancestors.split_last() {
+            Combinator::Child => match context.ancestors.split_last() {
                 None => false,
                 Some((parent, rest)) => {
-                    compound.matches(parent) && self.match_chain(index - 1, rest)
+                    let parent_context = MatchContext::of(parent, rest);
+                    compound.matches(parent, &parent_context)
+                        && self.match_chain(index - 1, &parent_context)
                 }
             },
             Combinator::Descendant => {
-                ancestors
+                context
+                    .ancestors
                     .iter()
                     .enumerate()
                     .rev()
                     .any(|(position, ancestor)| {
-                        compound.matches(ancestor)
-                            && self.match_chain(index - 1, &ancestors[..position])
+                        let ancestor_context =
+                            MatchContext::of(ancestor, &context.ancestors[..position]);
+                        compound.matches(ancestor, &ancestor_context)
+                            && self.match_chain(index - 1, &ancestor_context)
+                    })
+            }
+            Combinator::AdjacentSibling => {
+                // The sibling just before `element` shares its ancestry, so the
+                // context is the same but for the sibling's own index.
+                if context.index == 0 {
+                    return false;
+                }
+                let Some(sibling) = context.siblings().nth(context.index - 1) else {
+                    return false;
+                };
+                let sibling_context = MatchContext {
+                    index: context.index - 1,
+                    ..*context
+                };
+                compound.matches(sibling, &sibling_context)
+                    && self.match_chain(index - 1, &sibling_context)
+            }
+            Combinator::GeneralSibling => {
+                context
+                    .siblings()
+                    .take(context.index)
+                    .enumerate()
+                    .any(|(position, sibling)| {
+                        let sibling_context = MatchContext {
+                            index: position,
+                            ..*context
+                        };
+                        compound.matches(sibling, &sibling_context)
+                            && self.match_chain(index - 1, &sibling_context)
                     })
             }
         }
@@ -403,8 +684,8 @@ fn parse_selectors(text: &str) -> Result<Vec<Selector>, Error> {
     Ok(selectors)
 }
 
-/// Parse one complex selector: compounds joined by descendant or child
-/// combinators, such as `div.card > p span`.
+/// Parse one complex selector: compounds joined by combinators, such as
+/// `div.card > p span` or `h1 + p ~ span`.
 fn parse_complex(text: &str) -> Result<Selector, Error> {
     let mut compounds = Vec::new();
     let mut combinators = Vec::new();
@@ -418,8 +699,16 @@ fn parse_complex(text: &str) -> Result<Selector, Error> {
         if trimmed.is_empty() {
             break;
         }
+        // A combinator may be written with or without surrounding spaces; a
+        // space alone is the descendant combinator.
         if let Some(after) = trimmed.strip_prefix('>') {
             combinators.push(Combinator::Child);
+            rest = after.trim_start();
+        } else if let Some(after) = trimmed.strip_prefix('+') {
+            combinators.push(Combinator::AdjacentSibling);
+            rest = after.trim_start();
+        } else if let Some(after) = trimmed.strip_prefix('~') {
+            combinators.push(Combinator::GeneralSibling);
             rest = after.trim_start();
         } else if had_space {
             combinators.push(Combinator::Descendant);
@@ -440,7 +729,10 @@ fn parse_complex(text: &str) -> Result<Selector, Error> {
 
 /// Characters that end a compound selector's name.
 fn ends_name(character: char) -> bool {
-    character == '#' || character == '.' || character == '>' || character.is_whitespace()
+    matches!(
+        character,
+        '#' | '.' | '[' | ':' | '>' | '+' | '~' | '*' | ',' | '(' | ')'
+    ) || character.is_whitespace()
 }
 
 /// Whether `character` may appear in a tag name.
@@ -455,8 +747,9 @@ fn is_tag_character(character: char) -> bool {
 
 /// Parse one compound selector and return it with the text that follows it.
 ///
-/// The grammar is an optional tag (or `*`) followed by any number of `#id` and
-/// `.class` parts, so `div.card#main`, `.c`, `#x` and `*` are all compounds.
+/// The grammar is an optional tag (or `*`) followed by any number of `#id`,
+/// `.class`, `[attribute]` and `:pseudo-class` parts, so `div.card#main[href]`,
+/// `.c`, `#x`, `*` and `:first-child` are all compounds.
 fn parse_compound(text: &str) -> Result<(Compound, &str), Error> {
     let mut compound = Compound::default();
     let end = text.find(ends_name).unwrap_or(text.len());
@@ -475,36 +768,289 @@ fn parse_compound(text: &str) -> Result<(Compound, &str), Error> {
         } else {
             return Err(Error::Malformed(format!("cannot read selector `{text}`")));
         }
+    } else if let Some(after) = rest.strip_prefix('*') {
+        // The universal selector at the head of the compound, which `ends_name`
+        // also treats as a boundary so that `*:first-child` splits here.
+        named = true;
+        rest = after;
     }
 
     while let Some(first) = rest.chars().next() {
-        if first != '#' && first != '.' {
-            break;
-        }
-        let tail = &rest[1..];
-        let end = tail.find(ends_name).unwrap_or(tail.len());
-        let name = &tail[..end];
-        if name.is_empty() {
-            return Err(Error::Malformed(format!("empty name in selector `{text}`")));
-        }
-        if first == '#' {
-            if compound.id.is_some() {
-                return Err(Error::Malformed(format!(
-                    "more than one id in selector `{text}`"
-                )));
+        match first {
+            '#' | '.' => {
+                let tail = &rest[1..];
+                let end = tail.find(ends_name).unwrap_or(tail.len());
+                let name = &tail[..end];
+                if name.is_empty() {
+                    return Err(Error::Malformed(format!("empty name in selector `{text}`")));
+                }
+                if first == '#' {
+                    if compound.id.is_some() {
+                        return Err(Error::Malformed(format!(
+                            "more than one id in selector `{text}`"
+                        )));
+                    }
+                    compound.id = Some(name.to_owned());
+                } else {
+                    compound.classes.push(name.to_owned());
+                }
+                named = true;
+                rest = &tail[end..];
             }
-            compound.id = Some(name.to_owned());
-        } else {
-            compound.classes.push(name.to_owned());
+            '[' => {
+                let (attribute, tail) = parse_attribute(rest, text)?;
+                compound.attributes.push(attribute);
+                named = true;
+                rest = tail;
+            }
+            ':' => {
+                let (pseudo, tail) = parse_pseudo_class(rest, text)?;
+                match pseudo {
+                    ParsedPseudo::Class(class) => compound.pseudo_classes.push(class),
+                    ParsedPseudo::Negation(argument) => {
+                        if compound.negation.is_some() {
+                            return Err(Error::Malformed(format!(
+                                "more than one :not() in selector `{text}`"
+                            )));
+                        }
+                        compound.negation = Some(Box::new(argument));
+                    }
+                }
+                named = true;
+                rest = tail;
+            }
+            _ => break,
         }
-        named = true;
-        rest = &tail[end..];
     }
 
     if !named {
         return Err(Error::Malformed(format!("cannot read selector `{text}`")));
     }
     Ok((compound, rest))
+}
+
+/// One parsed `:pseudo-class` part.
+enum ParsedPseudo {
+    /// A structural pseudo-class.
+    Class(PseudoClass),
+    /// A `:not()` and the compound it negates.
+    Negation(Compound),
+}
+
+/// Parse an attribute selector `[...]` and return it with the text after `]`.
+fn parse_attribute<'t>(text: &'t str, whole: &str) -> Result<(AttributeSelector, &'t str), Error> {
+    let body_start = text
+        .strip_prefix('[')
+        .ok_or_else(|| Error::Malformed(format!("expected `[` in selector `{whole}`")))?;
+    let close = find_attribute_close(body_start)
+        .ok_or_else(|| Error::Malformed(format!("unclosed attribute selector `{whole}`")))?;
+    let body = body_start[..close].trim();
+    let rest = &body_start[close + 1..];
+
+    // The name runs to an operator or the end. The value operators all begin
+    // with one of `~ | ^ $ *`, so the name ends there too; a bare `|` would be
+    // a namespace, which is not supported, so the parse fails below.
+    let name_end = body
+        .find(|c: char| c.is_whitespace() || c == '=' || matches!(c, '~' | '|' | '^' | '$' | '*'))
+        .unwrap_or(body.len());
+    let name = &body[..name_end];
+    if name.is_empty() {
+        return Err(Error::Malformed(format!(
+            "empty attribute name in selector `{whole}`"
+        )));
+    }
+    let after_name = body[name_end..].trim_start();
+    if after_name.is_empty() {
+        return Ok((
+            AttributeSelector {
+                name: name.to_ascii_lowercase(),
+                test: None,
+            },
+            rest,
+        ));
+    }
+    // The operator is one or two characters ending in `=`.
+    let (operator, after_operator) = if let Some(rest) = after_name.strip_prefix('=') {
+        (AttributeMatch::Equals, rest)
+    } else {
+        let mut chars = after_name.chars();
+        let sigil = chars.next().unwrap_or(' ');
+        let operator = match sigil {
+            '~' => AttributeMatch::Includes,
+            '|' => AttributeMatch::DashMatch,
+            '^' => AttributeMatch::Prefix,
+            '$' => AttributeMatch::Suffix,
+            '*' => AttributeMatch::Substring,
+            _ => {
+                return Err(Error::Malformed(format!(
+                    "cannot read attribute selector `{whole}`"
+                )));
+            }
+        };
+        let Some(rest) = after_name[sigil.len_utf8()..].strip_prefix('=') else {
+            return Err(Error::Malformed(format!(
+                "cannot read attribute selector `{whole}`"
+            )));
+        };
+        (operator, rest)
+    };
+    let value = parse_attribute_value(after_operator.trim_start(), whole)?;
+    Ok((
+        AttributeSelector {
+            name: name.to_ascii_lowercase(),
+            test: Some((operator, value)),
+        },
+        rest,
+    ))
+}
+
+/// Find the `]` that closes an attribute selector, ignoring one inside a quoted
+/// value, so `[title="a]b"]` reads its whole value. Returns the byte offset of
+/// the `]` within `body_start`.
+fn find_attribute_close(body_start: &str) -> Option<usize> {
+    let mut quote: Option<char> = None;
+    for (position, character) in body_start.char_indices() {
+        match quote {
+            Some(open) => {
+                if character == open {
+                    quote = None;
+                }
+            }
+            None => match character {
+                '"' | '\'' => quote = Some(character),
+                ']' => return Some(position),
+                _ => {}
+            },
+        }
+    }
+    None
+}
+
+/// Read an attribute selector's value, quoted or bare.
+fn parse_attribute_value(text: &str, whole: &str) -> Result<String, Error> {
+    match text.chars().next() {
+        Some(quote @ ('"' | '\'')) => {
+            let body = &text[quote.len_utf8()..];
+            let end = body.find(quote).ok_or_else(|| {
+                Error::Malformed(format!("unclosed attribute value in selector `{whole}`"))
+            })?;
+            Ok(body[..end].to_owned())
+        }
+        Some(_) => {
+            let end = text.find(']').unwrap_or(text.len());
+            Ok(text[..end].trim().to_owned())
+        }
+        None => Err(Error::Malformed(format!(
+            "missing attribute value in selector `{whole}`"
+        ))),
+    }
+}
+
+/// Parse a `:pseudo-class` part and return it with the text after it.
+fn parse_pseudo_class<'t>(text: &'t str, whole: &str) -> Result<(ParsedPseudo, &'t str), Error> {
+    let body = text
+        .strip_prefix(':')
+        .ok_or_else(|| Error::Malformed(format!("expected `:` in selector `{whole}`")))?;
+    let name_end = body
+        .find(|c: char| !(c.is_ascii_alphanumeric() || c == '-'))
+        .unwrap_or(body.len());
+    let name = &body[..name_end];
+    let after = &body[name_end..];
+
+    let simple = |class: PseudoClass| Ok((ParsedPseudo::Class(class), after));
+    match name {
+        "root" => return simple(PseudoClass::Root),
+        "first-child" => return simple(PseudoClass::FirstChild),
+        "last-child" => return simple(PseudoClass::LastChild),
+        "only-child" => return simple(PseudoClass::OnlyChild),
+        "nth-child" | "nth-last-child" => {
+            let (argument, rest) = read_parenthesized(after, whole)?;
+            let nth = parse_nth(&argument)
+                .ok_or_else(|| Error::Malformed(format!("cannot read `:{name}({argument})`")))?;
+            let class = if name == "nth-child" {
+                PseudoClass::NthChild(nth)
+            } else {
+                PseudoClass::NthLastChild(nth)
+            };
+            return Ok((ParsedPseudo::Class(class), rest));
+        }
+        "not" => {
+            let (argument, rest) = read_parenthesized(after, whole)?;
+            let (compound, leftover) = parse_compound(argument.trim())?;
+            if !leftover.trim().is_empty() {
+                return Err(Error::Malformed(format!(
+                    "`:not()` takes a single compound in selector `{whole}`"
+                )));
+            }
+            return Ok((ParsedPseudo::Negation(compound), rest));
+        }
+        _ => {}
+    }
+    Err(Error::Malformed(format!(
+        "unsupported pseudo-class `:{name}` in selector `{whole}`"
+    )))
+}
+
+/// Read a parenthesized argument, returning it and the text after `)`.
+///
+/// The argument may itself hold parentheses, as `:not(:nth-child(2n+1))` does,
+/// so the closing `)` is the one that matches the opening `(` rather than the
+/// first one found.
+fn read_parenthesized<'t>(text: &'t str, whole: &str) -> Result<(String, &'t str), Error> {
+    let body = text
+        .strip_prefix('(')
+        .ok_or_else(|| Error::Malformed(format!("expected `(` in selector `{whole}`")))?;
+    let mut depth = 1usize;
+    for (position, character) in body.char_indices() {
+        match character {
+            '(' => depth += 1,
+            ')' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Ok((
+                        body[..position].to_owned(),
+                        &body[position + character.len_utf8()..],
+                    ));
+                }
+            }
+            _ => {}
+        }
+    }
+    Err(Error::Malformed(format!(
+        "unclosed `(` in selector `{whole}`"
+    )))
+}
+
+/// Parse the `an+b` argument of an `:nth-*()` pseudo-class.
+///
+/// Accepts `odd`, `even`, a bare integer (`3`), a bare `n` form (`n`, `2n`,
+/// `-n`), and the full `an+b` (`2n+1`, `2n - 1`, `-3n+2`). Whitespace around
+/// the `+`/`-` sign is allowed, as the grammar permits.
+fn parse_nth(text: &str) -> Option<Nth> {
+    let compact: String = text.chars().filter(|c| !c.is_whitespace()).collect();
+    let lowered = compact.to_ascii_lowercase();
+    match lowered.as_str() {
+        "odd" => return Some(Nth { a: 2, b: 1 }),
+        "even" => return Some(Nth { a: 2, b: 0 }),
+        _ => {}
+    }
+    let Some(n_position) = lowered.find('n') else {
+        let b: i64 = lowered.parse().ok()?;
+        return Some(Nth { a: 0, b });
+    };
+    let a_text = &lowered[..n_position];
+    let a = match a_text {
+        "" | "+" => 1,
+        "-" => -1,
+        other => other.parse().ok()?,
+    };
+    let b_text = &lowered[n_position + 1..];
+    let b = if b_text.is_empty() {
+        0
+    } else {
+        b_text.parse().ok()?
+    };
+    Some(Nth { a, b })
 }
 
 /// Parse a `property: value;` list, as found inside a block or in a `style`
@@ -552,6 +1098,7 @@ mod tests {
             id: None,
             classes: Vec::new(),
             style: None,
+            attributes: Vec::new(),
             children: Vec::new(),
         }
     }
@@ -711,5 +1258,220 @@ mod tests {
         // With no div above it only `p` matches.
         let declarations = stylesheet.declarations_for(&p, &[]);
         assert_eq!(declarations.last().unwrap().value, "30px");
+    }
+
+    /// An element with the given attributes, name lower-cased as the HTML
+    /// parser lower-cases them.
+    fn element_with(tag: &str, attributes: &[(&str, &str)]) -> Element {
+        Element {
+            tag: tag.to_owned(),
+            id: attributes
+                .iter()
+                .find(|(name, _)| *name == "id")
+                .map(|(_, value)| (*value).to_owned()),
+            classes: attributes
+                .iter()
+                .find(|(name, _)| *name == "class")
+                .map(|(_, value)| value.split_whitespace().map(str::to_owned).collect())
+                .unwrap_or_default(),
+            style: None,
+            attributes: attributes
+                .iter()
+                .map(|(name, value)| ((*name).to_owned(), Some((*value).to_owned())))
+                .collect(),
+            children: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn a_sibling_combinator_parses_with_or_without_spaces() {
+        for text in ["h1 + p", "h1+p", "h1 ~ p", "h1~p"] {
+            let selector = sheet(text);
+            assert_eq!(selector.compounds.len(), 2, "{text}");
+            assert_eq!(
+                selector.combinators,
+                vec![if text.contains('+') {
+                    Combinator::AdjacentSibling
+                } else {
+                    Combinator::GeneralSibling
+                }],
+                "{text}"
+            );
+        }
+    }
+
+    #[test]
+    fn an_attribute_selector_parses_into_its_operator_and_value() {
+        let cases = [
+            ("[a]", None),
+            ("[a=v]", Some((AttributeMatch::Equals, "v"))),
+            ("[a~=v]", Some((AttributeMatch::Includes, "v"))),
+            ("[a|=v]", Some((AttributeMatch::DashMatch, "v"))),
+            ("[a^=v]", Some((AttributeMatch::Prefix, "v"))),
+            ("[a$=v]", Some((AttributeMatch::Suffix, "v"))),
+            ("[a*=v]", Some((AttributeMatch::Substring, "v"))),
+            ("[a='v']", Some((AttributeMatch::Equals, "v"))),
+            ("[A=v]", Some((AttributeMatch::Equals, "v"))),
+            // A `]` inside a quoted value does not close the selector.
+            ("[a='v]w']", Some((AttributeMatch::Equals, "v]w"))),
+        ];
+        for (text, expected) in cases {
+            let selector = sheet(text);
+            let attribute = &selector.compounds[0].attributes[0];
+            assert_eq!(attribute.name, "a", "{text}");
+            assert_eq!(
+                attribute.test,
+                expected.map(|(operator, value)| (operator, value.to_owned())),
+                "{text}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_attribute_operators_match_the_reference() {
+        let element = element_with(
+            "div",
+            &[("data-x", "a b c"), ("lang", "en-US"), ("empty", "")],
+        );
+        let matches = |selector: &str| sheet(selector).matches(&element, &[]);
+
+        assert!(matches("[data-x]"));
+        assert!(!matches("[missing]"));
+        assert!(matches("[data-x='a b c']"));
+        assert!(!matches("[data-x='a']"));
+        assert!(matches("[data-x~='b']"));
+        // `~=` compares whole whitespace-separated words, so a substring fails.
+        assert!(!matches("[data-x~='a b']"));
+        assert!(matches("[lang|='en']"));
+        assert!(!matches("[lang|='en-']"));
+        assert!(matches("[data-x^='a b']"));
+        assert!(!matches("[data-x^='b']"));
+        assert!(matches("[data-x$='c']"));
+        assert!(!matches("[data-x$='b']"));
+        assert!(matches("[data-x*='b']"));
+        assert!(!matches("[data-x*='z']"));
+        // An empty value matches an empty attribute, but `^=`, `$=` and `*=`
+        // with an empty argument never match.
+        assert!(matches("[empty='']"));
+        assert!(!matches("[data-x^='']"));
+    }
+
+    #[test]
+    fn the_structural_pseudo_classes_read_the_sibling_position() {
+        let parent = Element {
+            children: (0..3).map(|_| Node::Element(element("div"))).collect(),
+            ..element("section")
+        };
+        let first = match &parent.children[0] {
+            Node::Element(element) => element,
+            Node::Text(_) => unreachable!(),
+        };
+        let second = match &parent.children[1] {
+            Node::Element(element) => element,
+            Node::Text(_) => unreachable!(),
+        };
+        let third = match &parent.children[2] {
+            Node::Element(element) => element,
+            Node::Text(_) => unreachable!(),
+        };
+        let ancestors: Vec<&Element> = vec![&parent];
+
+        let matches =
+            |selector: &str, element: &Element| sheet(selector).matches(element, &ancestors);
+
+        assert!(matches("div:first-child", first));
+        assert!(!matches("div:first-child", second));
+        assert!(matches("div:last-child", third));
+        assert!(matches("div:nth-child(2)", second));
+        assert!(matches("div:nth-child(odd)", first));
+        assert!(matches("div:nth-child(odd)", third));
+        assert!(matches("div:nth-child(even)", second));
+        assert!(matches("div:nth-child(2n+1)", third));
+        assert!(matches("div:nth-last-child(1)", third));
+        assert!(matches("div:nth-last-child(2)", second));
+        assert!(!matches("div:only-child", first));
+        assert!(matches("div:not(:first-child)", second));
+        assert!(!matches("div:not(:first-child)", first));
+    }
+
+    #[test]
+    fn a_sibling_combinator_matches_the_siblings_before_the_subject() {
+        let parent = Element {
+            children: (0..3).map(|_| Node::Element(element("div"))).collect(),
+            ..element("section")
+        };
+        let first = match &parent.children[0] {
+            Node::Element(element) => element,
+            Node::Text(_) => unreachable!(),
+        };
+        let second = match &parent.children[1] {
+            Node::Element(element) => element,
+            Node::Text(_) => unreachable!(),
+        };
+        let third = match &parent.children[2] {
+            Node::Element(element) => element,
+            Node::Text(_) => unreachable!(),
+        };
+        let ancestors: Vec<&Element> = vec![&parent];
+
+        // `+` matches only the second, whose immediately preceding sibling is a
+        // `div`.
+        assert!(!sheet("div + div").matches(first, &ancestors));
+        assert!(sheet("div + div").matches(second, &ancestors));
+        assert!(sheet("div + div").matches(third, &ancestors));
+        // `~` matches both later siblings.
+        assert!(sheet("div ~ div").matches(third, &ancestors));
+        // A sibling combinator needs a shared parent, so an element whose only
+        // ancestor is the parent is matched, but a deeper one is not.
+        assert!(!sheet("section + div").matches(first, &ancestors));
+    }
+
+    #[test]
+    fn the_nth_argument_parses_odd_even_and_an_plus_b() {
+        assert_eq!(parse_nth("odd"), Some(Nth { a: 2, b: 1 }));
+        assert_eq!(parse_nth("even"), Some(Nth { a: 2, b: 0 }));
+        assert_eq!(parse_nth("3"), Some(Nth { a: 0, b: 3 }));
+        assert_eq!(parse_nth("n"), Some(Nth { a: 1, b: 0 }));
+        assert_eq!(parse_nth("2n"), Some(Nth { a: 2, b: 0 }));
+        assert_eq!(parse_nth("-n"), Some(Nth { a: -1, b: 0 }));
+        assert_eq!(parse_nth("2n+1"), Some(Nth { a: 2, b: 1 }));
+        assert_eq!(parse_nth("2n - 1"), Some(Nth { a: 2, b: -1 }));
+        assert_eq!(parse_nth("-3n+2"), Some(Nth { a: -3, b: 2 }));
+        assert_eq!(parse_nth("nonsense"), None);
+    }
+
+    #[test]
+    fn a_negated_attribute_and_pseudo_class_are_read() {
+        let element = element_with("div", &[("data-x", "a")]);
+        assert!(!sheet("div:not([data-x])").matches(&element, &[]));
+        assert!(sheet("div:not([data-y])").matches(&element, &[]));
+    }
+
+    #[test]
+    fn the_new_grammar_rejects_what_it_does_not_support() {
+        for text in [
+            "div:nth-child()",
+            "div:hover",
+            "div::before",
+            "div:not(.a .b)",
+            "[a='unclosed]",
+            "[=v]",
+        ] {
+            let source = format!("{text} {{ width: 1px }}");
+            assert!(
+                Stylesheet::parse(&source).is_err(),
+                "`{text}` should not parse"
+            );
+        }
+    }
+
+    #[test]
+    fn an_attribute_and_a_pseudo_class_add_to_specificity() {
+        // An attribute selector and a pseudo-class each count as a class.
+        assert_eq!(sheet("div[data-x]").specificity(), (0, 1, 1));
+        assert_eq!(sheet("div:first-child").specificity(), (0, 1, 1));
+        // `:not()` counts as its argument, not for itself.
+        assert_eq!(sheet("div:not(.a)").specificity(), (0, 1, 1));
+        assert_eq!(sheet("div:not(#a)").specificity(), (1, 0, 1));
     }
 }

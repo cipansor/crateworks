@@ -184,8 +184,11 @@ to write down.
   exercise that shape, so it is behaviour rather than a bug, and the crate now
   reproduces it; the corpus is what made that visible, because the first version
   of the walk descended one level too far and the curated cases agreed with it.
-- `cssprint` — 400 random documents over the implemented property set, laid out
-  by WeasyPrint and recorded as a box tree. The curated cases were the shapes
+- `cssprint` — 2000 random documents over the implemented property set, laid out
+  by WeasyPrint and recorded as a box tree, plus a selector corpus of 1200
+  documents whose elements carry ids, classes and attributes under a stylesheet
+  of attribute selectors, structural pseudo-classes and sibling combinators. The
+  curated cases were the shapes
   someone thought of; the random ones are the shapes nobody wrote down. Adding
   numeric expressions to the word pool surfaced a real bug the curated cases
   passed over: the crate never allowed a break at the seam between two adjacent
@@ -193,7 +196,11 @@ to write down.
   broke it. The reference decides a seam from the two adjacent characters alone,
   which is why `3/` then `4` breaks at the seam while `3/4` in one text node does
   not. It found the seam rule, and the corpus is now committed so the next change
-  that moves a random box fails CI rather than passing on the curated cases.
+  that moves a random box fails CI rather than passing on the curated cases. The
+  selector corpus is what a change to the selector engine is measured against:
+  the random cases draw every attribute operator and every structural
+  pseudo-class, so a matching bug that the curated shapes miss still moves a box
+  in the random corpus.
 
 ## Companion extractors
 

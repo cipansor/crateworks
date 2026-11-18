@@ -18,3 +18,29 @@ inline_ancestor_child	<style>@page { size: 200px 200px; margin: 0 }body{margin:0
 inline_ancestor_display_none	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}div span span{display:none}</style><div><span>a<span>b</span></span></div>
 inline_child_needs_immediate_parent	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}div > span span{font-size:24px}</style><div><section><span>a<span>b</span></span></section></div>
 non_ascii_tag_matches	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}café{font-size:24px}</style><div><café>ab</café></div>
+sibling_adjacent	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}div + div{width:40px;height:10px}</style><div></div><div></div><div></div>
+sibling_general	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}div ~ div{width:40px;height:10px}</style><div></div><div></div><div></div>
+sibling_adjacent_with_class	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}div.c + div{width:40px;height:10px}</style><div class="c"></div><div></div><div></div>
+sibling_adjacent_inline	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}span + span{font-size:24px}</style><div><span>a</span><span>b</span></div>
+sibling_needs_shared_parent	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}div + div{width:40px;height:10px}</style><div><div></div></div>
+attribute_present	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}[data-x]{width:40px;height:10px}</style><div data-x="a"></div><div></div>
+attribute_equals	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}[data-x="a"]{width:40px;height:10px}</style><div data-x="a"></div><div data-x="b"></div>
+attribute_includes	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}[data-x~="b"]{width:40px;height:10px}</style><div data-x="a b c"></div><div data-x="ab"></div>
+attribute_dash	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}[lang|="en"]{width:40px;height:10px}</style><div lang="en"></div><div lang="en-US"></div><div lang="english"></div>
+attribute_prefix	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}[data-x^="ab"]{width:40px;height:10px}</style><div data-x="abc"></div><div data-x="zab"></div>
+attribute_suffix	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}[data-x$="bc"]{width:40px;height:10px}</style><div data-x="abc"></div><div data-x="abz"></div>
+attribute_substring	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}[data-x*="b"]{width:40px;height:10px}</style><div data-x="abc"></div><div data-x="zzz"></div>
+attribute_and_class	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}div[data-x].c{width:40px;height:10px}</style><div class="c" data-x="a"></div><div data-x="a"></div>
+first_child	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}div:first-child{width:40px;height:10px}</style><section></section><div></div><div></div>
+last_child	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}div:last-child{width:40px;height:10px}</style><div></div><div></div><section></section>
+only_child	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}div:only-child{width:40px;height:10px}</style><section><div></div></section><section><div></div><div></div></section>
+nth_child_odd	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}div:nth-child(odd){width:40px;height:10px}</style><div></div><div></div><div></div><div></div>
+nth_child_2n_plus_1	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}div:nth-child(2n+1){width:40px;height:10px}</style><div></div><div></div><div></div><div></div>
+nth_child_index	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}div:nth-child(3){width:40px;height:10px}</style><div></div><div></div><div></div><div></div>
+nth_last_child	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}div:nth-last-child(1){width:40px;height:10px}</style><div></div><div></div><div></div>
+not_class	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}div:not(.c){width:40px;height:10px}</style><div class="c"></div><div></div>
+not_first_child	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}div:not(:first-child){width:40px;height:10px}</style><div></div><div></div><div></div>
+combinator_with_pseudo	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}div > section:last-child{width:40px;height:10px}</style><div><section></section><section></section></div>
+root_first_child	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}html:first-child{width:44px;height:11px}</style><div></div>
+root_only_child	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}html:only-child{width:44px;height:11px}</style><div></div>
+root_pseudo	<style>@page { size: 200px 200px; margin: 0 }body{margin:0;font-family:weasyprint}html:root{width:44px;height:11px}</style><div></div>
