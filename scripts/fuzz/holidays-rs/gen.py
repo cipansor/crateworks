@@ -18,10 +18,12 @@ occurrence in the corpus does.
 The 0.8.1 fix bounded several tables at the year each holiday actually began,
 which `historical_bounds.rs` then checks at the two years either side of a
 bound. That file probes boundaries; this one covers the interior, so the two
-answer different questions. Fifteen more calendars were gate-clean over the
-whole window and are frozen here for that reason. The ones that are not are in
-`EXCLUDED` with the difference that keeps them out, which is printed into the
-fixture so the omission is visible where the data is read.
+answer different questions. The list grew from six to 31: the calendars this
+round changed, plus the ones whose history it rewrote, plus Congo, which was
+gate-clean and uncovered. It is not every gate-clean calendar - 49 of those are
+still absent - so the corpus is a growing subset, not a complete freeze. A
+calendar belongs in `EXCLUDED` only while the gate reports a difference for it;
+that dict is a record of known divergences, not a list of what is missing.
 
 The corpus is the reference's answer over the whole window, not a sample of it.
 A calendar's oracle is small enough to take whole, and a random sample can miss
@@ -94,6 +96,10 @@ COUNTRIES = {
     "SaintLucia": ("LC", 1979),
     "Seychelles": ("SC", 1994),
     "WallisAndFutuna": ("WF", 1962),
+    # Gate-clean from its 1994 start year, so it can be frozen. The window
+    # starts at that year, which is also where its Labour Day begins, so the
+    # bound itself is guarded by historical_bounds.rs rather than here.
+    "Congo": ("CG", 1994),
     # The French family, added once the 0.8.1 fix bounded their shared days
     # (1 May 1919, 11 November 1922, the abolition days in 1983-1984) and
     # turned the two `Until`-only rules into `Between`. Before that each one

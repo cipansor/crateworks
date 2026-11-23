@@ -160,15 +160,17 @@ answers a different question - and the script records why each is skipped.
 
 The gate compares calendar by calendar, so a second corpus pins the answers as
 data: `scripts/fuzz/holidays-rs/gen.py` writes
-`tests/fixtures/holidays_oracle.tsv`, 61,082 rows over 30 calendars and
-1900-2075. Each row is a date the reference reports (`must` on a weekday,
-`allow` at a weekend, where the crate may keep or drop it) or a date it has
-nothing for (`absent`). The window starts at 1900 rather than at each
-country's own `start_year`, which is the one place it differs from the gate: a
-year before the fit window is not evidence about the crate, so it is left out
-rather than frozen. A calendar the gate still reports a difference for is
-listed in the generator's `EXCLUDED` with the reason, and the generator refuses
-to run if such a calendar also appears in `COUNTRIES`.
+`tests/fixtures/holidays_oracle.tsv`, 62,481 rows over 31 calendars. Each row is
+a date the reference reports (`must` on a weekday, `allow` at a weekend, where
+the crate may keep or drop it) or a date it has nothing for (`absent`). The
+window is the gate's own - each country's reference `start_year`, floored at
+1900 - extended to 2075 rather than the gate's 2050, so the corpus reaches ten
+years further into the future while agreeing on where to begin. The corpus is a
+growing subset rather than every calendar: 49 gate-clean calendars are still
+absent. A calendar the gate reports a difference for goes into the generator's
+`EXCLUDED` with that difference, which is a record of known divergences rather
+than a list of everything missing, and the generator refuses to run if such a
+calendar also appears in `COUNTRIES`.
 
 Part of the [crateworks](https://github.com/cipansor/crateworks)
 workspace. Licensed under the Apache License, Version 2.0, copyright Yayasan

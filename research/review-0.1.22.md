@@ -95,8 +95,8 @@ of them fail, so they are a real guard rather than a restatement.
 
 Those probes are still only hand-picked dates, so the corpus itself now covers
 every calendar this round touched: `scripts/fuzz/holidays-rs/gen.py` goes from 6
-calendars to 30, and the fixture from 10,935 rows to 61,082. That is 34,049
-required dates, 9,033 weekend-allowed ones and 18,000 dates the crate must stay
+calendars to 31, and the fixture from 10,935 rows to 62,481. That is 34,691
+required dates, 9,190 weekend-allowed ones and 18,600 dates the crate must stay
 silent on, over 1900-2075. The floor is
 `EARLIEST = 1900`, matching the gate: a year before the fit window is not
 evidence about the crate, so freezing it would record the crate's own guesses as
@@ -111,6 +111,35 @@ frozen a known-wrong answer.
 it. The Scope section now records the `Until` lower-bound trap with Estonia as
 the worked example, and states that a year before a country's reference
 `start_year` is best-effort rather than verified.
+
+## Second review round
+
+Review found two more defects in the corpus, both fixed here.
+
+**The Republic of the Congo was gate-clean and left out with no reason given.**
+It was not the only one - 49 gate-clean calendars are still absent from the
+corpus - but it was the one this round had just fixed and re-verified, so
+leaving it out meant the fix had no regression guard in the data. Its reference
+start year is 1994 and it agrees on every date from 1994 to 2075 (0 differences),
+including the Labour Day that begins in 1994, so it is now in `COUNTRIES` rather
+than `EXCLUDED`. The corpus is 31 calendars and 62,481 rows: 34,691 required,
+9,190 weekend-allowed and 18,600 absent.
+
+The corpus does not guard that bound, though, and measuring it showed why. Its
+window starts at the country's `start_year`, which for Congo is 1994 - exactly
+the year the leak stops - so reverting the `Since` leaves the corpus test green.
+The boundary is guarded by `historical_bounds.rs` instead, which now pairs 1993
+with 1994 for Congo and fails when the `Since` is removed. `closest.tsv` could
+not catch it either, since its probes start in 2020. The remaining 49 gate-clean
+calendars are the backlog, and the generator's docstring now says so rather than
+implying the corpus is every gate-clean calendar.
+
+**The README described the corpus window wrongly.** It said the corpus starts at
+1900 rather than at each country's `start_year`, and that this was the one place
+it differs from the gate. The generator actually uses
+`max(country_start, EARLIEST)` - the same floor as the gate - so the two agree
+on where to begin and differ only in where they end: `LAST = 2075` against the
+gate's 2050. The README now says that.
 
 ## Verification
 

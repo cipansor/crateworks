@@ -120,3 +120,14 @@ fn wallis_and_futuna_victory_day_starts_in_1982() {
     assert_not_holiday(&cal, d(1981, 5, 8));
     assert_holiday(&cal, d(1982, 5, 8));
 }
+
+#[test]
+fn congo_labour_day_starts_in_1994() {
+    let cal = Calendar::congo();
+    // The reference's Congo start year is 1994, so the corpus cannot check this
+    // bound: its window begins exactly where the leak stops, which is the trap
+    // this file exists for. Without `Since`, 1 May is reported from year zero.
+    assert_not_holiday(&cal, d(1993, 5, 1));
+    assert_holiday(&cal, d(1994, 5, 1));
+    assert_holiday(&cal, d(1995, 5, 1));
+}

@@ -461,12 +461,20 @@ regression coverage in CI at all.
 - **A reference-derived fixture must use the same window as the gate.** The
   holiday corpus originally started at each country's own `start_year`, while
   `holidays_oracle.tsv` was generated from year 1. Generating from year 1 for the
-  30 calendars in the corpus gives 424,318 differing dates before 1900 - years
+  31 calendars in the corpus gives 439,456 differing dates before 1900 - years
   the fit never saw, where the crate answers from its rules and the reference is
   silent or models a different regime. A fixture is only evidence inside the
   window the tables were fitted against; freezing years outside it records the
   crate's guesses as if they were correct. Both sides now floor at
   `EARLIEST = 1900`.
+- **That same window means a corpus cannot guard a `start_year` bound.** Adding
+  Congo to the corpus looked like it would protect its 1994 Labour Day, and
+  reverting the `Since` to a bare `Fixed` left the corpus test green: the corpus
+  begins at Congo's `start_year`, which is the exact year the leak stops, so the
+  one year that would differ is outside it. Check a new fixture by breaking the
+  behaviour it is supposed to catch. A bound at `start_year` needs
+  `historical_bounds.rs`, which pairs the year before with the year itself;
+  nothing derived from the reference's own window can see it.
 - **A comparison that only looks at what you changed will report zero.** A
   review claim of "0 mismatches 1945-2000 across 13 calendars" was true of the
   entries that round had edited and false of the calendars containing them.
