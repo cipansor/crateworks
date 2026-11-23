@@ -5,27 +5,54 @@
 //! `forwarded-parse` 2.2.0 over a generated corpus. The reference is what the
 //! parser reimplements, so any disagreement is a bug in this crate.
 //!
-//! Each row is a hex-encoded UTF-8 header and the reference's verdict:
+//! Each row is a hex-encoded UTF-8 header, a strictness, and the reference's
+//! verdict:
 //!
-//! * `OK[{a=b,...}|{...}]` — the elements in header order, each a sorted
-//!   `name=value` list.
+//! * `OK[{a:b,...}|{...}]` — the elements in header order, each a sorted
+//!   `name:value` list with both sides JSON-quoted.
 //! * `!pos:<n>` — an unexpected character at index `n`.
 //! * `!eof` — the header ended in the middle of an element.
 //!
 //! Rejection is compared on the index, not just on the verdict: a parser that
 //! stops at the right character but reports the wrong one is a different
 //! parser, and the index is what a caller logs.
+//!
+//! # The one deliberate divergence
+//!
+//! RFC 7230 section 7 says a recipient **MUST** parse and ignore a reasonable
+//! number of empty list elements, so `for=1.2.3.4,,for=5.6.7.8` is a header this
+//! crate must read. The reference rejects it. Those rows are marked `empty`,
+//! and their verdict is the reference's answer for the same header with the
+//! empty elements removed — so the corpus still says what the crate must
+//! return, and a `!...` verdict still means the crate must reject.
+//!
+//! The row is only marked `empty` when removing the empty elements is what
+//! changes the reference's mind: `the_divergence_is_only_about_empty_elements`
+//! below re-derives that for every such row, so a header that is broken for a
+//! second reason cannot be relabelled into passing.
 
 use proxy_addr::parse_forwarded;
 
+/// One row: the header, its strictness, and the reference's verdict.
+struct Case {
+    header: String,
+    strictness: String,
+    verdict: String,
+}
+
 /// One row: the header and the reference's verdict.
-fn cases() -> Vec<(String, String)> {
+fn cases() -> Vec<Case> {
     include_str!("fixtures/forwarded.tsv")
         .lines()
         .filter(|line| !line.starts_with('#') && !line.trim().is_empty())
         .map(|line| {
-            let (hex, verdict) = line.split_once('\t').expect("two fields");
-            (from_hex(hex), verdict.to_string())
+            let fields: Vec<&str> = line.split('\t').collect();
+            assert_eq!(fields.len(), 3, "three fields in {line:?}");
+            Case {
+                header: from_hex(fields[0]),
+                strictness: fields[1].to_string(),
+                verdict: fields[2].to_string(),
+            }
         })
         .collect()
 }
@@ -48,7 +75,7 @@ fn render(header: &str) -> String {
                 .map(|element| {
                     let mut pairs: Vec<String> = element
                         .params()
-                        .map(|(name, value)| format!("{name}={value}"))
+                        .map(|(name, value)| format!("{}:{}", quote(name), quote(value)))
                         .collect();
                     pairs.sort();
                     format!("{{{}}}", pairs.join(","))
@@ -63,17 +90,87 @@ fn render(header: &str) -> String {
     }
 }
 
+/// JSON-quote a string, so a separator inside a value stays distinguishable
+/// from a separator between parameters.
+fn quote(text: &str) -> String {
+    let mut out = String::with_capacity(text.len() + 2);
+    out.push('"');
+    for c in text.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            '\u{8}' => out.push_str("\\b"),
+            '\u{c}' => out.push_str("\\f"),
+            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
+            c => out.push(c),
+        }
+    }
+    out.push('"');
+    out
+}
+
+/// Split a header on the commas between elements, respecting quoted strings,
+/// and drop the segments that hold no element. Mirrors the generator's
+/// `withoutEmptyElements`.
+fn without_empty_elements(header: &str) -> String {
+    let mut segments: Vec<String> = Vec::new();
+    let mut current = String::new();
+    let mut in_quotes = false;
+    let mut escaping = false;
+    for c in header.chars() {
+        if escaping {
+            escaping = false;
+        } else if c == '\\' && in_quotes {
+            escaping = true;
+        } else if c == '"' {
+            in_quotes = !in_quotes;
+        } else if c == ',' && !in_quotes {
+            segments.push(std::mem::take(&mut current));
+            continue;
+        }
+        current.push(c);
+    }
+    segments.push(current);
+    // Mirrors the generator: the first segment is empty only when it is empty
+    // outright, so a leading space or tab stays a fault of its own.
+    segments
+        .into_iter()
+        .enumerate()
+        .filter(|(index, segment)| {
+            if *index == 0 {
+                !segment.is_empty()
+            } else {
+                !segment.trim_matches([' ', '\t']).is_empty()
+            }
+        })
+        .map(|(_, segment)| segment)
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
 #[test]
 fn agrees_with_the_reference_on_every_case() {
     let cases = cases();
     assert!(cases.len() > 5_000, "corpus shrank to {}", cases.len());
 
     let mut failures = Vec::new();
-    for (header, expected) in &cases {
-        let actual = render(header);
-        if actual != *expected {
+    for case in &cases {
+        let actual = render(&case.header);
+        // An `empty` row with a bare `!` says only that the header is still
+        // invalid once the empty elements are gone. Its index would have been
+        // measured on a different string, so only the rejection is compared.
+        let agrees = if case.verdict == "!" {
+            actual.starts_with('!')
+        } else {
+            actual == case.verdict
+        };
+        if !agrees {
             failures.push(format!(
-                "{header:?}\n  reference: {expected}\n  crate:     {actual}"
+                "{:?} ({})\n  expected: {}\n  crate:    {}",
+                case.header, case.strictness, case.verdict, actual
             ));
         }
     }
@@ -92,16 +189,71 @@ fn agrees_with_the_reference_on_every_case() {
 }
 
 #[test]
+fn the_divergence_is_only_about_empty_elements() {
+    // Every `empty` row must be explained by the empty-element rule alone. The
+    // check is the one that would catch a relabelled row: strip the empty
+    // elements and the header must still be one the crate reads the same way,
+    // so a header that is broken for a second reason cannot pass as `empty`.
+    let cases = cases();
+    let mut wrong = Vec::new();
+    let mut checked = 0;
+    for case in &cases {
+        if case.strictness != "empty" {
+            continue;
+        }
+        checked += 1;
+        let stripped = without_empty_elements(&case.header);
+        assert_ne!(
+            stripped, case.header,
+            "an `empty` row with nothing to strip: {:?}",
+            case.header
+        );
+        // Removing the empty elements must not change the verdict the crate
+        // produces for the header itself, because the empty elements carry no
+        // parameters and contribute no element. A bare `!` verdict is checked
+        // as "still rejected", its index having been measured elsewhere.
+        let direct = render(&case.header);
+        let without = render(&stripped);
+        let agrees = if case.verdict == "!" {
+            direct.starts_with('!')
+        } else {
+            direct == without
+        };
+        if !agrees {
+            wrong.push(format!(
+                "{:?}\n  as written: {direct}\n  stripped:   {without}",
+                case.header
+            ));
+        }
+    }
+    assert!(checked > 10, "only {checked} empty-element rows");
+    assert!(
+        wrong.is_empty(),
+        "{} rows diverge for a reason other than empty elements:\n{}",
+        wrong.len(),
+        wrong.join("\n")
+    );
+}
+
+#[test]
 fn the_corpus_exercises_both_outcomes() {
     // A corpus that only held well-formed headers would pass against a parser
     // that accepted everything, and one that only held junk would pass against
     // a parser that accepted nothing.
     let cases = cases();
-    let accepted = cases.iter().filter(|(_, v)| v.starts_with("OK[")).count();
-    let positioned = cases.iter().filter(|(_, v)| v.starts_with("!pos:")).count();
-    let truncated = cases.iter().filter(|(_, v)| v == "!eof").count();
+    let accepted = cases
+        .iter()
+        .filter(|c| c.verdict.starts_with("OK["))
+        .count();
+    let positioned = cases
+        .iter()
+        .filter(|c| c.verdict.starts_with("!pos:"))
+        .count();
+    let truncated = cases.iter().filter(|c| c.verdict == "!eof").count();
+    let divergent = cases.iter().filter(|c| c.strictness == "empty").count();
 
     assert!(accepted > 1_000, "only {accepted} accepted cases");
     assert!(positioned > 500, "only {positioned} positioned errors");
     assert!(truncated > 100, "only {truncated} truncated headers");
+    assert!(divergent > 10, "only {divergent} empty-element rows");
 }

@@ -8,7 +8,8 @@
  * The oracle is the reference itself, so a disagreement is a bug in the crate.
  * Two things are recorded per case:
  *
- *   OK   the elements in header order, each a sorted `name=value` list
+ *   OK   the elements in header order, each a sorted `name:value` list, with
+ *        names and values JSON-quoted so a boundary can never be ambiguous
  *   ERR  `!pos:<n>` for an unexpected character at index n, `!eof` otherwise
  *
  * A header the reference rejects is written as `!...` so the crate is checked
@@ -16,8 +17,15 @@
  * index is compared too: a parser that stops at the right character but
  * reports the wrong one is not the same parser.
  *
- * The header text is percent-encoded, because a header may hold a tab, a
- * newline or a NUL and a TSV field cannot.
+ * One deliberate divergence is recorded rather than hidden. RFC 7230 section 7
+ * requires a recipient to ignore empty list elements, and the reference does
+ * not, so a header it rejects only for `,,` is one this crate must read. Such a
+ * row is marked `empty` and carries the reference's verdict for the header with
+ * the empty elements removed; `tests/forwarded_oracle.rs` compares it as
+ * described there.
+ *
+ * The header text is hex-encoded, because a header may hold a tab, a newline or
+ * a NUL and a TSV field cannot.
  *
  * Needs `npm install forwarded-parse@2.2.0` in the repository root (the
  * manifest is committed). Run from the repository root:
@@ -30,6 +38,21 @@
 const fs = require('fs')
 const path = require('path')
 const parse = require('forwarded-parse')
+
+// A differential gate compares the crate against whatever the oracle is today,
+// so a new release of the oracle would re-baseline the corpus silently and
+// report as a crate defect. Pin it, as the other generators in this repository
+// do, and let a deliberate upgrade be its own change.
+const PINNED = '2.2.0'
+const installed = require('forwarded-parse/package.json').version
+if (installed !== PINNED) {
+  console.error(
+    'forwarded-parse is ' + installed + ', but this generator is pinned to ' +
+    PINNED + '. Install that version (`npm install forwarded-parse@' + PINNED +
+    '`) or update PINNED deliberately, re-running the corpus check afterwards.'
+  )
+  process.exit(1)
+}
 
 // `OUT` and `SEED` let the verification gate write a fresh corpus to a
 // temporary file and leave the committed one alone.
@@ -109,37 +132,110 @@ function corrupt (header) {
   return header.slice(0, position) + junk + header.slice(position)
 }
 
-function render (header) {
-  let elements
-  try {
-    elements = parse(header)
-  } catch (error) {
-    const found = /Unexpected character/.exec(error.message)
-    return found ? '!pos:' + error.message.match(/index (\d+)/)[1] : '!eof'
-  }
+// Render the reference's result unambiguously. A bare `name=value` join cannot
+// distinguish `a="b,c=d"` from `a=b;c=d`: both would read as the same text, so a
+// parser that turned quoted text into a separate parameter would still agree.
+// Quoting every name and value the way JSON does keeps the boundary visible.
+function renderElements (elements) {
   const parts = elements.map((element) => {
     const pairs = Object.keys(element).sort()
-      .map((key) => key + '=' + element[key])
+      .map((key) => JSON.stringify(key) + ':' + JSON.stringify(element[key]))
     return '{' + pairs.join(',') + '}'
   })
   return 'OK[' + parts.join('|') + ']'
 }
 
+function verdict (header) {
+  try {
+    return renderElements(parse(header))
+  } catch (error) {
+    const found = /Unexpected character/.exec(error.message)
+    return found ? '!pos:' + error.message.match(/index (\d+)/)[1] : '!eof'
+  }
+}
+
+// Split a header on the commas that separate elements, respecting quoted
+// strings, and drop the segments that hold no element.
+//
+// RFC 7230 section 7 requires a recipient to ignore empty list elements, and
+// the reference does not, so a header the reference rejects for that reason is
+// one this crate must still read. Rewriting the header without the empty
+// segments gives a header the reference does accept, which is what proves the
+// divergence is exactly that rule and nothing else.
+function withoutEmptyElements (header) {
+  const segments = []
+  let current = ''
+  let inQuotes = false
+  let escaping = false
+  for (const c of header) {
+    if (escaping) {
+      escaping = false
+    } else if (c === '\\' && inQuotes) {
+      escaping = true
+    } else if (c === '"') {
+      inQuotes = !inQuotes
+    } else if (c === ',' && !inQuotes) {
+      segments.push(current)
+      current = ''
+      continue
+    }
+    current += c
+  }
+  segments.push(current)
+  // An empty element is a separator with nothing between it and its
+  // neighbour. The first segment counts only when it is empty outright: a
+  // leading tab or space is leading whitespace, which RFC 7230's list rule does
+  // not allow and the crate must still reject, so trimming it away here would
+  // hide a second fault behind the empty-element one.
+  return segments
+    .filter((segment, index) => index === 0
+      ? segment !== ''
+      : segment.replace(/^[ \t]+|[ \t]+$/g, '') !== '')
+    .join(',')
+}
+
+// One row of the corpus: the header, how strictly it is compared, and the
+// reference's verdict.
+//
+//   `strict`  the reference accepted or rejected the header as written, so the
+//             crate must reproduce the verdict exactly, index included
+//   `empty`   the header holds an empty list element, which RFC 7230 section 7
+//             says a recipient must ignore and the reference does not. The
+//             verdict is the reference's answer for the header with those
+//             elements removed: `OK[...]` must be reproduced exactly, while a
+//             bare `!` means the remainder is still invalid and the crate must
+//             reject it. The index is not compared there, because skipping an
+//             element shifts every later position.
+function row (header) {
+  const direct = verdict(header)
+  if (!direct.startsWith('!')) return ['strict', direct]
+  const stripped = withoutEmptyElements(header)
+  if (stripped === header) return ['strict', direct]
+  const repaired = verdict(stripped)
+  return ['empty', repaired.startsWith('!') ? '!' : repaired]
+}
+
 // A TSV field cannot hold a tab, a newline or a NUL, so the header is
-// percent-encoded as UTF-8.
+// hex-encoded as UTF-8.
 function encode (header) {
   return Buffer.from(header, 'utf8').toString('hex')
 }
 
 const lines = [
   '# Generated by scripts/fuzz/proxy-addr/gen_forwarded.js from npm forwarded-parse 2.2.0.',
-  '# Each row is: header (hex UTF-8), then the reference\'s parse.',
-  '# OK[elements] lists the elements in header order, each a sorted name=value list.',
+  '# Each row is: header (hex UTF-8), strictness, then the expected parse.',
+  '# strict  the reference\'s own verdict, to be reproduced exactly.',
+  '# empty   the reference rejected the header only for an empty list element;',
+  '#         the verdict is its answer with those elements removed (RFC 7230 s7).',
+  '# OK[elements] lists elements in header order, each a sorted name:value list',
+  '# with JSON-quoted names and values, so a boundary is never ambiguous.',
   '# !pos:<n> is an unexpected character at index n; !eof is an early end.'
 ]
+const HEADER = lines.length
 
 // A handful of hand-written headers first, so a reader can see the format
-// without decoding the generated ones. These are the cases the RFC names.
+// without decoding the generated ones. These are the cases the RFC names, plus
+// the empty-element shape that the crate is deliberately more tolerant of.
 const SEEDS = [
   'for=192.0.2.43',
   'for=192.0.2.43, for=198.51.100.17',
@@ -153,9 +249,21 @@ const SEEDS = [
   'for=',
   'for=1.2.3.4;proto',
   ' for=1.2.3.4',
-  'for=1.2.3.4 '
+  'for=1.2.3.4 ',
+  // A quoted value holding a separator, which the old `name=value` rendering
+  // could not tell apart from two parameters.
+  'for=1.2.3.4;x="b,c=d"',
+  'for=1.2.3.4;x=b;c=d',
+  // RFC 7230 section 7: empty list elements must be ignored.
+  'for=192.0.2.43,,for=198.51.100.7',
+  'for=192.0.2.43,',
+  ',for=192.0.2.43',
+  'for=192.0.2.43, ,for=198.51.100.7'
 ]
-for (const header of SEEDS) lines.push(encode(header) + '\t' + render(header))
+for (const header of SEEDS) {
+  const [strictness, expected] = row(header)
+  lines.push(encode(header) + '\t' + strictness + '\t' + expected)
+}
 
 const TOTAL = 6000
 for (let i = 0; i < TOTAL; i++) {
@@ -166,8 +274,9 @@ for (let i = 0; i < TOTAL; i++) {
   if (roll < 0.6) header = structured()
   else if (roll < 0.85) header = corrupt(structured())
   else header = noisy()
-  lines.push(encode(header) + '\t' + render(header))
+  const [strictness, expected] = row(header)
+  lines.push(encode(header) + '\t' + strictness + '\t' + expected)
 }
 
 fs.writeFileSync(OUT, lines.join('\n') + '\n')
-console.log('wrote', lines.length - 4, 'cases to', OUT)
+console.log('wrote', lines.length - HEADER, 'cases to', OUT)

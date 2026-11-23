@@ -11,6 +11,11 @@
 //! accept/reject decision here. The grammar is HTTP's: `token` and
 //! `quoted-string` from RFC 7230 section 3.2.6, and the parameter list from
 //! RFC 7239 section 4.
+//!
+//! One rule is taken from RFC 7230 section 7 rather than from the reference:
+//! empty list elements are parsed and ignored, because that section makes it a
+//! **MUST** for a recipient and the reference does not do it. Everything else
+//! follows the reference, and `tests/forwarded_oracle.rs` checks that.
 
 use std::fmt;
 use std::net::IpAddr;
@@ -123,10 +128,71 @@ impl fmt::Display for ForwardedError {
 
 impl std::error::Error for ForwardedError {}
 
+/// The port of a [`Node`], which RFC 7239 lets be a number or an obfuscated
+/// name.
+///
+/// The port is independent of the node name: any of an address, `unknown` and
+/// a pseudonym may carry either kind, which is why it is a type of its own
+/// rather than an `Option<u16>` on the address.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Port {
+    /// A decimal port, `1*5DIGIT` in RFC 7239's grammar.
+    Number(u16),
+    /// An obfuscated port, such as `_edge`. The name is the identifier
+    /// without the leading underscore.
+    Obfuscated(String),
+}
+
+impl Port {
+    /// Read a `node-port`.
+    ///
+    /// ```
+    /// use proxy_addr::Port;
+    ///
+    /// assert_eq!(Port::parse("4711"), Some(Port::Number(4711)));
+    /// assert_eq!(Port::parse("_edge"), Some(Port::Obfuscated("edge".into())));
+    ///
+    /// // One to five digits, so a sign and a sixth digit are both out.
+    /// assert!(Port::parse("+443").is_none());
+    /// assert!(Port::parse("000443").is_none());
+    /// ```
+    pub fn parse(value: &str) -> Option<Self> {
+        if let Some(name) = value.strip_prefix('_') {
+            return is_obfname(name).then(|| Self::Obfuscated(name.to_string()));
+        }
+        // RFC 7239 has `port = 1*5DIGIT`. Rust's `u16` parser accepts a leading
+        // `+` and any number of leading zeros, so the shape is checked before
+        // the value.
+        let digits =
+            !value.is_empty() && value.len() <= 5 && value.bytes().all(|b| b.is_ascii_digit());
+        digits
+            .then(|| value.parse().ok())
+            .flatten()
+            .map(Self::Number)
+    }
+
+    /// The port as a number, when it is one.
+    pub fn number(&self) -> Option<u16> {
+        match self {
+            Self::Number(port) => Some(*port),
+            Self::Obfuscated(_) => None,
+        }
+    }
+}
+
+impl fmt::Display for Port {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Number(port) => write!(f, "{port}"),
+            Self::Obfuscated(name) => write!(f, "_{name}"),
+        }
+    }
+}
+
 /// A node identifier from a `for` or `by` parameter.
 ///
-/// RFC 7239 section 6.3 lets a node be an address, the word `unknown`, or an
-/// obfuscated identifier, and an address may carry the client's port.
+/// RFC 7239 section 6 lets a node be an address, the word `unknown`, or an
+/// obfuscated identifier, and any of the three may carry a port.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Node {
     /// An address, and the port when the parameter gave one.
@@ -135,93 +201,143 @@ pub enum Node {
         ip: IpAddr,
         /// The port, when the parameter carried one. A client's source port is
         /// not an identifier and is usually omitted.
-        port: Option<u16>,
+        port: Option<Port>,
     },
     /// The node deliberately did not identify itself (`unknown`).
-    Unknown,
+    Unknown {
+        /// The port, when the parameter carried one.
+        port: Option<Port>,
+    },
     /// The node identified itself with a pseudonym (`_hidden`). The name is
     /// the identifier without the leading underscore.
-    Obfuscated(String),
+    Obfuscated {
+        /// The pseudonym, without the leading underscore.
+        name: String,
+        /// The port, when the parameter carried one.
+        port: Option<Port>,
+    },
 }
 
 impl Node {
     /// Read a `for` or `by` value.
     ///
     /// Returns `None` for text that is not a node under RFC 7239: an
-    /// unbracketed IPv6 address, a port that is not a number, or anything the
-    /// grammar does not allow. The value is taken as it appears in the header,
-    /// so a quoted-string has already been unescaped by [`parse_forwarded`].
+    /// unbracketed IPv6 address, a bracketed IPv4 address, a port that is not
+    /// one to five digits or an obfuscated name, or a pseudonym holding a
+    /// character the grammar does not allow. The value is taken as it appears
+    /// in the header, so a quoted-string has already been unescaped by
+    /// [`parse_forwarded`].
     ///
     /// ```
-    /// use proxy_addr::Node;
+    /// use proxy_addr::{Node, Port};
     /// use std::net::IpAddr;
     ///
     /// let ip: IpAddr = "192.0.2.43".parse().unwrap();
     /// assert_eq!(Node::parse("192.0.2.43"), Some(Node::Address { ip, port: None }));
-    /// assert_eq!(Node::parse("unknown"), Some(Node::Unknown));
-    /// assert_eq!(Node::parse("_hidden"), Some(Node::Obfuscated("hidden".into())));
+    /// assert_eq!(Node::parse("unknown"), Some(Node::Unknown { port: None }));
+    /// assert_eq!(
+    ///     Node::parse("_hidden"),
+    ///     Some(Node::Obfuscated { name: "hidden".into(), port: None })
+    /// );
     ///
     /// // An IPv6 node has to be bracketed, and may carry a port.
     /// assert!(Node::parse("2001:db8::1").is_none());
     /// let ip: IpAddr = "2001:db8::1".parse().unwrap();
     /// assert_eq!(
     ///     Node::parse("[2001:db8::1]:4711"),
-    ///     Some(Node::Address { ip, port: Some(4711) })
+    ///     Some(Node::Address { ip, port: Some(Port::Number(4711)) })
+    /// );
+    ///
+    /// // The port is independent of the name, and may itself be obfuscated.
+    /// let ip: IpAddr = "192.0.2.43".parse().unwrap();
+    /// assert_eq!(
+    ///     Node::parse("192.0.2.43:_edge"),
+    ///     Some(Node::Address { ip, port: Some(Port::Obfuscated("edge".into())) })
+    /// );
+    /// assert_eq!(
+    ///     Node::parse("_hidden:443"),
+    ///     Some(Node::Obfuscated { name: "hidden".into(), port: Some(Port::Number(443)) })
     /// );
     /// ```
     pub fn parse(value: &str) -> Option<Self> {
-        if value == "unknown" {
-            return Some(Self::Unknown);
-        }
-        if let Some(name) = value.strip_prefix('_') {
-            return is_token(name).then(|| Self::Obfuscated(name.to_string()));
-        }
+        // The port is split off first, so that it does not decide whether the
+        // name is recognized.
         if let Some(rest) = value.strip_prefix('[') {
             let (inside, after) = rest.split_once(']')?;
-            let ip: IpAddr = inside.parse().ok()?;
-            return match after {
-                "" => Some(Self::Address { ip, port: None }),
-                _ => {
-                    let port = after.strip_prefix(':')?.parse().ok()?;
-                    Some(Self::Address {
-                        ip,
-                        port: Some(port),
-                    })
-                }
+            // RFC 7239 reserves the brackets for IPv6.
+            let ip: IpAddr = IpAddr::V6(inside.parse().ok()?);
+            let port = match after {
+                "" => None,
+                _ => Some(Port::parse(after.strip_prefix(':')?)?),
             };
+            return Some(Self::Address { ip, port });
         }
-        let (host, port) = match value.split_once(':') {
-            Some((host, port)) => (host, Some(port)),
+
+        let (name, port) = match value.split_once(':') {
+            Some((name, port)) => (name, Some(Port::parse(port)?)),
             None => (value, None),
         };
+
+        // The ABNF quotes `"unknown"`, and an ABNF literal is case-insensitive.
+        if name.eq_ignore_ascii_case("unknown") {
+            return Some(Self::Unknown { port });
+        }
+        if let Some(pseudonym) = name.strip_prefix('_') {
+            return is_obfname(pseudonym).then(|| Self::Obfuscated {
+                name: pseudonym.to_string(),
+                port,
+            });
+        }
         // Only an IPv4 literal reaches here: a bare IPv6 address has colons of
         // its own and the split above would have taken the wrong one.
-        let ip: IpAddr = host.parse().ok()?;
+        let ip: IpAddr = name.parse().ok()?;
         if ip.is_ipv6() {
             return None;
         }
-        let port = match port {
-            Some(port) => Some(port.parse().ok()?),
-            None => None,
-        };
         Some(Self::Address { ip, port })
+    }
+
+    /// The port, when the parameter carried one.
+    pub fn port(&self) -> Option<&Port> {
+        match self {
+            Self::Address { port, .. } | Self::Unknown { port } | Self::Obfuscated { port, .. } => {
+                port.as_ref()
+            }
+        }
     }
 }
 
 impl fmt::Display for Node {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Address { ip, port } => match (ip, port) {
+            Self::Address { ip, port } => {
                 // An IPv6 node keeps its brackets even without a port, so that
                 // `Display` and `Node::parse` are inverses: unbracketed, the
                 // address's own colons would read back as a port separator.
-                (IpAddr::V6(_), Some(port)) => write!(f, "[{ip}]:{port}"),
-                (IpAddr::V6(_), None) => write!(f, "[{ip}]"),
-                (_, Some(port)) => write!(f, "{ip}:{port}"),
-                (_, None) => write!(f, "{ip}"),
-            },
-            Self::Unknown => f.write_str("unknown"),
-            Self::Obfuscated(name) => write!(f, "_{name}"),
+                if ip.is_ipv6() {
+                    write!(f, "[{ip}]")?;
+                } else {
+                    write!(f, "{ip}")?;
+                }
+                if let Some(port) = port {
+                    write!(f, ":{port}")?;
+                }
+                Ok(())
+            }
+            Self::Unknown { port } => {
+                f.write_str("unknown")?;
+                if let Some(port) = port {
+                    write!(f, ":{port}")?;
+                }
+                Ok(())
+            }
+            Self::Obfuscated { name, port } => {
+                write!(f, "_{name}")?;
+                if let Some(port) = port {
+                    write!(f, ":{port}")?;
+                }
+                Ok(())
+            }
         }
     }
 }
@@ -266,6 +382,12 @@ pub fn parse_forwarded(header: &str) -> Result<Vec<ForwardedElement>, ForwardedE
     // even when its own text has no backslash. Matching that is what keeps the
     // two parsers in agreement.
     let mut must_unescape = false;
+    // The index of the first empty list element skipped, so a header that held
+    // nothing but separators can report where it went wrong.
+    let mut skipped_empty: Option<usize> = None;
+    // The last separator that closed something: `,` closes an element and `;`
+    // closes a parameter. Only a trailing `,` may be followed by nothing.
+    let mut last_separator: Option<char> = None;
 
     let mut i = 0;
     while i < chars.len() {
@@ -275,6 +397,20 @@ pub fn parse_forwarded(header: &str) -> Result<Vec<ForwardedElement>, ForwardedE
             // Leading whitespace before the first name is skipped, but not at
             // index 0: the reference rejects a header that starts with a space.
             if i != 0 && start.is_none() && (c == ' ' || c == '\t') {
+                i += 1;
+                continue;
+            }
+            // RFC 7230 section 7: a recipient MUST parse and ignore empty list
+            // elements. The reference does not, so this is the one place the
+            // crate is deliberately more tolerant; `tests/forwarded_oracle.rs`
+            // names the divergence rather than hiding it.
+            //
+            // Only a separator with nothing before it is empty. With a
+            // parameter already collected the element is complete, and a comma
+            // here follows a `;` that opened a parameter and never closed it,
+            // which is a syntax error and stays one.
+            if c == ',' && start.is_none() && params.is_empty() {
+                skipped_empty.get_or_insert(i);
                 i += 1;
                 continue;
             }
@@ -343,6 +479,7 @@ pub fn parse_forwarded(header: &str) -> Result<Vec<ForwardedElement>, ForwardedE
                     output.push(ForwardedElement { params });
                     params = Vec::new();
                 }
+                last_separator = Some(c);
 
                 parameter = None;
                 start = None;
@@ -368,6 +505,21 @@ pub fn parse_forwarded(header: &str) -> Result<Vec<ForwardedElement>, ForwardedE
             return Err(ForwardedError { position: Some(i) });
         }
         i += 1;
+    }
+
+    // RFC 7230 section 7 also allows a trailing empty element, so a header that
+    // ends just after a comma is complete rather than truncated. Only a comma
+    // counts: a trailing `;` opened a parameter and never closed it, which is a
+    // truncation. A header of nothing but separators is still an error, because
+    // `1#forwarded-element` needs at least one element.
+    if parameter.is_none() && start.is_none() && end.is_none() && !in_quotes {
+        return match (output.is_empty(), last_separator) {
+            (false, Some(',')) => Ok(output),
+            (true, _) => Err(ForwardedError {
+                position: skipped_empty,
+            }),
+            (false, _) => Err(ForwardedError { position: None }),
+        };
     }
 
     let last = chars.last().copied();
@@ -427,9 +579,16 @@ fn unescape(value: &str) -> String {
     out
 }
 
-/// A whole value is a token when every character is a token character.
-fn is_token(value: &str) -> bool {
-    !value.is_empty() && value.chars().all(is_token_char)
+/// `obfnode` and `obfport` share one grammar: `"_" 1*( ALPHA / DIGIT / "." /
+/// "_" / "-" )`. The caller has already stripped the leading underscore.
+///
+/// This is narrower than a token, which is why it is not the token check: `+`,
+/// `!` and `~` are token characters but not obfuscated-name characters.
+fn is_obfname(name: &str) -> bool {
+    !name.is_empty()
+        && name
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b'-'))
 }
 
 /// `tchar` from RFC 7230 section 3.2.6.

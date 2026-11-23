@@ -524,6 +524,62 @@ regression coverage in CI at all.
   even split produced 848 accepted cases out of 6,013 and left the accept path
   thin. The generator now builds whole `name=value` parameters from a token
   pool and a quoted pool, and a test asserts each outcome has a floor.
+- **A `Forwarded` node port is independent of the node name.** RFC 7239 gives
+  `node = nodename [ ":" node-port ]` with
+  `nodename = IPv4address / "[" IPv6address "]" / "unknown" / obfnode` and
+  `node-port = port / obfport`, so `unknown:443`, `_hidden:443`,
+  `192.0.2.43:_edge` and `_hidden:_p` are all legal. Typing the port as
+  `Option<u16>` on the address variant made every one of those unparseable,
+  which silently erased a node from a header the outer grammar had already
+  accepted - the worst kind of gap, because `parse_forwarded` succeeded and only
+  the typed layer lost the value. The port is now a `Port` enum carried by every
+  variant.
+- **`obfnode` is narrower than `token`.** The outer grammar accepts any token as
+  a value, but RFC 7239's `obfnode` and `obfport` are
+  `"_" 1*( ALPHA / DIGIT / "." / "_" / "-" )`, so `_edge+2`, `_a!b` and `_a~b`
+  are tokens that are not obfuscated names. Validating them with the token
+  predicate accepted all three. Likewise `unknown` is an ABNF literal and so
+  case-insensitive (`Unknown` is the same identifier), and brackets are reserved
+  for IPv6, so `[192.0.2.43]` is not a node.
+- **Rust's `u16` parser is looser than `1*5DIGIT`.** `"+443"` parses, and so does
+  `"000443"`, so a port validated only by `str::parse::<u16>()` accepts shapes
+  RFC 7239 does not allow. Check the digit count and the character set before
+  parsing, as `Port::parse` does.
+- **A differential fixture must record an oracle disagreement, not hide it.**
+  RFC 7230 section 7 makes accepting empty list elements a **MUST** for a
+  recipient, and the reference `forwarded-parse` rejects them, so `,,` and a
+  trailing `,` are headers `proxy-addr` must read and the reference will not.
+  Deleting those rows would drop coverage; asserting agreement would pin the
+  crate to the reference's bug. Each such row carries an `empty` marker and the
+  reference's verdict for the header with the empty elements removed, and a test
+  re-derives that stripping them is what changes the reference's mind, so a
+  header broken for a second reason cannot be relabelled into passing. Do not
+  compare an error **index** across the two strings: skipping an element shifts
+  every later position, so an `empty` row whose remainder is still invalid
+  compares rejection only.
+- **A comma after a dangling `;` is not an empty list element.** `for=1.1.1.1;,`
+  opened a parameter and never closed it; treating the comma as an empty element
+  merged the following element into the current one, turning two hops into one
+  with no error. The tolerance applies only when the element has collected no
+  parameters yet.
+- **A trailing `,` is an empty element; a trailing `;` is truncation.** Both
+  leave the parser with no parameter open, so a single "nothing open, done"
+  branch accepted `zz=1.1.1.1;` and silently dropped the element. Track the
+  separator that closed the last thing and allow the end only after a comma.
+  This one shipped through a green build and was caught by generating a corpus
+  from a **different seed** and replaying it; the committed corpus had no such
+  shape. Run the oracle against a fresh seed before believing a parser change.
+- **A generator's helper is code, and its bugs look like crate bugs.** The
+  "strip empty elements" helper first trimmed every surviving segment, which
+  repaired a leading space - a separate fault - and relabelled an
+  already-agreeing row as a divergence. It also joined with `", "`, adding a
+  space that changed the header being measured. Print the rewritten header and
+  diff it against the original before trusting a derived expectation.
+- **A new npm oracle dependency must regenerate the lockfile.** `package.json`
+  gained `forwarded-parse` while `package-lock.json` was untouched, so `npm ci`
+  failed with `Missing: forwarded-parse@2.2.0 from lock file` while `npm install`
+  worked, because `npm install` silently updates the lock. Run `npm install` and
+  commit the lock in the same change; the diff should add only the new package.
 - **An empty inline element is still a box.** WeasyPrint gives `<span></span>`
   an empty inline box with its own strut, even with no text in it: `<div>a<span
   style="font-size:24px"></span></div>` raises the line to 24px, and an empty

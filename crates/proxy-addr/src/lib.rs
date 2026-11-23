@@ -78,7 +78,7 @@ use std::net::IpAddr;
 
 use ip::Subnet;
 
-pub use forwarded_header::{ForwardedElement, ForwardedError, Node, parse_forwarded};
+pub use forwarded_header::{ForwardedElement, ForwardedError, Node, Port, parse_forwarded};
 
 /// The predefined ranges a trust entry may name instead of spelling out.
 ///

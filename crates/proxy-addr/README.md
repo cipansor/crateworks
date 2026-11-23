@@ -63,7 +63,7 @@ element carries parameters, and `for` names the node that made the request while
 `by` names the proxy that received it.
 
 ```rust
-use proxy_addr::{parse_forwarded, Node};
+use proxy_addr::{parse_forwarded, Node, Port};
 
 // Two hops, in header order: the client first, the nearest proxy last.
 let hops = parse_forwarded("for=192.0.2.43, for=\"[2001:db8::1]:4711\"").unwrap();
@@ -78,11 +78,22 @@ assert_eq!(hops[0].node(), Some(Node::Address {
 let hops = parse_forwarded(r#"for=192.0.2.60;proto=https;by=203.0.113.43"#).unwrap();
 assert_eq!(hops[0].proto(), Some("https"));
 assert_eq!(hops[0].by(), Some("203.0.113.43"));
+
+// A port may be a number or an obfuscated name, and either fits any node.
+let hops = parse_forwarded("for=\"192.0.2.43:_edge\"").unwrap();
+assert_eq!(hops[0].node(), Some(Node::Address {
+    ip: "192.0.2.43".parse().unwrap(),
+    port: Some(Port::Obfuscated("edge".into())),
+}));
 ```
 
 A `for` or `by` value is one of three things, and [`Node`] tells them apart: an
-address with an optional port, the word `unknown` for a node that declines to
-identify itself, or an obfuscated name such as `_hidden`.
+address, the word `unknown` for a node that declines to identify itself, or an
+obfuscated name such as `_hidden`. Any of the three may carry a port, which is
+why the port is a [`Port`] of its own rather than a field on the address: RFC
+7239 gives `node = nodename [ ":" node-port ]`, so `unknown:443` and
+`_hidden:_p` are as legal as `192.0.2.43:4711`. A [`Port`] is either a number
+(`1*5DIGIT`, so `+443` and `000443` are not ports) or an obfuscated name.
 
 Order is the one trap. RFC 7239 appends each hop, so the **client is first** and
 the nearest proxy last - the reverse of `X-Forwarded-For`, which this crate
@@ -100,6 +111,13 @@ character, so `for="\"quoted\""` reads as `"quoted"`.
 A header that does not parse returns a [`ForwardedError`] carrying the character
 index where it stopped, or no index when it ended in the middle of an element. A
 malformed header is not partially trusted.
+
+Empty list elements are the one place this crate is deliberately more tolerant
+than the npm reference. RFC 7230 section 7 says a recipient **must** parse and
+ignore a reasonable number of empty list elements, so `for=192.0.2.43,,for=198.51.100.7`
+and a trailing `for=192.0.2.43,` are read here; the reference rejects both. A
+header of nothing but separators is still an error, because a list needs at least
+one element.
 
 ## IPv4-mapped IPv6
 
