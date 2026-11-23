@@ -17,3 +17,9 @@ research/tools/.cache/
 # Node modules for the JavaScript oracles (formulajs). The manifests are
 # committed so the reference version is pinned; the installed tree is not.
 node_modules/
+
+# Scratch dump example written and deleted by research/tools/verify_holidays.py
+# around each run. It carries every country name, so committing it would sweep a
+# generated file into the tree; a `git add -A` while the gate is running does
+# exactly that.
+crates/holidays-rs/examples/_oracle_names.rs

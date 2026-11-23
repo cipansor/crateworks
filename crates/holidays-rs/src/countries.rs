@@ -1482,7 +1482,23 @@ static FRENCH_GUIANA: &[Holiday] = &[
         },
     ),
     h("Fête du Travail", Rule::Fixed { month: 5, day: 1 }),
-    h("Fête de la Victoire", Rule::Fixed { month: 5, day: 8 }),
+    // Inherited from France: kept 1953-1959, dropped by the 1959 decree,
+    // restored in 1982.
+    h(
+        "Fête de la Victoire",
+        Rule::Between {
+            from: 1953,
+            to: 1959,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
+    h(
+        "Fête de la Victoire",
+        Rule::Since {
+            year: 1982,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
     h("Ascension", Rule::EasterOffset(39)),
     h("Fête nationale", Rule::Fixed { month: 7, day: 14 }),
     h("Assomption", Rule::Fixed { month: 8, day: 15 }),
@@ -1605,7 +1621,23 @@ static SAINT_PIERRE_AND_MIQUELON: &[Holiday] = &[
         },
     ),
     h("Fête du Travail", Rule::Fixed { month: 5, day: 1 }),
-    h("Fête de la Victoire", Rule::Fixed { month: 5, day: 8 }),
+    // Inherited from France: kept 1953-1959, dropped by the 1959 decree,
+    // restored in 1982.
+    h(
+        "Fête de la Victoire",
+        Rule::Between {
+            from: 1953,
+            to: 1959,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
+    h(
+        "Fête de la Victoire",
+        Rule::Since {
+            year: 1982,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
     h("Ascension", Rule::EasterOffset(39)),
     h("Fête nationale", Rule::Fixed { month: 7, day: 14 }),
     h("Assomption", Rule::Fixed { month: 8, day: 15 }),
@@ -1634,11 +1666,13 @@ static FRENCH_SOUTHERN_TERRITORIES: &[Holiday] = &[
     ),
     h("Fête du Travail", Rule::Fixed { month: 5, day: 1 }),
     // Inherited from France: kept from 1953 to 1959, dropped by the 1959
-    // decree, then restored in 1982.
+    // decree, then restored in 1982. The territory's reference start year is
+    // 1956, so the earlier form is bounded there rather than at 1953.
     h(
         "Fête de la Victoire",
-        Rule::Until {
-            year: 1959,
+        Rule::Between {
+            from: 1956,
+            to: 1959,
             base: &Rule::Fixed { month: 5, day: 8 },
         },
     ),
@@ -1676,7 +1710,23 @@ static REUNION: &[Holiday] = &[
         },
     ),
     h("Fête du Travail", Rule::Fixed { month: 5, day: 1 }),
-    h("Fête de la Victoire", Rule::Fixed { month: 5, day: 8 }),
+    // Inherited from France: kept 1953-1959, dropped by the 1959 decree,
+    // restored in 1982.
+    h(
+        "Fête de la Victoire",
+        Rule::Between {
+            from: 1953,
+            to: 1959,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
+    h(
+        "Fête de la Victoire",
+        Rule::Since {
+            year: 1982,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
     h("Ascension", Rule::EasterOffset(39)),
     h("Fête nationale", Rule::Fixed { month: 7, day: 14 }),
     h("Assomption", Rule::Fixed { month: 8, day: 15 }),
@@ -1708,7 +1758,23 @@ static MAYOTTE: &[Holiday] = &[
         },
     ),
     h("Fête du Travail", Rule::Fixed { month: 5, day: 1 }),
-    h("Fête de la Victoire", Rule::Fixed { month: 5, day: 8 }),
+    // Inherited from France: kept 1953-1959, dropped by the 1959 decree,
+    // restored in 1982.
+    h(
+        "Fête de la Victoire",
+        Rule::Between {
+            from: 1953,
+            to: 1959,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
+    h(
+        "Fête de la Victoire",
+        Rule::Since {
+            year: 1982,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
     h("Ascension", Rule::EasterOffset(39)),
     h("Fête nationale", Rule::Fixed { month: 7, day: 14 }),
     h("Assomption", Rule::Fixed { month: 8, day: 15 }),
@@ -2059,7 +2125,23 @@ static NEW_CALEDONIA: &[Holiday] = &[
         },
     ),
     h("Fête du Travail", Rule::Fixed { month: 5, day: 1 }),
-    h("Fête de la Victoire", Rule::Fixed { month: 5, day: 8 }),
+    // Inherited from France: kept 1953-1959, dropped by the 1959 decree,
+    // restored in 1982.
+    h(
+        "Fête de la Victoire",
+        Rule::Between {
+            from: 1953,
+            to: 1959,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
+    h(
+        "Fête de la Victoire",
+        Rule::Since {
+            year: 1982,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
     h("Ascension", Rule::EasterOffset(39)),
     h("Fête nationale", Rule::Fixed { month: 7, day: 14 }),
     h("Assomption", Rule::Fixed { month: 8, day: 15 }),
@@ -2100,7 +2182,23 @@ static MARTINIQUE: &[Holiday] = &[
         },
     ),
     h("Fête du Travail", Rule::Fixed { month: 5, day: 1 }),
-    h("Fête de la Victoire", Rule::Fixed { month: 5, day: 8 }),
+    // Inherited from France: kept 1953-1959, dropped by the 1959 decree,
+    // restored in 1982.
+    h(
+        "Fête de la Victoire",
+        Rule::Between {
+            from: 1953,
+            to: 1959,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
+    h(
+        "Fête de la Victoire",
+        Rule::Since {
+            year: 1982,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
     h("Ascension", Rule::EasterOffset(39)),
     h("Fête nationale", Rule::Fixed { month: 7, day: 14 }),
     h("Assomption", Rule::Fixed { month: 8, day: 15 }),
@@ -2174,7 +2272,23 @@ static GUADELOUPE: &[Holiday] = &[
         },
     ),
     h("Fête du Travail", Rule::Fixed { month: 5, day: 1 }),
-    h("Fête de la Victoire", Rule::Fixed { month: 5, day: 8 }),
+    // Inherited from France: kept 1953-1959, dropped by the 1959 decree,
+    // restored in 1982.
+    h(
+        "Fête de la Victoire",
+        Rule::Between {
+            from: 1953,
+            to: 1959,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
+    h(
+        "Fête de la Victoire",
+        Rule::Since {
+            year: 1982,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
     h("Ascension", Rule::EasterOffset(39)),
     h("Fête nationale", Rule::Fixed { month: 7, day: 14 }),
     h("Assomption", Rule::Fixed { month: 8, day: 15 }),
@@ -2211,7 +2325,23 @@ static FRENCH_POLYNESIA: &[Holiday] = &[
         },
     ),
     h("Fête du Travail", Rule::Fixed { month: 5, day: 1 }),
-    h("Fête de la Victoire", Rule::Fixed { month: 5, day: 8 }),
+    // Inherited from France: kept 1953-1959, dropped by the 1959 decree,
+    // restored in 1982.
+    h(
+        "Fête de la Victoire",
+        Rule::Between {
+            from: 1953,
+            to: 1959,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
+    h(
+        "Fête de la Victoire",
+        Rule::Since {
+            year: 1982,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
     h("Ascension", Rule::EasterOffset(39)),
     h("Fête nationale", Rule::Fixed { month: 7, day: 14 }),
     h("Assomption", Rule::Fixed { month: 8, day: 15 }),
@@ -2291,10 +2421,15 @@ static LESOTHO: &[Holiday] = &[
     h("Easter Monday", Rule::EasterOffset(1)),
     h("Workers' Day", Rule::Fixed { month: 5, day: 1 }),
     h("Ascension Day", Rule::EasterOffset(39)),
+    // King's Birthday fell on 2 May until 1997, then moved to 17 July in 1998
+    // when Letsie III succeeded. The reference's Lesotho start year is 1996,
+    // so the 2 May form is bounded below at that year rather than running back
+    // to Moshoeshoe II's birth.
     h(
         "King's Birthday",
-        Rule::Until {
-            year: 1997,
+        Rule::Between {
+            from: 1996,
+            to: 1997,
             base: &Rule::Fixed { month: 5, day: 2 },
         },
     ),
@@ -9840,10 +9975,14 @@ static ESTONIA: &[Holiday] = &[
             base: &Rule::Fixed { month: 8, day: 20 },
         },
     ),
+    // Day of Declaration of Sovereignty. The reference reports it from its
+    // Estonia start year (1991), not from the 1988 declaration it marks, so a
+    // bare `Until` would invent the holiday in every earlier year.
     h(
         "taassünnipäev",
-        Rule::Until {
-            year: 1993,
+        Rule::Between {
+            from: 1991,
+            to: 1993,
             base: &Rule::Fixed { month: 11, day: 16 },
         },
     ),
@@ -10258,7 +10397,24 @@ static GERMANY: &[Holiday] = &[
 static FRANCE: &[Holiday] = &[
     h("Jour de l'an", Rule::Fixed { month: 1, day: 1 }),
     h("Fête du Travail", Rule::Fixed { month: 5, day: 1 }),
-    h("Victoire 1945", Rule::Fixed { month: 5, day: 8 }),
+    // Commemorates the 1945 victory, so it cannot predate it. Kept 1953-1959,
+    // dropped by the 1959 decree, restored by the 1982 law. A bare `Fixed`
+    // reported it in every earlier year, which the reference never does.
+    h(
+        "Victoire 1945",
+        Rule::Between {
+            from: 1953,
+            to: 1959,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
+    h(
+        "Victoire 1945",
+        Rule::Since {
+            year: 1982,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
     h("Fête nationale", Rule::Fixed { month: 7, day: 14 }),
     h("Assomption", Rule::Fixed { month: 8, day: 15 }),
     h("Toussaint", Rule::Fixed { month: 11, day: 1 }),

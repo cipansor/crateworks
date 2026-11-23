@@ -332,6 +332,24 @@ regression coverage in CI at all.
   a single country fix has to be applied to every child entity that copies it.
   `Between` or two rules describe it; a single `Since` gets the early years
   wrong.
+- **`Rule::Until` has no lower bound, so it invents the holiday in every earlier
+  year.** It sets an inclusive last year and nothing else, and `holidays_in`
+  applies no country-level start year, so an `Until`-only form is reported back
+  to year zero. Two of these shipped in one round: Estonia's
+  `taassünnipäev` (`Until { year: 1993 }`) made Monday 16 November 1987 a
+  holiday although the declaration it marks was in 1988, and Lesotho's 2 May
+  King's Birthday reached back to 1935, before Moshoeshoe II was born. Both also
+  made `is_working_day` return false for those weekdays. `verify_holidays.py`
+  missed them because its default window starts at each reference `start_year`,
+  so it never looks at the years where the leak happens. When a form has a known
+  first year use `Between`, not `Until`, and add a negative case for the year
+  before the first valid one - `tests/historical_bounds.rs` is the model.
+- **The reference returns nothing before its own `start_year`, and the crate
+  does not.** That is the root of the trap above and of the wider historical
+  gap: 47 calendars apply today's rule across their whole history because the
+  reference stops at 1991 or 1996 and models no earlier regime. Treat any year
+  before a country's reference start as best-effort, never as verified, and do
+  not "fix" it by copying today's rule further back.
 
 - **A recursive descendant read reports a nested element's data at the wrong
   level.** `iso20022-rs` reads status reasons with `find_all`, which walks the

@@ -107,6 +107,23 @@ are out of scope; add them with `Calendar::with_extra` when needed.
 A bank holiday that lands at a weekend therefore appears on its substitute date
 and not on the raw one, which is the date a payroll or a calendar grid needs.
 
+`Rule::Until` bounds a holiday above only, so it must never be used for a form
+that the reference reports from a specific year: on its own it reports the
+holiday in every earlier year too. Estonia's Day of Declaration of Sovereignty
+is the worked example. It marks the 1988 declaration, but the reference reports
+it from 1991 to 1993, so the rule is `Rule::Between { from: 1991, to: 1993 }`.
+A bare `Rule::Until { year: 1993 }` made Monday 16 November 1987 a holiday, and
+`is_working_day` returned false for it. When a form has a known first year, use
+`Rule::Between` (or `Rule::Since` if it never ends).
+
+Coverage of the past is uneven, and deliberately so. A table is fitted against
+the reference, and the reference stops at its own `start_year` for most
+countries - 1991 for Germany and Estonia, 1996 for Lesotho - because it does not
+model the earlier regimes. The crate answers outside that window from the same
+rules rather than returning nothing, so a year before a country's reference
+start is best-effort rather than verified. Dates *within* the window are checked
+by `verify_holidays.py`; dates before it are not.
+
 ## Verification
 
 Every country table is checked against the Python `holidays` package from each

@@ -46,12 +46,50 @@ absent for a *middle* stretch, which neither `Since` nor `Until` can express.
 | SaintLucia | 24 | substitution starts 1979 |
 | Liberia | 9 | Unification Day from 1960; five pre-2006 inauguration years |
 
+## Review follow-up
+
+Review found four defects in the first cut of this round. All are fixed here.
+
+**`Rule::Until` invented the holiday in earlier years.** Two entries used
+`Until` with no lower bound, so the form was reported back to year zero:
+Estonia's `taassünnipäev` (`Until { year: 1993 }`) made Monday 16 November 1987
+a holiday although the declaration it marks was in 1988, and Lesotho's 2 May
+King's Birthday reached 1935, before Moshoeshoe II was born. Both also made
+`is_working_day` false for those weekdays. The reference reports these forms
+only from its own `start_year` - 1991 for Estonia, 1996 for Lesotho - so both
+are now `Between` with that first year. The gate missed them because its window
+starts at `start_year`, which is exactly where the leak stops.
+
+**France still listed 8 May every year, and the overseas entities with it.**
+`Fête de la Victoire` was one ungated `Fixed`, so it was reported before 1953
+and through the 1960-1981 gap. The reference has it 1953-1959 and from 1982.
+France now carries that shape, and so do the eight entities that copy the
+metropolitan rule (French Guiana, Guadeloupe, Martinique, Reunion, Mayotte, New
+Caledonia, French Polynesia, Saint Pierre and Miquelon). The French Southern
+Territories is bounded at 1956, its own reference start year, not at 1953;
+Wallis and Futuna was already correct at `Since 1982` and is unchanged.
+
+**The fixes had no CI coverage.** The holiday corpus covers six other
+calendars and the closest-holiday probes start after the dates changed here, so
+nothing would have caught either regression. `tests/historical_bounds.rs` adds
+seven cases that pair each first valid year with the year before it, including
+the `is_working_day` consequence. Reverting the Estonia fix makes two of them
+fail, so they are a real guard rather than a restatement.
+
+**The README did not describe the behaviour change.** `CONTRIBUTING.md` requires
+it. The Scope section now records the `Until` lower-bound trap with Estonia as
+the worked example, and states that a year before a country's reference
+`start_year` is best-effort rather than verified.
+
 ## Verification
 
 * `verify_holidays.py` reports `ok` for all 16, and the full run drops from 63 to
   47 undocumented calendars with no new failures.
 * `cargo test -p holidays-rs --all-targets` passes, including the
-  `holidays_oracle.tsv` and `closest.tsv` fixtures that CI enforces.
+  `holidays_oracle.tsv` and `closest.tsv` fixtures that CI enforces and the new
+  `historical_bounds.rs`.
+* Every date in the changed tables was re-checked against `holidays==0.108`
+  for 1945-2000: 0 mismatches across 13 calendars.
 * `cargo fmt --all -- --check` and `cargo clippy -p holidays-rs --all-targets --
   -D warnings` are clean. No `#[allow]` was added.
 
@@ -65,6 +103,11 @@ historical layers the reference models (Italy before and after 1977, Poland's
 pre-1989 list, the United States before the 1971 Uniform Monday Holiday Act) -
 a per-country rewrite, not a start-year correction. That is the next round's
 work, and the gate output is the specification for it.
+
+Note that this class is visible in the same place the `Until` bug was: the
+reference answers nothing before `start_year`, so the crate answers from its
+rules alone. Those years are best-effort and should stay unverified rather than
+be "fixed" by pushing today's rule further back.
 
 ## Release
 
