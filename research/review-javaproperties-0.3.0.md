@@ -149,3 +149,42 @@ Three gaps were found reviewing the first round, and all three were real:
 The third one was found by reading the code, not by a failing test, which is why
 the review listed it: no fixture exercised the stream writer at all.
 
+## Review round three
+
+Three more findings, all real:
+
+- **The guard could be bypassed by the random corpora.** `_check_literal_escapes`
+  ran over the curated lists only, so a literal `\u00e9` reaching a comment
+  through `piece()` or the separate document cases was still upper-cased. The
+  check now runs on every input path: inside `piece()` (which every random string
+  is built from), inside `dumps_row` for both the comment and the pairs, over the
+  curated lists, and in `comment_java`, which is now the only way a `to_comment`
+  call is made. Injecting `"\\u00e9"` into `TOKENS` stops the run instead of
+  producing a corrupt fixture.
+
+  The first attempt at this was wrong and the fixtures caught it. Making
+  `java_case` skip a `\u` that followed an escaped backslash looked right and
+  broke genuine escapes: a comment never doubles a backslash, so a caller's `\`
+  followed by an escaped emoji renders as `\\uD83D\uDE00`, and the parity rule
+  read the second backslash as the escape's, leaving `\uD83D` lower-case. Three
+  fixtures changed, the diff showed lower-case hex, and the parity rule was
+  reverted. Guarding the input is the fix; guessing which `\u` is real is not.
+
+- **The generator never checked the oracle's version.** `AGENTS.md` requires it
+  for any generator that reads an oracle, and `holidays-rs/gen.py` is the
+  precedent. `gen_writer.py` now asserts `PINNED = "0.8.2"` and stops otherwise,
+  so a fixture cannot be re-baselined against another release silently.
+
+- **`store_to_with` did not state its encoding.** It writes the text
+  `store_with` returns, which is UTF-8, while `parse` decodes ISO-8859-1. With
+  the default escaping the bytes are ASCII and the two agree, so the gap only
+  shows with `ensure_ascii: false`, where `café` comes back as `cafÃ©`. The
+  method now documents the contract with a runnable example, `store_bytes` no
+  longer claims "every character is ASCII" without qualifying which options that
+  assumes, and a test asserts both the working path (`parse_str`) and the
+  mojibake, so neither can drift unnoticed.
+
+Regenerating after the guard change left every fixture byte-identical, which is
+the check that the guard rejects nothing legitimate.
+
+

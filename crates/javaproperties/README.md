@@ -76,6 +76,28 @@ document first and write it by hand. The pieces are exported on their own too -
 `escape`, `join_key_value` and `to_comment`, with an `_with` variant of each that
 takes the escaping mode - because they are useful without a whole document.
 
+`store_to_with` writes UTF-8, because that is what the text it writes is. This
+only matters when you turn escaping off: the default escapes every non-ASCII
+character, so the bytes are pure ASCII and agree with ISO-8859-1. With
+`ensure_ascii: false` the bytes hold raw non-ASCII, and `parse` - which decodes
+ISO-8859-1, as Java does - will garble them. Read such a document back with
+`parse_str`, which takes text you have already decoded:
+
+```rust
+use javaproperties::{Properties, WriteOptions, parse_str};
+
+let properties = Properties::from_pairs(vec![
+    ("café".to_string(), "naïve".to_string()),
+]);
+let mut out = Vec::new();
+properties
+    .store_to_with(&mut out, &WriteOptions { ensure_ascii: false, ..WriteOptions::default() })
+    .unwrap();
+
+let text = String::from_utf8(out).unwrap();
+assert_eq!(parse_str(&text).unwrap()[0].0, "café");
+```
+
 ```rust
 use javaproperties::{Properties, WriteOptions, join_key_value, to_comment};
 

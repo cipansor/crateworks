@@ -18,7 +18,7 @@
 
 use javaproperties::{
     Properties, WriteOptions, escape, escape_with, java_timestamp_utc, join_key_value,
-    join_key_value_with, to_comment, to_comment_with, unescape,
+    join_key_value_with, parse, parse_str, to_comment, to_comment_with, unescape,
 };
 
 /// Decodes the escaping the generator writes.
@@ -387,6 +387,41 @@ fn store_to_with_writes_the_same_text_as_store_with() {
     // though `ensure_ascii` escaped the value.
     assert!(expected.starts_with("#café 中文\n"), "{expected:?}");
     assert!(expected.contains("caf\\u00E9"), "{expected:?}");
+}
+
+#[test]
+fn store_to_with_writes_utf8_and_parse_str_is_how_to_read_it_back() {
+    // The stream writer emits the text `store_with` returns, so with escaping
+    // off it emits UTF-8. `parse` decodes ISO-8859-1, as `java.util.Properties`
+    // does, so reading those bytes with `parse` garbles them. Both halves are
+    // asserted: the documented way back must work, and the trap must stay
+    // visible rather than being quietly "fixed" into a Latin-1 transcode that
+    // would then disagree with `store_with`.
+    let properties = Properties::from_pairs(vec![("café".to_string(), "naïve".to_string())]);
+    let raw = WriteOptions {
+        ensure_ascii: false,
+        ..WriteOptions::default()
+    };
+
+    let mut out = Vec::new();
+    properties.store_to_with(&mut out, &raw).unwrap();
+    assert_eq!(out, "café=naïve\n".as_bytes(), "the bytes are UTF-8");
+
+    let text = String::from_utf8(out.clone()).expect("output is valid UTF-8");
+    assert_eq!(
+        parse_str(&text).unwrap(),
+        vec![("café".to_string(), "naïve".to_string())]
+    );
+    assert_eq!(parse(&out).unwrap()[0].0, "cafÃ©", "ISO-8859-1 mojibake");
+
+    // The default escapes everything non-ASCII, so the bytes are ASCII and both
+    // readers agree - which is why `store_to` is safe.
+    let mut default = Vec::new();
+    properties
+        .store_to_with(&mut default, &WriteOptions::default())
+        .unwrap();
+    assert!(default.is_ascii());
+    assert_eq!(parse(&default).unwrap(), parse_str(&text).unwrap());
 }
 
 #[test]

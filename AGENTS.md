@@ -455,14 +455,20 @@ regression coverage in CI at all.
   and every later one, which looks like a crate bug in the diff. Append the new
   block last, then confirm the untouched fixtures are byte-identical.
 - **A fixture normaliser is only as safe as the invariant it assumes.** The
-  `javaproperties` generators upper-case `\uXXXX` hex to match Java. That is sound
-  for keys and values, because the reference doubles a backslash there, so a `\u`
-  in the output is always an escape. It is wrong for a comment, which never
-  escapes a backslash: literal `\u00e9` in a comment passed through unchanged and
-  the rewrite turned it into `\u00E9`. The corpora happened to use digits-only
-  hex, where upper-casing is a no-op, so nothing failed and the generator was
-  still wrong. When a normaliser rewrites text, write down the invariant it
-  relies on and assert it over the inputs, as `_check_literal_escapes` now does.
+  `javaproperties` generators upper-case `\uXXXX` hex to match Java. That rewrite
+  cannot tell a `\u` the reference emitted from one the caller typed literally, so
+  it is only sound when every input is guaranteed to contain no literal `\u` with
+  non-digit hex - where upper-casing is a no-op. Guard the *input*, not the
+  output: `_check_literal_escapes` now runs inside `piece()` and `dumps_row` and
+  over every curated list, because a check on the curated lists alone was bypassed
+  by the random corpora.
+  Trying to infer which `\u` is real from the output does not work. Skipping a
+  `\u` that follows an escaped backslash looks correct for keys and values, where
+  the reference doubles a literal backslash, but a comment never doubles one: a
+  caller's `\` before an escaped emoji renders as `\\uD83D\uDE00`, so parity reads
+  the second backslash as the escape's and leaves `\uD83D` lower-case. Three
+  fixtures changed and the diff showed it. When a normaliser rewrites text, write
+  down the invariant it relies on and assert it over the inputs.
 - **A three-valued reference argument is `Option<bool>`, not `bool`.**
   `javaproperties`' `to_comment(comment, ensure_ascii=None)` has three positions:
   `None` escapes only what ISO-8859-1 cannot hold, `Some(true)` everything above
@@ -470,6 +476,15 @@ regression coverage in CI at all.
   unrepresentable and silently changes what existing callers write. The fixture
   column spells the mode out (`none` / `1` / `0`) so a two-valued test cannot
   pass with the wrong default.
+- **A writer and a reader that disagree on encoding look correct until escaping
+  is turned off.** `javaproperties`' `store_to_with` writes the UTF-8 bytes of the
+  text `store_with` returns, while `parse` decodes ISO-8859-1, as Java does. With
+  the default escaping every non-ASCII character is escaped, the bytes are ASCII,
+  and both agree - which is why `store_to` is safe and the gap went unnoticed. Set
+  `ensure_ascii: false` and `café` comes back as `cafÃ©`. Read such a document with
+  `parse_str` after decoding it yourself. Any pair of functions that form a round
+  trip needs a test with the *non-default* options, because the default is what
+  hides the disagreement.
 - **`xmlkit` name matching.** `Element::child` and `children_named` match the
   full name including the prefix, so `child(el, "IssueDateTime")` does **not**
   find `ram:IssueDateTime`. Match on the local name. `Element::text()`
@@ -774,7 +789,9 @@ regression coverage in CI at all.
   assert `PINNED = "2.2"` and stop the run otherwise, the same guard
   `verify_holidays.py` uses for `holidays==0.108`. Pin beside the generator and
   in `research/tools/README.md`, and keep a deliberate oracle upgrade its own
-  change.
+  change. `javaproperties/gen_writer.py` asserted nothing until a review caught
+  it, which is the failure mode this rule describes: the corpus would have
+  re-baselined silently on the next `pip install -U javaproperties`.
 
 ## Boundaries
 

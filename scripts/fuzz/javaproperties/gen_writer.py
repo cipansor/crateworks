@@ -27,19 +27,32 @@ import random
 import re
 import sys
 
+# The corpus is baselined against this release. A fixture regenerated against
+# another one re-baselines the oracle silently, and two maintainers on two
+# releases then get two fixtures from one checkout. Same guard as
+# `holidays-rs/gen.py` and `verify_holidays.py`.
+PINNED = "0.8.2"
+if javaproperties.__version__ != PINNED:
+    raise SystemExit(
+        f"javaproperties {javaproperties.__version__} is installed, but this "
+        f"corpus is baselined against {PINNED} "
+        f"(pip install 'javaproperties=={PINNED}')."
+    )
+
 random.seed(20261026)
 
 # Java writes upper-case hex in `\uXXXX`; the Python port writes lower case.
 # Normalise every reference output to what Java would write, which is the
 # behaviour the crate implements. The reader generator does the same, for the
-# same reason. A lone backslash is always doubled by the reference, so a `\u` in
-# an output is always an escape and never literal text, which makes this safe.
+# same reason.
 #
-# A comment is the exception: it never escapes a backslash, so a `\uXXXX` the
-# caller wrote reaches the output verbatim and this rewrite would corrupt it.
-# The corpora therefore use only literal `\u` sequences whose hex is all digits,
-# where upper-casing is a no-op, and `_check_literal_escapes` enforces that
-# rather than trusting the token list to stay that way.
+# This rewrites every `\uXXXX` it finds, which is only sound because of the
+# guard below: a literal `\u` whose hex is not all digits is rejected before any
+# corpus is built. Upper-casing digits-only hex is a no-op, so the only `\u` left
+# to rewrite is one the reference emitted. Trying to tell caller text from an
+# escape by backslash parity does not work: a comment never escapes a backslash,
+# so `\` followed by an escaped emoji renders as `\\uD83D\uDE00` and parity reads
+# the second backslash as the escape's, leaving the first escape lower-case.
 _U_ESCAPE = re.compile(r"\\u([0-9a-fA-F]{4})")
 
 
@@ -47,14 +60,27 @@ def java_case(text: str) -> str:
     return _U_ESCAPE.sub(lambda m: "\\u" + m.group(1).upper(), text)
 
 
-def _check_literal_escapes(texts):
+def _check_literal_escapes(texts, where="input"):
     for text in texts:
         for match in _U_ESCAPE.finditer(text):
             if any(c not in "0123456789" for c in match.group(1)):
                 raise SystemExit(
-                    f"literal {match.group(0)!r} in {text!r} would be rewritten "
-                    "by java_case in a comment; use digits-only hex"
+                    f"literal {match.group(0)!r} in {text!r} cannot be told apart "
+                    f"from a real escape in a {where}; use digits-only hex"
                 )
+
+
+def comment_java(comment, ensure_ascii=None) -> str:
+    """Render a comment as Java would, refusing input `java_case` cannot handle.
+
+    Every comment goes through here rather than calling `java_case` directly, so
+    a new corpus cannot reintroduce the literal-escape corruption by forgetting
+    the check. The input is what is checked: a comment never interprets escapes,
+    so any `\\u` in it is text the caller wrote.
+    """
+    _check_literal_escapes([comment])
+    return java_case(javaproperties.to_comment(comment, ensure_ascii=ensure_ascii))
+
 
 # --- Curated cases -----------------------------------------------------------
 # Each pins a rule the reference's docstrings state, so a failure names the rule.
@@ -77,7 +103,9 @@ COMMENT_CASES = [
     "#", "a\r\n#b", "line1\nline2\nline3",
 ]
 
-_check_literal_escapes(ESCAPE_CASES + COMMENT_CASES)
+_check_literal_escapes(
+    ESCAPE_CASES + COMMENT_CASES + [k for pair in JOIN_CASES for k in pair]
+)
 
 # A fixed instant, so the fixture is reproducible. The reference renders local
 # time, so these are only stable under TZ=UTC.
@@ -142,7 +170,7 @@ write("join.tsv", rows)
 # --- to_comment --------------------------------------------------------------
 rows = ["comment\tformatted"]
 for s in COMMENT_CASES:
-    rows.append("\t".join([escape_tsv(s), escape_tsv(java_case(javaproperties.to_comment(s)))]))
+    rows.append("\t".join([escape_tsv(s), escape_tsv(comment_java(s))]))
 write("comment.tsv", rows)
 
 # --- java_timestamp ----------------------------------------------------------
@@ -177,6 +205,9 @@ HEADER = ("count\tseparator\thas_comments\tcomments\tsort_keys\tensure_ascii\t"
 
 
 def dumps_row(pairs, sep, comments, sort_keys, ensure_ascii, eac=None) -> str:
+    if comments is not None:
+        _check_literal_escapes([comments])
+    _check_literal_escapes([s for pair in pairs for s in pair])
     document = java_case(javaproperties.dumps(
         pairs,
         separator=sep,
@@ -243,7 +274,11 @@ TOKENS = [
 
 
 def piece(maxlen=6):
-    return "".join(random.choice(TOKENS) for _ in range(random.randint(0, maxlen)))
+    text = "".join(random.choice(TOKENS) for _ in range(random.randint(0, maxlen)))
+    # Concatenation can build a literal `\u00e9` from two harmless tokens, so the
+    # check belongs on the result, not on `TOKENS`.
+    _check_literal_escapes([text], "generated string")
+    return text
 
 
 rows = ["input\tescaped"]
@@ -265,7 +300,7 @@ write("join-random.tsv", rows)
 rows = ["comment\tformatted"]
 for _ in range(2000):
     s = piece(10)
-    rows.append("\t".join([escape_tsv(s), escape_tsv(java_case(javaproperties.to_comment(s)))]))
+    rows.append("\t".join([escape_tsv(s), escape_tsv(comment_java(s))]))
 write("comment-random.tsv", rows)
 
 rows = [HEADER]
@@ -314,8 +349,7 @@ write("join-modes.tsv", rows)
 rows = ["comment\tensure_ascii\tformatted"]
 for s in COMMENT_CASES:
     for mode in MODES:
-        expected = java_case(javaproperties.to_comment(
-            s, ensure_ascii=(None if mode == "none" else mode == "1")))
+        expected = comment_java(s, ensure_ascii=(None if mode == "none" else mode == "1"))
         rows.append("\t".join([escape_tsv(s), mode, escape_tsv(expected)]))
 write("comment-modes.tsv", rows)
 
@@ -379,8 +413,7 @@ rows = ["comment\tensure_ascii\tformatted"]
 for _ in range(2000):
     s = piece(10)
     for mode in MODES:
-        expected = java_case(javaproperties.to_comment(
-            s, ensure_ascii=(None if mode == "none" else mode == "1")))
+        expected = comment_java(s, ensure_ascii=(None if mode == "none" else mode == "1"))
         rows.append("\t".join([escape_tsv(s), mode, escape_tsv(expected)]))
 write("comment-modes-random.tsv", rows)
 

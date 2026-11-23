@@ -499,11 +499,13 @@ impl Properties {
         out
     }
 
-    /// Writes the document as ISO-8859-1 bytes, the way Java writes a stream.
+    /// Writes the document as bytes, the way Java writes a stream.
     ///
-    /// Every character in the result is ASCII, because anything else was
-    /// escaped, so this is the same text as [`Properties::store`] encoded as
-    /// bytes.
+    /// [`Properties::store`] escapes every non-ASCII character, so the result is
+    /// pure ASCII and these bytes are also valid ISO-8859-1 - the encoding
+    /// [`parse`] assumes. There is no `ensure_ascii` to turn off here; use
+    /// [`Properties::store_to_with`] for that, and read its output back with
+    /// [`parse_str`] rather than [`parse`].
     #[must_use]
     pub fn store_bytes(&self, comment: Option<&str>) -> Vec<u8> {
         self.store(comment).into_bytes()
@@ -530,6 +532,41 @@ impl Properties {
     /// This is [`Properties::store_with`] to a stream instead of a `String`, so a
     /// caller who needs a separator, sorting or a comment-escaping mode does not
     /// have to render the text and write it by hand.
+    ///
+    /// # Encoding
+    ///
+    /// The bytes written are **UTF-8**, because that is what the text from
+    /// [`Properties::store_with`] is. This differs from [`Properties::store_to`],
+    /// which writes the ISO-8859-1 bytes Java writes to a stream: that one is
+    /// safe because its default escapes every non-ASCII character, so the result
+    /// is pure ASCII and the two encodings agree.
+    ///
+    /// The difference only shows when `ensure_ascii` is `false`. The document
+    /// then holds raw non-ASCII, and reading it back with [`parse`] - which
+    /// decodes ISO-8859-1, as `java.util.Properties` does - garbles it: `café`
+    /// comes back as `cafÃ©`. Round-trip such a document with [`parse_str`],
+    /// which takes text you have already decoded:
+    ///
+    /// ```
+    /// use javaproperties::{Properties, WriteOptions, parse, parse_str};
+    ///
+    /// let properties = Properties::from_pairs(vec![
+    ///     ("café".to_string(), "naïve".to_string()),
+    /// ]);
+    /// let raw = WriteOptions {
+    ///     ensure_ascii: false,
+    ///     ..WriteOptions::default()
+    /// };
+    ///
+    /// let mut out = Vec::new();
+    /// properties.store_to_with(&mut out, &raw).unwrap();
+    ///
+    /// // The bytes are UTF-8, so decode them before parsing.
+    /// let text = String::from_utf8(out.clone()).unwrap();
+    /// assert_eq!(parse_str(&text).unwrap()[0].0, "café");
+    /// // Reading those bytes as ISO-8859-1 is the mojibake this documents.
+    /// assert_eq!(parse(&out).unwrap()[0].0, "cafÃ©");
+    /// ```
     ///
     /// # Errors
     ///

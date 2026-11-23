@@ -53,7 +53,11 @@ never a dependency of any crate.
 With no `out` argument each writes to the crate's own fixture, which is the path
 you want when rebuilding it in place. The recorded versions are the ones the
 committed fixtures were built against; a newer reference may legitimately change
-an answer, and then the crate has to change with it or say why not.
+an answer, and then the crate has to change with it or say why not. The generator
+enforces it where it reads the reference's version: `gen_writer.py` (via
+`PINNED`), `holidays-rs/gen.py`, `gen_stdnum_vectors.py` and
+`gen_iban_structures.py` stop on a mismatch, so a rebuilt fixture cannot be
+re-baselined against a release nobody chose.
 
 `object-hash/gen.js` and `javaproperties/gen.py` take the output path from an
 argument or a constant; `adhan/gen.js` writes straight to the crate fixture. Note
