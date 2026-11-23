@@ -382,7 +382,14 @@ has not moved since 2023. It looks like `key=value` lines and is not.
 **Covers today.** Reading and writing, with the escapes, continuations, comment
 rules and ISO-8859-1 default that `java.util.Properties` uses. `Properties::store`
 writes what Java writes, including `\uXXXX` for non-ASCII and the escapes for
-`#`, `!`, `=` and `:`.
+`#`, `!`, `=` and `:`. The writer also carries the reference's two escaping
+controls, which are not the same switch: `ensure_ascii` covers keys and values,
+where the default escapes everything outside printable ASCII, and
+`ensure_ascii_comments` covers the comment alone, where the default is to escape
+only what ISO-8859-1 cannot hold and write accented Latin-1 through. The pieces
+are exported as `escape`, `join_key_value` and `to_comment`, each with an `_with`
+variant taking the mode, and `to_comment_with` takes `Option<bool>` because the
+reference's comment argument has three values rather than two.
 
 **Not covered.** Nothing of the format is omitted; the crate is the reader and
 the writer rather than a formatter.

@@ -27,18 +27,60 @@ import random
 import re
 import sys
 
+# The corpus is baselined against this release. A fixture regenerated against
+# another one re-baselines the oracle silently, and two maintainers on two
+# releases then get two fixtures from one checkout. Same guard as
+# `holidays-rs/gen.py` and `verify_holidays.py`.
+PINNED = "0.8.2"
+if javaproperties.__version__ != PINNED:
+    raise SystemExit(
+        f"javaproperties {javaproperties.__version__} is installed, but this "
+        f"corpus is baselined against {PINNED} "
+        f"(pip install 'javaproperties=={PINNED}')."
+    )
+
 random.seed(20261026)
 
 # Java writes upper-case hex in `\uXXXX`; the Python port writes lower case.
 # Normalise every reference output to what Java would write, which is the
 # behaviour the crate implements. The reader generator does the same, for the
-# same reason. A lone backslash is always doubled by the reference, so a `\u` in
-# an output is always an escape and never literal text, which makes this safe.
+# same reason.
+#
+# This rewrites every `\uXXXX` it finds, which is only sound because of the
+# guard below: a literal `\u` whose hex is not all digits is rejected before any
+# corpus is built. Upper-casing digits-only hex is a no-op, so the only `\u` left
+# to rewrite is one the reference emitted. Trying to tell caller text from an
+# escape by backslash parity does not work: a comment never escapes a backslash,
+# so `\` followed by an escaped emoji renders as `\\uD83D\uDE00` and parity reads
+# the second backslash as the escape's, leaving the first escape lower-case.
 _U_ESCAPE = re.compile(r"\\u([0-9a-fA-F]{4})")
 
 
 def java_case(text: str) -> str:
     return _U_ESCAPE.sub(lambda m: "\\u" + m.group(1).upper(), text)
+
+
+def _check_literal_escapes(texts, where="input"):
+    for text in texts:
+        for match in _U_ESCAPE.finditer(text):
+            if any(c not in "0123456789" for c in match.group(1)):
+                raise SystemExit(
+                    f"literal {match.group(0)!r} in {text!r} cannot be told apart "
+                    f"from a real escape in a {where}; use digits-only hex"
+                )
+
+
+def comment_java(comment, ensure_ascii=None) -> str:
+    """Render a comment as Java would, refusing input `java_case` cannot handle.
+
+    Every comment goes through here rather than calling `java_case` directly, so
+    a new corpus cannot reintroduce the literal-escape corruption by forgetting
+    the check. The input is what is checked: a comment never interprets escapes,
+    so any `\\u` in it is text the caller wrote.
+    """
+    _check_literal_escapes([comment])
+    return java_case(javaproperties.to_comment(comment, ensure_ascii=ensure_ascii))
+
 
 # --- Curated cases -----------------------------------------------------------
 # Each pins a rule the reference's docstrings state, so a failure names the rule.
@@ -60,6 +102,10 @@ COMMENT_CASES = [
     "one\n#two", "one\n!two", "a\n\nb", "\n", "", "café", "中文", "one\n#",
     "#", "a\r\n#b", "line1\nline2\nline3",
 ]
+
+_check_literal_escapes(
+    ESCAPE_CASES + COMMENT_CASES + [k for pair in JOIN_CASES for k in pair]
+)
 
 # A fixed instant, so the fixture is reproducible. The reference renders local
 # time, so these are only stable under TZ=UTC.
@@ -124,7 +170,7 @@ write("join.tsv", rows)
 # --- to_comment --------------------------------------------------------------
 rows = ["comment\tformatted"]
 for s in COMMENT_CASES:
-    rows.append("\t".join([escape_tsv(s), escape_tsv(java_case(javaproperties.to_comment(s)))]))
+    rows.append("\t".join([escape_tsv(s), escape_tsv(comment_java(s))]))
 write("comment.tsv", rows)
 
 # --- java_timestamp ----------------------------------------------------------
@@ -154,10 +200,14 @@ PAIRS = [
     [("a\tb", "c\nd")],
     [],
 ]
-HEADER = "count\tseparator\thas_comments\tcomments\tsort_keys\tensure_ascii\tdocument\tpairs"
+HEADER = ("count\tseparator\thas_comments\tcomments\tsort_keys\tensure_ascii\t"
+          "ensure_ascii_comments\tdocument\tpairs")
 
 
-def dumps_row(pairs, sep, comments, sort_keys, ensure_ascii) -> str:
+def dumps_row(pairs, sep, comments, sort_keys, ensure_ascii, eac=None) -> str:
+    if comments is not None:
+        _check_literal_escapes([comments])
+    _check_literal_escapes([s for pair in pairs for s in pair])
     document = java_case(javaproperties.dumps(
         pairs,
         separator=sep,
@@ -165,6 +215,7 @@ def dumps_row(pairs, sep, comments, sort_keys, ensure_ascii) -> str:
         timestamp=False,
         sort_keys=sort_keys,
         ensure_ascii=ensure_ascii,
+        ensure_ascii_comments=eac,
     ))
     # `comments=""` and `comments=None` are different: the first writes a bare
     # `#` line, the second writes nothing. Both encode as an empty field, so the
@@ -176,6 +227,7 @@ def dumps_row(pairs, sep, comments, sort_keys, ensure_ascii) -> str:
         "" if comments is None else escape_tsv(comments),
         "1" if sort_keys else "0",
         "1" if ensure_ascii else "0",
+        "none" if eac is None else ("1" if eac else "0"),
         escape_tsv(document),
     ]
     for key, value in pairs:
@@ -193,6 +245,22 @@ for pairs in PAIRS:
                     rows.append(dumps_row(pairs, sep, comments, sort_keys, ensure_ascii))
 write("dumps.tsv", rows)
 
+# The comment-escaping mode on its own. A comment carrying accented Latin-1, a
+# character above it and a control character separates the three modes: `none`
+# writes the first two through, `1` escapes both, `0` writes all three through.
+COMMENT_MODES_PAIRS = [
+    [("a", "1")],
+    [("café", "中文")],
+]
+rows = [HEADER]
+for pairs in COMMENT_MODES_PAIRS:
+    for comments in ["café 中文", "plain", "", "one\ntwo", "a\tb"]:
+        for eac in [None, True, False]:
+            for ensure_ascii in [True, False]:
+                rows.append(dumps_row(
+                    pairs, "=", comments, False, ensure_ascii, eac))
+write("dumps-comment-modes.tsv", rows)
+
 # --- Random corpus -----------------------------------------------------------
 # The curated cases pin the rules; this finds the interactions between them that
 # nobody thinks to write down. It is the same idea as the reader corpus: build
@@ -206,7 +274,11 @@ TOKENS = [
 
 
 def piece(maxlen=6):
-    return "".join(random.choice(TOKENS) for _ in range(random.randint(0, maxlen)))
+    text = "".join(random.choice(TOKENS) for _ in range(random.randint(0, maxlen)))
+    # Concatenation can build a literal `\u00e9` from two harmless tokens, so the
+    # check belongs on the result, not on `TOKENS`.
+    _check_literal_escapes([text], "generated string")
+    return text
 
 
 rows = ["input\tescaped"]
@@ -228,7 +300,7 @@ write("join-random.tsv", rows)
 rows = ["comment\tformatted"]
 for _ in range(2000):
     s = piece(10)
-    rows.append("\t".join([escape_tsv(s), escape_tsv(java_case(javaproperties.to_comment(s)))]))
+    rows.append("\t".join([escape_tsv(s), escape_tsv(comment_java(s))]))
 write("comment-random.tsv", rows)
 
 rows = [HEADER]
@@ -240,6 +312,46 @@ for _ in range(2000):
     ensure_ascii = random.random() < 0.7
     rows.append(dumps_row(pairs, sep, comments, sort_keys, ensure_ascii))
 write("dumps-random.tsv", rows)
+
+# --- escape / join_key_value / to_comment with ensure_ascii -------------------
+# The reference takes an `ensure_ascii` argument on `escape`, `join_key_value` and
+# `to_comment`, and `dumps` takes a separate `ensure_ascii_comments` for the
+# comment alone. Each of those is recorded here rather than folded into the files
+# above, so the default-mode fixtures stay comparable with the reference's
+# defaults and a failure names the mode it came from.
+#
+# `to_comment` is the one place the argument has three values, not two: `None`
+# escapes only what ISO-8859-1 cannot hold, `True` escapes everything above
+# ASCII, and `False` escapes nothing. The column therefore spells the mode out
+# (`none`, `1`, `0`) instead of a boolean.
+MODES = ["none", "1", "0"]
+
+rows = ["input\tensure_ascii\tescaped"]
+for s in ESCAPE_CASES:
+    for mode in ["1", "0"]:
+        rows.append("\t".join([
+            escape_tsv(s), mode,
+            escape_tsv(java_case(javaproperties.escape(s, ensure_ascii=(mode == "1")))),
+        ]))
+write("escape-modes.tsv", rows)
+
+rows = ["key\tvalue\tseparator\tensure_ascii\tjoined"]
+for key, value in JOIN_CASES:
+    for sep in SEPARATORS:
+        for mode in ["1", "0"]:
+            rows.append("\t".join([
+                escape_tsv(key), escape_tsv(value), escape_tsv(sep), mode,
+                escape_tsv(java_case(javaproperties.join_key_value(
+                    key, value, separator=sep, ensure_ascii=(mode == "1")))),
+            ]))
+write("join-modes.tsv", rows)
+
+rows = ["comment\tensure_ascii\tformatted"]
+for s in COMMENT_CASES:
+    for mode in MODES:
+        expected = comment_java(s, ensure_ascii=(None if mode == "none" else mode == "1"))
+        rows.append("\t".join([escape_tsv(s), mode, escape_tsv(expected)]))
+write("comment-modes.tsv", rows)
 
 # --- unescape ----------------------------------------------------------------
 # The reader calls `unescape` on every key and value, but the reference also
@@ -292,3 +404,43 @@ for _ in range(2000):
         expected = "!error"
     rows.append("\t".join([escape_tsv(s), expected]))
 write("unescape-random.tsv", rows)
+
+# --- Random corpus for the comment-escaping modes -----------------------------
+# Last, so that adding it does not shift the random stream the corpora above
+# draw from: the shared `random` seed means any new `piece()` call before them
+# would silently regenerate every existing fixture.
+rows = ["comment\tensure_ascii\tformatted"]
+for _ in range(2000):
+    s = piece(10)
+    for mode in MODES:
+        expected = comment_java(s, ensure_ascii=(None if mode == "none" else mode == "1"))
+        rows.append("\t".join([escape_tsv(s), mode, escape_tsv(expected)]))
+write("comment-modes-random.tsv", rows)
+
+# --- Random corpus for the standalone modes -----------------------------------
+# `escape_with` and `join_key_value_with` are the reference's `escape` and
+# `join_key_value` with `ensure_ascii` exposed. Both modes get random coverage
+# here, because a curated case list cannot show that disabling escaping is a
+# distinct code path rather than the default with a flag ignored. Appended last
+# for the shared-stream reason above.
+rows = ["input\tensure_ascii\tescaped"]
+for _ in range(2000):
+    s = piece(8)
+    for mode in ["1", "0"]:
+        rows.append("\t".join([
+            escape_tsv(s), mode,
+            escape_tsv(java_case(javaproperties.escape(s, ensure_ascii=(mode == "1")))),
+        ]))
+write("escape-modes-random.tsv", rows)
+
+rows = ["key\tvalue\tseparator\tensure_ascii\tjoined"]
+for _ in range(2000):
+    key, value = piece(), piece()
+    sep = random.choice(SEPARATORS)
+    for mode in ["1", "0"]:
+        rows.append("\t".join([
+            escape_tsv(key), escape_tsv(value), escape_tsv(sep), mode,
+            escape_tsv(java_case(javaproperties.join_key_value(
+                key, value, separator=sep, ensure_ascii=(mode == "1")))),
+        ]))
+write("join-modes-random.tsv", rows)

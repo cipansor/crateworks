@@ -8,7 +8,8 @@
 //! The fixtures are built by `scripts/fuzz/javaproperties/gen_writer.py`, which
 //! calls `javaproperties.escape`, `join_key_value`, `to_comment`,
 //! `java_timestamp` and `dumps(separator=, comments=, sort_keys=,
-//! ensure_ascii=)`. Every expectation is the reference's; none is hand-written.
+//! ensure_ascii=, ensure_ascii_comments=)`. Every expectation is the reference's;
+//! none is hand-written.
 //!
 //! One deliberate difference is encoded in the fixture rather than hidden: the
 //! reference's `java_timestamp` renders the local timezone, and this crate
@@ -16,7 +17,8 @@
 //! `TZ=UTC` and the crate's function is named `java_timestamp_utc`.
 
 use javaproperties::{
-    Properties, WriteOptions, escape, java_timestamp_utc, join_key_value, to_comment, unescape,
+    Error, Properties, WriteOptions, escape, escape_with, java_timestamp_utc, join_key_value,
+    join_key_value_with, parse, to_comment, to_comment_with, unescape,
 };
 
 /// Decodes the escaping the generator writes.
@@ -155,6 +157,119 @@ fn to_comment_matches_the_reference() {
     );
 }
 
+/// Reads the `ensure_ascii` column the mode fixtures spell out.
+fn ascii_mode(column: &str) -> bool {
+    match column {
+        "1" => true,
+        "0" => false,
+        other => panic!("bad ensure_ascii column {other:?}"),
+    }
+}
+
+/// Reads the three-valued `ensure_ascii` column of a comment fixture.
+fn comment_ascii_mode(column: &str) -> Option<bool> {
+    match column {
+        "none" => None,
+        "1" => Some(true),
+        "0" => Some(false),
+        other => panic!("bad comment ensure_ascii column {other:?}"),
+    }
+}
+
+#[test]
+fn escape_with_matches_the_reference_in_both_modes() {
+    let mut checked = 0;
+    let mut failures = Vec::new();
+    let sources = [
+        include_str!("fixtures/escape-modes.tsv"),
+        include_str!("fixtures/escape-modes-random.tsv"),
+    ];
+    for fields in sources.into_iter().flat_map(rows) {
+        let input = decode(fields[0]);
+        let ensure_ascii = ascii_mode(fields[1]);
+        let expected = decode(fields[2]);
+        let got = escape_with(&input, ensure_ascii);
+        if got != expected {
+            failures.push(format!(
+                "{input:?} ascii={ensure_ascii}\n  expected {expected:?}\n  got {got:?}"
+            ));
+        }
+        checked += 1;
+    }
+    assert!(checked > 4_000, "only {checked} cases");
+    assert!(
+        failures.is_empty(),
+        "{} of {checked} escape-mode cases disagreed:\n{}",
+        failures.len(),
+        failures.join("\n")
+    );
+}
+
+#[test]
+fn join_key_value_with_matches_the_reference_in_both_modes() {
+    let mut checked = 0;
+    let mut failures = Vec::new();
+    let sources = [
+        include_str!("fixtures/join-modes.tsv"),
+        include_str!("fixtures/join-modes-random.tsv"),
+    ];
+    for fields in sources.into_iter().flat_map(rows) {
+        let key = decode(fields[0]);
+        let value = decode(fields[1]);
+        let separator = decode(fields[2]);
+        let ensure_ascii = ascii_mode(fields[3]);
+        let expected = decode(fields[4]);
+        let got = join_key_value_with(&key, &value, &separator, ensure_ascii);
+        if got != expected {
+            failures.push(format!(
+                "{key:?} {separator:?} {value:?} ascii={ensure_ascii}\n  \
+                 expected {expected:?}\n  got {got:?}"
+            ));
+        }
+        checked += 1;
+    }
+    assert!(checked > 4_000, "only {checked} cases");
+    assert!(
+        failures.is_empty(),
+        "{} of {checked} join-mode cases disagreed:\n{}",
+        failures.len(),
+        failures.join("\n")
+    );
+}
+
+#[test]
+fn to_comment_with_matches_the_reference_in_all_three_modes() {
+    // The comment argument is three-valued, and `None` is not the same as
+    // `Some(false)` or `Some(true)`: it escapes exactly the characters
+    // ISO-8859-1 cannot hold. A two-valued test would pass with the wrong
+    // default, so the fixture spells the mode out.
+    let mut checked = 0;
+    let mut failures = Vec::new();
+    let sources = [
+        include_str!("fixtures/comment-modes.tsv"),
+        include_str!("fixtures/comment-modes-random.tsv"),
+    ];
+    for fields in sources.into_iter().flat_map(rows) {
+        let input = decode(fields[0]);
+        let ensure_ascii = comment_ascii_mode(fields[1]);
+        let expected = decode(fields[2]);
+        let got = to_comment_with(&input, ensure_ascii);
+        if got != expected {
+            failures.push(format!(
+                "{input:?} ascii={ensure_ascii:?}\n  expected {expected:?}\n  got {got:?}"
+            ));
+        }
+        checked += 1;
+    }
+    assert!(checked > 5_000, "only {checked} cases");
+    assert!(
+        failures.is_empty(),
+        "{} of {checked} comment-mode cases disagreed:\n{}",
+        failures.len(),
+        failures.join("\n")
+    );
+}
+
 #[test]
 fn java_timestamp_utc_matches_the_reference_in_utc() {
     let mut checked = 0;
@@ -183,6 +298,7 @@ fn store_with_matches_dumps() {
     let mut failures = Vec::new();
     let sources = [
         include_str!("fixtures/dumps.tsv"),
+        include_str!("fixtures/dumps-comment-modes.tsv"),
         include_str!("fixtures/dumps-random.tsv"),
     ];
     for fields in sources.into_iter().flat_map(rows) {
@@ -195,8 +311,8 @@ fn store_with_matches_dumps() {
         let pairs: Vec<(String, String)> = (0..count)
             .map(|index| {
                 (
-                    decode(fields[7 + index * 2]),
-                    decode(fields[7 + index * 2 + 1]),
+                    decode(fields[8 + index * 2]),
+                    decode(fields[8 + index * 2 + 1]),
                 )
             })
             .collect();
@@ -208,7 +324,13 @@ fn store_with_matches_dumps() {
         };
         let sort_keys = fields[4] == "1";
         let ensure_ascii = fields[5] == "1";
-        let expected = decode(fields[6]);
+        let ensure_ascii_comments = match fields[6] {
+            "none" => None,
+            "1" => Some(true),
+            "0" => Some(false),
+            other => panic!("bad ensure_ascii_comments column {other:?}"),
+        };
+        let expected = decode(fields[7]);
 
         let properties = Properties::from_pairs(pairs);
         let options = WriteOptions {
@@ -217,11 +339,13 @@ fn store_with_matches_dumps() {
             timestamp: None,
             sort_keys,
             ensure_ascii,
+            ensure_ascii_comments,
         };
         let got = properties.store_with(&options);
         if got != expected {
             failures.push(format!(
-                "sep={separator:?} comment={comment:?} sort={sort_keys} ascii={ensure_ascii}\n  \
+                "sep={separator:?} comment={comment:?} sort={sort_keys} ascii={ensure_ascii} \
+                 comments_ascii={ensure_ascii_comments:?}\n  \
                  expected {expected:?}\n  got      {got:?}"
             ));
         }
@@ -234,6 +358,108 @@ fn store_with_matches_dumps() {
         failures.len(),
         failures.join("\n")
     );
+}
+
+#[test]
+fn store_to_with_writes_the_same_document_as_store_with() {
+    // `store_to_with` exists so a caller does not have to render with
+    // `store_with` and write the result by hand. It must therefore write exactly
+    // what `store_with` returns, including the comment-escaping mode, which the
+    // older `store_to` cannot select. The comment stays inside Latin-1 so the
+    // ISO-8859-1 encoding is total; `Some(false)` above U+00FF is the error case
+    // the other test covers.
+    let properties = Properties::from_pairs(vec![
+        ("b".to_string(), "café".to_string()),
+        ("a".to_string(), "1".to_string()),
+    ]);
+    let options = WriteOptions {
+        separator: ": ",
+        comment: Some("café naïve"),
+        sort_keys: true,
+        ensure_ascii_comments: Some(false),
+        ..WriteOptions::default()
+    };
+
+    let expected = properties.store_with(&options);
+    let mut out = Vec::new();
+    properties.store_to_with(&mut out, &options).unwrap();
+    // ISO-8859-1 is the first 256 code points one byte each, so this is the
+    // encoding the writer must apply and the one the caller reads back.
+    let expected_bytes: Vec<u8> = expected
+        .chars()
+        .map(|c| u8::try_from(u32::from(c)).unwrap())
+        .collect();
+    assert_eq!(expected_bytes, out);
+
+    // The mode reaches the comment: `Some(false)` writes the text through even
+    // though `ensure_ascii` escaped the value.
+    assert!(expected.starts_with("#café naïve\n"), "{expected:?}");
+    assert!(expected.contains("caf\\u00E9"), "{expected:?}");
+}
+
+#[test]
+fn store_to_with_writes_latin1_and_parse_reads_it_back() {
+    // Java's `store(OutputStream, ...)` encodes ISO-8859-1, and so must this, or
+    // a reader either side of the boundary sees different text. A `café` comment
+    // is the case that proves it: the default escapes entries but passes the
+    // comment through, so `é` is the single byte 0xE9, not UTF-8's 0xC3 0xA9.
+    let pairs = vec![("café".to_string(), "naïve".to_string())];
+    let properties = Properties::from_pairs(pairs.clone());
+    let options = WriteOptions {
+        comment: Some("café"),
+        ..WriteOptions::default()
+    };
+
+    let mut out = Vec::new();
+    properties.store_to_with(&mut out, &options).unwrap();
+    assert_eq!(out, b"#caf\xE9\ncaf\\u00E9=na\\u00EFve\n");
+    assert!(!out.is_ascii(), "the comment is Latin-1, not escaped");
+    assert_eq!(parse(&out).unwrap(), pairs);
+
+    // `ensure_ascii: false` writes a Latin-1 entry through instead of escaping
+    // it, and the bytes must be the same Latin-1 the comment gets. The error
+    // cases below are the same switch on input ISO-8859-1 cannot hold, so
+    // without this the only `ensure_ascii: false` case tested would be a
+    // failure, and a writer that rejected every raw entry would pass.
+    let mut raw = Vec::new();
+    properties
+        .store_to_with(
+            &mut raw,
+            &WriteOptions {
+                ensure_ascii: false,
+                ..WriteOptions::default()
+            },
+        )
+        .unwrap();
+    assert_eq!(raw, b"caf\xE9=na\xEFve\n");
+    assert_eq!(parse(&raw).unwrap(), pairs);
+
+    // Text ISO-8859-1 cannot hold is an error rather than a transcode: the two
+    // ways to pass it through are `ensure_ascii: false` and
+    // `ensure_ascii_comments: Some(false)`.
+    let cjk = Properties::from_pairs(vec![("中".to_string(), "文".to_string())]);
+    for (properties, options) in [
+        (
+            &cjk,
+            WriteOptions {
+                ensure_ascii: false,
+                ..WriteOptions::default()
+            },
+        ),
+        (
+            &properties,
+            WriteOptions {
+                comment: Some("中文"),
+                ensure_ascii_comments: Some(false),
+                ..WriteOptions::default()
+            },
+        ),
+    ] {
+        let error = properties
+            .store_to_with(&mut Vec::new(), &options)
+            .expect_err("above U+00FF has no ISO-8859-1 byte");
+        assert!(matches!(error, Error::NotLatin1 { .. }), "{error:?}");
+    }
 }
 
 #[test]

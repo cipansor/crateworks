@@ -27,6 +27,14 @@ pub enum Error {
     MissingEntryKey,
     /// An XML document that could not be read as the properties format.
     MalformedXml,
+    /// A character that ISO-8859-1 cannot hold reached the byte writer.
+    ///
+    /// Only possible with `ensure_ascii: false` or `ensure_ascii_comments:
+    /// Some(false)`, the two settings that let text above U+00FF through.
+    NotLatin1 {
+        /// The first character that could not be encoded.
+        character: char,
+    },
 }
 
 impl Error {
@@ -36,6 +44,7 @@ impl Error {
         match self {
             Self::BadEscape { escape } => Some(escape),
             Self::Io | Self::NotPropertiesRoot | Self::MissingEntryKey | Self::MalformedXml => None,
+            Self::NotLatin1 { .. } => None,
         }
     }
 }
@@ -50,6 +59,11 @@ impl fmt::Display for Error {
             Self::NotPropertiesRoot => f.write_str("XML tree is not rooted at <properties>"),
             Self::MissingEntryKey => f.write_str(r#"<entry> is missing "key" attribute"#),
             Self::MalformedXml => f.write_str("malformed XML properties document"),
+            Self::NotLatin1 { character } => write!(
+                f,
+                "character {character:?} is outside ISO-8859-1, so it cannot be written to a stream; \
+                 escape it with `ensure_ascii` or `ensure_ascii_comments`"
+            ),
         }
     }
 }

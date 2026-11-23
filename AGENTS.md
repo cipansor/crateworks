@@ -367,7 +367,11 @@ regression coverage in CI at all.
   `x.is_multiple_of(2)`), `chunks_exact_to_as_chunks` (a constant chunk size
   becomes `as_chunks::<64>().0`), and `collapsible_if` (a nested `if let` becomes
   a let-chain). The fix is to satisfy the lint, not to add an `allow`; the repo's
-  five existing allows are the ceiling, not a precedent.
+  five existing allows are the ceiling, not a precedent. When a failure lands in
+  a crate your branch never touched, check whether it reproduces on `main` before
+  reading your own diff: it usually does, and the answer is to fix it in a commit
+  of its own so the history says what it was for. `needless_range_loop` on
+  clippy 1.100 was exactly that, in `ebics/src/bignum.rs` and `pades/src/rsa.rs`.
 - **The lints differ in BOTH directions, so the floor must be linted too.**
   `uninlined_format_args` is warn-by-default in 1.88 but moved to `pedantic` by
   1.99, so `format!("{:?}", x)` is an error on the floor and fine on stable.
@@ -445,6 +449,59 @@ regression coverage in CI at all.
   `NotPositive`). The oracle cannot cover that range either: `pint` overflows on
   its own linear intermediate above about `150 Np`, which is why the corpus stops
   there and the out-of-range cases live in `tests/pint.rs` instead.
+- **A generator's random stream is shared, so new draws go at the end.** The
+  fuzz generators seed `random` once and every corpus draws from that stream in
+  file order. Adding a `piece()` call before an existing corpus regenerates it
+  and every later one, which looks like a crate bug in the diff. Append the new
+  block last, then confirm the untouched fixtures are byte-identical.
+- **A fixture normaliser is only as safe as the invariant it assumes.** The
+  `javaproperties` generators upper-case `\uXXXX` hex to match Java. That rewrite
+  cannot tell a `\u` the reference emitted from one the caller typed literally, so
+  it is only sound when every input is guaranteed to contain no literal `\u` with
+  non-digit hex - where upper-casing is a no-op. Guard the *input*, not the
+  output: `_check_literal_escapes` now runs inside `piece()` and `dumps_row` and
+  over every curated list, because a check on the curated lists alone was bypassed
+  by the random corpora.
+  Trying to infer which `\u` is real from the output does not work. Skipping a
+  `\u` that follows an escaped backslash looks correct for keys and values, where
+  the reference doubles a literal backslash, but a comment never doubles one: a
+  caller's `\` before an escaped emoji renders as `\\uD83D\uDE00`, so parity reads
+  the second backslash as the escape's and leaves `\uD83D` lower-case. Three
+  fixtures changed and the diff showed it. When a normaliser rewrites text, write
+  down the invariant it relies on and assert it over the inputs.
+- **A three-valued reference argument is `Option<bool>`, not `bool`.**
+  `javaproperties`' `to_comment(comment, ensure_ascii=None)` has three positions:
+  `None` escapes only what ISO-8859-1 cannot hold, `Some(true)` everything above
+  ASCII, `Some(false)` nothing. Collapsing it to a `bool` makes the default
+  unrepresentable and silently changes what existing callers write. The fixture
+  column spells the mode out (`none` / `1` / `0`) so a two-valued test cannot
+  pass with the wrong default.
+- **A stream writer must encode what the reader decodes, and the escaping
+  default is what hides a violation.** Java's `store(OutputStream, ...)` encodes
+  ISO-8859-1, and `parse` decodes it. `store_bytes` was `store().into_bytes()`,
+  which is UTF-8. Nothing caught it for a release, because the argument for
+  safety only looked at entries: `ensure_ascii: true` escapes those to ASCII, so
+  the two encodings agree. The comment is a *separate* switch whose default
+  (`ensure_ascii_comments: None`) passes Latin-1 through, so the default call
+  `store_bytes(Some("café"))` emitted `#caf\xC3\xA9` where Java emits `#caf\xE9`,
+  and a comment-preserving ISO-8859-1 reader saw `cafÃ©`. Two lessons: a document
+  has more than one escaping switch, so "the default escapes everything" is only
+  true of the field you were thinking about; and when a function's name or doc
+  promises an encoding, test the *bytes*, not the round trip through your own
+  reader, which agrees with itself whatever it encodes. `store_bytes` and
+  `store_to` stay infallible because the default options are exactly the ones
+  that keep every character inside ISO-8859-1; `store_to_with` takes arbitrary
+  options, so a character above `U+00FF` is `Error::NotLatin1` rather than a
+  silent transcode.
+- **`cargo doc` is a separate gate, and the three commands in this file do not
+  cover it.** CI runs `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps`,
+  which fails on a broken intra-doc link (`rustdoc::broken_intra_doc_links`).
+  Neither `cargo clippy --all-targets` nor `cargo test --all-targets` resolves
+  links in doc comments, so a doc-only change can be fmt-clean, clippy-clean and
+  test-green locally and still fail CI. A link to an item in another module needs
+  its path (`[`crate::parse`]`, not `[`parse`]`), because the item is not in scope
+  in the module holding the doc comment. Run the doc command before pushing
+  anything that touches documentation.
 - **`xmlkit` name matching.** `Element::child` and `children_named` match the
   full name including the prefix, so `child(el, "IssueDateTime")` does **not**
   find `ram:IssueDateTime`. Match on the local name. `Element::text()`
@@ -749,7 +806,9 @@ regression coverage in CI at all.
   assert `PINNED = "2.2"` and stop the run otherwise, the same guard
   `verify_holidays.py` uses for `holidays==0.108`. Pin beside the generator and
   in `research/tools/README.md`, and keep a deliberate oracle upgrade its own
-  change.
+  change. `javaproperties/gen_writer.py` asserted nothing until a review caught
+  it, which is the failure mode this rule describes: the corpus would have
+  re-baselined silently on the next `pip install -U javaproperties`.
 
 ## Boundaries
 

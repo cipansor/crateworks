@@ -1,0 +1,121 @@
+key	value	separator	ensure_ascii	joined
+a	b	=	1	a=b
+a	b	=	0	a=b
+a	b	: 	1	a: b
+a	b	: 	0	a: b
+a	b	 	1	a b
+a	b	 	0	a b
+a	b	\t	1	a\tb
+a	b	\t	0	a\tb
+a	b	 = 	1	a = b
+a	b	 = 	0	a = b
+a b	c d	=	1	a\\ b=c d
+a b	c d	=	0	a\\ b=c d
+a b	c d	: 	1	a\\ b: c d
+a b	c d	: 	0	a\\ b: c d
+a b	c d	 	1	a\\ b c d
+a b	c d	 	0	a\\ b c d
+a b	c d	\t	1	a\\ b\tc d
+a b	c d	\t	0	a\\ b\tc d
+a b	c d	 = 	1	a\\ b = c d
+a b	c d	 = 	0	a\\ b = c d
+a=b	c:d	=	1	a\\=b=c\\:d
+a=b	c:d	=	0	a\\=b=c\\:d
+a=b	c:d	: 	1	a\\=b: c\\:d
+a=b	c:d	: 	0	a\\=b: c\\:d
+a=b	c:d	 	1	a\\=b c\\:d
+a=b	c:d	 	0	a\\=b c\\:d
+a=b	c:d	\t	1	a\\=b\tc\\:d
+a=b	c:d	\t	0	a\\=b\tc\\:d
+a=b	c:d	 = 	1	a\\=b = c\\:d
+a=b	c:d	 = 	0	a\\=b = c\\:d
+a	 lead	=	1	a=\\ lead
+a	 lead	=	0	a=\\ lead
+a	 lead	: 	1	a: \\ lead
+a	 lead	: 	0	a: \\ lead
+a	 lead	 	1	a \\ lead
+a	 lead	 	0	a \\ lead
+a	 lead	\t	1	a\t\\ lead
+a	 lead	\t	0	a\t\\ lead
+a	 lead	 = 	1	a = \\ lead
+a	 lead	 = 	0	a = \\ lead
+a	trail 	=	1	a=trail 
+a	trail 	=	0	a=trail 
+a	trail 	: 	1	a: trail 
+a	trail 	: 	0	a: trail 
+a	trail 	 	1	a trail 
+a	trail 	 	0	a trail 
+a	trail 	\t	1	a\ttrail 
+a	trail 	\t	0	a\ttrail 
+a	trail 	 = 	1	a = trail 
+a	trail 	 = 	0	a = trail 
+		=	1	=
+		=	0	=
+		: 	1	: 
+		: 	0	: 
+		 	1	 
+		 	0	 
+		\t	1	\t
+		\t	0	\t
+		 = 	1	 = 
+		 = 	0	 = 
+	x	=	1	=x
+	x	=	0	=x
+	x	: 	1	: x
+	x	: 	0	: x
+	x	 	1	 x
+	x	 	0	 x
+	x	\t	1	\tx
+	x	\t	0	\tx
+	x	 = 	1	 = x
+	x	 = 	0	 = x
+k		=	1	k=
+k		=	0	k=
+k		: 	1	k: 
+k		: 	0	k: 
+k		 	1	k 
+k		 	0	k 
+k		\t	1	k\t
+k		\t	0	k\t
+k		 = 	1	k = 
+k		 = 	0	k = 
+a#b	c!d	=	1	a\\#b=c\\!d
+a#b	c!d	=	0	a\\#b=c\\!d
+a#b	c!d	: 	1	a\\#b: c\\!d
+a#b	c!d	: 	0	a\\#b: c\\!d
+a#b	c!d	 	1	a\\#b c\\!d
+a#b	c!d	 	0	a\\#b c\\!d
+a#b	c!d	\t	1	a\\#b\tc\\!d
+a#b	c!d	\t	0	a\\#b\tc\\!d
+a#b	c!d	 = 	1	a\\#b = c\\!d
+a#b	c!d	 = 	0	a\\#b = c\\!d
+caf\xe9	\u4e2d\u6587	=	1	caf\\u00E9=\\u4E2D\\u6587
+caf\xe9	\u4e2d\u6587	=	0	caf\xe9=\u4e2d\u6587
+caf\xe9	\u4e2d\u6587	: 	1	caf\\u00E9: \\u4E2D\\u6587
+caf\xe9	\u4e2d\u6587	: 	0	caf\xe9: \u4e2d\u6587
+caf\xe9	\u4e2d\u6587	 	1	caf\\u00E9 \\u4E2D\\u6587
+caf\xe9	\u4e2d\u6587	 	0	caf\xe9 \u4e2d\u6587
+caf\xe9	\u4e2d\u6587	\t	1	caf\\u00E9\t\\u4E2D\\u6587
+caf\xe9	\u4e2d\u6587	\t	0	caf\xe9\t\u4e2d\u6587
+caf\xe9	\u4e2d\u6587	 = 	1	caf\\u00E9 = \\u4E2D\\u6587
+caf\xe9	\u4e2d\u6587	 = 	0	caf\xe9 = \u4e2d\u6587
+a\\b	c\\d	=	1	a\\\\b=c\\\\d
+a\\b	c\\d	=	0	a\\\\b=c\\\\d
+a\\b	c\\d	: 	1	a\\\\b: c\\\\d
+a\\b	c\\d	: 	0	a\\\\b: c\\\\d
+a\\b	c\\d	 	1	a\\\\b c\\\\d
+a\\b	c\\d	 	0	a\\\\b c\\\\d
+a\\b	c\\d	\t	1	a\\\\b\tc\\\\d
+a\\b	c\\d	\t	0	a\\\\b\tc\\\\d
+a\\b	c\\d	 = 	1	a\\\\b = c\\\\d
+a\\b	c\\d	 = 	0	a\\\\b = c\\\\d
+a\tb	c\nd	=	1	a\\tb=c\\nd
+a\tb	c\nd	=	0	a\\tb=c\\nd
+a\tb	c\nd	: 	1	a\\tb: c\\nd
+a\tb	c\nd	: 	0	a\\tb: c\\nd
+a\tb	c\nd	 	1	a\\tb c\\nd
+a\tb	c\nd	 	0	a\\tb c\\nd
+a\tb	c\nd	\t	1	a\\tb\tc\\nd
+a\tb	c\nd	\t	0	a\\tb\tc\\nd
+a\tb	c\nd	 = 	1	a\\tb = c\\nd
+a\tb	c\nd	 = 	0	a\\tb = c\\nd

@@ -64,14 +64,44 @@ let properties = Properties::from_pairs(vec![
 assert_eq!(properties.store(None), "a\\ b=one\ncaf\\u00E9=two\n");
 ```
 
-`store_bytes` gives the ISO-8859-1 bytes Java writes to a stream, which are the
-same because every escape is ASCII, and `store_to` writes them to anything
-writable.
+`store_bytes` gives the ISO-8859-1 bytes Java writes to a stream, and `store_to`
+writes them to anything writable. The default options escape every entry
+character above ASCII, but the comment mode is separate and passes Latin-1
+through, so the bytes are not necessarily ASCII: a `café` comment is the single
+byte `0xE9`, not UTF-8's two bytes, which is what a reader on the other side
+expects. These two cannot fail on encoding, because the default options keep
+every character inside ISO-8859-1.
 
 `store_with` is the rest of the reference's writer: the separator, a comment, a
-timestamp comment, sorting, and whether non-ASCII is escaped. The pieces are
-exported on their own too - `escape`, `join_key_value` and `to_comment` - because
-they are useful without a whole document.
+timestamp comment, sorting, whether non-ASCII is escaped, and whether the comment
+is escaped separately. `store_to_with` writes that same document to a stream, in
+the same ISO-8859-1 encoding, so choosing a separator or a comment mode does not
+force a caller to render the document first and write it by hand. The pieces are
+exported on their own too - `escape`, `join_key_value` and `to_comment`, with an
+`_with` variant of each that takes the escaping mode - because they are useful
+without a whole document.
+
+`store_with` returns text, so a caller who wants UTF-8 rather than ISO-8859-1
+should render with it and encode the result themselves. Note that
+`ensure_ascii: false` puts raw non-ASCII into that text, so encoding it as
+ISO-8859-1 is not possible for anything above `U+00FF`:
+
+```rust
+use javaproperties::{Properties, WriteOptions, parse_str};
+
+let properties = Properties::from_pairs(vec![
+    ("café".to_string(), "naïve".to_string()),
+]);
+let text = properties.store_with(&WriteOptions {
+    ensure_ascii: false,
+    ..WriteOptions::default()
+});
+
+// Both characters are in Latin-1, so `parse` reads the ISO-8859-1 bytes back.
+let latin1: Vec<u8> = text.chars().map(|c| u8::try_from(u32::from(c)).unwrap()).collect();
+assert_eq!(parse_str(&text).unwrap()[0].0, "café");
+assert_eq!(javaproperties::parse(&latin1).unwrap()[0].0, "café");
+```
 
 ```rust
 use javaproperties::{Properties, WriteOptions, join_key_value, to_comment};
@@ -93,6 +123,33 @@ let text = properties.store_with(&WriteOptions {
 });
 assert_eq!(text, "#Thu Jan 01 00:00:00 UTC 1970\na: 1\nb: 2\n");
 ```
+
+### Choosing what gets escaped
+
+A comment and an entry are escaped by different defaults, and the reference lets
+a caller override each one separately. `ensure_ascii` covers keys and values,
+where the default escapes everything outside printable ASCII. A comment is prose,
+so its default escapes only what ISO-8859-1 cannot hold and writes an accented
+Latin-1 letter through unchanged:
+
+```rust
+use javaproperties::{escape_with, to_comment_with};
+
+// An entry's default: everything outside ASCII becomes `\uXXXX`.
+assert_eq!(escape_with("café", true), "caf\\u00E9");
+// Turned off, the character is written as itself and the file is no longer
+// ISO-8859-1, so a reader has to be told what encoding it is.
+assert_eq!(escape_with("café", false), "café");
+
+// A comment's default is the middle of three modes: Latin-1 survives.
+assert_eq!(to_comment_with("café 中文", None), "#café \\u4E2D\\u6587");
+assert_eq!(to_comment_with("café", Some(true)), "#caf\\u00E9");
+assert_eq!(to_comment_with("café 中文", Some(false)), "#café 中文");
+```
+
+`WriteOptions::ensure_ascii_comments` is the same choice for the comment a
+document carries, and it is `None` by default rather than following
+`ensure_ascii`, which is what `java.util.Properties` does.
 
 The one deliberate difference from the reference is the timestamp. Java renders
 it in the local timezone, reading the host's; this crate has no timezone database

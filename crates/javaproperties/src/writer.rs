@@ -29,12 +29,34 @@ use crate::time::java_timestamp_utc;
 /// ```
 #[must_use]
 pub fn escape(field: &str) -> String {
+    escape_with(field, true)
+}
+
+/// Escapes a field, choosing whether characters outside ASCII are escaped.
+///
+/// This is the reference's `escape(field, ensure_ascii)`. With `ensure_ascii`
+/// false a character above ASCII is written as itself, so the output is not
+/// ISO-8859-1 and a reader must be told what it is; the control range is still
+/// escaped, because those characters would be read back as something else.
+///
+/// # Example
+///
+/// ```
+/// use javaproperties::escape_with;
+///
+/// assert_eq!(escape_with("café", true), "caf\\u00E9");
+/// assert_eq!(escape_with("café", false), "café");
+/// // A tab is escaped either way: it is not a character a value can hold.
+/// assert_eq!(escape_with("a\tb", false), "a\\tb");
+/// ```
+#[must_use]
+pub fn escape_with(field: &str, ensure_ascii: bool) -> String {
     let mut out = String::with_capacity(field.len());
     for c in field.chars() {
         if c == ' ' {
             out.push_str("\\ ");
         } else {
-            push_escaped(&mut out, c);
+            push_escaped_with(&mut out, c, ensure_ascii);
         }
     }
     out
@@ -122,10 +144,29 @@ fn escape_key_with(key: &str, ensure_ascii: bool) -> String {
 /// ```
 #[must_use]
 pub fn join_key_value(key: &str, value: &str, separator: &str) -> String {
+    join_key_value_with(key, value, separator, true)
+}
+
+/// Joins a key and a value into one line, choosing whether characters outside
+/// ASCII are escaped.
+///
+/// This is the reference's `join_key_value(key, value, separator,
+/// ensure_ascii)`.
+///
+/// # Example
+///
+/// ```
+/// use javaproperties::join_key_value_with;
+///
+/// assert_eq!(join_key_value_with("k", "café", "=", true), "k=caf\\u00E9");
+/// assert_eq!(join_key_value_with("k", "café", "=", false), "k=café");
+/// ```
+#[must_use]
+pub fn join_key_value_with(key: &str, value: &str, separator: &str, ensure_ascii: bool) -> String {
     let mut out = String::with_capacity(key.len() + value.len() + separator.len());
-    out.push_str(&escape_key_with(key, true));
+    out.push_str(&escape_key_with(key, ensure_ascii));
     out.push_str(separator);
-    out.push_str(&escape_value_with(value, true));
+    out.push_str(&escape_value_with(value, ensure_ascii));
     out
 }
 
@@ -148,6 +189,39 @@ pub fn join_key_value(key: &str, value: &str, separator: &str) -> String {
 /// ```
 #[must_use]
 pub fn to_comment(comment: &str) -> String {
+    to_comment_with(comment, None)
+}
+
+/// Turns a string into a comment line, choosing which characters are escaped.
+///
+/// This is the reference's `to_comment(comment, ensure_ascii)`, and the three
+/// values mean three different things, which is why the argument is an
+/// `Option<bool>` rather than a `bool`:
+///
+/// | `ensure_ascii` | Escaped |
+/// | --- | --- |
+/// | `None` (default) | only above U+00FF, so Latin-1 is written as itself |
+/// | `Some(true)` | everything above ASCII |
+/// | `Some(false)` | nothing |
+///
+/// The default is not the same as [`escape`]'s: a comment is a line of prose
+/// rather than a key or value, so `java.util.Properties.store` writes accented
+/// Latin-1 through unchanged and escapes only what ISO-8859-1 cannot hold.
+///
+/// # Example
+///
+/// ```
+/// use javaproperties::to_comment_with;
+///
+/// // Latin-1 survives the default, and anything above it is escaped.
+/// assert_eq!(to_comment_with("café 中文", None), "#café \\u4E2D\\u6587");
+/// // Asking for ASCII escapes the é as well.
+/// assert_eq!(to_comment_with("café", Some(true)), "#caf\\u00E9");
+/// // Asking for nothing writes both through.
+/// assert_eq!(to_comment_with("café 中文", Some(false)), "#café 中文");
+/// ```
+#[must_use]
+pub fn to_comment_with(comment: &str, ensure_ascii: Option<bool>) -> String {
     // First normalise the breaks: `\r\n` and a lone `\r` both become `\n`. The
     // reference does this with a regex before it looks at anything else.
     let mut normalised = String::with_capacity(comment.len());
@@ -179,20 +253,26 @@ pub fn to_comment(comment: &str) -> String {
             }
             continue;
         }
-        push_comment_char(&mut out, c);
+        push_comment_char(&mut out, c, ensure_ascii);
     }
     out
 }
 
-/// Writes one comment character, escaping only what is outside Latin-1.
+/// Writes one comment character, honouring the three-way `ensure_ascii`.
 ///
-/// The reference's default for a comment escapes non-Latin-1 and nothing else, so
-/// a tab or an accented letter is written as it stands.
-fn push_comment_char(out: &mut String, c: char) {
-    if (c as u32) <= 0xff {
-        out.push(c);
-    } else {
+/// `None` escapes only what is outside Latin-1, which is the reference's default
+/// for a comment; `Some(true)` escapes everything above ASCII; `Some(false)`
+/// escapes nothing. A tab or an accented letter is written as it stands under the
+/// first and third.
+fn push_comment_char(out: &mut String, c: char, ensure_ascii: Option<bool>) {
+    let needs_escape = match ensure_ascii {
+        None => (c as u32) > 0xff,
+        Some(escape_all) => escape_all && (c as u32) > 0x7f,
+    };
+    if needs_escape {
         push_unicode_escape(out, c);
+    } else {
+        out.push(c);
     }
 }
 
@@ -267,6 +347,16 @@ pub struct WriteOptions<'a> {
     /// control range is escaped and the rest is passed through, which produces a
     /// file a reader must be told is not ISO-8859-1.
     pub ensure_ascii: bool,
+    /// Escape the comment independently of the entries.
+    ///
+    /// The reference's `ensure_ascii_comments`, and the three values mean what
+    /// [`to_comment_with`] documents: `None` escapes only what ISO-8859-1 cannot
+    /// hold, `Some(true)` escapes everything above ASCII, and `Some(false)`
+    /// escapes nothing. `None` is the default and is **not** the same as
+    /// following `ensure_ascii`: a comment is prose, so `java.util.Properties`
+    /// writes accented Latin-1 through it unchanged even when the entries beside
+    /// it are fully escaped.
+    pub ensure_ascii_comments: Option<bool>,
 }
 
 impl Default for WriteOptions<'_> {
@@ -277,6 +367,7 @@ impl Default for WriteOptions<'_> {
             timestamp: None,
             sort_keys: false,
             ensure_ascii: true,
+            ensure_ascii_comments: None,
         }
     }
 }
@@ -293,10 +384,11 @@ fn write_document(
     options: &WriteOptions<'_>,
 ) -> Result<(), Error> {
     if let Some(comment) = options.comment {
-        out.push_str(&to_comment(comment));
+        out.push_str(&to_comment_with(comment, options.ensure_ascii_comments));
         out.push('\n');
     }
     if let Some(seconds) = options.timestamp {
+        // A timestamp is ASCII, so the escaping mode cannot change it.
         out.push_str(&to_comment(&java_timestamp_utc(seconds)));
         out.push('\n');
     }
@@ -336,9 +428,8 @@ fn write_entry(out: &mut String, key: &str, value: &str, options: &WriteOptions<
 impl Properties {
     /// Writes the entries as a `.properties` document.
     ///
-    /// The result is text; use [`Properties::store_bytes`] for the ISO-8859-1
-    /// bytes that `java.util.Properties.store` writes, which this can also
-    /// produce because every escape is ASCII.
+    /// The result is text. Use [`Properties::store_bytes`] for the ISO-8859-1
+    /// bytes that `java.util.Properties.store` writes to a stream.
     ///
     /// # Example
     ///
@@ -407,17 +498,29 @@ impl Properties {
         out
     }
 
-    /// Writes the document as ISO-8859-1 bytes, the way Java writes a stream.
+    /// Writes the document as the bytes Java writes to a stream.
     ///
-    /// Every character in the result is ASCII, because anything else was
-    /// escaped, so this is the same text as [`Properties::store`] encoded as
-    /// bytes.
+    /// Java's `store(OutputStream, ...)` encodes ISO-8859-1, and so does this. The
+    /// default options escape every entry character above ASCII, but the comment
+    /// mode is separate and defaults to passing Latin-1 through, so the bytes are
+    /// not necessarily ASCII: a `café` comment comes out as the single byte
+    /// `0xE9`, which is what Java writes and what [`crate::parse`] expects.
+    ///
+    /// This cannot fail, because the default options are the two that keep every
+    /// character inside ISO-8859-1: `ensure_ascii` escapes entries, and the
+    /// default comment mode escapes only what is above `U+00FF`. Use
+    /// [`Properties::store_to_with`] to choose the escaping; that one can fail,
+    /// because `ensure_ascii: false` and `ensure_ascii_comments: Some(false)` let
+    /// text through that ISO-8859-1 has no byte for.
     #[must_use]
     pub fn store_bytes(&self, comment: Option<&str>) -> Vec<u8> {
-        self.store(comment).into_bytes()
+        latin1(&self.store(comment)).expect("default options escape everything outside ISO-8859-1")
     }
 
     /// Writes the document to anything writable.
+    ///
+    /// Encodes ISO-8859-1, like Java's `store(OutputStream, ...)`, and cannot
+    /// fail for the reason [`Properties::store_bytes`] gives.
     ///
     /// # Errors
     ///
@@ -431,6 +534,106 @@ impl Properties {
             .write_all(&self.store_bytes(comment))
             .map_err(|_| Error::Io)
     }
+
+    /// Writes the document to anything writable, with full control over the
+    /// output.
+    ///
+    /// This is [`Properties::store_with`] to a stream instead of a `String`, so a
+    /// caller who needs a separator, sorting or a comment-escaping mode does not
+    /// have to render the text and write it by hand.
+    ///
+    /// # Encoding
+    ///
+    /// The bytes are **ISO-8859-1**, the same encoding [`Properties::store_to`]
+    /// uses, because that is what Java's `store(OutputStream, ...)` writes and
+    /// what [`crate::parse`] reads back. [`Properties::store_with`] returns the
+    /// same document as a `String`, so a caller who wants UTF-8 should render with
+    /// it and encode the text themselves.
+    ///
+    /// Both escaping settings can pass text through that ISO-8859-1 cannot hold:
+    /// `ensure_ascii: false` for entries and `ensure_ascii_comments: Some(false)`
+    /// for the comment. That is [`Error::NotLatin1`], not a silent transcode.
+    /// `ensure_ascii_comments: None`, the default, only passes characters
+    /// ISO-8859-1 can hold, so it never fails.
+    ///
+    /// ```
+    /// use javaproperties::{Properties, WriteOptions, parse};
+    ///
+    /// let properties = Properties::from_pairs(vec![
+    ///     ("café".to_string(), "naïve".to_string()),
+    /// ]);
+    ///
+    /// // The comment passes Latin-1 through, the entry escapes it, and the
+    /// // bytes are ISO-8859-1: `é` is the single byte 0xE9, not UTF-8's 0xC3 0xA9.
+    /// let mut out = Vec::new();
+    /// properties
+    ///     .store_to_with(
+    ///         &mut out,
+    ///         &WriteOptions {
+    ///             comment: Some("café"),
+    ///             ..WriteOptions::default()
+    ///         },
+    ///     )
+    ///     .unwrap();
+    /// assert_eq!(out, b"#caf\xE9\ncaf\\u00E9=na\\u00EFve\n");
+    ///
+    /// // `parse` decodes ISO-8859-1, so the bytes round-trip without a transcode.
+    /// assert_eq!(
+    ///     parse(&out).unwrap(),
+    ///     vec![("café".to_string(), "naïve".to_string())]
+    /// );
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Io`] when the writer fails, and [`Error::NotLatin1`] when
+    /// the output holds a character outside ISO-8859-1.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use javaproperties::{Properties, WriteOptions};
+    ///
+    /// let properties = Properties::from_pairs(vec![
+    ///     ("café".to_string(), "two".to_string()),
+    /// ]);
+    /// let mut out = Vec::new();
+    /// properties
+    ///     .store_to_with(
+    ///         &mut out,
+    ///         &WriteOptions {
+    ///             comment: Some("café"),
+    ///             ensure_ascii_comments: Some(true),
+    ///             ..WriteOptions::default()
+    ///         },
+    ///     )
+    ///     .unwrap();
+    /// // The comment is escaped on request; the entry escapes by default.
+    /// assert_eq!(out, b"#caf\\u00E9\ncaf\\u00E9=two\n");
+    /// ```
+    pub fn store_to_with(
+        &self,
+        mut writer: impl std::io::Write,
+        options: &WriteOptions<'_>,
+    ) -> Result<(), Error> {
+        writer
+            .write_all(&latin1(self.store_with(options).as_str())?)
+            .map_err(|_| Error::Io)
+    }
+}
+
+/// Encodes a rendered document as the ISO-8859-1 bytes Java writes to a stream.
+///
+/// ISO-8859-1 is the first 256 code points one byte each, so this is a widening
+/// cast and not a lookup table. Anything above U+00FF has no byte, and guessing
+/// (replacing it, or falling back to UTF-8) would produce a document that reads
+/// back as different text, so it is an error the caller has to resolve.
+fn latin1(text: &str) -> Result<Vec<u8>, Error> {
+    text.chars()
+        .map(|character| {
+            u8::try_from(u32::from(character)).map_err(|_| Error::NotLatin1 { character })
+        })
+        .collect()
 }
 
 /// Writes pairs without building a [`Properties`] first.
@@ -451,7 +654,7 @@ pub fn store(pairs: &[(String, String)], comment: Option<&str>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parse_str;
+    use crate::{parse, parse_str};
 
     fn round_trip(pairs: Vec<(String, String)>) {
         let properties = Properties::from_pairs(pairs.clone());
@@ -609,13 +812,55 @@ mod tests {
     }
 
     #[test]
-    fn the_bytes_are_the_text_and_are_all_ascii() {
+    fn the_bytes_are_latin1_and_a_latin1_comment_is_one_byte() {
+        // Java writes a stream as ISO-8859-1. Entries escape by default, but the
+        // comment mode does not, so `é` must be the single byte 0xE9 and not
+        // UTF-8's 0xC3 0xA9 - the difference a reader either side of this
+        // decision would see.
         let properties = Properties::from_pairs(vec![("k".to_string(), "café😀".to_string())]);
-        let bytes = properties.store_bytes(None);
-        assert_eq!(bytes, properties.store(None).into_bytes());
-        assert!(
-            bytes.is_ascii(),
-            "every escape is ASCII, so the bytes must be too"
+        let bytes = properties.store_bytes(Some("café"));
+        assert_eq!(bytes, b"#caf\xE9\nk=caf\\u00E9\\uD83D\\uDE00\n");
+        assert_eq!(
+            parse(&bytes).unwrap(),
+            vec![("k".to_string(), "café😀".to_string())],
+            "the bytes must read back unchanged, comment aside"
+        );
+    }
+
+    #[test]
+    fn a_comment_the_default_mode_cannot_encode_is_an_error() {
+        // `ensure_ascii_comments: Some(false)` passes anything through, including
+        // text ISO-8859-1 has no byte for. Silently transcoding it would produce a
+        // document that reads back as different text.
+        let properties = Properties::from_pairs(vec![("k".to_string(), "v".to_string())]);
+        let error = properties
+            .store_to_with(
+                &mut Vec::new(),
+                &WriteOptions {
+                    comment: Some("中文"),
+                    ensure_ascii_comments: Some(false),
+                    ..WriteOptions::default()
+                },
+            )
+            .unwrap_err();
+        assert_eq!(error, Error::NotLatin1 { character: '中' });
+        assert!(error.to_string().contains("ISO-8859-1"));
+    }
+
+    #[test]
+    fn an_unescaped_entry_above_latin1_is_an_error_not_a_transcode() {
+        let properties = Properties::from_pairs(vec![("k".to_string(), "中文".to_string())]);
+        // The default escapes it, so the infallible writer cannot fail.
+        properties.store_to(&mut Vec::new(), None).unwrap();
+        assert_eq!(
+            properties.store_to_with(
+                &mut Vec::new(),
+                &WriteOptions {
+                    ensure_ascii: false,
+                    ..WriteOptions::default()
+                },
+            ),
+            Err(Error::NotLatin1 { character: '中' })
         );
     }
 }

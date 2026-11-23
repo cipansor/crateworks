@@ -1,0 +1,57 @@
+input	ensure_ascii	escaped
+	1	
+	0	
+a	1	a
+a	0	a
+a b	1	a\\ b
+a b	0	a\\ b
+ lead	1	\\ lead
+ lead	0	\\ lead
+trail 	1	trail\\ 
+trail 	0	trail\\ 
+a=b	1	a\\=b
+a=b	0	a\\=b
+a:b	1	a\\:b
+a:b	0	a\\:b
+a#b	1	a\\#b
+a#b	0	a\\#b
+a!b	1	a\\!b
+a!b	0	a\\!b
+a\\b	1	a\\\\b
+a\\b	0	a\\\\b
+a\tb	1	a\\tb
+a\tb	0	a\\tb
+a\nb	1	a\\nb
+a\nb	0	a\\nb
+a\rb	1	a\\rb
+a\rb	0	a\\rb
+a\fb	1	a\\fb
+a\fb	0	a\\fb
+a\x00b	1	a\\u0000b
+a\x00b	0	a\\u0000b
+a\x7fb	1	a\\u007Fb
+a\x7fb	0	a\\u007Fb
+a\x85b	1	a\\u0085b
+a\x85b	0	a\x85b
+a\xa0b	1	a\\u00A0b
+a\xa0b	0	a\xa0b
+caf\xe9	1	caf\\u00E9
+caf\xe9	0	caf\xe9
+\u4e2d\u6587	1	\\u4E2D\\u6587
+\u4e2d\u6587	0	\u4e2d\u6587
+\U0001f600	1	\\uD83D\\uDE00
+\U0001f600	0	\U0001f600
+a=b:c#d!e f	1	a\\=b\\:c\\#d\\!e\\ f
+a=b:c#d!e f	0	a\\=b\\:c\\#d\\!e\\ f
+\\	1	\\\\
+\\	0	\\\\
+#	1	\\#
+#	0	\\#
+!	1	\\!
+!	0	\\!
+=	1	\\=
+=	0	\\=
+:	1	\\:
+:	0	\\:
+ 	1	\\ 
+ 	0	\\ 

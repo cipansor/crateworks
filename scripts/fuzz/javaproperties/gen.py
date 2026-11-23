@@ -2,6 +2,19 @@ import javaproperties, random, sys
 
 random.seed(20261021)
 
+# The corpus is baselined against this release. A fixture regenerated against
+# another one re-baselines the oracle silently, and two maintainers on two
+# releases then get two fixtures from one checkout. Same guard as
+# `holidays-rs/gen.py` and `gen_writer.py`.
+PINNED = "0.8.2"
+if javaproperties.__version__ != PINNED:
+    raise SystemExit(
+        f"javaproperties {javaproperties.__version__} is installed, but this "
+        f"corpus is baselined against {PINNED} "
+        f"(pip install 'javaproperties=={PINNED}')."
+    )
+
+
 # The fixture is a Rust string literal, so the *input* can only hold bytes below
 # 0x80: those are the only ones a UTF-8 String reproduces as themselves. High
 # bytes in the input would be re-encoded to two bytes and change what parse sees.

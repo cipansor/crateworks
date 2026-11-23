@@ -1,0 +1,61 @@
+count	separator	has_comments	comments	sort_keys	ensure_ascii	ensure_ascii_comments	document	pairs
+1	=	1	caf\xe9 \u4e2d\u6587	0	1	none	#caf\xe9 \\u4E2D\\u6587\na=1\n	a	1
+1	=	1	caf\xe9 \u4e2d\u6587	0	0	none	#caf\xe9 \\u4E2D\\u6587\na=1\n	a	1
+1	=	1	caf\xe9 \u4e2d\u6587	0	1	1	#caf\\u00E9 \\u4E2D\\u6587\na=1\n	a	1
+1	=	1	caf\xe9 \u4e2d\u6587	0	0	1	#caf\\u00E9 \\u4E2D\\u6587\na=1\n	a	1
+1	=	1	caf\xe9 \u4e2d\u6587	0	1	0	#caf\xe9 \u4e2d\u6587\na=1\n	a	1
+1	=	1	caf\xe9 \u4e2d\u6587	0	0	0	#caf\xe9 \u4e2d\u6587\na=1\n	a	1
+1	=	1	plain	0	1	none	#plain\na=1\n	a	1
+1	=	1	plain	0	0	none	#plain\na=1\n	a	1
+1	=	1	plain	0	1	1	#plain\na=1\n	a	1
+1	=	1	plain	0	0	1	#plain\na=1\n	a	1
+1	=	1	plain	0	1	0	#plain\na=1\n	a	1
+1	=	1	plain	0	0	0	#plain\na=1\n	a	1
+1	=	1		0	1	none	#\na=1\n	a	1
+1	=	1		0	0	none	#\na=1\n	a	1
+1	=	1		0	1	1	#\na=1\n	a	1
+1	=	1		0	0	1	#\na=1\n	a	1
+1	=	1		0	1	0	#\na=1\n	a	1
+1	=	1		0	0	0	#\na=1\n	a	1
+1	=	1	one\ntwo	0	1	none	#one\n#two\na=1\n	a	1
+1	=	1	one\ntwo	0	0	none	#one\n#two\na=1\n	a	1
+1	=	1	one\ntwo	0	1	1	#one\n#two\na=1\n	a	1
+1	=	1	one\ntwo	0	0	1	#one\n#two\na=1\n	a	1
+1	=	1	one\ntwo	0	1	0	#one\n#two\na=1\n	a	1
+1	=	1	one\ntwo	0	0	0	#one\n#two\na=1\n	a	1
+1	=	1	a\tb	0	1	none	#a\tb\na=1\n	a	1
+1	=	1	a\tb	0	0	none	#a\tb\na=1\n	a	1
+1	=	1	a\tb	0	1	1	#a\tb\na=1\n	a	1
+1	=	1	a\tb	0	0	1	#a\tb\na=1\n	a	1
+1	=	1	a\tb	0	1	0	#a\tb\na=1\n	a	1
+1	=	1	a\tb	0	0	0	#a\tb\na=1\n	a	1
+1	=	1	caf\xe9 \u4e2d\u6587	0	1	none	#caf\xe9 \\u4E2D\\u6587\ncaf\\u00E9=\\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1	caf\xe9 \u4e2d\u6587	0	0	none	#caf\xe9 \\u4E2D\\u6587\ncaf\xe9=\u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1	caf\xe9 \u4e2d\u6587	0	1	1	#caf\\u00E9 \\u4E2D\\u6587\ncaf\\u00E9=\\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1	caf\xe9 \u4e2d\u6587	0	0	1	#caf\\u00E9 \\u4E2D\\u6587\ncaf\xe9=\u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1	caf\xe9 \u4e2d\u6587	0	1	0	#caf\xe9 \u4e2d\u6587\ncaf\\u00E9=\\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1	caf\xe9 \u4e2d\u6587	0	0	0	#caf\xe9 \u4e2d\u6587\ncaf\xe9=\u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1	plain	0	1	none	#plain\ncaf\\u00E9=\\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1	plain	0	0	none	#plain\ncaf\xe9=\u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1	plain	0	1	1	#plain\ncaf\\u00E9=\\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1	plain	0	0	1	#plain\ncaf\xe9=\u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1	plain	0	1	0	#plain\ncaf\\u00E9=\\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1	plain	0	0	0	#plain\ncaf\xe9=\u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1		0	1	none	#\ncaf\\u00E9=\\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1		0	0	none	#\ncaf\xe9=\u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1		0	1	1	#\ncaf\\u00E9=\\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1		0	0	1	#\ncaf\xe9=\u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1		0	1	0	#\ncaf\\u00E9=\\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1		0	0	0	#\ncaf\xe9=\u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1	one\ntwo	0	1	none	#one\n#two\ncaf\\u00E9=\\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1	one\ntwo	0	0	none	#one\n#two\ncaf\xe9=\u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1	one\ntwo	0	1	1	#one\n#two\ncaf\\u00E9=\\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1	one\ntwo	0	0	1	#one\n#two\ncaf\xe9=\u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1	one\ntwo	0	1	0	#one\n#two\ncaf\\u00E9=\\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1	one\ntwo	0	0	0	#one\n#two\ncaf\xe9=\u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1	a\tb	0	1	none	#a\tb\ncaf\\u00E9=\\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1	a\tb	0	0	none	#a\tb\ncaf\xe9=\u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1	a\tb	0	1	1	#a\tb\ncaf\\u00E9=\\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1	a\tb	0	0	1	#a\tb\ncaf\xe9=\u4e2d\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1	a\tb	0	1	0	#a\tb\ncaf\\u00E9=\\u4E2D\\u6587\n	caf\xe9	\u4e2d\u6587
+1	=	1	a\tb	0	0	0	#a\tb\ncaf\xe9=\u4e2d\u6587\n	caf\xe9	\u4e2d\u6587

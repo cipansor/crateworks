@@ -30,6 +30,7 @@ never a dependency of any crate.
 | `javaproperties` | `javaproperties/gen.py` | `javaproperties` PyPI 0.8.2 | `python3 javaproperties/gen.py [out]` |
 | `javaproperties` (writer) | `javaproperties/gen_writer.py` | `javaproperties` PyPI 0.8.2 | `TZ=UTC python3 javaproperties/gen_writer.py [out]` |
 | `javaproperties` (`unescape`) | `javaproperties/gen_writer.py` | `javaproperties` PyPI 0.8.2 | `TZ=UTC python3 javaproperties/gen_writer.py [out]` |
+| `javaproperties` (escaping modes, curated and random) | `javaproperties/gen_writer.py` | `javaproperties` PyPI 0.8.2 | `TZ=UTC python3 javaproperties/gen_writer.py [out]` |
 | `javaproperties` (XML) | `javaproperties/gen_xml.py` | `javaproperties` PyPI 0.8.2 | `python3 javaproperties/gen_xml.py [out]` |
 | `iso6346` | `iso6346/gen.js` | `container-validator` npm 1.1.0 | `NODE_PATH=<modules> node iso6346/gen.js [out]` |
 | `address-parser` | `address-parser/gen.js` | `parse-address` npm 1.1.2 | `NODE_PATH=<modules> node address-parser/gen.js [out]` |
@@ -52,7 +53,11 @@ never a dependency of any crate.
 With no `out` argument each writes to the crate's own fixture, which is the path
 you want when rebuilding it in place. The recorded versions are the ones the
 committed fixtures were built against; a newer reference may legitimately change
-an answer, and then the crate has to change with it or say why not.
+an answer, and then the crate has to change with it or say why not. The generator
+enforces it where it reads the reference's version: `gen_writer.py` (via
+`PINNED`), `holidays-rs/gen.py`, `gen_stdnum_vectors.py` and
+`gen_iban_structures.py` stop on a mismatch, so a rebuilt fixture cannot be
+re-baselined against a release nobody chose.
 
 `object-hash/gen.js` and `javaproperties/gen.py` take the output path from an
 argument or a constant; `adhan/gen.js` writes straight to the crate fixture. Note
