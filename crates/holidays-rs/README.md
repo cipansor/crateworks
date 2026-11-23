@@ -171,14 +171,16 @@ are still absent, and five more are known differences the gate records rather
 than defects.
 
 `EXCLUDED` is not a catalogue of the gate's differences. The gate reports those
-itself, and `research/review-0.1.22.md` describes the 38 calendars still failing
-it; `EXCLUDED` holds a calendar the corpus would otherwise freeze but cannot,
-with the reason, and today that is only Botswana: its extra days are pinned as
-`Rule::Once` years rather than derived from the weekday, so it agrees with the
-reference through 2049 and diverges in the 25 years the extended window adds
-(measured: no difference at or before 2049, six between 2054 and 2071). The
-generator refuses to run if a calendar appears in both `COUNTRIES` and
-`EXCLUDED`, so a frozen calendar cannot also carry an exclusion.
+itself - run `python3 research/tools/verify_holidays.py` for the current list -
+and `research/review-0.1.22.md` explains what the 38 still-failing calendars
+have in common and names a few of them as examples, not all 38; `EXCLUDED` holds
+a calendar the corpus would otherwise freeze but cannot, with the reason, and
+today that is only Botswana: its extra days are pinned as `Rule::Once` years
+rather than derived from the weekday, so it agrees with the reference through
+2049 and diverges in the 25 years the extended window adds (measured: no
+difference at or before 2049, six between 2054 and 2071). The generator refuses
+to run if a calendar appears in both `COUNTRIES` and `EXCLUDED`, so a frozen
+calendar cannot also carry an exclusion.
 
 Part of the [crateworks](https://github.com/cipansor/crateworks)
 workspace. Licensed under the Apache License, Version 2.0, copyright Yayasan
