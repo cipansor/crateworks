@@ -458,6 +458,33 @@ regression coverage in CI at all.
   children, so its line stays 16px and the empty inline box is missing. A
   whitespace-only node is different and already handled (see `push_text`): it
   survives as an empty text box, not an empty inline box.
+- **A reference-derived fixture must use the same window as the gate.** The
+  holiday corpus originally started at each country's own `start_year`, while
+  `holidays_oracle.tsv` was generated from year 1. Generating from year 1 for the
+  30 calendars in the corpus gives 424,318 differing dates before 1900 - years
+  the fit never saw, where the crate answers from its rules and the reference is
+  silent or models a different regime. A fixture is only evidence inside the
+  window the tables were fitted against; freezing years outside it records the
+  crate's guesses as if they were correct. Both sides now floor at
+  `EARLIEST = 1900`.
+- **A comparison that only looks at what you changed will report zero.** A
+  review claim of "0 mismatches 1945-2000 across 13 calendars" was true of the
+  entries that round had edited and false of the calendars containing them.
+  Measured over the whole calendar, those 13 calendars differed on 1,870 dates
+  in 1945-2000 before the French family was bounded, 606 of them inside the
+  reference's own window; after the fix the same comparison gives 1,139, all of
+  them before the reference's `start_year` and so outside the verified window.
+  The method matters: compare the full output of the thing that changed over a
+  stated year range and record that range, not the subset the diff touched. A
+  number without its window and its calendar set cannot be checked by the next
+  reader, which is how the 0 survived a review.
+- **`Rule::Until` alone has no lower bound, and the gate cannot see the leak.**
+  It sets a last year only, so a form whose modern shape ends before the
+  reference's `start_year` is reported back to year zero. The gate starts at
+  `start_year`, which is exactly where the leak stops, so it never fires. Use
+  `Between` when the first year is known; `verify_holidays.py` will not catch a
+  bare `Until`, and Estonia's `uusaasta` still reports 1950 for a reference that
+  begins in 1991.
 - **A trailing space only makes a phantom line when it shares its text node with
   the content.** When a trailing collapsible space overflows a line that already
   has an internal break opportunity, WeasyPrint starts a line of its own for the

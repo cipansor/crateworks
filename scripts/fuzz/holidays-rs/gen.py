@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the holidays-rs oracle corpus for the 0.8.0 calendars.
+"""Build the holidays-rs oracle corpus.
 
 `verify_holidays.py` compares every country table against the Python `holidays`
 package, but it does so *live*: it needs the reference installed and CI does not
@@ -14,6 +14,14 @@ shift, and that is the part a hand-written case misses. A test that asserts
 "Bermuda Day is 22 May 2026" says nothing about the Saturday New Year's shift
 (`(0, 1), (6, 2)`) or the Solomon Islands' backward move (`(6, -1)`); a Saturday
 occurrence in the corpus does.
+
+The 0.8.1 fix bounded several tables at the year each holiday actually began,
+which `historical_bounds.rs` then checks at the two years either side of a
+bound. That file probes boundaries; this one covers the interior, so the two
+answer different questions. Fifteen more calendars were gate-clean over the
+whole window and are frozen here for that reason. The ones that are not are in
+`EXCLUDED` with the difference that keeps them out, which is printed into the
+fixture so the omission is visible where the data is read.
 
 The corpus is the reference's answer over the whole window, not a sample of it.
 A calendar's oracle is small enough to take whole, and a random sample can miss
@@ -68,8 +76,56 @@ COUNTRIES = {
     "Gibraltar": ("GI", 2000),
     "SolomonIslands": ("SB", 1979),
     "BritishVirginIslands": ("VG", 1967),
+    # Added for the 0.8.1 historical-bounds fix. Each one was gate-clean over
+    # the whole window before being added, so the corpus is a freeze of an
+    # answer that already agreed rather than a new claim.
+    "Armenia": ("AM", 1991),
+    "CaboVerde": ("CV", 1976),
+    "Croatia": ("HR", 1992),
+    "Cyprus": ("CY", 1961),
+    "Estonia": ("EE", 1991),
+    "FrenchSouthernTerritories": ("TF", 1956),
+    "Germany": ("DE", 1991),
+    "Lesotho": ("LS", 1996),
+    "Liberia": ("LR", 1957),
+    "Lithuania": ("LT", 1990),
+    "Micronesia": ("FM", 1987),
+    "Namibia": ("NA", 1991),
+    "SaintLucia": ("LC", 1979),
+    "Seychelles": ("SC", 1994),
+    "WallisAndFutuna": ("WF", 1962),
+    # The French family, added once the 0.8.1 fix bounded their shared days
+    # (1 May 1919, 11 November 1922, the abolition days in 1983-1984) and
+    # turned the two `Until`-only rules into `Between`. Before that each one
+    # failed the gate, and freezing a failing answer would have recorded the
+    # leak as correct.
+    "France": ("FR", 1803),
+    "FrenchGuiana": ("GF", 1815),
+    "Guadeloupe": ("GP", 1815),
+    "Martinique": ("MQ", 1815),
+    "Reunion": ("RE", 1815),
+    "Mayotte": ("YT", 1842),
+    "NewCaledonia": ("NC", 1854),
+    "FrenchPolynesia": ("PF", 1881),
+    "SaintPierreAndMiquelon": ("PM", 1815),
 }
 
+# Calendars the corpus deliberately leaves out, with the reason. A calendar
+# belongs here only while `verify_holidays.py` reports a difference for it; a
+# table that agrees everywhere is added above instead.
+EXCLUDED = {
+    "Botswana": (
+        "the extra Boxing Day and Labour Day holidays are pinned as `Rule::Once` "
+        "years (2020, 2026, 2037, ...) rather than derived from the weekday, so "
+        "the table stops agreeing past 2049. Freezing the reference's answer "
+        "would bake that lookup table in as if it were correct."
+    ),
+}
+
+# The same floor `verify_holidays.py` uses. Before 1900 the tables were never
+# fitted against the reference, so a difference there is not evidence about
+# the crate; freezing those years would encode the crate's own guesses.
+EARLIEST = 1900
 LAST = 2075
 # A fixed seed keeps the corpus reproducible; the country code is mixed in so
 # adding a country does not reshuffle the others.
@@ -79,8 +135,15 @@ ABSENT_PER_COUNTRY = 600
 
 def main() -> int:
     out = CRATE / "tests" / "fixtures" / "holidays_oracle.tsv"
+    overlap = sorted(set(COUNTRIES) & set(EXCLUDED))
+    if overlap:
+        raise SystemExit(
+            f"{', '.join(overlap)} is in both COUNTRIES and EXCLUDED; "
+            "a calendar is either agreed with the reference or left out with a reason"
+        )
     rows = []
     for name, (code, first) in COUNTRIES.items():
+        first = max(first, EARLIEST)
         cal = pyholidays.country_holidays(code, years=list(range(first, LAST + 1)))
         full = set(cal.keys())
         for d in sorted(full):
@@ -103,7 +166,10 @@ def main() -> int:
         "# kind=must   the crate must report this date",
         "# kind=allow  a weekend reference date; the crate may report it or not",
         "# kind=absent the crate must report nothing for this date",
+        "#",
+        "# Calendars deliberately left out, and why:",
     ]
+    lines += [f"#   {name}: {why}" for name, why in EXCLUDED.items()]
     lines += [f"{name}\t{d.isoformat()}\t{kind}" for name, d, kind in rows]
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text("\n".join(lines) + "\n")

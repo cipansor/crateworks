@@ -2,7 +2,7 @@
 
 This round closes the backlog the gate had been carrying: `verify_holidays.py`
 reported 63 calendars with an undocumented difference, and this round takes it to
-47 by fixing 16 of them. The remaining 47 are all the same class of problem -
+38 by fixing 25 of them. The remaining 38 are all the same class of problem -
 tables that back-project a modern rule into pre-1991 history - and are recorded
 below as the next piece of work rather than half-fixed.
 
@@ -46,6 +46,23 @@ absent for a *middle* stretch, which neither `Since` nor `Until` can express.
 | SaintLucia | 24 | substitution starts 1979 |
 | Liberia | 9 | Unification Day from 1960; five pre-2006 inauguration years |
 
+The French family is a second group, fixed after the review above: 1 May, 11
+November and each entity's abolition day were ungated `Fixed` rules, and New
+Caledonia's 24 September and French Polynesia's 29 June were `Until`-only, so
+each ran backwards past its first year.
+
+| Country | Cause |
+| --- | --- |
+| France | 1 May from 1919, 11 November from 1922 |
+| FrenchGuiana | shared bounds, plus 10 June abolition from 1984 |
+| Guadeloupe | shared bounds, plus 27 May abolition from 1984, Schoelcher from 1984 |
+| Martinique | shared bounds, plus 22 May abolition from 1984, Schoelcher from 1984 |
+| Reunion | shared bounds, plus 20 December abolition from 1983 |
+| Mayotte | shared bounds, plus 27 April abolition from 1984 |
+| NewCaledonia | shared bounds, plus 24 September is 1953-2003 |
+| FrenchPolynesia | shared bounds, plus 5 March from 1978, 29 June is 1985-2024 |
+| SaintPierreAndMiquelon | shared bounds only |
+
 ## Review follow-up
 
 Review found four defects in the first cut of this round. All are fixed here.
@@ -69,12 +86,26 @@ Caledonia, French Polynesia, Saint Pierre and Miquelon). The French Southern
 Territories is bounded at 1956, its own reference start year, not at 1953;
 Wallis and Futuna was already correct at `Since 1982` and is unchanged.
 
-**The fixes had no CI coverage.** The holiday corpus covers six other
-calendars and the closest-holiday probes start after the dates changed here, so
-nothing would have caught either regression. `tests/historical_bounds.rs` adds
-seven cases that pair each first valid year with the year before it, including
-the `is_working_day` consequence. Reverting the Estonia fix makes two of them
-fail, so they are a real guard rather than a restatement.
+**The fixes had no CI coverage.** The holiday corpus covered six calendars, none
+of them touched here, and the closest-holiday probes start after the dates
+changed, so nothing would have caught either regression. `tests/historical_bounds.rs`
+adds seven cases that pair each first valid year with the year before it,
+including the `is_working_day` consequence. Reverting the Estonia fix makes two
+of them fail, so they are a real guard rather than a restatement.
+
+Those probes are still only hand-picked dates, so the corpus itself now covers
+every calendar this round touched: `scripts/fuzz/holidays-rs/gen.py` goes from 6
+calendars to 30, and the fixture from 10,935 rows to 61,082. That is 34,049
+required dates, 9,033 weekend-allowed ones and 18,000 dates the crate must stay
+silent on, over 1900-2075. The floor is
+`EARLIEST = 1900`, matching the gate: a year before the fit window is not
+evidence about the crate, so freezing it would record the crate's own guesses as
+correct. The generator enforces `EXCLUDED` rather than only documenting it, and
+Botswana is the single entry there - its extra Boxing Day and Labour Day
+holidays are pinned as `Rule::Once` years instead of being derived from the
+weekday, so the table stops agreeing past 2049. The French family is *not*
+excluded, because it now passes; the earlier plan to leave it out would have
+frozen a known-wrong answer.
 
 **The README did not describe the behaviour change.** `CONTRIBUTING.md` requires
 it. The Scope section now records the `Until` lower-bound trap with Estonia as
@@ -83,19 +114,38 @@ the worked example, and states that a year before a country's reference
 
 ## Verification
 
-* `verify_holidays.py` reports `ok` for all 16, and the full run drops from 63 to
-  47 undocumented calendars with no new failures.
+* `verify_holidays.py` reports `ok` for all 25, and the full run drops from 63 to
+  38 undocumented calendars with no new failures.
 * `cargo test -p holidays-rs --all-targets` passes, including the
   `holidays_oracle.tsv` and `closest.tsv` fixtures that CI enforces and the new
   `historical_bounds.rs`.
-* Every date in the changed tables was re-checked against `holidays==0.108`
-  for 1945-2000: 0 mismatches across 13 calendars.
+* The claim in the first cut of this section - "every date in the changed tables
+  was re-checked against `holidays==0.108` for 1945-2000: 0 mismatches across 13
+  calendars" - was wrong, and this round measured why. Comparing the *whole*
+  calendar rather than the dates this round edited, those 13 calendars differed
+  on 1,870 dates over 1945-2000 at `712a72e`, 606 of them inside the reference's
+  own window. The 0 was true only of the entries that had been edited; it said
+  nothing about the calendars around them.
+* Measured correctly, the French family was still wrong inside the window:
+  1 May, 11 November and the abolition days were ungated `Fixed` rules, so each
+  was reported from 1900 while the reference starts 1 May in 1919 and 11
+  November in 1922. After bounding them the nine French entities show **0
+  weekday mismatches over 1945-2000** and all nine pass the gate, which is what
+  lets them enter the corpus at all. Repeating the whole-calendar comparison
+  after the fix gives 1,139 differing dates for the same 13 calendars, all of
+  them before the reference's `start_year` - that is, none inside the verified
+  window.
+* Years before a country's reference `start_year` remain unverified by design,
+  and the crate still answers them from its rules. Estonia reports 322 dates and
+  Lesotho 503 before their reference start years (1991 and 1996). That is the
+  documented best-effort behaviour, not a defect this round fixed, and no claim
+  here should be read as covering those years.
 * `cargo fmt --all -- --check` and `cargo clippy -p holidays-rs --all-targets --
   -D warnings` are clean. No `#[allow]` was added.
 
 ## What is left
 
-The 47 remaining calendars are not the same bug. Each one is a table that applies
+The 38 remaining calendars are not the same bug. Each one is a table that applies
 today's rule to the whole of its history, so the divergence runs from the
 reference's `start_year` to about 1991: Finland reports 1509 differences, Italy
 and the United States 527 each, Poland 320. Fixing them means adding the
