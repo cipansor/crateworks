@@ -445,6 +445,18 @@ regression coverage in CI at all.
   `NotPositive`). The oracle cannot cover that range either: `pint` overflows on
   its own linear intermediate above about `150 Np`, which is why the corpus stops
   there and the out-of-range cases live in `tests/pint.rs` instead.
+- **A generator's random stream is shared, so new draws go at the end.** The
+  fuzz generators seed `random` once and every corpus draws from that stream in
+  file order. Adding a `piece()` call before an existing corpus regenerates it
+  and every later one, which looks like a crate bug in the diff. Append the new
+  block last, then confirm the untouched fixtures are byte-identical.
+- **A three-valued reference argument is `Option<bool>`, not `bool`.**
+  `javaproperties`' `to_comment(comment, ensure_ascii=None)` has three positions:
+  `None` escapes only what ISO-8859-1 cannot hold, `Some(true)` everything above
+  ASCII, `Some(false)` nothing. Collapsing it to a `bool` makes the default
+  unrepresentable and silently changes what existing callers write. The fixture
+  column spells the mode out (`none` / `1` / `0`) so a two-valued test cannot
+  pass with the wrong default.
 - **`xmlkit` name matching.** `Element::child` and `children_named` match the
   full name including the prefix, so `child(el, "IssueDateTime")` does **not**
   find `ram:IssueDateTime`. Match on the local name. `Element::text()`
