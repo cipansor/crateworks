@@ -151,6 +151,7 @@ fn split_segments(header: &str) -> Vec<(String, usize)> {
 /// why the whitespace goes with the separator.
 fn without_empty_elements(header: &str) -> String {
     let segments = split_segments(header);
+    let last = segments.len() - 1;
     let is_empty = |index: usize| {
         if index == 0 {
             segments[index].0.is_empty()
@@ -166,15 +167,19 @@ fn without_empty_elements(header: &str) -> String {
             // Whitespace next to a dropped segment is that separator's OWS, so
             // it goes with it; whitespace next to a surviving separator is OWS
             // of that comma and stays.
+            // A neighbour that is not the adjacent segment was dropped, so the
+            // whitespace on that side is the dropped separator's OWS. A missing
+            // neighbour at either end is not a dropped segment, so the header's
+            // own leading or trailing whitespace survives - it is a fault of its
+            // own, and trimming it here would hide it behind the empty-element
+            // one.
             let previous = position.checked_sub(1).map(|p| kept[p]);
-            let next = kept.get(position + 1).copied();
+            let next = kept.get(position + 1).copied().unwrap_or(last + 1);
             let mut out: &str = text;
-            // A missing neighbour means the segment was dropped, so the
-            // whitespace on that side is the dropped separator's OWS.
             if *index != 0 && previous != Some(index - 1) {
                 out = out.trim_start_matches([' ', '\t']);
             }
-            if next != Some(index + 1) {
+            if next != index + 1 {
                 out = out.trim_end_matches([' ', '\t']);
             }
             out.to_string()

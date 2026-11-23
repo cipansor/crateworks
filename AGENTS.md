@@ -586,6 +586,15 @@ regression coverage in CI at all.
   that rewrite expects a rejection the crate correctly does not give. Drop the
   whitespace with the separator, and only when the adjacent segment is dropped -
   whitespace next to a surviving comma is that comma's OWS and must stay.
+- **A mirrored helper must be diffed against its original, not just run.** The
+  Rust test carries its own copy of the generator's split-and-strip transform,
+  and both replay the same corpus, so a divergence between the two is invisible
+  to the tests: each agrees with the fixture it computes from. The copy trimmed
+  trailing whitespace when a header ended with no comma (`for=1.2.3.4 `), because
+  a missing neighbour at the end of the list was read as a dropped segment, while
+  the generator kept it. The corpus replay passed either way. Dump both
+  implementations' output over the whole corpus and `diff` them - that is the
+  only check that sees this class of bug.
 - **A new npm oracle dependency must regenerate the lockfile.** `package.json`
   gained `forwarded-parse` while `package-lock.json` was untouched, so `npm ci`
   failed with `Missing: forwarded-parse@2.2.0 from lock file` while `npm install`
