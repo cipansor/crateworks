@@ -475,6 +475,16 @@ regression coverage in CI at all.
   behaviour it is supposed to catch. A bound at `start_year` needs
   `historical_bounds.rs`, which pairs the year before with the year itself;
   nothing derived from the reference's own window can see it.
+- **A review comment cites a revision, not a file.** The same two comments on
+  `holidays-rs/README.md` (lines 167 and 169, "ten years of coverage" and
+  "`EXCLUDED` ... a record of known divergences") arrived twice after both were
+  fixed. They quote commit `8e24081` verbatim, which is an ancestor of the PR
+  head three commits back; at head, 167 says 25 years and 169 is about the
+  corpus subset. Checking the cited lines in the working tree showed accurate
+  text and no defect, and rewriting it would have broken a correct file. Confirm
+  which revision a comment describes before acting: read the cited lines, then
+  `git log --oneline <cited>..HEAD -- <path>` to see whether they moved. A
+  comment that no longer applies is answered, not edited around.
 - **A quoted measurement decays; re-derive it before you repeat it.** The review
   doc for `holidays-rs` carried five figures that no longer matched the tool that
   produced them: Finland "1509" differences (the gate says 323), a divergence
