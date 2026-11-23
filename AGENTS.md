@@ -454,6 +454,15 @@ regression coverage in CI at all.
   file order. Adding a `piece()` call before an existing corpus regenerates it
   and every later one, which looks like a crate bug in the diff. Append the new
   block last, then confirm the untouched fixtures are byte-identical.
+- **A fixture normaliser is only as safe as the invariant it assumes.** The
+  `javaproperties` generators upper-case `\uXXXX` hex to match Java. That is sound
+  for keys and values, because the reference doubles a backslash there, so a `\u`
+  in the output is always an escape. It is wrong for a comment, which never
+  escapes a backslash: literal `\u00e9` in a comment passed through unchanged and
+  the rewrite turned it into `\u00E9`. The corpora happened to use digits-only
+  hex, where upper-casing is a no-op, so nothing failed and the generator was
+  still wrong. When a normaliser rewrites text, write down the invariant it
+  relies on and assert it over the inputs, as `_check_literal_escapes` now does.
 - **A three-valued reference argument is `Option<bool>`, not `bool`.**
   `javaproperties`' `to_comment(comment, ensure_ascii=None)` has three positions:
   `None` escapes only what ISO-8859-1 cannot hold, `Some(true)` everything above
