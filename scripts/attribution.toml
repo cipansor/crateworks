@@ -108,3 +108,7 @@ marker = "whitequark/ipaddr.js"
 [[upstream]]
 project = "fast-redact (npm) by David Mark Clements"
 marker = "davidmarkclements/fast-redact"
+
+[[upstream]]
+project = "forwarded-parse (npm) by Luigi Pinca"
+marker = "lpinca/forwarded-parse"

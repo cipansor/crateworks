@@ -70,12 +70,15 @@
 #![doc = include_str!("../README.md")]
 #![forbid(unsafe_code)]
 
+mod forwarded_header;
 mod ip;
 
 use std::fmt;
 use std::net::IpAddr;
 
 use ip::Subnet;
+
+pub use forwarded_header::{ForwardedElement, ForwardedError, Node, parse_forwarded};
 
 /// The predefined ranges a trust entry may name instead of spelling out.
 ///

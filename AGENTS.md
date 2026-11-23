@@ -507,6 +507,23 @@ regression coverage in CI at all.
   find `ram:IssueDateTime`. Match on the local name. `Element::text()`
   concatenates only direct text children, so a value nested in a sub-element
   comes back empty.
+- **A `Forwarded` value is a token unless it is quoted, and the two header
+  families are in opposite order.** In RFC 7239 a bare value may only contain
+  `tchar`, so `host=example.com:8443` and `for=[2001:db8::1]` are syntax errors
+  that need quotes (`host="example.com:8443"`); the reference `forwarded-parse`
+  rejects them and `proxy-addr`'s parser must agree rather than helpfully
+  splitting on the colon. The order trap is worse because it fails silently:
+  RFC 7239 appends each hop, so the client is **first**, while
+  `X-Forwarded-For` is prepended and the crate's `forwarded` returns peer
+  first. `parse_forwarded` therefore keeps header order and does not reverse.
+  Also: the reference's `mustUnescape` flag is set once for the whole header and
+  never cleared, so a backslash in one element decodes later elements' values
+  too; the port keeps that quirk, since matching the reference is the point.
+- **A `Forwarded` corpus must be weighted towards valid headers.** Random text
+  over the reference's character classes is almost always a syntax error, so an
+  even split produced 848 accepted cases out of 6,013 and left the accept path
+  thin. The generator now builds whole `name=value` parameters from a token
+  pool and a quoted pool, and a test asserts each outcome has a floor.
 - **An empty inline element is still a box.** WeasyPrint gives `<span></span>`
   an empty inline box with its own strut, even with no text in it: `<div>a<span
   style="font-size:24px"></span></div>` raises the line to 24px, and an empty
