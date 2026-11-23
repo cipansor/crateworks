@@ -416,6 +416,24 @@ fn store_to_with_writes_latin1_and_parse_reads_it_back() {
     assert!(!out.is_ascii(), "the comment is Latin-1, not escaped");
     assert_eq!(parse(&out).unwrap(), pairs);
 
+    // `ensure_ascii: false` writes a Latin-1 entry through instead of escaping
+    // it, and the bytes must be the same Latin-1 the comment gets. The error
+    // cases below are the same switch on input ISO-8859-1 cannot hold, so
+    // without this the only `ensure_ascii: false` case tested would be a
+    // failure, and a writer that rejected every raw entry would pass.
+    let mut raw = Vec::new();
+    properties
+        .store_to_with(
+            &mut raw,
+            &WriteOptions {
+                ensure_ascii: false,
+                ..WriteOptions::default()
+            },
+        )
+        .unwrap();
+    assert_eq!(raw, b"caf\xE9=na\xEFve\n");
+    assert_eq!(parse(&raw).unwrap(), pairs);
+
     // Text ISO-8859-1 cannot hold is an error rather than a transcode: the two
     // ways to pass it through are `ensure_ascii: false` and
     // `ensure_ascii_comments: Some(false)`.

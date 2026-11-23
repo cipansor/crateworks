@@ -69,8 +69,8 @@ writes them to anything writable. The default options escape every entry
 character above ASCII, but the comment mode is separate and passes Latin-1
 through, so the bytes are not necessarily ASCII: a `café` comment is the single
 byte `0xE9`, not UTF-8's two bytes, which is what a reader on the other side
-expects. Both functions return `Error::NotLatin1` rather than guessing if an
-option lets a character above `U+00FF` through.
+expects. These two cannot fail on encoding, because the default options keep
+every character inside ISO-8859-1.
 
 `store_with` is the rest of the reference's writer: the separator, a comment, a
 timestamp comment, sorting, whether non-ASCII is escaped, and whether the comment
