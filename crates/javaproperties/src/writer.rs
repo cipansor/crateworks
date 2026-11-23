@@ -503,9 +503,9 @@ impl Properties {
     ///
     /// [`Properties::store`] escapes every non-ASCII character, so the result is
     /// pure ASCII and these bytes are also valid ISO-8859-1 - the encoding
-    /// [`parse`] assumes. There is no `ensure_ascii` to turn off here; use
+    /// [`crate::parse`] assumes. There is no `ensure_ascii` to turn off here; use
     /// [`Properties::store_to_with`] for that, and read its output back with
-    /// [`parse_str`] rather than [`parse`].
+    /// [`crate::parse_str`] rather than [`crate::parse`].
     #[must_use]
     pub fn store_bytes(&self, comment: Option<&str>) -> Vec<u8> {
         self.store(comment).into_bytes()
@@ -542,9 +542,9 @@ impl Properties {
     /// is pure ASCII and the two encodings agree.
     ///
     /// The difference only shows when `ensure_ascii` is `false`. The document
-    /// then holds raw non-ASCII, and reading it back with [`parse`] - which
+    /// then holds raw non-ASCII, and reading it back with [`crate::parse`] - which
     /// decodes ISO-8859-1, as `java.util.Properties` does - garbles it: `café`
-    /// comes back as `cafÃ©`. Round-trip such a document with [`parse_str`],
+    /// comes back as `cafÃ©`. Round-trip such a document with [`crate::parse_str`],
     /// which takes text you have already decoded:
     ///
     /// ```

@@ -485,6 +485,15 @@ regression coverage in CI at all.
   `parse_str` after decoding it yourself. Any pair of functions that form a round
   trip needs a test with the *non-default* options, because the default is what
   hides the disagreement.
+- **`cargo doc` is a separate gate, and the three commands in this file do not
+  cover it.** CI runs `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps`,
+  which fails on a broken intra-doc link (`rustdoc::broken_intra_doc_links`).
+  Neither `cargo clippy --all-targets` nor `cargo test --all-targets` resolves
+  links in doc comments, so a doc-only change can be fmt-clean, clippy-clean and
+  test-green locally and still fail CI. A link to an item in another module needs
+  its path (`[`crate::parse`]`, not `[`parse`]`), because the item is not in scope
+  in the module holding the doc comment. Run the doc command before pushing
+  anything that touches documentation.
 - **`xmlkit` name matching.** `Element::child` and `children_named` match the
   full name including the prefix, so `child(el, "IssueDateTime")` does **not**
   find `ram:IssueDateTime`. Match on the local name. `Element::text()`
