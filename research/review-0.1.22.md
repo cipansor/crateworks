@@ -3,8 +3,9 @@
 This round closes the backlog the gate had been carrying: `verify_holidays.py`
 reported 63 calendars with an undocumented difference, and this round takes it to
 38 by fixing 25 of them. The remaining 38 are all the same class of problem -
-tables that back-project a modern rule into pre-1991 history - and are recorded
-below as the next piece of work rather than half-fixed.
+tables that back-project a modern rule into the years before the reference's own
+historical layers begin - and are recorded below as the next piece of work
+rather than half-fixed.
 
 ## What the measurement found
 
@@ -157,23 +158,33 @@ gate's 2050. The README now says that.
   was re-checked against `holidays==0.108` for 1945-2000: 0 mismatches across 13
   calendars" - was wrong, and this round measured why. Comparing the *whole*
   calendar rather than the dates this round edited, those 13 calendars differed
-  on 1,870 dates over 1945-2000 at `712a72e`, 606 of them inside the reference's
+  on 2,063 dates over 1945-2000 at `712a72e`, 606 of them inside the reference's
   own window. The 0 was true only of the entries that had been edited; it said
-  nothing about the calendars around them.
+  nothing about the calendars around them. Every one of the 2,063 is a date the
+  crate reported and the reference did not - none is a date the reference has and
+  the crate missed - which is what a back-projected rule produces. All 606
+  in-window differences belong to the ten calendars whose reference starts at
+  1900 (France and its nine entities); the other three - Estonia, Lesotho,
+  Germany - have a later start year, so every difference they contribute falls
+  before the window by construction.
 * Measured correctly, the French family was still wrong inside the window:
   1 May, 11 November and the abolition days were ungated `Fixed` rules, so each
   was reported from 1900 while the reference starts 1 May in 1919 and 11
   November in 1922. After bounding them the nine French entities show **0
   weekday mismatches over 1945-2000** and all nine pass the gate, which is what
-  lets them enter the corpus at all. Repeating the whole-calendar comparison
-  after the fix gives 1,139 differing dates for the same 13 calendars, all of
+  lets them enter the corpus at all. Repeating the whole-calendar comparison on
+  the current tree gives 1,349 differing dates for the same 13 calendars, all of
   them before the reference's `start_year` - that is, none inside the verified
-  window.
+  window. Measured at `96610b3`, the commit that bounded them, it was 1,694 with
+  345 still inside the window, so the remainder was closed by later rounds
+  rather than by that one commit alone.
 * Years before a country's reference `start_year` remain unverified by design,
-  and the crate still answers them from its rules. Estonia reports 322 dates and
-  Lesotho 510 before their reference start years (1991 and 1996). That is the
-  documented best-effort behaviour, not a defect this round fixed, and no claim
-  here should be read as covering those years.
+  and the crate still answers them from its rules. Over 1900 to the year before
+  each start year, the gate counts 637 dates for Estonia (start 1991) and 951 for
+  Lesotho (start 1996), every one of them `invented` - the reference answers
+  nothing there, so there is no answer to disagree with. That is the documented
+  best-effort behaviour, not a defect this round fixed, and no claim here should
+  be read as covering those years.
 * `cargo fmt --all -- --check` and `cargo clippy -p holidays-rs --all-targets --
   -D warnings` are clean. No `#[allow]` was added.
 
@@ -181,8 +192,11 @@ gate's 2050. The README now says that.
 
 The 38 remaining calendars are not the same bug. Each one is a table that applies
 today's rule to the whole of its history, so the divergence runs from the
-reference's `start_year` to about 1991: Finland reports 1509 differences, Italy
-and the United States 527 each, Poland 320. Fixing them means adding the
+reference's `start_year` to the year the last historical layer begins: Finland
+reports 323 differences (1900-1990), Italy and the United States 527 each
+(1900-1985), Poland 320 (1925-1989). It is not one cutoff - 15 of the 38 stop by
+1990 and the latest runs to 1999 - so the per-calendar end year is part of what
+the gate reports, not a constant to quote. Fixing them means adding the
 historical layers the reference models (Italy before and after 1977, Poland's
 pre-1989 list, the United States before the 1971 Uniform Monday Holiday Act) -
 a per-country rewrite, not a start-year correction. That is the next round's

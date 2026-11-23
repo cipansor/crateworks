@@ -171,9 +171,9 @@ are still absent, and five more are known differences the gate records rather
 than defects.
 
 `EXCLUDED` is not a catalogue of the gate's differences. The gate reports those
-itself and `research/review-0.1.22.md` lists the 38 calendars still failing it;
-`EXCLUDED` holds a calendar the corpus would otherwise freeze but cannot, with
-the reason, and today that is only Botswana: its extra days are pinned as
+itself, and `research/review-0.1.22.md` describes the 38 calendars still failing
+it; `EXCLUDED` holds a calendar the corpus would otherwise freeze but cannot,
+with the reason, and today that is only Botswana: its extra days are pinned as
 `Rule::Once` years rather than derived from the weekday, so it agrees with the
 reference through 2049 and diverges in the 25 years the extended window adds
 (measured: no difference at or before 2049, six between 2054 and 2071). The

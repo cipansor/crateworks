@@ -475,6 +475,18 @@ regression coverage in CI at all.
   behaviour it is supposed to catch. A bound at `start_year` needs
   `historical_bounds.rs`, which pairs the year before with the year itself;
   nothing derived from the reference's own window can see it.
+- **A quoted measurement decays; re-derive it before you repeat it.** The review
+  doc for `holidays-rs` carried five figures that no longer matched the tool that
+  produced them: Finland "1509" differences (the gate says 323), a divergence
+  ending "about 1991" (the latest of the 38 runs to 1999, and only 15 stop by
+  1990), Estonia "322" and Lesotho "510" pre-start dates (the gate counts 637 and
+  951 over 1900 to the year before), and 1,870 pre-fix differences for the French
+  family (2,063, measured at `712a72e` in a worktree). The one figure that
+  matched exactly, 606 in-window, was the clue: it showed the metric was right
+  and only the total had drifted. When a count supports a claim, record the
+  window and the command beside it, and re-run it in the round that repeats the
+  claim. A number with no window is not checkable, and a stale one reads exactly
+  like a fresh one.
 - **"Gate-clean" is two numbers, not one.** `verify_holidays.py` prints `ok` for
   a calendar that agrees and `known-difference` for one whose divergence is
   deliberate and recorded. Counting both as clean overstated the corpus backlog
