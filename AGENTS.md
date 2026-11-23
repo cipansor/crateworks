@@ -317,6 +317,21 @@ it - so a calendar whose behaviour is not frozen as a committed fixture has no
 regression coverage in CI at all.
 
 ## Known traps
+- **A holiday table fitted from 2000 back-projects the year-2000 rules.** Two
+  separate defects hid behind that: `ObservedShift { from: 2000 }` on a country
+  whose reference starts substituting earlier (Seychelles 1994, Namibia 1991,
+  Micronesia 1987, Saint Lucia 1979), and a rule that only ever began later left
+  ungated (Estonia's Easter feasts, 1994). Both are invisible in a 2000-onwards
+  window and both are found by `verify_holidays.py` once it checks from the
+  reference `start_year`. Read the reference's `_populate_public_holidays` for
+  the `if self._year >= ...` guards rather than trusting the crate's `from`.
+- **A holiday can be absent for a middle stretch, so `Since` and `Until` alone
+  do not describe it.** France's `Fête de la Victoire` ran 1953-1959, was dropped
+  by a 1959 decree, and returned in 1982; the crate carried one ungated `Fixed`.
+  Wallis and Futuna and the French Southern Territories inherit the same gap, so
+  a single country fix has to be applied to every child entity that copies it.
+  `Between` or two rules describe it; a single `Since` gets the early years
+  wrong.
 
 - **A recursive descendant read reports a nested element's data at the wrong
   level.** `iso20022-rs` reads status reasons with `find_all`, which walks the
