@@ -29,12 +29,34 @@ use crate::time::java_timestamp_utc;
 /// ```
 #[must_use]
 pub fn escape(field: &str) -> String {
+    escape_with(field, true)
+}
+
+/// Escapes a field, choosing whether characters outside ASCII are escaped.
+///
+/// This is the reference's `escape(field, ensure_ascii)`. With `ensure_ascii`
+/// false a character above ASCII is written as itself, so the output is not
+/// ISO-8859-1 and a reader must be told what it is; the control range is still
+/// escaped, because those characters would be read back as something else.
+///
+/// # Example
+///
+/// ```
+/// use javaproperties::escape_with;
+///
+/// assert_eq!(escape_with("café", true), "caf\\u00E9");
+/// assert_eq!(escape_with("café", false), "café");
+/// // A tab is escaped either way: it is not a character a value can hold.
+/// assert_eq!(escape_with("a\tb", false), "a\\tb");
+/// ```
+#[must_use]
+pub fn escape_with(field: &str, ensure_ascii: bool) -> String {
     let mut out = String::with_capacity(field.len());
     for c in field.chars() {
         if c == ' ' {
             out.push_str("\\ ");
         } else {
-            push_escaped(&mut out, c);
+            push_escaped_with(&mut out, c, ensure_ascii);
         }
     }
     out
@@ -122,10 +144,29 @@ fn escape_key_with(key: &str, ensure_ascii: bool) -> String {
 /// ```
 #[must_use]
 pub fn join_key_value(key: &str, value: &str, separator: &str) -> String {
+    join_key_value_with(key, value, separator, true)
+}
+
+/// Joins a key and a value into one line, choosing whether characters outside
+/// ASCII are escaped.
+///
+/// This is the reference's `join_key_value(key, value, separator,
+/// ensure_ascii)`.
+///
+/// # Example
+///
+/// ```
+/// use javaproperties::join_key_value_with;
+///
+/// assert_eq!(join_key_value_with("k", "café", "=", true), "k=caf\\u00E9");
+/// assert_eq!(join_key_value_with("k", "café", "=", false), "k=café");
+/// ```
+#[must_use]
+pub fn join_key_value_with(key: &str, value: &str, separator: &str, ensure_ascii: bool) -> String {
     let mut out = String::with_capacity(key.len() + value.len() + separator.len());
-    out.push_str(&escape_key_with(key, true));
+    out.push_str(&escape_key_with(key, ensure_ascii));
     out.push_str(separator);
-    out.push_str(&escape_value_with(value, true));
+    out.push_str(&escape_value_with(value, ensure_ascii));
     out
 }
 
@@ -148,6 +189,39 @@ pub fn join_key_value(key: &str, value: &str, separator: &str) -> String {
 /// ```
 #[must_use]
 pub fn to_comment(comment: &str) -> String {
+    to_comment_with(comment, None)
+}
+
+/// Turns a string into a comment line, choosing which characters are escaped.
+///
+/// This is the reference's `to_comment(comment, ensure_ascii)`, and the three
+/// values mean three different things, which is why the argument is an
+/// `Option<bool>` rather than a `bool`:
+///
+/// | `ensure_ascii` | Escaped |
+/// | --- | --- |
+/// | `None` (default) | only above U+00FF, so Latin-1 is written as itself |
+/// | `Some(true)` | everything above ASCII |
+/// | `Some(false)` | nothing |
+///
+/// The default is not the same as [`escape`]'s: a comment is a line of prose
+/// rather than a key or value, so `java.util.Properties.store` writes accented
+/// Latin-1 through unchanged and escapes only what ISO-8859-1 cannot hold.
+///
+/// # Example
+///
+/// ```
+/// use javaproperties::to_comment_with;
+///
+/// // Latin-1 survives the default, and anything above it is escaped.
+/// assert_eq!(to_comment_with("café 中文", None), "#café \\u4E2D\\u6587");
+/// // Asking for ASCII escapes the é as well.
+/// assert_eq!(to_comment_with("café", Some(true)), "#caf\\u00E9");
+/// // Asking for nothing writes both through.
+/// assert_eq!(to_comment_with("café 中文", Some(false)), "#café 中文");
+/// ```
+#[must_use]
+pub fn to_comment_with(comment: &str, ensure_ascii: Option<bool>) -> String {
     // First normalise the breaks: `\r\n` and a lone `\r` both become `\n`. The
     // reference does this with a regex before it looks at anything else.
     let mut normalised = String::with_capacity(comment.len());
@@ -179,20 +253,26 @@ pub fn to_comment(comment: &str) -> String {
             }
             continue;
         }
-        push_comment_char(&mut out, c);
+        push_comment_char(&mut out, c, ensure_ascii);
     }
     out
 }
 
-/// Writes one comment character, escaping only what is outside Latin-1.
+/// Writes one comment character, honouring the three-way `ensure_ascii`.
 ///
-/// The reference's default for a comment escapes non-Latin-1 and nothing else, so
-/// a tab or an accented letter is written as it stands.
-fn push_comment_char(out: &mut String, c: char) {
-    if (c as u32) <= 0xff {
-        out.push(c);
-    } else {
+/// `None` escapes only what is outside Latin-1, which is the reference's default
+/// for a comment; `Some(true)` escapes everything above ASCII; `Some(false)`
+/// escapes nothing. A tab or an accented letter is written as it stands under the
+/// first and third.
+fn push_comment_char(out: &mut String, c: char, ensure_ascii: Option<bool>) {
+    let needs_escape = match ensure_ascii {
+        None => (c as u32) > 0xff,
+        Some(escape_all) => escape_all && (c as u32) > 0x7f,
+    };
+    if needs_escape {
         push_unicode_escape(out, c);
+    } else {
+        out.push(c);
     }
 }
 
@@ -267,6 +347,16 @@ pub struct WriteOptions<'a> {
     /// control range is escaped and the rest is passed through, which produces a
     /// file a reader must be told is not ISO-8859-1.
     pub ensure_ascii: bool,
+    /// Escape the comment independently of the entries.
+    ///
+    /// The reference's `ensure_ascii_comments`, and the three values mean what
+    /// [`to_comment_with`] documents: `None` escapes only what ISO-8859-1 cannot
+    /// hold, `Some(true)` escapes everything above ASCII, and `Some(false)`
+    /// escapes nothing. `None` is the default and is **not** the same as
+    /// following `ensure_ascii`: a comment is prose, so `java.util.Properties`
+    /// writes accented Latin-1 through it unchanged even when the entries beside
+    /// it are fully escaped.
+    pub ensure_ascii_comments: Option<bool>,
 }
 
 impl Default for WriteOptions<'_> {
@@ -277,6 +367,7 @@ impl Default for WriteOptions<'_> {
             timestamp: None,
             sort_keys: false,
             ensure_ascii: true,
+            ensure_ascii_comments: None,
         }
     }
 }
@@ -293,10 +384,11 @@ fn write_document(
     options: &WriteOptions<'_>,
 ) -> Result<(), Error> {
     if let Some(comment) = options.comment {
-        out.push_str(&to_comment(comment));
+        out.push_str(&to_comment_with(comment, options.ensure_ascii_comments));
         out.push('\n');
     }
     if let Some(seconds) = options.timestamp {
+        // A timestamp is ASCII, so the escaping mode cannot change it.
         out.push_str(&to_comment(&java_timestamp_utc(seconds)));
         out.push('\n');
     }

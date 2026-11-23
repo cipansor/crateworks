@@ -1,0 +1,115 @@
+# `javaproperties` 0.3.0: closing the escaping-mode gap (2026-11-16)
+
+## What was asked
+
+Extend another crate so it can compete with the package it is measured against,
+on a new branch with its own pull request. The previous round closed a review of
+`holidays-rs`; this round picks a crate with a gap that can be *proved* against
+its reference rather than argued about.
+
+## Why `javaproperties`
+
+Its reference is PyPI `javaproperties` 0.8.2, the crate's own named comparison
+package, and it was already installed for the writer corpus. That makes the
+comparison cheap and exact: the reference can be asked for the answer, so no
+expectation has to be invented.
+
+The crate covered the format completely and the writer's `separator`,
+`comments`, `timestamp`, `sort_keys` and `ensure_ascii` options. It did not cover
+the reference's **second, independent** escaping control, nor the `ensure_ascii`
+argument the reference puts on its three standalone helpers. Four functions were
+missing or narrowed:
+
+| Reference | Crate before | Now |
+| --- | --- | --- |
+| `escape(field, ensure_ascii=True)` | `escape(field)` | `escape` + `escape_with` |
+| `join_key_value(k, v, sep, ensure_ascii=True)` | three arguments | `join_key_value` + `join_key_value_with` |
+| `to_comment(comment, ensure_ascii=None)` | `to_comment(comment)` | `to_comment` + `to_comment_with` |
+| `dumps(..., ensure_ascii_comments=None)` | absent | `WriteOptions::ensure_ascii_comments` |
+
+This matters beyond completeness: a caller who wants to write a UTF-8 properties
+file with a readable accented comment - the common case for a file read by a
+Spring service that is not stuck on ISO-8859-1 - had no way to ask for it. The
+existing `ensure_ascii: false` escapes the entries but, before this change, had
+no effect on the comment.
+
+## The rule the crate was missing
+
+`ensure_ascii` is not one switch but two, and the comment one has three
+positions rather than two. Measured against 0.8.2:
+
+```
+to_comment("café",       None) -> "#café"          # Latin-1 written through
+to_comment("café",       True) -> "#caf\\u00e9"    # escaped
+to_comment("café",      False) -> "#café"          # nothing escaped
+to_comment("中文",       None) -> "#\\u4e2d\\u6587" # above Latin-1, escaped
+to_comment("中文",      False) -> "#中文"
+```
+
+`None` is the reference's default and escapes exactly what ISO-8859-1 cannot
+hold. It is **not** the same as following `ensure_ascii`, and it is not the same
+as `Some(false)`. That is why the new argument is `Option<bool>`: a `bool` would
+have made the default unrepresentable and quietly changed the output of every
+existing caller. A two-valued test would have passed with the wrong default, so
+the fixture spells the mode out as a `none` / `1` / `0` column.
+
+## How it is checked
+
+`scripts/fuzz/javaproperties/gen_writer.py` was extended to record the new modes
+and regenerated. Nothing was hand-written; every expectation is the reference's
+own output, normalised only for the reference's lower-case hex (Java writes upper
+case, and the crate follows Java).
+
+New corpora:
+
+| Fixture | Cases | Covers |
+| --- | --- | --- |
+| `escape-modes.tsv` | 56 | `escape_with` in both modes |
+| `join-modes.tsv` | 120 | `join_key_value_with` in both modes |
+| `comment-modes.tsv` | 51 | `to_comment_with` in all three modes |
+| `comment-modes-random.tsv` | 6,000 | the same over generated strings |
+| `dumps-comment-modes.tsv` | 60 | `WriteOptions::ensure_ascii_comments` |
+
+The existing `dumps.tsv` and `dumps-random.tsv` gained one column for the new
+option. Regenerating them was checked rather than assumed: after the change,
+removing column 6 from each new row reproduces the old row exactly, for all 801
+and 2,001 rows. No other fixture moved.
+
+The random block was appended at the **end** of the generator on purpose. The
+generator seeds `random` once and every corpus draws from that stream, so a new
+`piece()` call placed before an existing corpus silently regenerates it. Placing
+it last is what kept `unescape-random.tsv` byte-identical; the first attempt did
+not, and the diff showed it.
+
+### The tests were shown to fail
+
+A test that cannot fail is not evidence. Both new rules were mutated in turn:
+
+| Mutation | Result |
+| --- | --- |
+| default comment mode `> 0xff` changed to `> 0x7f` | 933 / 2,017 comment, 223 / 2,860 dumps, 939 / 6,051 comment-mode cases fail |
+| `ensure_ascii_comments` ignored, `to_comment` called instead | 8 / 2,860 dumps cases fail |
+
+Both were reverted and the suite is green.
+
+## Result
+
+`cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets -- -D
+warnings` and `cargo test --workspace --all-targets` all pass. Clippy was forced
+to rebuild (`find crates/javaproperties -name '*.rs' -exec touch {} +`) before the
+result was believed, because a cached run prints nothing.
+
+Version `0.2.0 -> 0.3.0`, a **minor** bump: it adds public functions *and* adds a
+field to the public `WriteOptions` struct, which breaks a caller using a struct
+literal without `..Default::default()`. Below 1.0 that is the same bump, and
+`scripts/bump.py javaproperties minor` is what computed it. Nothing depends on
+`javaproperties`, so no other crate needs a release with it.
+
+## What is still not covered
+
+Nothing in the reference's writer surface: `dump`, `dumps`, `escape`,
+`join_key_value`, `to_comment`, `java_timestamp` and `unescape` are all present,
+and the two the crate narrows deliberately are the timestamp (UTC, because the
+crate takes no timezone database) and the reader's handling of a lone surrogate
+(U+FFFD, because Rust text cannot hold one). Both differences are recorded in the
+fixtures and in the README rather than left to be discovered.

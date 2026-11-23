@@ -154,10 +154,11 @@ PAIRS = [
     [("a\tb", "c\nd")],
     [],
 ]
-HEADER = "count\tseparator\thas_comments\tcomments\tsort_keys\tensure_ascii\tdocument\tpairs"
+HEADER = ("count\tseparator\thas_comments\tcomments\tsort_keys\tensure_ascii\t"
+          "ensure_ascii_comments\tdocument\tpairs")
 
 
-def dumps_row(pairs, sep, comments, sort_keys, ensure_ascii) -> str:
+def dumps_row(pairs, sep, comments, sort_keys, ensure_ascii, eac=None) -> str:
     document = java_case(javaproperties.dumps(
         pairs,
         separator=sep,
@@ -165,6 +166,7 @@ def dumps_row(pairs, sep, comments, sort_keys, ensure_ascii) -> str:
         timestamp=False,
         sort_keys=sort_keys,
         ensure_ascii=ensure_ascii,
+        ensure_ascii_comments=eac,
     ))
     # `comments=""` and `comments=None` are different: the first writes a bare
     # `#` line, the second writes nothing. Both encode as an empty field, so the
@@ -176,6 +178,7 @@ def dumps_row(pairs, sep, comments, sort_keys, ensure_ascii) -> str:
         "" if comments is None else escape_tsv(comments),
         "1" if sort_keys else "0",
         "1" if ensure_ascii else "0",
+        "none" if eac is None else ("1" if eac else "0"),
         escape_tsv(document),
     ]
     for key, value in pairs:
@@ -192,6 +195,22 @@ for pairs in PAIRS:
                 for ensure_ascii in [True, False]:
                     rows.append(dumps_row(pairs, sep, comments, sort_keys, ensure_ascii))
 write("dumps.tsv", rows)
+
+# The comment-escaping mode on its own. A comment carrying accented Latin-1, a
+# character above it and a control character separates the three modes: `none`
+# writes the first two through, `1` escapes both, `0` writes all three through.
+COMMENT_MODES_PAIRS = [
+    [("a", "1")],
+    [("café", "中文")],
+]
+rows = [HEADER]
+for pairs in COMMENT_MODES_PAIRS:
+    for comments in ["café 中文", "plain", "", "one\ntwo", "a\tb"]:
+        for eac in [None, True, False]:
+            for ensure_ascii in [True, False]:
+                rows.append(dumps_row(
+                    pairs, "=", comments, False, ensure_ascii, eac))
+write("dumps-comment-modes.tsv", rows)
 
 # --- Random corpus -----------------------------------------------------------
 # The curated cases pin the rules; this finds the interactions between them that
@@ -240,6 +259,47 @@ for _ in range(2000):
     ensure_ascii = random.random() < 0.7
     rows.append(dumps_row(pairs, sep, comments, sort_keys, ensure_ascii))
 write("dumps-random.tsv", rows)
+
+# --- escape / join_key_value / to_comment with ensure_ascii -------------------
+# The reference takes an `ensure_ascii` argument on `escape`, `join_key_value` and
+# `to_comment`, and `dumps` takes a separate `ensure_ascii_comments` for the
+# comment alone. Each of those is recorded here rather than folded into the files
+# above, so the default-mode fixtures stay comparable with the reference's
+# defaults and a failure names the mode it came from.
+#
+# `to_comment` is the one place the argument has three values, not two: `None`
+# escapes only what ISO-8859-1 cannot hold, `True` escapes everything above
+# ASCII, and `False` escapes nothing. The column therefore spells the mode out
+# (`none`, `1`, `0`) instead of a boolean.
+MODES = ["none", "1", "0"]
+
+rows = ["input\tensure_ascii\tescaped"]
+for s in ESCAPE_CASES:
+    for mode in ["1", "0"]:
+        rows.append("\t".join([
+            escape_tsv(s), mode,
+            escape_tsv(java_case(javaproperties.escape(s, ensure_ascii=(mode == "1")))),
+        ]))
+write("escape-modes.tsv", rows)
+
+rows = ["key\tvalue\tseparator\tensure_ascii\tjoined"]
+for key, value in JOIN_CASES:
+    for sep in SEPARATORS:
+        for mode in ["1", "0"]:
+            rows.append("\t".join([
+                escape_tsv(key), escape_tsv(value), escape_tsv(sep), mode,
+                escape_tsv(java_case(javaproperties.join_key_value(
+                    key, value, separator=sep, ensure_ascii=(mode == "1")))),
+            ]))
+write("join-modes.tsv", rows)
+
+rows = ["comment\tensure_ascii\tformatted"]
+for s in COMMENT_CASES:
+    for mode in MODES:
+        expected = java_case(javaproperties.to_comment(
+            s, ensure_ascii=(None if mode == "none" else mode == "1")))
+        rows.append("\t".join([escape_tsv(s), mode, escape_tsv(expected)]))
+write("comment-modes.tsv", rows)
 
 # --- unescape ----------------------------------------------------------------
 # The reader calls `unescape` on every key and value, but the reference also
@@ -292,3 +352,16 @@ for _ in range(2000):
         expected = "!error"
     rows.append("\t".join([escape_tsv(s), expected]))
 write("unescape-random.tsv", rows)
+
+# --- Random corpus for the comment-escaping modes -----------------------------
+# Last, so that adding it does not shift the random stream the corpora above
+# draw from: the shared `random` seed means any new `piece()` call before them
+# would silently regenerate every existing fixture.
+rows = ["comment\tensure_ascii\tformatted"]
+for _ in range(2000):
+    s = piece(10)
+    for mode in MODES:
+        expected = java_case(javaproperties.to_comment(
+            s, ensure_ascii=(None if mode == "none" else mode == "1")))
+        rows.append("\t".join([escape_tsv(s), mode, escape_tsv(expected)]))
+write("comment-modes-random.tsv", rows)

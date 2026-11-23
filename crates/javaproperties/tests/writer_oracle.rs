@@ -8,7 +8,8 @@
 //! The fixtures are built by `scripts/fuzz/javaproperties/gen_writer.py`, which
 //! calls `javaproperties.escape`, `join_key_value`, `to_comment`,
 //! `java_timestamp` and `dumps(separator=, comments=, sort_keys=,
-//! ensure_ascii=)`. Every expectation is the reference's; none is hand-written.
+//! ensure_ascii=, ensure_ascii_comments=)`. Every expectation is the reference's;
+//! none is hand-written.
 //!
 //! One deliberate difference is encoded in the fixture rather than hidden: the
 //! reference's `java_timestamp` renders the local timezone, and this crate
@@ -16,7 +17,8 @@
 //! `TZ=UTC` and the crate's function is named `java_timestamp_utc`.
 
 use javaproperties::{
-    Properties, WriteOptions, escape, java_timestamp_utc, join_key_value, to_comment, unescape,
+    Properties, WriteOptions, escape, escape_with, java_timestamp_utc, join_key_value,
+    join_key_value_with, to_comment, to_comment_with, unescape,
 };
 
 /// Decodes the escaping the generator writes.
@@ -155,6 +157,111 @@ fn to_comment_matches_the_reference() {
     );
 }
 
+/// Reads the `ensure_ascii` column the mode fixtures spell out.
+fn ascii_mode(column: &str) -> bool {
+    match column {
+        "1" => true,
+        "0" => false,
+        other => panic!("bad ensure_ascii column {other:?}"),
+    }
+}
+
+/// Reads the three-valued `ensure_ascii` column of a comment fixture.
+fn comment_ascii_mode(column: &str) -> Option<bool> {
+    match column {
+        "none" => None,
+        "1" => Some(true),
+        "0" => Some(false),
+        other => panic!("bad comment ensure_ascii column {other:?}"),
+    }
+}
+
+#[test]
+fn escape_with_matches_the_reference_in_both_modes() {
+    let mut checked = 0;
+    let mut failures = Vec::new();
+    for fields in rows(include_str!("fixtures/escape-modes.tsv")) {
+        let input = decode(fields[0]);
+        let ensure_ascii = ascii_mode(fields[1]);
+        let expected = decode(fields[2]);
+        let got = escape_with(&input, ensure_ascii);
+        if got != expected {
+            failures.push(format!(
+                "{input:?} ascii={ensure_ascii}\n  expected {expected:?}\n  got {got:?}"
+            ));
+        }
+        checked += 1;
+    }
+    assert!(checked > 40, "only {checked} cases");
+    assert!(
+        failures.is_empty(),
+        "{} of {checked} escape-mode cases disagreed:\n{}",
+        failures.len(),
+        failures.join("\n")
+    );
+}
+
+#[test]
+fn join_key_value_with_matches_the_reference_in_both_modes() {
+    let mut checked = 0;
+    let mut failures = Vec::new();
+    for fields in rows(include_str!("fixtures/join-modes.tsv")) {
+        let key = decode(fields[0]);
+        let value = decode(fields[1]);
+        let separator = decode(fields[2]);
+        let ensure_ascii = ascii_mode(fields[3]);
+        let expected = decode(fields[4]);
+        let got = join_key_value_with(&key, &value, &separator, ensure_ascii);
+        if got != expected {
+            failures.push(format!(
+                "{key:?} {separator:?} {value:?} ascii={ensure_ascii}\n  \
+                 expected {expected:?}\n  got {got:?}"
+            ));
+        }
+        checked += 1;
+    }
+    assert!(checked > 100, "only {checked} cases");
+    assert!(
+        failures.is_empty(),
+        "{} of {checked} join-mode cases disagreed:\n{}",
+        failures.len(),
+        failures.join("\n")
+    );
+}
+
+#[test]
+fn to_comment_with_matches_the_reference_in_all_three_modes() {
+    // The comment argument is three-valued, and `None` is not the same as
+    // `Some(false)` or `Some(true)`: it escapes exactly the characters
+    // ISO-8859-1 cannot hold. A two-valued test would pass with the wrong
+    // default, so the fixture spells the mode out.
+    let mut checked = 0;
+    let mut failures = Vec::new();
+    let sources = [
+        include_str!("fixtures/comment-modes.tsv"),
+        include_str!("fixtures/comment-modes-random.tsv"),
+    ];
+    for fields in sources.into_iter().flat_map(rows) {
+        let input = decode(fields[0]);
+        let ensure_ascii = comment_ascii_mode(fields[1]);
+        let expected = decode(fields[2]);
+        let got = to_comment_with(&input, ensure_ascii);
+        if got != expected {
+            failures.push(format!(
+                "{input:?} ascii={ensure_ascii:?}\n  expected {expected:?}\n  got {got:?}"
+            ));
+        }
+        checked += 1;
+    }
+    assert!(checked > 5_000, "only {checked} cases");
+    assert!(
+        failures.is_empty(),
+        "{} of {checked} comment-mode cases disagreed:\n{}",
+        failures.len(),
+        failures.join("\n")
+    );
+}
+
 #[test]
 fn java_timestamp_utc_matches_the_reference_in_utc() {
     let mut checked = 0;
@@ -183,6 +290,7 @@ fn store_with_matches_dumps() {
     let mut failures = Vec::new();
     let sources = [
         include_str!("fixtures/dumps.tsv"),
+        include_str!("fixtures/dumps-comment-modes.tsv"),
         include_str!("fixtures/dumps-random.tsv"),
     ];
     for fields in sources.into_iter().flat_map(rows) {
@@ -195,8 +303,8 @@ fn store_with_matches_dumps() {
         let pairs: Vec<(String, String)> = (0..count)
             .map(|index| {
                 (
-                    decode(fields[7 + index * 2]),
-                    decode(fields[7 + index * 2 + 1]),
+                    decode(fields[8 + index * 2]),
+                    decode(fields[8 + index * 2 + 1]),
                 )
             })
             .collect();
@@ -208,7 +316,13 @@ fn store_with_matches_dumps() {
         };
         let sort_keys = fields[4] == "1";
         let ensure_ascii = fields[5] == "1";
-        let expected = decode(fields[6]);
+        let ensure_ascii_comments = match fields[6] {
+            "none" => None,
+            "1" => Some(true),
+            "0" => Some(false),
+            other => panic!("bad ensure_ascii_comments column {other:?}"),
+        };
+        let expected = decode(fields[7]);
 
         let properties = Properties::from_pairs(pairs);
         let options = WriteOptions {
@@ -217,11 +331,13 @@ fn store_with_matches_dumps() {
             timestamp: None,
             sort_keys,
             ensure_ascii,
+            ensure_ascii_comments,
         };
         let got = properties.store_with(&options);
         if got != expected {
             failures.push(format!(
-                "sep={separator:?} comment={comment:?} sort={sort_keys} ascii={ensure_ascii}\n  \
+                "sep={separator:?} comment={comment:?} sort={sort_keys} ascii={ensure_ascii} \
+                 comments_ascii={ensure_ascii_comments:?}\n  \
                  expected {expected:?}\n  got      {got:?}"
             ));
         }

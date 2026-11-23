@@ -69,9 +69,10 @@ same because every escape is ASCII, and `store_to` writes them to anything
 writable.
 
 `store_with` is the rest of the reference's writer: the separator, a comment, a
-timestamp comment, sorting, and whether non-ASCII is escaped. The pieces are
-exported on their own too - `escape`, `join_key_value` and `to_comment` - because
-they are useful without a whole document.
+timestamp comment, sorting, whether non-ASCII is escaped, and whether the comment
+is escaped separately. The pieces are exported on their own too - `escape`,
+`join_key_value` and `to_comment`, with an `_with` variant of each that takes the
+escaping mode - because they are useful without a whole document.
 
 ```rust
 use javaproperties::{Properties, WriteOptions, join_key_value, to_comment};
@@ -93,6 +94,33 @@ let text = properties.store_with(&WriteOptions {
 });
 assert_eq!(text, "#Thu Jan 01 00:00:00 UTC 1970\na: 1\nb: 2\n");
 ```
+
+### Choosing what gets escaped
+
+A comment and an entry are escaped by different defaults, and the reference lets
+a caller override each one separately. `ensure_ascii` covers keys and values,
+where the default escapes everything outside printable ASCII. A comment is prose,
+so its default escapes only what ISO-8859-1 cannot hold and writes an accented
+Latin-1 letter through unchanged:
+
+```rust
+use javaproperties::{escape_with, to_comment_with};
+
+// An entry's default: everything outside ASCII becomes `\uXXXX`.
+assert_eq!(escape_with("café", true), "caf\\u00E9");
+// Turned off, the character is written as itself and the file is no longer
+// ISO-8859-1, so a reader has to be told what encoding it is.
+assert_eq!(escape_with("café", false), "café");
+
+// A comment's default is the middle of three modes: Latin-1 survives.
+assert_eq!(to_comment_with("café 中文", None), "#café \\u4E2D\\u6587");
+assert_eq!(to_comment_with("café", Some(true)), "#caf\\u00E9");
+assert_eq!(to_comment_with("café 中文", Some(false)), "#café 中文");
+```
+
+`WriteOptions::ensure_ascii_comments` is the same choice for the comment a
+document carries, and it is `None` by default rather than following
+`ensure_ascii`, which is what `java.util.Properties` does.
 
 The one deliberate difference from the reference is the timestamp. Java renders
 it in the local timezone, reading the host's; this crate has no timezone database
