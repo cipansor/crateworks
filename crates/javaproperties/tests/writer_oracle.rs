@@ -17,8 +17,8 @@
 //! `TZ=UTC` and the crate's function is named `java_timestamp_utc`.
 
 use javaproperties::{
-    Properties, WriteOptions, escape, escape_with, java_timestamp_utc, join_key_value,
-    join_key_value_with, parse, parse_str, to_comment, to_comment_with, unescape,
+    Error, Properties, WriteOptions, escape, escape_with, java_timestamp_utc, join_key_value,
+    join_key_value_with, parse, to_comment, to_comment_with, unescape,
 };
 
 /// Decodes the escaping the generator writes.
@@ -361,18 +361,20 @@ fn store_with_matches_dumps() {
 }
 
 #[test]
-fn store_to_with_writes_the_same_text_as_store_with() {
+fn store_to_with_writes_the_same_document_as_store_with() {
     // `store_to_with` exists so a caller does not have to render with
     // `store_with` and write the result by hand. It must therefore write exactly
     // what `store_with` returns, including the comment-escaping mode, which the
-    // older `store_to` cannot select.
+    // older `store_to` cannot select. The comment stays inside Latin-1 so the
+    // ISO-8859-1 encoding is total; `Some(false)` above U+00FF is the error case
+    // the other test covers.
     let properties = Properties::from_pairs(vec![
         ("b".to_string(), "café".to_string()),
         ("a".to_string(), "1".to_string()),
     ]);
     let options = WriteOptions {
         separator: ": ",
-        comment: Some("café 中文"),
+        comment: Some("café naïve"),
         sort_keys: true,
         ensure_ascii_comments: Some(false),
         ..WriteOptions::default()
@@ -381,47 +383,65 @@ fn store_to_with_writes_the_same_text_as_store_with() {
     let expected = properties.store_with(&options);
     let mut out = Vec::new();
     properties.store_to_with(&mut out, &options).unwrap();
-    assert_eq!(String::from_utf8(out).unwrap(), expected);
+    // ISO-8859-1 is the first 256 code points one byte each, so this is the
+    // encoding the writer must apply and the one the caller reads back.
+    let expected_bytes: Vec<u8> = expected
+        .chars()
+        .map(|c| u8::try_from(u32::from(c)).unwrap())
+        .collect();
+    assert_eq!(expected_bytes, out);
 
     // The mode reaches the comment: `Some(false)` writes the text through even
     // though `ensure_ascii` escaped the value.
-    assert!(expected.starts_with("#café 中文\n"), "{expected:?}");
+    assert!(expected.starts_with("#café naïve\n"), "{expected:?}");
     assert!(expected.contains("caf\\u00E9"), "{expected:?}");
 }
 
 #[test]
-fn store_to_with_writes_utf8_and_parse_str_is_how_to_read_it_back() {
-    // The stream writer emits the text `store_with` returns, so with escaping
-    // off it emits UTF-8. `parse` decodes ISO-8859-1, as `java.util.Properties`
-    // does, so reading those bytes with `parse` garbles them. Both halves are
-    // asserted: the documented way back must work, and the trap must stay
-    // visible rather than being quietly "fixed" into a Latin-1 transcode that
-    // would then disagree with `store_with`.
-    let properties = Properties::from_pairs(vec![("café".to_string(), "naïve".to_string())]);
-    let raw = WriteOptions {
-        ensure_ascii: false,
+fn store_to_with_writes_latin1_and_parse_reads_it_back() {
+    // Java's `store(OutputStream, ...)` encodes ISO-8859-1, and so must this, or
+    // a reader either side of the boundary sees different text. A `café` comment
+    // is the case that proves it: the default escapes entries but passes the
+    // comment through, so `é` is the single byte 0xE9, not UTF-8's 0xC3 0xA9.
+    let pairs = vec![("café".to_string(), "naïve".to_string())];
+    let properties = Properties::from_pairs(pairs.clone());
+    let options = WriteOptions {
+        comment: Some("café"),
         ..WriteOptions::default()
     };
 
     let mut out = Vec::new();
-    properties.store_to_with(&mut out, &raw).unwrap();
-    assert_eq!(out, "café=naïve\n".as_bytes(), "the bytes are UTF-8");
+    properties.store_to_with(&mut out, &options).unwrap();
+    assert_eq!(out, b"#caf\xE9\ncaf\\u00E9=na\\u00EFve\n");
+    assert!(!out.is_ascii(), "the comment is Latin-1, not escaped");
+    assert_eq!(parse(&out).unwrap(), pairs);
 
-    let text = String::from_utf8(out.clone()).expect("output is valid UTF-8");
-    assert_eq!(
-        parse_str(&text).unwrap(),
-        vec![("café".to_string(), "naïve".to_string())]
-    );
-    assert_eq!(parse(&out).unwrap()[0].0, "cafÃ©", "ISO-8859-1 mojibake");
-
-    // The default escapes everything non-ASCII, so the bytes are ASCII and both
-    // readers agree - which is why `store_to` is safe.
-    let mut default = Vec::new();
-    properties
-        .store_to_with(&mut default, &WriteOptions::default())
-        .unwrap();
-    assert!(default.is_ascii());
-    assert_eq!(parse(&default).unwrap(), parse_str(&text).unwrap());
+    // Text ISO-8859-1 cannot hold is an error rather than a transcode: the two
+    // ways to pass it through are `ensure_ascii: false` and
+    // `ensure_ascii_comments: Some(false)`.
+    let cjk = Properties::from_pairs(vec![("中".to_string(), "文".to_string())]);
+    for (properties, options) in [
+        (
+            &cjk,
+            WriteOptions {
+                ensure_ascii: false,
+                ..WriteOptions::default()
+            },
+        ),
+        (
+            &properties,
+            WriteOptions {
+                comment: Some("中文"),
+                ensure_ascii_comments: Some(false),
+                ..WriteOptions::default()
+            },
+        ),
+    ] {
+        let error = properties
+            .store_to_with(&mut Vec::new(), &options)
+            .expect_err("above U+00FF has no ISO-8859-1 byte");
+        assert!(matches!(error, Error::NotLatin1 { .. }), "{error:?}");
+    }
 }
 
 #[test]

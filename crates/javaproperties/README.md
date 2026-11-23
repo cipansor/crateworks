@@ -64,24 +64,27 @@ let properties = Properties::from_pairs(vec![
 assert_eq!(properties.store(None), "a\\ b=one\ncaf\\u00E9=two\n");
 ```
 
-`store_bytes` gives the ISO-8859-1 bytes Java writes to a stream, which are the
-same because every escape is ASCII, and `store_to` writes them to anything
-writable.
+`store_bytes` gives the ISO-8859-1 bytes Java writes to a stream, and `store_to`
+writes them to anything writable. The default options escape every entry
+character above ASCII, but the comment mode is separate and passes Latin-1
+through, so the bytes are not necessarily ASCII: a `café` comment is the single
+byte `0xE9`, not UTF-8's two bytes, which is what a reader on the other side
+expects. Both functions return `Error::NotLatin1` rather than guessing if an
+option lets a character above `U+00FF` through.
 
 `store_with` is the rest of the reference's writer: the separator, a comment, a
 timestamp comment, sorting, whether non-ASCII is escaped, and whether the comment
-is escaped separately. `store_to_with` writes that same text to a stream, so
-choosing a separator or a comment mode does not force a caller to render the
-document first and write it by hand. The pieces are exported on their own too -
-`escape`, `join_key_value` and `to_comment`, with an `_with` variant of each that
-takes the escaping mode - because they are useful without a whole document.
+is escaped separately. `store_to_with` writes that same document to a stream, in
+the same ISO-8859-1 encoding, so choosing a separator or a comment mode does not
+force a caller to render the document first and write it by hand. The pieces are
+exported on their own too - `escape`, `join_key_value` and `to_comment`, with an
+`_with` variant of each that takes the escaping mode - because they are useful
+without a whole document.
 
-`store_to_with` writes UTF-8, because that is what the text it writes is. This
-only matters when you turn escaping off: the default escapes every non-ASCII
-character, so the bytes are pure ASCII and agree with ISO-8859-1. With
-`ensure_ascii: false` the bytes hold raw non-ASCII, and `parse` - which decodes
-ISO-8859-1, as Java does - will garble them. Read such a document back with
-`parse_str`, which takes text you have already decoded:
+`store_with` returns text, so a caller who wants UTF-8 rather than ISO-8859-1
+should render with it and encode the result themselves. Note that
+`ensure_ascii: false` puts raw non-ASCII into that text, so encoding it as
+ISO-8859-1 is not possible for anything above `U+00FF`:
 
 ```rust
 use javaproperties::{Properties, WriteOptions, parse_str};
@@ -89,13 +92,15 @@ use javaproperties::{Properties, WriteOptions, parse_str};
 let properties = Properties::from_pairs(vec![
     ("café".to_string(), "naïve".to_string()),
 ]);
-let mut out = Vec::new();
-properties
-    .store_to_with(&mut out, &WriteOptions { ensure_ascii: false, ..WriteOptions::default() })
-    .unwrap();
+let text = properties.store_with(&WriteOptions {
+    ensure_ascii: false,
+    ..WriteOptions::default()
+});
 
-let text = String::from_utf8(out).unwrap();
+// Both characters are in Latin-1, so `parse` reads the ISO-8859-1 bytes back.
+let latin1: Vec<u8> = text.chars().map(|c| u8::try_from(u32::from(c)).unwrap()).collect();
 assert_eq!(parse_str(&text).unwrap()[0].0, "café");
+assert_eq!(javaproperties::parse(&latin1).unwrap()[0].0, "café");
 ```
 
 ```rust

@@ -476,15 +476,23 @@ regression coverage in CI at all.
   unrepresentable and silently changes what existing callers write. The fixture
   column spells the mode out (`none` / `1` / `0`) so a two-valued test cannot
   pass with the wrong default.
-- **A writer and a reader that disagree on encoding look correct until escaping
-  is turned off.** `javaproperties`' `store_to_with` writes the UTF-8 bytes of the
-  text `store_with` returns, while `parse` decodes ISO-8859-1, as Java does. With
-  the default escaping every non-ASCII character is escaped, the bytes are ASCII,
-  and both agree - which is why `store_to` is safe and the gap went unnoticed. Set
-  `ensure_ascii: false` and `café` comes back as `cafÃ©`. Read such a document with
-  `parse_str` after decoding it yourself. Any pair of functions that form a round
-  trip needs a test with the *non-default* options, because the default is what
-  hides the disagreement.
+- **A stream writer must encode what the reader decodes, and the escaping
+  default is what hides a violation.** Java's `store(OutputStream, ...)` encodes
+  ISO-8859-1, and `parse` decodes it. `store_bytes` was `store().into_bytes()`,
+  which is UTF-8. Nothing caught it for a release, because the argument for
+  safety only looked at entries: `ensure_ascii: true` escapes those to ASCII, so
+  the two encodings agree. The comment is a *separate* switch whose default
+  (`ensure_ascii_comments: None`) passes Latin-1 through, so the default call
+  `store_bytes(Some("café"))` emitted `#caf\xC3\xA9` where Java emits `#caf\xE9`,
+  and a comment-preserving ISO-8859-1 reader saw `cafÃ©`. Two lessons: a document
+  has more than one escaping switch, so "the default escapes everything" is only
+  true of the field you were thinking about; and when a function's name or doc
+  promises an encoding, test the *bytes*, not the round trip through your own
+  reader, which agrees with itself whatever it encodes. `store_bytes` and
+  `store_to` stay infallible because the default options are exactly the ones
+  that keep every character inside ISO-8859-1; `store_to_with` takes arbitrary
+  options, so a character above `U+00FF` is `Error::NotLatin1` rather than a
+  silent transcode.
 - **`cargo doc` is a separate gate, and the three commands in this file do not
   cover it.** CI runs `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps`,
   which fails on a broken intra-doc link (`rustdoc::broken_intra_doc_links`).

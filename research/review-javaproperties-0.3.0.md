@@ -175,14 +175,34 @@ Three more findings, all real:
   precedent. `gen_writer.py` now asserts `PINNED = "0.8.2"` and stops otherwise,
   so a fixture cannot be re-baselined against another release silently.
 
-- **`store_to_with` did not state its encoding.** It writes the text
-  `store_with` returns, which is UTF-8, while `parse` decodes ISO-8859-1. With
-  the default escaping the bytes are ASCII and the two agree, so the gap only
-  shows with `ensure_ascii: false`, where `café` comes back as `cafÃ©`. The
-  method now documents the contract with a runnable example, `store_bytes` no
-  longer claims "every character is ASCII" without qualifying which options that
-  assumes, and a test asserts both the working path (`parse_str`) and the
-  mojibake, so neither can drift unnoticed.
+- **The byte writers emitted UTF-8, not Java's ISO-8859-1.** `store_bytes` was
+  `store().into_bytes()`, so it always encoded UTF-8, while its documentation
+  promised "the way Java writes a stream" and bytes that are "also valid
+  ISO-8859-1". The gap is invisible in the case the docs reasoned about, because
+  `ensure_ascii: true` escapes every entry character to ASCII. It is not
+  invisible in the default case, which is the one that matters: the comment mode
+  is a *separate* switch whose default (`None`) passes Latin-1 through, so
+  `store_bytes(Some("café"))` emitted `#caf\xC3\xA9` where Java emits
+  `#caf\xE9`. A reader that keeps comments and decodes ISO-8859-1 saw `cafÃ©`.
+
+  The first attempt only documented the divergence, which was wrong: the
+  function claimed a guarantee it did not meet, and a `store_to` caller had no
+  way to obtain Java's bytes at all. Both byte writers now encode ISO-8859-1
+  through one `latin1` helper, and the reference confirms the expected bytes:
+
+  ```
+  javaproperties.dump({'café': 'naïve'}, buf, comments='café', timestamp=False)
+  text.encode('iso-8859-1')  # b'#caf\xe9\ncaf\\u00e9=na\\u00efve\n'
+  ```
+
+  `store_bytes` and `store_to` stay infallible, because the default options are
+  exactly the two that keep every character inside ISO-8859-1, so the `latin1`
+  call there cannot fail; the `expect` states that invariant. `store_to_with`
+  takes arbitrary options, so it can fail, and a character above `U+00FF`
+  reaching the encoder is `Error::NotLatin1` rather than a silent transcode that
+  would read back as different text. Both settings that can let such a character
+  through (`ensure_ascii: false`, `ensure_ascii_comments: Some(false)`) are
+  covered by a test, and so is the `café` comment being one byte.
 
 Regenerating after the guard change left every fixture byte-identical, which is
 the check that the guard rejects nothing legitimate.

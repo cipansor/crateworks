@@ -428,9 +428,8 @@ fn write_entry(out: &mut String, key: &str, value: &str, options: &WriteOptions<
 impl Properties {
     /// Writes the entries as a `.properties` document.
     ///
-    /// The result is text; use [`Properties::store_bytes`] for the ISO-8859-1
-    /// bytes that `java.util.Properties.store` writes, which this can also
-    /// produce because every escape is ASCII.
+    /// The result is text. Use [`Properties::store_bytes`] for the ISO-8859-1
+    /// bytes that `java.util.Properties.store` writes to a stream.
     ///
     /// # Example
     ///
@@ -499,19 +498,29 @@ impl Properties {
         out
     }
 
-    /// Writes the document as bytes, the way Java writes a stream.
+    /// Writes the document as the bytes Java writes to a stream.
     ///
-    /// [`Properties::store`] escapes every non-ASCII character, so the result is
-    /// pure ASCII and these bytes are also valid ISO-8859-1 - the encoding
-    /// [`crate::parse`] assumes. There is no `ensure_ascii` to turn off here; use
-    /// [`Properties::store_to_with`] for that, and read its output back with
-    /// [`crate::parse_str`] rather than [`crate::parse`].
+    /// Java's `store(OutputStream, ...)` encodes ISO-8859-1, and so does this. The
+    /// default options escape every entry character above ASCII, but the comment
+    /// mode is separate and defaults to passing Latin-1 through, so the bytes are
+    /// not necessarily ASCII: a `café` comment comes out as the single byte
+    /// `0xE9`, which is what Java writes and what [`crate::parse`] expects.
+    ///
+    /// This cannot fail, because the default options are the two that keep every
+    /// character inside ISO-8859-1: `ensure_ascii` escapes entries, and the
+    /// default comment mode escapes only what is above `U+00FF`. Use
+    /// [`Properties::store_to_with`] to choose the escaping; that one can fail,
+    /// because `ensure_ascii: false` and `ensure_ascii_comments: Some(false)` let
+    /// text through that ISO-8859-1 has no byte for.
     #[must_use]
     pub fn store_bytes(&self, comment: Option<&str>) -> Vec<u8> {
-        self.store(comment).into_bytes()
+        latin1(&self.store(comment)).expect("default options escape everything outside ISO-8859-1")
     }
 
     /// Writes the document to anything writable.
+    ///
+    /// Encodes ISO-8859-1, like Java's `store(OutputStream, ...)`, and cannot
+    /// fail for the reason [`Properties::store_bytes`] gives.
     ///
     /// # Errors
     ///
@@ -535,42 +544,50 @@ impl Properties {
     ///
     /// # Encoding
     ///
-    /// The bytes written are **UTF-8**, because that is what the text from
-    /// [`Properties::store_with`] is. This differs from [`Properties::store_to`],
-    /// which writes the ISO-8859-1 bytes Java writes to a stream: that one is
-    /// safe because its default escapes every non-ASCII character, so the result
-    /// is pure ASCII and the two encodings agree.
+    /// The bytes are **ISO-8859-1**, the same encoding [`Properties::store_to`]
+    /// uses, because that is what Java's `store(OutputStream, ...)` writes and
+    /// what [`crate::parse`] reads back. [`Properties::store_with`] returns the
+    /// same document as a `String`, so a caller who wants UTF-8 should render with
+    /// it and encode the text themselves.
     ///
-    /// The difference only shows when `ensure_ascii` is `false`. The document
-    /// then holds raw non-ASCII, and reading it back with [`crate::parse`] - which
-    /// decodes ISO-8859-1, as `java.util.Properties` does - garbles it: `café`
-    /// comes back as `cafÃ©`. Round-trip such a document with [`crate::parse_str`],
-    /// which takes text you have already decoded:
+    /// Both escaping settings can pass text through that ISO-8859-1 cannot hold:
+    /// `ensure_ascii: false` for entries and `ensure_ascii_comments: Some(false)`
+    /// for the comment. That is [`Error::NotLatin1`], not a silent transcode.
+    /// `ensure_ascii_comments: None`, the default, only passes characters
+    /// ISO-8859-1 can hold, so it never fails.
     ///
     /// ```
-    /// use javaproperties::{Properties, WriteOptions, parse, parse_str};
+    /// use javaproperties::{Properties, WriteOptions, parse};
     ///
     /// let properties = Properties::from_pairs(vec![
     ///     ("café".to_string(), "naïve".to_string()),
     /// ]);
-    /// let raw = WriteOptions {
-    ///     ensure_ascii: false,
-    ///     ..WriteOptions::default()
-    /// };
     ///
+    /// // The comment passes Latin-1 through, the entry escapes it, and the
+    /// // bytes are ISO-8859-1: `é` is the single byte 0xE9, not UTF-8's 0xC3 0xA9.
     /// let mut out = Vec::new();
-    /// properties.store_to_with(&mut out, &raw).unwrap();
+    /// properties
+    ///     .store_to_with(
+    ///         &mut out,
+    ///         &WriteOptions {
+    ///             comment: Some("café"),
+    ///             ..WriteOptions::default()
+    ///         },
+    ///     )
+    ///     .unwrap();
+    /// assert_eq!(out, b"#caf\xE9\ncaf\\u00E9=na\\u00EFve\n");
     ///
-    /// // The bytes are UTF-8, so decode them before parsing.
-    /// let text = String::from_utf8(out.clone()).unwrap();
-    /// assert_eq!(parse_str(&text).unwrap()[0].0, "café");
-    /// // Reading those bytes as ISO-8859-1 is the mojibake this documents.
-    /// assert_eq!(parse(&out).unwrap()[0].0, "cafÃ©");
+    /// // `parse` decodes ISO-8859-1, so the bytes round-trip without a transcode.
+    /// assert_eq!(
+    ///     parse(&out).unwrap(),
+    ///     vec![("café".to_string(), "naïve".to_string())]
+    /// );
     /// ```
     ///
     /// # Errors
     ///
-    /// Returns [`Error::Io`] when the writer fails.
+    /// Returns [`Error::Io`] when the writer fails, and [`Error::NotLatin1`] when
+    /// the output holds a character outside ISO-8859-1.
     ///
     /// # Example
     ///
@@ -600,9 +617,23 @@ impl Properties {
         options: &WriteOptions<'_>,
     ) -> Result<(), Error> {
         writer
-            .write_all(self.store_with(options).as_bytes())
+            .write_all(&latin1(self.store_with(options).as_str())?)
             .map_err(|_| Error::Io)
     }
+}
+
+/// Encodes a rendered document as the ISO-8859-1 bytes Java writes to a stream.
+///
+/// ISO-8859-1 is the first 256 code points one byte each, so this is a widening
+/// cast and not a lookup table. Anything above U+00FF has no byte, and guessing
+/// (replacing it, or falling back to UTF-8) would produce a document that reads
+/// back as different text, so it is an error the caller has to resolve.
+fn latin1(text: &str) -> Result<Vec<u8>, Error> {
+    text.chars()
+        .map(|character| {
+            u8::try_from(u32::from(character)).map_err(|_| Error::NotLatin1 { character })
+        })
+        .collect()
 }
 
 /// Writes pairs without building a [`Properties`] first.
@@ -623,7 +654,7 @@ pub fn store(pairs: &[(String, String)], comment: Option<&str>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parse_str;
+    use crate::{parse, parse_str};
 
     fn round_trip(pairs: Vec<(String, String)>) {
         let properties = Properties::from_pairs(pairs.clone());
@@ -781,13 +812,55 @@ mod tests {
     }
 
     #[test]
-    fn the_bytes_are_the_text_and_are_all_ascii() {
+    fn the_bytes_are_latin1_and_a_latin1_comment_is_one_byte() {
+        // Java writes a stream as ISO-8859-1. Entries escape by default, but the
+        // comment mode does not, so `é` must be the single byte 0xE9 and not
+        // UTF-8's 0xC3 0xA9 - the difference a reader either side of this
+        // decision would see.
         let properties = Properties::from_pairs(vec![("k".to_string(), "café😀".to_string())]);
-        let bytes = properties.store_bytes(None);
-        assert_eq!(bytes, properties.store(None).into_bytes());
-        assert!(
-            bytes.is_ascii(),
-            "every escape is ASCII, so the bytes must be too"
+        let bytes = properties.store_bytes(Some("café"));
+        assert_eq!(bytes, b"#caf\xE9\nk=caf\\u00E9\\uD83D\\uDE00\n");
+        assert_eq!(
+            parse(&bytes).unwrap(),
+            vec![("k".to_string(), "café😀".to_string())],
+            "the bytes must read back unchanged, comment aside"
+        );
+    }
+
+    #[test]
+    fn a_comment_the_default_mode_cannot_encode_is_an_error() {
+        // `ensure_ascii_comments: Some(false)` passes anything through, including
+        // text ISO-8859-1 has no byte for. Silently transcoding it would produce a
+        // document that reads back as different text.
+        let properties = Properties::from_pairs(vec![("k".to_string(), "v".to_string())]);
+        let error = properties
+            .store_to_with(
+                &mut Vec::new(),
+                &WriteOptions {
+                    comment: Some("中文"),
+                    ensure_ascii_comments: Some(false),
+                    ..WriteOptions::default()
+                },
+            )
+            .unwrap_err();
+        assert_eq!(error, Error::NotLatin1 { character: '中' });
+        assert!(error.to_string().contains("ISO-8859-1"));
+    }
+
+    #[test]
+    fn an_unescaped_entry_above_latin1_is_an_error_not_a_transcode() {
+        let properties = Properties::from_pairs(vec![("k".to_string(), "中文".to_string())]);
+        // The default escapes it, so the infallible writer cannot fail.
+        properties.store_to(&mut Vec::new(), None).unwrap();
+        assert_eq!(
+            properties.store_to_with(
+                &mut Vec::new(),
+                &WriteOptions {
+                    ensure_ascii: false,
+                    ..WriteOptions::default()
+                },
+            ),
+            Err(Error::NotLatin1 { character: '中' })
         );
     }
 }
