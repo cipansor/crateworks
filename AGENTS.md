@@ -553,10 +553,13 @@ regression coverage in CI at all.
   crate to the reference's bug. Each such row carries an `empty` marker and the
   reference's verdict for the header with the empty elements removed, and a test
   re-derives that stripping them is what changes the reference's mind, so a
-  header broken for a second reason cannot be relabelled into passing. Do not
-  compare an error **index** across the two strings: skipping an element shifts
-  every later position, so an `empty` row whose remainder is still invalid
-  compares rejection only.
+  header broken for a second reason cannot be relabelled into passing. An error
+  **index** can only be compared when it has not moved: skipping an element
+  shifts every later position, so an index at or after the first removed
+  character is meaningless and those rows compare rejection only. An index
+  before it is still the index in the original header - ` for=a,,for=b` fails
+  at 0 for its leading space either way - so keep it and compare it exactly
+  rather than discarding a comparison that still holds.
 - **A comma after a dangling `;` is not an empty list element.** `for=1.1.1.1;,`
   opened a parameter and never closed it; treating the comma as an empty element
   merged the following element into the current one, turning two hops into one
@@ -575,6 +578,14 @@ regression coverage in CI at all.
   already-agreeing row as a divergence. It also joined with `", "`, adding a
   space that changed the header being measured. Print the rewritten header and
   diff it against the original before trusting a derived expectation.
+- **Whitespace around a dropped separator is part of the separator.** The list
+  rule is `#element => [ element ] *( OWS "," OWS [ element ] )`, so the space
+  in `, for=a` belongs to the comma, not to the element. Stripping an empty
+  element but leaving its neighbouring whitespace produces ` for=a`, which is
+  broken for a *different* reason (leading whitespace), and a fixture built on
+  that rewrite expects a rejection the crate correctly does not give. Drop the
+  whitespace with the separator, and only when the adjacent segment is dropped -
+  whitespace next to a surviving comma is that comma's OWS and must stay.
 - **A new npm oracle dependency must regenerate the lockfile.** `package.json`
   gained `forwarded-parse` while `package-lock.json` was untouched, so `npm ci`
   failed with `Missing: forwarded-parse@2.2.0 from lock file` while `npm install`

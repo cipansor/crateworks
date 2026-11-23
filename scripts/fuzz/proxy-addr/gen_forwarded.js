@@ -155,19 +155,15 @@ function verdict (header) {
 }
 
 // Split a header on the commas that separate elements, respecting quoted
-// strings, and drop the segments that hold no element.
-//
-// RFC 7230 section 7 requires a recipient to ignore empty list elements, and
-// the reference does not, so a header the reference rejects for that reason is
-// one this crate must still read. Rewriting the header without the empty
-// segments gives a header the reference does accept, which is what proves the
-// divergence is exactly that rule and nothing else.
-function withoutEmptyElements (header) {
+// strings. Each segment carries its start offset so the caller can tell which
+// characters a rewrite removed.
+function splitSegments (header) {
   const segments = []
-  let current = ''
+  let start = 0
   let inQuotes = false
   let escaping = false
-  for (const c of header) {
+  for (let i = 0; i < header.length; i++) {
+    const c = header[i]
     if (escaping) {
       escaping = false
     } else if (c === '\\' && inQuotes) {
@@ -175,23 +171,80 @@ function withoutEmptyElements (header) {
     } else if (c === '"') {
       inQuotes = !inQuotes
     } else if (c === ',' && !inQuotes) {
-      segments.push(current)
-      current = ''
+      segments.push({ text: header.slice(start, i), start })
+      start = i + 1
       continue
     }
-    current += c
   }
-  segments.push(current)
-  // An empty element is a separator with nothing between it and its
-  // neighbour. The first segment counts only when it is empty outright: a
-  // leading tab or space is leading whitespace, which RFC 7230's list rule does
-  // not allow and the crate must still reject, so trimming it away here would
-  // hide a second fault behind the empty-element one.
+  segments.push({ text: header.slice(start), start })
   return segments
-    .filter((segment, index) => index === 0
-      ? segment !== ''
-      : segment.replace(/^[ \t]+|[ \t]+$/g, '') !== '')
-    .join(',')
+}
+
+// RFC 7230 section 7 requires a recipient to ignore empty list elements, and
+// the reference does not, so a header the reference rejects for that reason is
+// one this crate must still read. Rewriting the header without the empty
+// segments gives a header the reference does accept, which is what proves the
+// divergence is exactly that rule and nothing else.
+//
+// `#element => [ element ] *( OWS "," OWS [ element ] )` puts the whitespace on
+// the separator, not on the element. So the whitespace that surrounded a
+// dropped separator goes with it: `, for=a` is an empty element whose comma
+// carries ` for=a`'s leading space, and leaving that space behind would produce
+// ` for=a`, which the reference rejects for a reason that has nothing to do with
+// empty elements. The same rule trims the whitespace before a dropped
+// separator's comma (`for=a ,` -> `for=a`).
+//
+// The exception is the header's own first segment: whitespace there precedes
+// any separator, so it is leading whitespace, which the list rule does not allow
+// and the crate must still reject. It is kept.
+//
+// Returns the rewritten header and the offset of the first character it dropped
+// (`Infinity` when it dropped nothing), because an error position before that
+// offset is still the position in the original header.
+function withoutEmptyElements (header) {
+  const segments = splitSegments(header)
+  const last = segments.length - 1
+  // Only the header's own first segment is judged unstripped: whitespace there
+  // precedes any separator, so it is leading whitespace and a fault of its own.
+  const isEmpty = (i) => (i === 0
+    ? segments[i].text === ''
+    : segments[i].text.replace(/^[ \t]+|[ \t]+$/g, '') === '')
+  const kept = []
+  for (let i = 0; i < segments.length; i++) if (!isEmpty(i)) kept.push(i)
+
+  let firstDropped = Infinity
+  const dropped = (offset) => {
+    if (offset >= 0 && offset < firstDropped) firstDropped = offset
+  }
+  for (let i = 0; i <= last; i++) {
+    if (!isEmpty(i)) continue
+    // The whole segment goes, and so does the comma that delimited it: the one
+    // before it, or - for an empty first segment - the one after it.
+    dropped(i === 0 ? segments[i].start : segments[i].start - 1)
+  }
+
+  const out = kept.map((i, position) => {
+    let text = segments[i].text
+    // Whitespace next to a dropped segment is that separator's OWS, so it goes
+    // with it. Whitespace next to a surviving separator is OWS of that comma
+    // and stays.
+    const previous = position === 0 ? -1 : kept[position - 1]
+    const next = position === kept.length - 1 ? last + 1 : kept[position + 1]
+    if (i !== 0 && previous !== i - 1) {
+      const lead = text.replace(/^[ \t]+/, '')
+      if (lead.length !== text.length) dropped(segments[i].start)
+      text = lead
+    }
+    if (next !== i + 1) {
+      const trail = text.replace(/[ \t]+$/, '')
+      if (trail.length !== text.length) {
+        dropped(segments[i].start + trail.length)
+      }
+      text = trail
+    }
+    return text
+  })
+  return { text: out.join(','), firstDropped }
 }
 
 // One row of the corpus: the header, how strictly it is compared, and the
@@ -204,15 +257,28 @@ function withoutEmptyElements (header) {
 //             verdict is the reference's answer for the header with those
 //             elements removed: `OK[...]` must be reproduced exactly, while a
 //             bare `!` means the remainder is still invalid and the crate must
-//             reject it. The index is not compared there, because skipping an
-//             element shifts every later position.
+//             reject it.
+//
+//             A bare `!` is the weak form, and it is only used when the index
+//             really has moved. Removing an element shifts every position after
+//             it, but an error before the first removed character keeps its
+//             index, and dropping it would throw away a comparison for nothing:
+//             ` for=a,,for=b` fails at index 0 for its leading space whether or
+//             not the empty element is gone. When the reference's index on the
+//             rewritten header is the same in both strings, it is recorded as
+//             `!pos:<n>` and compared exactly.
 function row (header) {
   const direct = verdict(header)
   if (!direct.startsWith('!')) return ['strict', direct]
-  const stripped = withoutEmptyElements(header)
+  const { text: stripped, firstDropped } = withoutEmptyElements(header)
   if (stripped === header) return ['strict', direct]
   const repaired = verdict(stripped)
-  return ['empty', repaired.startsWith('!') ? '!' : repaired]
+  if (!repaired.startsWith('!')) return ['empty', repaired]
+  const at = repaired.startsWith('!pos:') ? Number(repaired.slice(5)) : null
+  // The index is measured in UTF-16 code units, and `firstDropped` is one too,
+  // so the two are directly comparable. `!eof` has no index to keep.
+  if (at !== null && at < firstDropped) return ['empty', repaired]
+  return ['empty', '!']
 }
 
 // A TSV field cannot hold a tab, a newline or a NUL, so the header is
@@ -258,7 +324,16 @@ const SEEDS = [
   'for=192.0.2.43,,for=198.51.100.7',
   'for=192.0.2.43,',
   ',for=192.0.2.43',
-  'for=192.0.2.43, ,for=198.51.100.7'
+  'for=192.0.2.43, ,for=198.51.100.7',
+  // The whitespace around a dropped separator is that separator's OWS and must
+  // go with it, or the rewrite leaves ` for=...`, which the reference rejects
+  // for its leading space and the crate accepts.
+  ', for=192.0.2.43',
+  'for=192.0.2.43 ,,for=198.51.100.7',
+  'for=192.0.2.43 ,',
+  // An error before the first dropped character keeps its index, so the row can
+  // still compare the position rather than only the rejection.
+  ' for=192.0.2.43,,for=198.51.100.7'
 ]
 for (const header of SEEDS) {
   const [strictness, expected] = row(header)

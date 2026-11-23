@@ -26,6 +26,12 @@
 //! empty elements removed — so the corpus still says what the crate must
 //! return, and a `!...` verdict still means the crate must reject.
 //!
+//! A bare `!` is only used when the index genuinely moved. Removing an element
+//! shifts every position after it, but a fault before the first removed
+//! character keeps its index, so those rows carry `!pos:<n>` and are compared
+//! exactly like a `strict` row. Dropping the index there would discard a
+//! comparison that still holds.
+//!
 //! The row is only marked `empty` when removing the empty elements is what
 //! changes the reference's mind: `the_divergence_is_only_about_empty_elements`
 //! below re-derives that for every such row, so a header that is broken for a
@@ -112,15 +118,17 @@ fn quote(text: &str) -> String {
     out
 }
 
-/// Split a header on the commas between elements, respecting quoted strings,
-/// and drop the segments that hold no element. Mirrors the generator's
-/// `withoutEmptyElements`.
-fn without_empty_elements(header: &str) -> String {
-    let mut segments: Vec<String> = Vec::new();
+/// Split a header on the commas between elements, respecting quoted strings.
+/// Each segment carries its start offset, so a caller can tell which characters
+/// a rewrite removed. Mirrors the generator's `splitSegments`.
+fn split_segments(header: &str) -> Vec<(String, usize)> {
+    let chars: Vec<(usize, char)> = header.char_indices().collect();
+    let mut segments = Vec::new();
     let mut current = String::new();
+    let mut start = 0;
     let mut in_quotes = false;
     let mut escaping = false;
-    for c in header.chars() {
+    for (offset, c) in chars {
         if escaping {
             escaping = false;
         } else if c == '\\' && in_quotes {
@@ -128,25 +136,49 @@ fn without_empty_elements(header: &str) -> String {
         } else if c == '"' {
             in_quotes = !in_quotes;
         } else if c == ',' && !in_quotes {
-            segments.push(std::mem::take(&mut current));
+            segments.push((std::mem::take(&mut current), start));
+            start = offset + 1;
             continue;
         }
         current.push(c);
     }
-    segments.push(current);
-    // Mirrors the generator: the first segment is empty only when it is empty
-    // outright, so a leading space or tab stays a fault of its own.
+    segments.push((current, start));
     segments
-        .into_iter()
+}
+
+/// Drop the segments that hold no element, and the whitespace that surrounded
+/// their commas. Mirrors the generator's `withoutEmptyElements`, which explains
+/// why the whitespace goes with the separator.
+fn without_empty_elements(header: &str) -> String {
+    let segments = split_segments(header);
+    let is_empty = |index: usize| {
+        if index == 0 {
+            segments[index].0.is_empty()
+        } else {
+            segments[index].0.trim_matches([' ', '\t']).is_empty()
+        }
+    };
+    let kept: Vec<usize> = (0..segments.len()).filter(|i| !is_empty(*i)).collect();
+    kept.iter()
         .enumerate()
-        .filter(|(index, segment)| {
-            if *index == 0 {
-                !segment.is_empty()
-            } else {
-                !segment.trim_matches([' ', '\t']).is_empty()
+        .map(|(position, index)| {
+            let text = &segments[*index].0;
+            // Whitespace next to a dropped segment is that separator's OWS, so
+            // it goes with it; whitespace next to a surviving separator is OWS
+            // of that comma and stays.
+            let previous = position.checked_sub(1).map(|p| kept[p]);
+            let next = kept.get(position + 1).copied();
+            let mut out: &str = text;
+            // A missing neighbour means the segment was dropped, so the
+            // whitespace on that side is the dropped separator's OWS.
+            if *index != 0 && previous != Some(index - 1) {
+                out = out.trim_start_matches([' ', '\t']);
             }
+            if next != Some(index + 1) {
+                out = out.trim_end_matches([' ', '\t']);
+            }
+            out.to_string()
         })
-        .map(|(_, segment)| segment)
         .collect::<Vec<_>>()
         .join(",")
 }

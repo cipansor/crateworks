@@ -373,6 +373,16 @@ fn empty_list_elements_are_ignored() {
         ),
         (",for=192.0.2.43", vec!["192.0.2.43"]),
         ("for=192.0.2.43,", vec!["192.0.2.43"]),
+        // Whitespace after the comma belongs to the separator, not to the
+        // element, so dropping an empty element drops it too. Keeping it would
+        // leave a header whose first element starts with a space, which is a
+        // different fault and not one this crate should accept.
+        (", for=192.0.2.43", vec!["192.0.2.43"]),
+        (
+            "for=192.0.2.43 ,,for=198.51.100.7",
+            vec!["192.0.2.43", "198.51.100.7"],
+        ),
+        ("for=192.0.2.43 ,", vec!["192.0.2.43"]),
     ] {
         let hops = parse_forwarded(header).unwrap_or_else(|e| panic!("{header:?} failed: {e:?}"));
         let nodes: Vec<&str> = hops.iter().filter_map(|hop| hop.for_node()).collect();

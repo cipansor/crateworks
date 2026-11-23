@@ -153,15 +153,20 @@ not exist.
 
 ## How it is checked
 
-`scripts/fuzz/proxy-addr/gen_forwarded.js` writes 6,019 rows: the header in hex,
+`scripts/fuzz/proxy-addr/gen_forwarded.js` writes 6,023 rows: the header in hex,
 a strictness column (`strict` or `empty`), and the reference's verdict.
 
 | Outcome | `strict` | `empty` |
 | --- | --- | --- |
-| accepted | 2,125 | 13 |
-| rejected, unexpected character | 3,676 | 0 |
+| accepted | 2,125 | 16 |
+| rejected, unexpected character (index compared) | 3,676 | 23 |
 | rejected, early end | 155 | 0 |
-| rejected, remainder still invalid (rejection only) | 0 | 50 |
+| rejected, remainder still invalid (rejection only) | 0 | 28 |
+
+The 23 `empty` rows with an index are the ones where the fault precedes the
+first removed character, so the index is still the index in the original header.
+They are compared exactly; only the 28 rows where the index genuinely moved
+compare rejection alone.
 
 `tests/forwarded_oracle.rs` replays all of it, comparing the character index of
 every rejection, and `tests/forwarded_nodes.rs` covers the typed layer the
@@ -172,3 +177,79 @@ Gates: `cargo fmt --check`, clippy `-D warnings` on stable and on 1.88 (forced
 rebuild, since clippy prints nothing on a cached one), 1,632 workspace tests,
 255 doctests, `cargo doc` with no warnings, `check_attribution.py` and
 `check_actions_pinned.py`.
+
+## Three findings from review of the corpus tooling
+
+A review of the generator and its documentation raised three defects, all real,
+all in the tooling rather than the parser. None of them changed a line of
+`forwarded_header.rs`; each made the *evidence* weaker than it claimed to be,
+which is the harder kind to notice.
+
+### 1. The oracle pin was documented in one place, not two
+
+`PINNED` in the generator records `forwarded-parse` 2.2.0 and the generator
+refuses to run against any other version. `research/tools/README.md` documented
+only the `proxy-addr` oracle behind `verify_proxy_addr.py`, so a reader looking
+for the version to install found the X-Forwarded-For one and nothing about
+`Forwarded`. That matters because `Forwarded` is a **second, independent
+oracle**: a different grammar, a different npm package, a different fixture.
+`AGENTS.md` asks for the pinned version to be recorded beside the gate and in
+`research/tools/README.md`; the row is now there, naming the package, the
+version, the fixture, the divergence and the `OUT`/`SEED` overrides.
+
+### 2. Stripping an empty element left its separator's whitespace behind
+
+The list rule is
+
+```
+#element => [ element ] *( OWS "," OWS [ element ] )
+```
+
+so the space in `, for=192.0.2.43` belongs to the comma. `withoutEmptyElements`
+dropped the empty first segment but kept its text, producing ` for=192.0.2.43`
+- a header the reference rejects for **leading whitespace**, which has nothing
+to do with empty elements. The row therefore expected `!` where the crate
+correctly accepted the header. Sixteen committed rows had their rewrite changed
+by this, and exactly two had their verdict flip - both from `!` to `OK`, which
+is the false rejection the review named: `, for=192.0.2.43` and the mirror case
+`for=192.0.2.43 ,`. The other fourteen still ended in the same verdict because
+they carried a second fault, so the rewrite was wrong in sixteen rows and the
+recorded expectation in two.
+
+The transform now drops whitespace only on the side where the adjacent segment
+was dropped. Whitespace next to a *surviving* comma is that comma's OWS and
+stays, which is why an earlier attempt that trimmed every segment changed 2,497
+verdicts: it rewrote headers whose separators were never touched.
+
+Four seed headers were added so the shape is in the corpus by construction
+rather than by luck, and a curated test in `forwarded_nodes.rs` covers it.
+
+### 3. An `empty` marker discarded an index that had not moved
+
+`row` replaced every `empty` row's index with a bare `!`, on the grounds that
+skipping an element shifts later positions. That is true only from the first
+removed character onward. ` for=a,,for=b` fails at index 0 for its leading space
+whether or not the empty element is there, so the index was still comparable and
+throwing it away made the corpus weaker than it could be.
+
+The transform now reports the offset of the first character it dropped, and a
+row keeps `!pos:<n>` when `n` precedes it. Twenty-three rows were strengthened
+this way; each was verified to report the same index on the original header and
+on the rewritten one. Twenty-eight rows still compare rejection only, because
+their index really did move.
+
+Both indices are UTF-16 code units, the reference's own convention (confirmed
+with an astral character before an error: `for=a;zz=😀` reports index 9, its
+code-unit position, not 8), so the two are directly comparable.
+
+### What these three have in common
+
+Each was a case of the tooling being *less* strict than it looked. The pin was
+enforced but not documented; the divergence was recorded but with a rewrite that
+invented a second fault; the index was dropped for a reason that applied to only
+part of the rows. A corpus that overstates its own coverage is worse than a
+smaller honest one, because the green build is what stops anyone looking.
+
+The unseen-seed replay was re-run over all four seeds after these changes:
+24,092 cases, no disagreement. The committed fixture is byte-identical across
+two runs (md5 `09ee89b572a796ddf661b64c8cff8f70`).
