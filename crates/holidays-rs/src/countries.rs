@@ -1130,7 +1130,10 @@ static CABO_VERDE: &[Holiday] = &[
     h("Ano Novo", Rule::Fixed { month: 1, day: 1 }),
     h(
         "Dia da Liberdade e da Democracia",
-        Rule::Fixed { month: 1, day: 13 },
+        Rule::Since {
+            year: 2000,
+            base: &Rule::Fixed { month: 1, day: 13 },
+        },
     ),
     h(
         "Dia da Nacionalidade e dos Heróis Nacionais",
@@ -1478,17 +1481,48 @@ static FRENCH_GUIANA: &[Holiday] = &[
             base: &Rule::EasterOffset(50),
         },
     ),
-    h("Fête du Travail", Rule::Fixed { month: 5, day: 1 }),
-    h("Fête de la Victoire", Rule::Fixed { month: 5, day: 8 }),
+    h(
+        "Fête du Travail",
+        Rule::Since {
+            year: 1919,
+            base: &Rule::Fixed { month: 5, day: 1 },
+        },
+    ),
+    // Inherited from France: kept 1953-1959, dropped by the 1959 decree,
+    // restored in 1982.
+    h(
+        "Fête de la Victoire",
+        Rule::Between {
+            from: 1953,
+            to: 1959,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
+    h(
+        "Fête de la Victoire",
+        Rule::Since {
+            year: 1982,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
     h("Ascension", Rule::EasterOffset(39)),
     h("Fête nationale", Rule::Fixed { month: 7, day: 14 }),
     h("Assomption", Rule::Fixed { month: 8, day: 15 }),
     h("Toussaint", Rule::Fixed { month: 11, day: 1 }),
-    h("Armistice", Rule::Fixed { month: 11, day: 11 }),
+    h(
+        "Armistice",
+        Rule::Since {
+            year: 1922,
+            base: &Rule::Fixed { month: 11, day: 11 },
+        },
+    ),
     h("Noël", Rule::Fixed { month: 12, day: 25 }),
     h(
         "Abolition de l'esclavage",
-        Rule::Fixed { month: 6, day: 10 },
+        Rule::Since {
+            year: 1984,
+            base: &Rule::Fixed { month: 6, day: 10 },
+        },
     ),
 ];
 
@@ -1601,13 +1635,41 @@ static SAINT_PIERRE_AND_MIQUELON: &[Holiday] = &[
             base: &Rule::EasterOffset(50),
         },
     ),
-    h("Fête du Travail", Rule::Fixed { month: 5, day: 1 }),
-    h("Fête de la Victoire", Rule::Fixed { month: 5, day: 8 }),
+    h(
+        "Fête du Travail",
+        Rule::Since {
+            year: 1919,
+            base: &Rule::Fixed { month: 5, day: 1 },
+        },
+    ),
+    // Inherited from France: kept 1953-1959, dropped by the 1959 decree,
+    // restored in 1982.
+    h(
+        "Fête de la Victoire",
+        Rule::Between {
+            from: 1953,
+            to: 1959,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
+    h(
+        "Fête de la Victoire",
+        Rule::Since {
+            year: 1982,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
     h("Ascension", Rule::EasterOffset(39)),
     h("Fête nationale", Rule::Fixed { month: 7, day: 14 }),
     h("Assomption", Rule::Fixed { month: 8, day: 15 }),
     h("Toussaint", Rule::Fixed { month: 11, day: 1 }),
-    h("Armistice", Rule::Fixed { month: 11, day: 11 }),
+    h(
+        "Armistice",
+        Rule::Since {
+            year: 1922,
+            base: &Rule::Fixed { month: 11, day: 11 },
+        },
+    ),
     h("Noël", Rule::Fixed { month: 12, day: 25 }),
 ];
 
@@ -1629,13 +1691,42 @@ static FRENCH_SOUTHERN_TERRITORIES: &[Holiday] = &[
             base: &Rule::EasterOffset(50),
         },
     ),
-    h("Fête du Travail", Rule::Fixed { month: 5, day: 1 }),
-    h("Fête de la Victoire", Rule::Fixed { month: 5, day: 8 }),
+    h(
+        "Fête du Travail",
+        Rule::Since {
+            year: 1919,
+            base: &Rule::Fixed { month: 5, day: 1 },
+        },
+    ),
+    // Inherited from France: kept from 1953 to 1959, dropped by the 1959
+    // decree, then restored in 1982. The territory's reference start year is
+    // 1956, so the earlier form is bounded there rather than at 1953.
+    h(
+        "Fête de la Victoire",
+        Rule::Between {
+            from: 1956,
+            to: 1959,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
+    h(
+        "Fête de la Victoire",
+        Rule::Since {
+            year: 1982,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
     h("Ascension", Rule::EasterOffset(39)),
     h("Fête nationale", Rule::Fixed { month: 7, day: 14 }),
     h("Assomption", Rule::Fixed { month: 8, day: 15 }),
     h("Toussaint", Rule::Fixed { month: 11, day: 1 }),
-    h("Armistice", Rule::Fixed { month: 11, day: 11 }),
+    h(
+        "Armistice",
+        Rule::Since {
+            year: 1922,
+            base: &Rule::Fixed { month: 11, day: 11 },
+        },
+    ),
     h("Noël", Rule::Fixed { month: 12, day: 25 }),
 ];
 
@@ -1657,17 +1748,48 @@ static REUNION: &[Holiday] = &[
             base: &Rule::EasterOffset(50),
         },
     ),
-    h("Fête du Travail", Rule::Fixed { month: 5, day: 1 }),
-    h("Fête de la Victoire", Rule::Fixed { month: 5, day: 8 }),
+    h(
+        "Fête du Travail",
+        Rule::Since {
+            year: 1919,
+            base: &Rule::Fixed { month: 5, day: 1 },
+        },
+    ),
+    // Inherited from France: kept 1953-1959, dropped by the 1959 decree,
+    // restored in 1982.
+    h(
+        "Fête de la Victoire",
+        Rule::Between {
+            from: 1953,
+            to: 1959,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
+    h(
+        "Fête de la Victoire",
+        Rule::Since {
+            year: 1982,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
     h("Ascension", Rule::EasterOffset(39)),
     h("Fête nationale", Rule::Fixed { month: 7, day: 14 }),
     h("Assomption", Rule::Fixed { month: 8, day: 15 }),
     h("Toussaint", Rule::Fixed { month: 11, day: 1 }),
-    h("Armistice", Rule::Fixed { month: 11, day: 11 }),
+    h(
+        "Armistice",
+        Rule::Since {
+            year: 1922,
+            base: &Rule::Fixed { month: 11, day: 11 },
+        },
+    ),
     h("Noël", Rule::Fixed { month: 12, day: 25 }),
     h(
         "Abolition de l'esclavage",
-        Rule::Fixed { month: 12, day: 20 },
+        Rule::Since {
+            year: 1983,
+            base: &Rule::Fixed { month: 12, day: 20 },
+        },
     ),
 ];
 
@@ -1689,17 +1811,48 @@ static MAYOTTE: &[Holiday] = &[
             base: &Rule::EasterOffset(50),
         },
     ),
-    h("Fête du Travail", Rule::Fixed { month: 5, day: 1 }),
-    h("Fête de la Victoire", Rule::Fixed { month: 5, day: 8 }),
+    h(
+        "Fête du Travail",
+        Rule::Since {
+            year: 1919,
+            base: &Rule::Fixed { month: 5, day: 1 },
+        },
+    ),
+    // Inherited from France: kept 1953-1959, dropped by the 1959 decree,
+    // restored in 1982.
+    h(
+        "Fête de la Victoire",
+        Rule::Between {
+            from: 1953,
+            to: 1959,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
+    h(
+        "Fête de la Victoire",
+        Rule::Since {
+            year: 1982,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
     h("Ascension", Rule::EasterOffset(39)),
     h("Fête nationale", Rule::Fixed { month: 7, day: 14 }),
     h("Assomption", Rule::Fixed { month: 8, day: 15 }),
     h("Toussaint", Rule::Fixed { month: 11, day: 1 }),
-    h("Armistice", Rule::Fixed { month: 11, day: 11 }),
+    h(
+        "Armistice",
+        Rule::Since {
+            year: 1922,
+            base: &Rule::Fixed { month: 11, day: 11 },
+        },
+    ),
     h("Noël", Rule::Fixed { month: 12, day: 25 }),
     h(
         "Abolition de l'esclavage",
-        Rule::Fixed { month: 4, day: 27 },
+        Rule::Since {
+            year: 1984,
+            base: &Rule::Fixed { month: 4, day: 27 },
+        },
     ),
 ];
 
@@ -1732,7 +1885,10 @@ static LIBERIA: &[Holiday] = &[
     ),
     h(
         "National Unification and Integration Day",
-        Rule::Fixed { month: 5, day: 14 },
+        Rule::Since {
+            year: 1960,
+            base: &Rule::Fixed { month: 5, day: 14 },
+        },
     ),
     h("Independence Day", Rule::Fixed { month: 7, day: 26 }),
     h("National Flag Day", Rule::Fixed { month: 8, day: 24 }),
@@ -1749,6 +1905,90 @@ static LIBERIA: &[Holiday] = &[
         Rule::Fixed { month: 11, day: 29 },
     ),
     h("Christmas Day", Rule::Fixed { month: 12, day: 25 }),
+    h(
+        "Inauguration Day",
+        Rule::Between {
+            from: 1960,
+            to: 1960,
+            base: &Rule::NthWeekday {
+                month: 1,
+                weekday: 1,
+                nth: 1,
+            },
+        },
+    ),
+    h(
+        "Inauguration Day",
+        Rule::Between {
+            from: 1964,
+            to: 1964,
+            base: &Rule::NthWeekday {
+                month: 1,
+                weekday: 1,
+                nth: 1,
+            },
+        },
+    ),
+    h(
+        "Inauguration Day",
+        Rule::Between {
+            from: 1968,
+            to: 1968,
+            base: &Rule::NthWeekday {
+                month: 1,
+                weekday: 1,
+                nth: 1,
+            },
+        },
+    ),
+    h(
+        "Inauguration Day",
+        Rule::Between {
+            from: 1972,
+            to: 1972,
+            base: &Rule::NthWeekday {
+                month: 1,
+                weekday: 1,
+                nth: 1,
+            },
+        },
+    ),
+    h(
+        "Inauguration Day",
+        Rule::Between {
+            from: 1976,
+            to: 1976,
+            base: &Rule::NthWeekday {
+                month: 1,
+                weekday: 1,
+                nth: 1,
+            },
+        },
+    ),
+    h(
+        "Inauguration Day",
+        Rule::Between {
+            from: 1986,
+            to: 1986,
+            base: &Rule::NthWeekday {
+                month: 1,
+                weekday: 1,
+                nth: 1,
+            },
+        },
+    ),
+    h(
+        "Inauguration Day",
+        Rule::Between {
+            from: 1998,
+            to: 1998,
+            base: &Rule::NthWeekday {
+                month: 1,
+                weekday: 1,
+                nth: 1,
+            },
+        },
+    ),
     h(
         "Inauguration Day",
         Rule::Between {
@@ -1803,7 +2043,13 @@ static LIBERIA: &[Holiday] = &[
 static CONGO: &[Holiday] = &[
     h("Jour de l'An", Rule::Fixed { month: 1, day: 1 }),
     h("Lundi de Pâques", Rule::EasterOffset(1)),
-    h("Fête du Travail", Rule::Fixed { month: 5, day: 1 }),
+    h(
+        "Fête du Travail",
+        Rule::Since {
+            year: 1994,
+            base: &Rule::Fixed { month: 5, day: 1 },
+        },
+    ),
     h("Ascension", Rule::EasterOffset(39)),
     h("Lundi de Pentecôte", Rule::EasterOffset(50)),
     h(
@@ -1953,13 +2199,41 @@ static NEW_CALEDONIA: &[Holiday] = &[
             base: &Rule::EasterOffset(50),
         },
     ),
-    h("Fête du Travail", Rule::Fixed { month: 5, day: 1 }),
-    h("Fête de la Victoire", Rule::Fixed { month: 5, day: 8 }),
+    h(
+        "Fête du Travail",
+        Rule::Since {
+            year: 1919,
+            base: &Rule::Fixed { month: 5, day: 1 },
+        },
+    ),
+    // Inherited from France: kept 1953-1959, dropped by the 1959 decree,
+    // restored in 1982.
+    h(
+        "Fête de la Victoire",
+        Rule::Between {
+            from: 1953,
+            to: 1959,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
+    h(
+        "Fête de la Victoire",
+        Rule::Since {
+            year: 1982,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
     h("Ascension", Rule::EasterOffset(39)),
     h("Fête nationale", Rule::Fixed { month: 7, day: 14 }),
     h("Assomption", Rule::Fixed { month: 8, day: 15 }),
     h("Toussaint", Rule::Fixed { month: 11, day: 1 }),
-    h("Armistice", Rule::Fixed { month: 11, day: 11 }),
+    h(
+        "Armistice",
+        Rule::Since {
+            year: 1922,
+            base: &Rule::Fixed { month: 11, day: 11 },
+        },
+    ),
     h("Noël", Rule::Fixed { month: 12, day: 25 }),
     h(
         "Fête de la Citoyenneté",
@@ -1970,8 +2244,9 @@ static NEW_CALEDONIA: &[Holiday] = &[
     ),
     h(
         "Fête de la prise de possession",
-        Rule::Until {
-            year: 2003,
+        Rule::Between {
+            from: 1953,
+            to: 2003,
             base: &Rule::Fixed { month: 9, day: 24 },
         },
     ),
@@ -1994,22 +2269,56 @@ static MARTINIQUE: &[Holiday] = &[
             base: &Rule::EasterOffset(50),
         },
     ),
-    h("Fête du Travail", Rule::Fixed { month: 5, day: 1 }),
-    h("Fête de la Victoire", Rule::Fixed { month: 5, day: 8 }),
+    h(
+        "Fête du Travail",
+        Rule::Since {
+            year: 1919,
+            base: &Rule::Fixed { month: 5, day: 1 },
+        },
+    ),
+    // Inherited from France: kept 1953-1959, dropped by the 1959 decree,
+    // restored in 1982.
+    h(
+        "Fête de la Victoire",
+        Rule::Between {
+            from: 1953,
+            to: 1959,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
+    h(
+        "Fête de la Victoire",
+        Rule::Since {
+            year: 1982,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
     h("Ascension", Rule::EasterOffset(39)),
     h("Fête nationale", Rule::Fixed { month: 7, day: 14 }),
     h("Assomption", Rule::Fixed { month: 8, day: 15 }),
     h("Toussaint", Rule::Fixed { month: 11, day: 1 }),
-    h("Armistice", Rule::Fixed { month: 11, day: 11 }),
+    h(
+        "Armistice",
+        Rule::Since {
+            year: 1922,
+            base: &Rule::Fixed { month: 11, day: 11 },
+        },
+    ),
     h("Noël", Rule::Fixed { month: 12, day: 25 }),
     h("Vendredi saint", Rule::EasterOffset(-2)),
     h(
         "Abolition de l'esclavage",
-        Rule::Fixed { month: 5, day: 22 },
+        Rule::Since {
+            year: 1984,
+            base: &Rule::Fixed { month: 5, day: 22 },
+        },
     ),
     h(
         "Fête de Victor Schoelcher",
-        Rule::Fixed { month: 7, day: 21 },
+        Rule::Since {
+            year: 1984,
+            base: &Rule::Fixed { month: 7, day: 21 },
+        },
     ),
 ];
 
@@ -2030,13 +2339,33 @@ static WALLIS_AND_FUTUNA: &[Holiday] = &[
             base: &Rule::EasterOffset(50),
         },
     ),
-    h("Fête du Travail", Rule::Fixed { month: 5, day: 1 }),
-    h("Fête de la Victoire", Rule::Fixed { month: 5, day: 8 }),
+    h(
+        "Fête du Travail",
+        Rule::Since {
+            year: 1962,
+            base: &Rule::Fixed { month: 5, day: 1 },
+        },
+    ),
+    // The reference follows France here, which restored the holiday in 1982
+    // after the 1975-1981 gap rather than keeping the 1953 date throughout.
+    h(
+        "Fête de la Victoire",
+        Rule::Since {
+            year: 1982,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
     h("Ascension", Rule::EasterOffset(39)),
     h("Fête nationale", Rule::Fixed { month: 7, day: 14 }),
     h("Assomption", Rule::Fixed { month: 8, day: 15 }),
     h("Toussaint", Rule::Fixed { month: 11, day: 1 }),
-    h("Armistice", Rule::Fixed { month: 11, day: 11 }),
+    h(
+        "Armistice",
+        Rule::Since {
+            year: 1922,
+            base: &Rule::Fixed { month: 11, day: 11 },
+        },
+    ),
     h("Noël", Rule::Fixed { month: 12, day: 25 }),
     h("Saint Pierre Chanel", Rule::Fixed { month: 4, day: 28 }),
     h("Saints Pierre et Paul", Rule::Fixed { month: 6, day: 29 }),
@@ -2060,23 +2389,57 @@ static GUADELOUPE: &[Holiday] = &[
             base: &Rule::EasterOffset(50),
         },
     ),
-    h("Fête du Travail", Rule::Fixed { month: 5, day: 1 }),
-    h("Fête de la Victoire", Rule::Fixed { month: 5, day: 8 }),
+    h(
+        "Fête du Travail",
+        Rule::Since {
+            year: 1919,
+            base: &Rule::Fixed { month: 5, day: 1 },
+        },
+    ),
+    // Inherited from France: kept 1953-1959, dropped by the 1959 decree,
+    // restored in 1982.
+    h(
+        "Fête de la Victoire",
+        Rule::Between {
+            from: 1953,
+            to: 1959,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
+    h(
+        "Fête de la Victoire",
+        Rule::Since {
+            year: 1982,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
     h("Ascension", Rule::EasterOffset(39)),
     h("Fête nationale", Rule::Fixed { month: 7, day: 14 }),
     h("Assomption", Rule::Fixed { month: 8, day: 15 }),
     h("Toussaint", Rule::Fixed { month: 11, day: 1 }),
-    h("Armistice", Rule::Fixed { month: 11, day: 11 }),
+    h(
+        "Armistice",
+        Rule::Since {
+            year: 1922,
+            base: &Rule::Fixed { month: 11, day: 11 },
+        },
+    ),
     h("Noël", Rule::Fixed { month: 12, day: 25 }),
     h("Vendredi saint", Rule::EasterOffset(-2)),
     h("Mi-Carême", Rule::EasterOffset(-24)),
     h(
         "Abolition de l'esclavage",
-        Rule::Fixed { month: 5, day: 27 },
+        Rule::Since {
+            year: 1984,
+            base: &Rule::Fixed { month: 5, day: 27 },
+        },
     ),
     h(
         "Fête de Victor Schoelcher",
-        Rule::Fixed { month: 7, day: 21 },
+        Rule::Since {
+            year: 1984,
+            base: &Rule::Fixed { month: 7, day: 21 },
+        },
     ),
 ];
 
@@ -2097,16 +2460,50 @@ static FRENCH_POLYNESIA: &[Holiday] = &[
             base: &Rule::EasterOffset(50),
         },
     ),
-    h("Fête du Travail", Rule::Fixed { month: 5, day: 1 }),
-    h("Fête de la Victoire", Rule::Fixed { month: 5, day: 8 }),
+    h(
+        "Fête du Travail",
+        Rule::Since {
+            year: 1919,
+            base: &Rule::Fixed { month: 5, day: 1 },
+        },
+    ),
+    // Inherited from France: kept 1953-1959, dropped by the 1959 decree,
+    // restored in 1982.
+    h(
+        "Fête de la Victoire",
+        Rule::Between {
+            from: 1953,
+            to: 1959,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
+    h(
+        "Fête de la Victoire",
+        Rule::Since {
+            year: 1982,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
     h("Ascension", Rule::EasterOffset(39)),
     h("Fête nationale", Rule::Fixed { month: 7, day: 14 }),
     h("Assomption", Rule::Fixed { month: 8, day: 15 }),
     h("Toussaint", Rule::Fixed { month: 11, day: 1 }),
-    h("Armistice", Rule::Fixed { month: 11, day: 11 }),
+    h(
+        "Armistice",
+        Rule::Since {
+            year: 1922,
+            base: &Rule::Fixed { month: 11, day: 11 },
+        },
+    ),
     h("Noël", Rule::Fixed { month: 12, day: 25 }),
     h("Vendredi saint", Rule::EasterOffset(-2)),
-    h("Arrivée de l'Évangile", Rule::Fixed { month: 3, day: 5 }),
+    h(
+        "Arrivée de l'Évangile",
+        Rule::Since {
+            year: 1978,
+            base: &Rule::Fixed { month: 3, day: 5 },
+        },
+    ),
     h(
         "Matāri'i",
         Rule::Since {
@@ -2116,8 +2513,9 @@ static FRENCH_POLYNESIA: &[Holiday] = &[
     ),
     h(
         "Fête de l'autonomie",
-        Rule::Until {
-            year: 2024,
+        Rule::Between {
+            from: 1985,
+            to: 2024,
             base: &Rule::Fixed { month: 6, day: 29 },
         },
     ),
@@ -2178,7 +2576,25 @@ static LESOTHO: &[Holiday] = &[
     h("Easter Monday", Rule::EasterOffset(1)),
     h("Workers' Day", Rule::Fixed { month: 5, day: 1 }),
     h("Ascension Day", Rule::EasterOffset(39)),
-    h("King's Birthday", Rule::Fixed { month: 7, day: 17 }),
+    // King's Birthday fell on 2 May until 1997, then moved to 17 July in 1998
+    // when Letsie III succeeded. The reference's Lesotho start year is 1996,
+    // so the 2 May form is bounded below at that year rather than running back
+    // to Moshoeshoe II's birth.
+    h(
+        "King's Birthday",
+        Rule::Between {
+            from: 1996,
+            to: 1997,
+            base: &Rule::Fixed { month: 5, day: 2 },
+        },
+    ),
+    h(
+        "King's Birthday",
+        Rule::Since {
+            year: 1998,
+            base: &Rule::Fixed { month: 7, day: 17 },
+        },
+    ),
     h("Independence Day", Rule::Fixed { month: 10, day: 4 }),
     h("Christmas Day", Rule::Fixed { month: 12, day: 25 }),
     h("Boxing Day", Rule::Fixed { month: 12, day: 26 }),
@@ -2361,7 +2777,7 @@ static SAINT_LUCIA: &[Holiday] = &[
         "New Year's Day",
         Rule::ObservedShift {
             base: &Rule::Fixed { month: 1, day: 1 },
-            from: 2000,
+            from: 1979,
             shifts: &[(0, 2)],
         },
     ),
@@ -2369,7 +2785,7 @@ static SAINT_LUCIA: &[Holiday] = &[
         "New Year's Holiday",
         Rule::ObservedShift {
             base: &Rule::Fixed { month: 1, day: 2 },
-            from: 2000,
+            from: 1979,
             shifts: &[(0, 1)],
         },
     ),
@@ -2377,7 +2793,7 @@ static SAINT_LUCIA: &[Holiday] = &[
         "Independence Day",
         Rule::ObservedShift {
             base: &Rule::Fixed { month: 2, day: 22 },
-            from: 2000,
+            from: 1979,
             shifts: &[(0, 1)],
         },
     ),
@@ -2387,7 +2803,7 @@ static SAINT_LUCIA: &[Holiday] = &[
         "Labour Day",
         Rule::ObservedShift {
             base: &Rule::Fixed { month: 5, day: 1 },
-            from: 2000,
+            from: 1979,
             shifts: &[(0, 1)],
         },
     ),
@@ -2397,7 +2813,7 @@ static SAINT_LUCIA: &[Holiday] = &[
         "Emancipation Day",
         Rule::ObservedShift {
             base: &Rule::Fixed { month: 8, day: 1 },
-            from: 2000,
+            from: 1979,
             shifts: &[(0, 1)],
         },
     ),
@@ -2413,7 +2829,7 @@ static SAINT_LUCIA: &[Holiday] = &[
         "National Day",
         Rule::ObservedShift {
             base: &Rule::Fixed { month: 12, day: 13 },
-            from: 2000,
+            from: 1979,
             shifts: &[(0, 1)],
         },
     ),
@@ -2421,7 +2837,7 @@ static SAINT_LUCIA: &[Holiday] = &[
         "Christmas Day",
         Rule::ObservedShift {
             base: &Rule::Fixed { month: 12, day: 25 },
-            from: 2000,
+            from: 1979,
             shifts: &[(0, 2)],
         },
     ),
@@ -2429,7 +2845,7 @@ static SAINT_LUCIA: &[Holiday] = &[
         "Boxing Day",
         Rule::ObservedShift {
             base: &Rule::Fixed { month: 12, day: 26 },
-            from: 2000,
+            from: 1979,
             shifts: &[(0, 1)],
         },
     ),
@@ -3184,7 +3600,7 @@ static BOTSWANA: &[Holiday] = &[
         "New Year's Day",
         Rule::ObservedShift {
             base: &Rule::Fixed { month: 1, day: 1 },
-            from: 2000,
+            from: 1995,
             shifts: &[(0, 2)],
         },
     ),
@@ -3192,7 +3608,7 @@ static BOTSWANA: &[Holiday] = &[
         "New Year's Day Holiday",
         Rule::ObservedShift {
             base: &Rule::Fixed { month: 1, day: 2 },
-            from: 2000,
+            from: 1995,
             shifts: &[(0, 1)],
         },
     ),
@@ -3203,7 +3619,7 @@ static BOTSWANA: &[Holiday] = &[
         "Labour Day",
         Rule::ObservedShift {
             base: &Rule::Fixed { month: 5, day: 1 },
-            from: 2000,
+            from: 1995,
             shifts: &[(0, 1)],
         },
     ),
@@ -3212,7 +3628,7 @@ static BOTSWANA: &[Holiday] = &[
         "Sir Seretse Khama Day",
         Rule::ObservedShift {
             base: &Rule::Fixed { month: 7, day: 1 },
-            from: 2000,
+            from: 1995,
             shifts: &[(0, 1)],
         },
     ),
@@ -3236,7 +3652,7 @@ static BOTSWANA: &[Holiday] = &[
         "Botswana Day",
         Rule::ObservedShift {
             base: &Rule::Fixed { month: 9, day: 30 },
-            from: 2000,
+            from: 1995,
             shifts: &[(0, 2)],
         },
     ),
@@ -3244,7 +3660,7 @@ static BOTSWANA: &[Holiday] = &[
         "Botswana Day Holiday",
         Rule::ObservedShift {
             base: &Rule::Fixed { month: 10, day: 1 },
-            from: 2000,
+            from: 1995,
             shifts: &[(0, 1)],
         },
     ),
@@ -3252,7 +3668,7 @@ static BOTSWANA: &[Holiday] = &[
         "Christmas Day",
         Rule::ObservedShift {
             base: &Rule::Fixed { month: 12, day: 25 },
-            from: 2000,
+            from: 1995,
             shifts: &[(0, 2)],
         },
     ),
@@ -3260,7 +3676,7 @@ static BOTSWANA: &[Holiday] = &[
         "Boxing Day",
         Rule::ObservedShift {
             base: &Rule::Fixed { month: 12, day: 26 },
-            from: 2000,
+            from: 1995,
             shifts: &[(0, 1)],
         },
     ),
@@ -3942,7 +4358,7 @@ static MICRONESIA: &[Holiday] = &[
         "New Year's Day",
         Rule::ObservedShift {
             base: &Rule::Fixed { month: 1, day: 1 },
-            from: 2001,
+            from: 1987,
             shifts: &[(0, 1), (6, -1)],
         },
     ),
@@ -3953,7 +4369,7 @@ static MICRONESIA: &[Holiday] = &[
                 year: 2011,
                 base: &Rule::Fixed { month: 3, day: 31 },
             },
-            from: 2000,
+            from: 1987,
             shifts: &[(0, 1), (6, -1)],
         },
     ),
@@ -3961,15 +4377,18 @@ static MICRONESIA: &[Holiday] = &[
         "Federated States of Micronesia Day",
         Rule::ObservedShift {
             base: &Rule::Fixed { month: 5, day: 10 },
-            from: 2000,
+            from: 1987,
             shifts: &[(0, 1), (6, -1)],
         },
     ),
     h(
         "United Nations Day",
         Rule::ObservedShift {
-            base: &Rule::Fixed { month: 10, day: 24 },
-            from: 2000,
+            base: &Rule::Since {
+                year: 1991,
+                base: &Rule::Fixed { month: 10, day: 24 },
+            },
+            from: 1987,
             shifts: &[(0, 1), (6, -1)],
         },
     ),
@@ -3977,7 +4396,7 @@ static MICRONESIA: &[Holiday] = &[
         "Independence Day",
         Rule::ObservedShift {
             base: &Rule::Fixed { month: 11, day: 3 },
-            from: 2000,
+            from: 1987,
             shifts: &[(0, 1), (6, -1)],
         },
     ),
@@ -3988,7 +4407,7 @@ static MICRONESIA: &[Holiday] = &[
                 year: 2004,
                 base: &Rule::Fixed { month: 11, day: 11 },
             },
-            from: 2000,
+            from: 1987,
             shifts: &[(0, 1), (6, -1)],
         },
     ),
@@ -3999,7 +4418,7 @@ static MICRONESIA: &[Holiday] = &[
                 year: 2021,
                 base: &Rule::Fixed { month: 11, day: 23 },
             },
-            from: 2000,
+            from: 1987,
             shifts: &[(0, 1), (6, -1)],
         },
     ),
@@ -4007,7 +4426,7 @@ static MICRONESIA: &[Holiday] = &[
         "Christmas Day",
         Rule::ObservedShift {
             base: &Rule::Fixed { month: 12, day: 25 },
-            from: 2000,
+            from: 1987,
             shifts: &[(0, 1), (6, -1)],
         },
     ),
@@ -4872,16 +5291,32 @@ static ARMENIA: &[Holiday] = &[
     ),
     h(
         "Հաղթանակի և Խաղաղության տոն",
-        Rule::Fixed { month: 5, day: 9 },
+        Rule::Since {
+            year: 1995,
+            base: &Rule::Fixed { month: 5, day: 9 },
+        },
     ),
     h("Հանրապետության օր", Rule::Fixed { month: 5, day: 28 }),
-    h("Սահմանադրության օր", Rule::Fixed { month: 7, day: 5 }),
-    h("Անկախության օր", Rule::Fixed { month: 9, day: 21 }),
+    h(
+        "Սահմանադրության օր",
+        Rule::Since {
+            year: 1996,
+            base: &Rule::Fixed { month: 7, day: 5 },
+        },
+    ),
+    h(
+        "Անկախության օր",
+        Rule::Since {
+            year: 1992,
+            base: &Rule::Fixed { month: 9, day: 21 },
+        },
+    ),
     h("Նոր տարվա գիշեր", Rule::Fixed { month: 12, day: 31 }),
     h(
         "Մայրության և գեղեցկության տոն",
-        Rule::Until {
-            year: 2001,
+        Rule::Between {
+            from: 1994,
+            to: 2001,
             base: &Rule::Fixed { month: 4, day: 7 },
         },
     ),
@@ -4890,6 +5325,14 @@ static ARMENIA: &[Holiday] = &[
         Rule::Until {
             year: 2014,
             base: &Rule::Fixed { month: 4, day: 24 },
+        },
+    ),
+    h(
+        "Հանգստյան օր (հետաձգվել է 12.12.1998 թվականից)",
+        Rule::Once {
+            year: 1998,
+            month: 12,
+            day: 7,
         },
     ),
     h(
@@ -7371,7 +7814,7 @@ static NAMIBIA: &[Holiday] = &[
         "New Year's Day",
         Rule::ObservedShift {
             base: &Rule::Fixed { month: 1, day: 1 },
-            from: 2000,
+            from: 1991,
             shifts: &[(0, 1)],
         },
     ),
@@ -7379,7 +7822,7 @@ static NAMIBIA: &[Holiday] = &[
         "Independence Day",
         Rule::ObservedShift {
             base: &Rule::Fixed { month: 3, day: 21 },
-            from: 2000,
+            from: 1991,
             shifts: &[(0, 1)],
         },
     ),
@@ -7389,7 +7832,7 @@ static NAMIBIA: &[Holiday] = &[
         "Workers' Day",
         Rule::ObservedShift {
             base: &Rule::Fixed { month: 5, day: 1 },
-            from: 2000,
+            from: 1991,
             shifts: &[(0, 1)],
         },
     ),
@@ -7397,7 +7840,7 @@ static NAMIBIA: &[Holiday] = &[
         "Cassinga Day",
         Rule::ObservedShift {
             base: &Rule::Fixed { month: 5, day: 4 },
-            from: 2000,
+            from: 1991,
             shifts: &[(0, 1)],
         },
     ),
@@ -7405,7 +7848,7 @@ static NAMIBIA: &[Holiday] = &[
         "Africa Day",
         Rule::ObservedShift {
             base: &Rule::Fixed { month: 5, day: 25 },
-            from: 2000,
+            from: 1991,
             shifts: &[(0, 1)],
         },
     ),
@@ -7421,7 +7864,7 @@ static NAMIBIA: &[Holiday] = &[
         "Heroes' Day",
         Rule::ObservedShift {
             base: &Rule::Fixed { month: 8, day: 26 },
-            from: 2000,
+            from: 1991,
             shifts: &[(0, 1)],
         },
     ),
@@ -7432,7 +7875,7 @@ static NAMIBIA: &[Holiday] = &[
                 year: 2005,
                 base: &Rule::Fixed { month: 9, day: 10 },
             },
-            from: 2000,
+            from: 1991,
             shifts: &[(0, 1)],
         },
     ),
@@ -7441,7 +7884,7 @@ static NAMIBIA: &[Holiday] = &[
         "Family Day",
         Rule::ObservedShift {
             base: &Rule::Fixed { month: 12, day: 26 },
-            from: 2000,
+            from: 1991,
             shifts: &[(0, 1)],
         },
     ),
@@ -7452,7 +7895,7 @@ static NAMIBIA: &[Holiday] = &[
                 year: 2004,
                 base: &Rule::Fixed { month: 9, day: 10 },
             },
-            from: 2000,
+            from: 1991,
             shifts: &[(0, 1)],
         },
     ),
@@ -7472,7 +7915,7 @@ static NAMIBIA: &[Holiday] = &[
                 month: 11,
                 day: 28,
             },
-            from: 2000,
+            from: 1991,
             shifts: &[(4, -1)],
         },
     ),
@@ -7484,7 +7927,7 @@ static NAMIBIA: &[Holiday] = &[
                 month: 11,
                 day: 28,
             },
-            from: 2000,
+            from: 1991,
             shifts: &[(4, -1)],
         },
     ),
@@ -7496,7 +7939,7 @@ static NAMIBIA: &[Holiday] = &[
                 month: 11,
                 day: 28,
             },
-            from: 2000,
+            from: 1991,
             shifts: &[(4, -1)],
         },
     ),
@@ -7537,6 +7980,62 @@ static NAMIBIA: &[Holiday] = &[
         },
     ),
     h(
+        "Walvis Bay Reintegration Day",
+        Rule::Once {
+            year: 1994,
+            month: 3,
+            day: 1,
+        },
+    ),
+    h(
+        "General Election Day",
+        Rule::Once {
+            year: 1994,
+            month: 12,
+            day: 7,
+        },
+    ),
+    h(
+        "Public Holiday",
+        Rule::Once {
+            year: 1995,
+            month: 10,
+            day: 24,
+        },
+    ),
+    h(
+        "Day of Mourning for Honourable Moses Garoeb",
+        Rule::Once {
+            year: 1997,
+            month: 9,
+            day: 26,
+        },
+    ),
+    h(
+        "Regional Election Day",
+        Rule::Once {
+            year: 1998,
+            month: 11,
+            day: 30,
+        },
+    ),
+    h(
+        "General Election Day",
+        Rule::Once {
+            year: 1999,
+            month: 11,
+            day: 30,
+        },
+    ),
+    h(
+        "Y2K changeover",
+        Rule::Once {
+            year: 1999,
+            month: 12,
+            day: 31,
+        },
+    ),
+    h(
         "Burial ceremony of Dr. Hage Gottfried Geingob",
         Rule::Once {
             year: 2024,
@@ -7564,7 +8063,7 @@ static SEYCHELLES: &[Holiday] = &[
         "New Year Holiday",
         Rule::ObservedShift {
             base: &Rule::Fixed { month: 1, day: 2 },
-            from: 2000,
+            from: 1994,
             shifts: &[(0, 1)],
         },
     ),
@@ -7581,7 +8080,7 @@ static SEYCHELLES: &[Holiday] = &[
         "Labour Day",
         Rule::ObservedShift {
             base: &Rule::Fixed { month: 5, day: 1 },
-            from: 2000,
+            from: 1994,
             shifts: &[(0, 1)],
         },
     ),
@@ -7593,7 +8092,7 @@ static SEYCHELLES: &[Holiday] = &[
                 year: 2015,
                 base: &Rule::Fixed { month: 6, day: 18 },
             },
-            from: 2000,
+            from: 1994,
             shifts: &[(0, 1)],
         },
     ),
@@ -7604,7 +8103,7 @@ static SEYCHELLES: &[Holiday] = &[
                 year: 2015,
                 base: &Rule::Fixed { month: 6, day: 29 },
             },
-            from: 2000,
+            from: 1994,
             shifts: &[(0, 1)],
         },
     ),
@@ -7612,7 +8111,7 @@ static SEYCHELLES: &[Holiday] = &[
         "Assumption Day",
         Rule::ObservedShift {
             base: &Rule::Fixed { month: 8, day: 15 },
-            from: 2000,
+            from: 1994,
             shifts: &[(0, 1)],
         },
     ),
@@ -7620,7 +8119,7 @@ static SEYCHELLES: &[Holiday] = &[
         "All Saints Day",
         Rule::ObservedShift {
             base: &Rule::Fixed { month: 11, day: 1 },
-            from: 2000,
+            from: 1994,
             shifts: &[(0, 1)],
         },
     ),
@@ -7628,7 +8127,7 @@ static SEYCHELLES: &[Holiday] = &[
         "The Feast of the Immaculate Conception",
         Rule::ObservedShift {
             base: &Rule::Fixed { month: 12, day: 8 },
-            from: 2000,
+            from: 1994,
             shifts: &[(0, 1)],
         },
     ),
@@ -7636,7 +8135,7 @@ static SEYCHELLES: &[Holiday] = &[
         "Christmas Day",
         Rule::ObservedShift {
             base: &Rule::Fixed { month: 12, day: 25 },
-            from: 2000,
+            from: 1994,
             shifts: &[(0, 1)],
         },
     ),
@@ -7647,7 +8146,7 @@ static SEYCHELLES: &[Holiday] = &[
                 year: 2016,
                 base: &Rule::Fixed { month: 6, day: 5 },
             },
-            from: 2000,
+            from: 1994,
             shifts: &[(0, 1)],
         },
     ),
@@ -7658,7 +8157,7 @@ static SEYCHELLES: &[Holiday] = &[
                 year: 2014,
                 base: &Rule::Fixed { month: 6, day: 18 },
             },
-            from: 2000,
+            from: 1994,
             shifts: &[(0, 1)],
         },
     ),
@@ -7669,7 +8168,7 @@ static SEYCHELLES: &[Holiday] = &[
                 year: 2014,
                 base: &Rule::Fixed { month: 6, day: 29 },
             },
-            from: 2000,
+            from: 1994,
             shifts: &[(0, 1)],
         },
     ),
@@ -9118,7 +9617,10 @@ static CYPRUS: &[Holiday] = &[
     h("Κοίμηση της Θεοτόκου", Rule::Fixed { month: 8, day: 15 }),
     h(
         "Ημέρα της Κυπριακής Ανεξαρτησίας",
-        Rule::Fixed { month: 10, day: 1 },
+        Rule::Since {
+            year: 1979,
+            base: &Rule::Fixed { month: 10, day: 1 },
+        },
     ),
     h("Ημέρα του Όχι", Rule::Fixed { month: 10, day: 28 }),
     h("Χριστούγεννα", Rule::Fixed { month: 12, day: 25 }),
@@ -9496,8 +9998,9 @@ static CROATIA: &[Holiday] = &[
     h("Praznik rada", Rule::Fixed { month: 5, day: 1 }),
     h(
         "Dan državnosti",
-        Rule::Until {
-            year: 2001,
+        Rule::Between {
+            from: 1996,
+            to: 2001,
             base: &Rule::Fixed { month: 5, day: 30 },
         },
     ),
@@ -9594,10 +10097,30 @@ static SLOVENIA: &[Holiday] = &[
 static ESTONIA: &[Holiday] = &[
     h("uusaasta", Rule::Fixed { month: 1, day: 1 }),
     h("iseseisvuspäev", Rule::Fixed { month: 2, day: 24 }),
-    h("suur reede", Rule::EasterOffset(-2)),
-    h("ülestõusmispühade 1. püha", Rule::EasterOffset(0)),
+    // The 1994 Holidays Act added the movable feasts; before it only the
+    // fixed dates were days off.
+    h(
+        "suur reede",
+        Rule::Since {
+            year: 1994,
+            base: &Rule::EasterOffset(-2),
+        },
+    ),
+    h(
+        "ülestõusmispühade 1. püha",
+        Rule::Since {
+            year: 1994,
+            base: &Rule::EasterOffset(0),
+        },
+    ),
     h("kevadpüha", Rule::Fixed { month: 5, day: 1 }),
-    h("nelipühade 1. püha", Rule::EasterOffset(49)),
+    h(
+        "nelipühade 1. püha",
+        Rule::Since {
+            year: 1994,
+            base: &Rule::EasterOffset(49),
+        },
+    ),
     h("võidupüha", Rule::Fixed { month: 6, day: 23 }),
     h("jaanipäev", Rule::Fixed { month: 6, day: 24 }),
     h(
@@ -9605,6 +10128,17 @@ static ESTONIA: &[Holiday] = &[
         Rule::Since {
             year: 1998,
             base: &Rule::Fixed { month: 8, day: 20 },
+        },
+    ),
+    // Day of Declaration of Sovereignty. The reference reports it from its
+    // Estonia start year (1991), not from the 1988 declaration it marks, so a
+    // bare `Until` would invent the holiday in every earlier year.
+    h(
+        "taassünnipäev",
+        Rule::Between {
+            from: 1991,
+            to: 1993,
+            base: &Rule::Fixed { month: 11, day: 16 },
         },
     ),
     h(
@@ -9657,7 +10191,12 @@ static LITHUANIA: &[Holiday] = &[
     ),
     h(
         "Valstybės (Lietuvos karaliaus Mindaugo karūnavimo) ir Tautiškos giesmės diena",
-        Rule::Fixed { month: 7, day: 6 },
+        // Statehood Day only from the year after independence was restored;
+        // the reference reports nothing for it in 1990.
+        Rule::Since {
+            year: 1991,
+            base: &Rule::Fixed { month: 7, day: 6 },
+        },
     ),
     h("Žolinė", Rule::Fixed { month: 8, day: 15 }),
     h("Visų Šventųjų diena", Rule::Fixed { month: 11, day: 1 }),
@@ -9992,17 +10531,61 @@ static GERMANY: &[Holiday] = &[
     h("Ostermontag", Rule::EasterOffset(1)),
     h("Christi Himmelfahrt", Rule::EasterOffset(39)),
     h("Pfingstmontag", Rule::EasterOffset(50)),
+    // The Wednesday before 23 November, a nationwide holiday until the
+    // Pflegeversicherung funded itself by abolishing it after 1994. Still
+    // observed in Saxony, which this crate does not model by subdivision.
+    h(
+        "Buß- und Bettag",
+        Rule::Between {
+            from: 1991,
+            to: 1994,
+            base: &Rule::WeekdayOnOrBefore {
+                month: 11,
+                day: 22,
+                weekday: 3,
+            },
+        },
+    ),
 ];
 
 /// French national holidays.
 static FRANCE: &[Holiday] = &[
     h("Jour de l'an", Rule::Fixed { month: 1, day: 1 }),
-    h("Fête du Travail", Rule::Fixed { month: 5, day: 1 }),
-    h("Victoire 1945", Rule::Fixed { month: 5, day: 8 }),
+    h(
+        "Fête du Travail",
+        Rule::Since {
+            year: 1919,
+            base: &Rule::Fixed { month: 5, day: 1 },
+        },
+    ),
+    // Commemorates the 1945 victory, so it cannot predate it. Kept 1953-1959,
+    // dropped by the 1959 decree, restored by the 1982 law. A bare `Fixed`
+    // reported it in every earlier year, which the reference never does.
+    h(
+        "Victoire 1945",
+        Rule::Between {
+            from: 1953,
+            to: 1959,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
+    h(
+        "Victoire 1945",
+        Rule::Since {
+            year: 1982,
+            base: &Rule::Fixed { month: 5, day: 8 },
+        },
+    ),
     h("Fête nationale", Rule::Fixed { month: 7, day: 14 }),
     h("Assomption", Rule::Fixed { month: 8, day: 15 }),
     h("Toussaint", Rule::Fixed { month: 11, day: 1 }),
-    h("Armistice 1918", Rule::Fixed { month: 11, day: 11 }),
+    h(
+        "Armistice 1918",
+        Rule::Since {
+            year: 1922,
+            base: &Rule::Fixed { month: 11, day: 11 },
+        },
+    ),
     h("Noël", Rule::Fixed { month: 12, day: 25 }),
     h("Lundi de Pâques", Rule::EasterOffset(1)),
     h("Ascension", Rule::EasterOffset(39)),

@@ -317,6 +317,39 @@ it - so a calendar whose behaviour is not frozen as a committed fixture has no
 regression coverage in CI at all.
 
 ## Known traps
+- **A holiday table fitted from 2000 back-projects the year-2000 rules.** Two
+  separate defects hid behind that: `ObservedShift { from: 2000 }` on a country
+  whose reference starts substituting earlier (Seychelles 1994, Namibia 1991,
+  Micronesia 1987, Saint Lucia 1979), and a rule that only ever began later left
+  ungated (Estonia's Easter feasts, 1994). Both are invisible in a 2000-onwards
+  window and both are found by `verify_holidays.py` once it checks from the
+  reference `start_year`. Read the reference's `_populate_public_holidays` for
+  the `if self._year >= ...` guards rather than trusting the crate's `from`.
+- **A holiday can be absent for a middle stretch, so `Since` and `Until` alone
+  do not describe it.** France's `Fête de la Victoire` ran 1953-1959, was dropped
+  by a 1959 decree, and returned in 1982; the crate carried one ungated `Fixed`.
+  Wallis and Futuna and the French Southern Territories inherit the same gap, so
+  a single country fix has to be applied to every child entity that copies it.
+  `Between` or two rules describe it; a single `Since` gets the early years
+  wrong.
+- **`Rule::Until` has no lower bound, so it invents the holiday in every earlier
+  year.** It sets an inclusive last year and nothing else, and `holidays_in`
+  applies no country-level start year, so an `Until`-only form is reported back
+  to year zero. Two of these shipped in one round: Estonia's
+  `taassünnipäev` (`Until { year: 1993 }`) made Monday 16 November 1987 a
+  holiday although the declaration it marks was in 1988, and Lesotho's 2 May
+  King's Birthday reached back to 1935, before Moshoeshoe II was born. Both also
+  made `is_working_day` return false for those weekdays. `verify_holidays.py`
+  missed them because its default window starts at each reference `start_year`,
+  so it never looks at the years where the leak happens. When a form has a known
+  first year use `Between`, not `Until`, and add a negative case for the year
+  before the first valid one - `tests/historical_bounds.rs` is the model.
+- **The reference returns nothing before its own `start_year`, and the crate
+  does not.** That is the root of the trap above and of the wider historical
+  gap: 47 calendars apply today's rule across their whole history because the
+  reference stops at 1991 or 1996 and models no earlier regime. Treat any year
+  before a country's reference start as best-effort, never as verified, and do
+  not "fix" it by copying today's rule further back.
 
 - **A recursive descendant read reports a nested element's data at the wrong
   level.** `iso20022-rs` reads status reasons with `find_all`, which walks the
@@ -425,6 +458,69 @@ regression coverage in CI at all.
   children, so its line stays 16px and the empty inline box is missing. A
   whitespace-only node is different and already handled (see `push_text`): it
   survives as an empty text box, not an empty inline box.
+- **A reference-derived fixture must use the same window as the gate.** The
+  holiday corpus originally started at each country's own `start_year`, while
+  `holidays_oracle.tsv` was generated from year 1. Generating from year 1 for the
+  31 calendars in the corpus gives 439,456 differing dates before 1900 - years
+  the fit never saw, where the crate answers from its rules and the reference is
+  silent or models a different regime. A fixture is only evidence inside the
+  window the tables were fitted against; freezing years outside it records the
+  crate's guesses as if they were correct. Both sides now floor at
+  `EARLIEST = 1900`.
+- **That same window means a corpus cannot guard a `start_year` bound.** Adding
+  Congo to the corpus looked like it would protect its 1994 Labour Day, and
+  reverting the `Since` to a bare `Fixed` left the corpus test green: the corpus
+  begins at Congo's `start_year`, which is the exact year the leak stops, so the
+  one year that would differ is outside it. Check a new fixture by breaking the
+  behaviour it is supposed to catch. A bound at `start_year` needs
+  `historical_bounds.rs`, which pairs the year before with the year itself;
+  nothing derived from the reference's own window can see it.
+- **A review comment cites a revision, not a file.** The same two comments on
+  `holidays-rs/README.md` (lines 167 and 169, "ten years of coverage" and
+  "`EXCLUDED` ... a record of known divergences") arrived twice after both were
+  fixed. They quote commit `8e24081` verbatim, which is an ancestor of the PR
+  head three commits back; at head, 167 says 25 years and 169 is about the
+  corpus subset. Checking the cited lines in the working tree showed accurate
+  text and no defect, and rewriting it would have broken a correct file. Confirm
+  which revision a comment describes before acting: read the cited lines, then
+  `git log --oneline <cited>..HEAD -- <path>` to see whether they moved. A
+  comment that no longer applies is answered, not edited around.
+- **A quoted measurement decays; re-derive it before you repeat it.** The review
+  doc for `holidays-rs` carried five figures that no longer matched the tool that
+  produced them: Finland "1509" differences (the gate says 323), a divergence
+  ending "about 1991" (the latest of the 38 runs to 1999, and only 15 stop by
+  1990), Estonia "322" and Lesotho "510" pre-start dates (the gate counts 637 and
+  951 over 1900 to the year before), and 1,870 pre-fix differences for the French
+  family (2,063, measured at `712a72e` in a worktree). The one figure that
+  matched exactly, 606 in-window, was the clue: it showed the metric was right
+  and only the total had drifted. When a count supports a claim, record the
+  window and the command beside it, and re-run it in the round that repeats the
+  claim. A number with no window is not checkable, and a stale one reads exactly
+  like a fresh one.
+- **"Gate-clean" is two numbers, not one.** `verify_holidays.py` prints `ok` for
+  a calendar that agrees and `known-difference` for one whose divergence is
+  deliberate and recorded. Counting both as clean overstated the corpus backlog
+  by five: 44 calendars are `ok` and absent from the corpus, not 49, and the
+  other five are the known differences. Read the verdict, not just the absence
+  of `BUG`, before quoting a count.
+- **A comparison that only looks at what you changed will report zero.** A
+  review claim of "0 mismatches 1945-2000 across 13 calendars" was true of the
+  entries that round had edited and false of the calendars containing them.
+  Measured over the whole calendar, those 13 calendars differed on 1,870 dates
+  in 1945-2000 before the French family was bounded, 606 of them inside the
+  reference's own window; after the fix the same comparison gives 1,139, all of
+  them before the reference's `start_year` and so outside the verified window.
+  The method matters: compare the full output of the thing that changed over a
+  stated year range and record that range, not the subset the diff touched. A
+  number without its window and its calendar set cannot be checked by the next
+  reader, which is how the 0 survived a review.
+- **`Rule::Until` alone has no lower bound, and the gate cannot see the leak.**
+  It sets a last year only, so a form whose modern shape ends before the
+  reference's `start_year` is reported back to year zero. The gate starts at
+  `start_year`, which is exactly where the leak stops, so it never fires. Use
+  `Between` when the first year is known; `verify_holidays.py` will not catch a
+  bare `Until`, and Estonia's `uusaasta` still reports 1950 for a reference that
+  begins in 1991.
 - **A trailing space only makes a phantom line when it shares its text node with
   the content.** When a trailing collapsible space overflows a line that already
   has an internal break opportunity, WeasyPrint starts a line of its own for the

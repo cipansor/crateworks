@@ -107,6 +107,23 @@ are out of scope; add them with `Calendar::with_extra` when needed.
 A bank holiday that lands at a weekend therefore appears on its substitute date
 and not on the raw one, which is the date a payroll or a calendar grid needs.
 
+`Rule::Until` bounds a holiday above only, so it must never be used for a form
+that the reference reports from a specific year: on its own it reports the
+holiday in every earlier year too. Estonia's Day of Declaration of Sovereignty
+is the worked example. It marks the 1988 declaration, but the reference reports
+it from 1991 to 1993, so the rule is `Rule::Between { from: 1991, to: 1993 }`.
+A bare `Rule::Until { year: 1993 }` made Monday 16 November 1987 a holiday, and
+`is_working_day` returned false for it. When a form has a known first year, use
+`Rule::Between` (or `Rule::Since` if it never ends).
+
+Coverage of the past is uneven, and deliberately so. A table is fitted against
+the reference, and the reference stops at its own `start_year` for most
+countries - 1991 for Germany and Estonia, 1996 for Lesotho - because it does not
+model the earlier regimes. The crate answers outside that window from the same
+rules rather than returning nothing, so a year before a country's reference
+start is best-effort rather than verified. Dates *within* the window are checked
+by `verify_holidays.py`; dates before it are not.
+
 ## Verification
 
 Every country table is checked against the Python `holidays` package from each
@@ -140,6 +157,30 @@ month for eleven years plus the year boundaries where the answer crosses into
 the next year. The countries it skips are the ones `verify_holidays.py` already
 marks as deliberate differences - a nearest-holiday query over a different set
 answers a different question - and the script records why each is skipped.
+
+The gate compares calendar by calendar, so a second corpus pins the answers as
+data: `scripts/fuzz/holidays-rs/gen.py` writes
+`tests/fixtures/holidays_oracle.tsv`, 62,481 rows over 31 calendars. Each row is
+a date the reference reports (`must` on a weekday, `allow` at a weekend, where
+the crate may keep or drop it) or a date it has nothing for (`absent`). The
+window is the gate's own - each country's reference `start_year`, floored at
+1900 - extended to 2075 rather than the gate's 2050, so the corpus reaches 25
+years further into the future while agreeing on where to begin. The corpus is a
+growing subset rather than every calendar: 44 calendars the gate passes clean
+are still absent, and five more are known differences the gate records rather
+than defects.
+
+`EXCLUDED` is not a catalogue of the gate's differences. The gate reports those
+itself - run `python3 research/tools/verify_holidays.py` for the current list -
+and `research/review-0.1.22.md` explains what the 38 still-failing calendars
+have in common and names a few of them as examples, not all 38; `EXCLUDED` holds
+a calendar the corpus would otherwise freeze but cannot, with the reason, and
+today that is only Botswana: its extra days are pinned as `Rule::Once` years
+rather than derived from the weekday, so it agrees with the reference through
+2049 and diverges in the 25 years the extended window adds (measured: no
+difference at or before 2049, six between 2054 and 2071). The generator refuses
+to run if a calendar appears in both `COUNTRIES` and `EXCLUDED`, so a frozen
+calendar cannot also carry an exclusion.
 
 Part of the [crateworks](https://github.com/cipansor/crateworks)
 workspace. Licensed under the Apache License, Version 2.0, copyright Yayasan
