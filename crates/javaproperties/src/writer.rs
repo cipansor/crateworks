@@ -523,6 +523,49 @@ impl Properties {
             .write_all(&self.store_bytes(comment))
             .map_err(|_| Error::Io)
     }
+
+    /// Writes the document to anything writable, with full control over the
+    /// output.
+    ///
+    /// This is [`Properties::store_with`] to a stream instead of a `String`, so a
+    /// caller who needs a separator, sorting or a comment-escaping mode does not
+    /// have to render the text and write it by hand.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Io`] when the writer fails.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use javaproperties::{Properties, WriteOptions};
+    ///
+    /// let properties = Properties::from_pairs(vec![
+    ///     ("café".to_string(), "two".to_string()),
+    /// ]);
+    /// let mut out = Vec::new();
+    /// properties
+    ///     .store_to_with(
+    ///         &mut out,
+    ///         &WriteOptions {
+    ///             comment: Some("café"),
+    ///             ensure_ascii_comments: Some(true),
+    ///             ..WriteOptions::default()
+    ///         },
+    ///     )
+    ///     .unwrap();
+    /// // The comment is escaped on request; the entry escapes by default.
+    /// assert_eq!(out, b"#caf\\u00E9\ncaf\\u00E9=two\n");
+    /// ```
+    pub fn store_to_with(
+        &self,
+        mut writer: impl std::io::Write,
+        options: &WriteOptions<'_>,
+    ) -> Result<(), Error> {
+        writer
+            .write_all(self.store_with(options).as_bytes())
+            .map_err(|_| Error::Io)
+    }
 }
 
 /// Writes pairs without building a [`Properties`] first.

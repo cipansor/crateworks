@@ -180,7 +180,11 @@ fn comment_ascii_mode(column: &str) -> Option<bool> {
 fn escape_with_matches_the_reference_in_both_modes() {
     let mut checked = 0;
     let mut failures = Vec::new();
-    for fields in rows(include_str!("fixtures/escape-modes.tsv")) {
+    let sources = [
+        include_str!("fixtures/escape-modes.tsv"),
+        include_str!("fixtures/escape-modes-random.tsv"),
+    ];
+    for fields in sources.into_iter().flat_map(rows) {
         let input = decode(fields[0]);
         let ensure_ascii = ascii_mode(fields[1]);
         let expected = decode(fields[2]);
@@ -192,7 +196,7 @@ fn escape_with_matches_the_reference_in_both_modes() {
         }
         checked += 1;
     }
-    assert!(checked > 40, "only {checked} cases");
+    assert!(checked > 4_000, "only {checked} cases");
     assert!(
         failures.is_empty(),
         "{} of {checked} escape-mode cases disagreed:\n{}",
@@ -205,7 +209,11 @@ fn escape_with_matches_the_reference_in_both_modes() {
 fn join_key_value_with_matches_the_reference_in_both_modes() {
     let mut checked = 0;
     let mut failures = Vec::new();
-    for fields in rows(include_str!("fixtures/join-modes.tsv")) {
+    let sources = [
+        include_str!("fixtures/join-modes.tsv"),
+        include_str!("fixtures/join-modes-random.tsv"),
+    ];
+    for fields in sources.into_iter().flat_map(rows) {
         let key = decode(fields[0]);
         let value = decode(fields[1]);
         let separator = decode(fields[2]);
@@ -220,7 +228,7 @@ fn join_key_value_with_matches_the_reference_in_both_modes() {
         }
         checked += 1;
     }
-    assert!(checked > 100, "only {checked} cases");
+    assert!(checked > 4_000, "only {checked} cases");
     assert!(
         failures.is_empty(),
         "{} of {checked} join-mode cases disagreed:\n{}",
@@ -350,6 +358,35 @@ fn store_with_matches_dumps() {
         failures.len(),
         failures.join("\n")
     );
+}
+
+#[test]
+fn store_to_with_writes_the_same_text_as_store_with() {
+    // `store_to_with` exists so a caller does not have to render with
+    // `store_with` and write the result by hand. It must therefore write exactly
+    // what `store_with` returns, including the comment-escaping mode, which the
+    // older `store_to` cannot select.
+    let properties = Properties::from_pairs(vec![
+        ("b".to_string(), "café".to_string()),
+        ("a".to_string(), "1".to_string()),
+    ]);
+    let options = WriteOptions {
+        separator: ": ",
+        comment: Some("café 中文"),
+        sort_keys: true,
+        ensure_ascii_comments: Some(false),
+        ..WriteOptions::default()
+    };
+
+    let expected = properties.store_with(&options);
+    let mut out = Vec::new();
+    properties.store_to_with(&mut out, &options).unwrap();
+    assert_eq!(String::from_utf8(out).unwrap(), expected);
+
+    // The mode reaches the comment: `Some(false)` writes the text through even
+    // though `ensure_ascii` escaped the value.
+    assert!(expected.starts_with("#café 中文\n"), "{expected:?}");
+    assert!(expected.contains("caf\\u00E9"), "{expected:?}");
 }
 
 #[test]

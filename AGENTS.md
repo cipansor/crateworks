@@ -367,7 +367,11 @@ regression coverage in CI at all.
   `x.is_multiple_of(2)`), `chunks_exact_to_as_chunks` (a constant chunk size
   becomes `as_chunks::<64>().0`), and `collapsible_if` (a nested `if let` becomes
   a let-chain). The fix is to satisfy the lint, not to add an `allow`; the repo's
-  five existing allows are the ceiling, not a precedent.
+  five existing allows are the ceiling, not a precedent. When a failure lands in
+  a crate your branch never touched, check whether it reproduces on `main` before
+  reading your own diff: it usually does, and the answer is to fix it in a commit
+  of its own so the history says what it was for. `needless_range_loop` on
+  clippy 1.100 was exactly that, in `ebics/src/bignum.rs` and `pades/src/rsa.rs`.
 - **The lints differ in BOTH directions, so the floor must be linted too.**
   `uninlined_format_args` is warn-by-default in 1.88 but moved to `pedantic` by
   1.99, so `format!("{:?}", x)` is an error on the floor and fine on stable.

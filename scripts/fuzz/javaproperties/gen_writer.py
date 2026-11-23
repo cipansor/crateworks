@@ -34,11 +34,27 @@ random.seed(20261026)
 # behaviour the crate implements. The reader generator does the same, for the
 # same reason. A lone backslash is always doubled by the reference, so a `\u` in
 # an output is always an escape and never literal text, which makes this safe.
+#
+# A comment is the exception: it never escapes a backslash, so a `\uXXXX` the
+# caller wrote reaches the output verbatim and this rewrite would corrupt it.
+# The corpora therefore use only literal `\u` sequences whose hex is all digits,
+# where upper-casing is a no-op, and `_check_literal_escapes` enforces that
+# rather than trusting the token list to stay that way.
 _U_ESCAPE = re.compile(r"\\u([0-9a-fA-F]{4})")
 
 
 def java_case(text: str) -> str:
     return _U_ESCAPE.sub(lambda m: "\\u" + m.group(1).upper(), text)
+
+
+def _check_literal_escapes(texts):
+    for text in texts:
+        for match in _U_ESCAPE.finditer(text):
+            if any(c not in "0123456789" for c in match.group(1)):
+                raise SystemExit(
+                    f"literal {match.group(0)!r} in {text!r} would be rewritten "
+                    "by java_case in a comment; use digits-only hex"
+                )
 
 # --- Curated cases -----------------------------------------------------------
 # Each pins a rule the reference's docstrings state, so a failure names the rule.
@@ -60,6 +76,8 @@ COMMENT_CASES = [
     "one\n#two", "one\n!two", "a\n\nb", "\n", "", "café", "中文", "one\n#",
     "#", "a\r\n#b", "line1\nline2\nline3",
 ]
+
+_check_literal_escapes(ESCAPE_CASES + COMMENT_CASES)
 
 # A fixed instant, so the fixture is reproducible. The reference renders local
 # time, so these are only stable under TZ=UTC.
@@ -365,3 +383,31 @@ for _ in range(2000):
             s, ensure_ascii=(None if mode == "none" else mode == "1")))
         rows.append("\t".join([escape_tsv(s), mode, escape_tsv(expected)]))
 write("comment-modes-random.tsv", rows)
+
+# --- Random corpus for the standalone modes -----------------------------------
+# `escape_with` and `join_key_value_with` are the reference's `escape` and
+# `join_key_value` with `ensure_ascii` exposed. Both modes get random coverage
+# here, because a curated case list cannot show that disabling escaping is a
+# distinct code path rather than the default with a flag ignored. Appended last
+# for the shared-stream reason above.
+rows = ["input\tensure_ascii\tescaped"]
+for _ in range(2000):
+    s = piece(8)
+    for mode in ["1", "0"]:
+        rows.append("\t".join([
+            escape_tsv(s), mode,
+            escape_tsv(java_case(javaproperties.escape(s, ensure_ascii=(mode == "1")))),
+        ]))
+write("escape-modes-random.tsv", rows)
+
+rows = ["key\tvalue\tseparator\tensure_ascii\tjoined"]
+for _ in range(2000):
+    key, value = piece(), piece()
+    sep = random.choice(SEPARATORS)
+    for mode in ["1", "0"]:
+        rows.append("\t".join([
+            escape_tsv(key), escape_tsv(value), escape_tsv(sep), mode,
+            escape_tsv(java_case(javaproperties.join_key_value(
+                key, value, separator=sep, ensure_ascii=(mode == "1")))),
+        ]))
+write("join-modes-random.tsv", rows)

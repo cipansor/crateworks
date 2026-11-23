@@ -70,9 +70,11 @@ writable.
 
 `store_with` is the rest of the reference's writer: the separator, a comment, a
 timestamp comment, sorting, whether non-ASCII is escaped, and whether the comment
-is escaped separately. The pieces are exported on their own too - `escape`,
-`join_key_value` and `to_comment`, with an `_with` variant of each that takes the
-escaping mode - because they are useful without a whole document.
+is escaped separately. `store_to_with` writes that same text to a stream, so
+choosing a separator or a comment mode does not force a caller to render the
+document first and write it by hand. The pieces are exported on their own too -
+`escape`, `join_key_value` and `to_comment`, with an `_with` variant of each that
+takes the escaping mode - because they are useful without a whole document.
 
 ```rust
 use javaproperties::{Properties, WriteOptions, join_key_value, to_comment};

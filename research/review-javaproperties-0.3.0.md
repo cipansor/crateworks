@@ -68,7 +68,16 @@ New corpora:
 | `join-modes.tsv` | 120 | `join_key_value_with` in both modes |
 | `comment-modes.tsv` | 51 | `to_comment_with` in all three modes |
 | `comment-modes-random.tsv` | 6,000 | the same over generated strings |
+| `escape-modes-random.tsv` | 4,000 | `escape_with` over generated strings |
+| `join-modes-random.tsv` | 4,000 | `join_key_value_with` over generated strings |
 | `dumps-comment-modes.tsv` | 60 | `WriteOptions::ensure_ascii_comments` |
+
+The last two were added after review pointed out that the standalone modes had
+random coverage only through the default wrappers: `escape-random.tsv` and
+`join-random.tsv` call `escape` and `join_key_value`, so a `_with` that ignored
+its argument would have passed them. Mutating `escape_with` to force
+`ensure_ascii = true` now fails 1,226 of 4,056 cases; against the curated file
+alone it would have been 18.
 
 The existing `dumps.tsv` and `dumps-random.tsv` gained one column for the new
 option. Regenerating them was checked rather than assumed: after the change,
@@ -113,3 +122,30 @@ and the two the crate narrows deliberately are the timestamp (UTC, because the
 crate takes no timezone database) and the reader's handling of a lone surrogate
 (U+FFFD, because Rust text cannot hold one). Both differences are recorded in the
 fixtures and in the README rather than left to be discovered.
+
+The stream writer carries the options too: `store_to_with` takes a
+`WriteOptions` and writes exactly what `store_with` returns, so a caller who
+needs a separator, sorting or a comment mode does not have to render the text and
+write it by hand. `store_to` stays as the two-argument convenience over
+`store_bytes`.
+
+## Review round two
+
+Three gaps were found reviewing the first round, and all three were real:
+
+- **The standalone modes had no random coverage.** Fixed by
+  `escape-modes-random.tsv` and `join-modes-random.tsv`, as described above.
+- **`java_case` could rewrite literal comment text.** It upper-cases `\uXXXX`
+  hex to match what Java writes, which is sound for keys and values because the
+  reference doubles a backslash there, so a `\u` in the output is always an
+  escape. A comment never escapes a backslash: `to_comment("a\\u00e9b")` returns
+  `#a\u00e9b` unchanged, and the rewrite turned that into `#a\u00E9b`. The
+  corpora happened to use digits-only hex, where upper-casing is a no-op, so no
+  fixture was wrong — but the generator was. `_check_literal_escapes` now rejects
+  any curated or token string whose literal `\uXXXX` has a non-digit, so the
+  hazard cannot come back silently.
+- **`store_to` could not select a comment mode.** Fixed by `store_to_with`.
+
+The third one was found by reading the code, not by a failing test, which is why
+the review listed it: no fixture exercised the stream writer at all.
+
