@@ -137,7 +137,7 @@ the worked example, and states that a year before a country's reference
   window.
 * Years before a country's reference `start_year` remain unverified by design,
   and the crate still answers them from its rules. Estonia reports 322 dates and
-  Lesotho 503 before their reference start years (1991 and 1996). That is the
+  Lesotho 510 before their reference start years (1991 and 1996). That is the
   documented best-effort behaviour, not a defect this round fixed, and no claim
   here should be read as covering those years.
 * `cargo fmt --all -- --check` and `cargo clippy -p holidays-rs --all-targets --
