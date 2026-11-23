@@ -475,6 +475,12 @@ regression coverage in CI at all.
   behaviour it is supposed to catch. A bound at `start_year` needs
   `historical_bounds.rs`, which pairs the year before with the year itself;
   nothing derived from the reference's own window can see it.
+- **"Gate-clean" is two numbers, not one.** `verify_holidays.py` prints `ok` for
+  a calendar that agrees and `known-difference` for one whose divergence is
+  deliberate and recorded. Counting both as clean overstated the corpus backlog
+  by five: 44 calendars are `ok` and absent from the corpus, not 49, and the
+  other five are the known differences. Read the verdict, not just the absence
+  of `BUG`, before quoting a count.
 - **A comparison that only looks at what you changed will report zero.** A
   review claim of "0 mismatches 1945-2000 across 13 calendars" was true of the
   entries that round had edited and false of the calendars containing them.

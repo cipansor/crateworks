@@ -97,13 +97,17 @@ Those probes are still only hand-picked dates, so the corpus itself now covers
 every calendar this round touched: `scripts/fuzz/holidays-rs/gen.py` goes from 6
 calendars to 31, and the fixture from 10,935 rows to 62,481. That is 34,691
 required dates, 9,190 weekend-allowed ones and 18,600 dates the crate must stay
-silent on, over 1900-2075. The floor is
-`EARLIEST = 1900`, matching the gate: a year before the fit window is not
-evidence about the crate, so freezing it would record the crate's own guesses as
-correct. The generator enforces `EXCLUDED` rather than only documenting it, and
-Botswana is the single entry there - its extra Boxing Day and Labour Day
-holidays are pinned as `Rule::Once` years instead of being derived from the
-weekday, so the table stops agreeing past 2049. The French family is *not*
+silent on. The window is the gate's own - each country's reference `start_year`,
+floored at `EARLIEST = 1900` - run to `LAST = 2075` instead of the gate's 2050.
+That is 25 extra years of fixture coverage, not ten. A year before the fit
+window is not evidence about the crate, so freezing it would record the crate's
+own guesses as correct. The generator enforces `EXCLUDED` rather than only
+documenting it, and Botswana is the single entry there - its extra Boxing Day
+and Labour Day holidays are pinned as `Rule::Once` years instead of being
+derived from the weekday, so it agrees through 2049 (measured: no difference at
+or before 2049, six between 2054 and 2071) and would have had those six frozen
+as correct. `EXCLUDED` is not a catalogue of the gate's 38 failing calendars;
+those are listed below, and none of them is a corpus entry. The French family is *not*
 excluded, because it now passes; the earlier plan to leave it out would have
 frozen a known-wrong answer.
 
@@ -117,8 +121,9 @@ the worked example, and states that a year before a country's reference
 Review found two more defects in the corpus, both fixed here.
 
 **The Republic of the Congo was gate-clean and left out with no reason given.**
-It was not the only one - 49 gate-clean calendars are still absent from the
-corpus - but it was the one this round had just fixed and re-verified, so
+It was not the only one - 44 gate-clean calendars are still absent from the
+corpus, and five more are known differences the gate records rather than defects
+- but it was the one this round had just fixed and re-verified, so
 leaving it out meant the fix had no regression guard in the data. Its reference
 start year is 1994 and it agrees on every date from 1994 to 2075 (0 differences),
 including the Labour Day that begins in 1994, so it is now in `COUNTRIES` rather
@@ -130,7 +135,7 @@ window starts at the country's `start_year`, which for Congo is 1994 - exactly
 the year the leak stops - so reverting the `Since` leaves the corpus test green.
 The boundary is guarded by `historical_bounds.rs` instead, which now pairs 1993
 with 1994 for Congo and fails when the `Since` is removed. `closest.tsv` could
-not catch it either, since its probes start in 2020. The remaining 49 gate-clean
+not catch it either, since its probes start in 2020. The remaining 44 gate-clean
 calendars are the backlog, and the generator's docstring now says so rather than
 implying the corpus is every gate-clean calendar.
 

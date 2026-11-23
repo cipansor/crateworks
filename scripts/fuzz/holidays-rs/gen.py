@@ -20,10 +20,16 @@ which `historical_bounds.rs` then checks at the two years either side of a
 bound. That file probes boundaries; this one covers the interior, so the two
 answer different questions. The list grew from six to 31: the calendars this
 round changed, plus the ones whose history it rewrote, plus Congo, which was
-gate-clean and uncovered. It is not every gate-clean calendar - 49 of those are
-still absent - so the corpus is a growing subset, not a complete freeze. A
-calendar belongs in `EXCLUDED` only while the gate reports a difference for it;
-that dict is a record of known divergences, not a list of what is missing.
+gate-clean and uncovered. It is not every gate-clean calendar - 44 of those are
+still absent, plus five the gate records as known differences - so the corpus is
+a growing subset, not a complete freeze.
+
+`EXCLUDED` is not a catalogue of the gate's differences; the gate reports those
+itself. It holds a calendar the corpus would otherwise freeze but cannot, with
+the reason, and today that is only Botswana, which agrees through 2049 and
+diverges in the 25 years the extended window adds. A calendar belongs there only
+if freezing its answer would record something wrong; a calendar the gate merely
+fails is not a corpus entry at all.
 
 The corpus is the reference's answer over the whole window, not a sample of it.
 A calendar's oracle is small enough to take whole, and a random sample can miss
