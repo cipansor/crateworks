@@ -26,14 +26,16 @@
 //! empty elements removed — so the corpus still says what the crate must
 //! return, and a `!...` verdict still means the crate must reject.
 //!
-//! A bare `!` means the index cannot be compared, not that it moved. Removing
-//! an element shifts every position after it, but a fault before the first
-//! removed character keeps its index, so those rows carry `!pos:<n>` and are
-//! compared exactly like a `strict` row; dropping the index there would discard
-//! a comparison that still holds. A row keeps the bare `!` when its index sits
-//! at or after the first removed character, or when the reference reported an
-//! early end instead of an index - which covers both `","`, whose remainder is
-//! empty, and `",#="`, whose remainder is still truncated.
+//! A bare `!` means the verdict cannot be compared, not that the index moved.
+//! Removing an element shifts every position after it, but a fault before the
+//! first removed character keeps its index, so those rows carry `!pos:<n>` and
+//! are compared exactly like a `strict` row; dropping the index there would
+//! discard a comparison that still holds. A truncated remainder is compared as
+//! `!eof` when the removed elements were all leading, since the crate skips a
+//! comma only at an element boundary and so reaches the same state - `",#="`
+//! strips to `"#="` and both are truncated. A row keeps the bare `!` when its
+//! index sits at or after the first removed character, or when it strips to
+//! nothing (`","`), where the crate reports "no element" with a position.
 //!
 //! The row is only marked `empty` when removing the empty elements is what
 //! changes the reference's mind: `the_divergence_is_only_about_empty_elements`
@@ -291,7 +293,6 @@ fn the_corpus_exercises_both_outcomes() {
         .count();
     let truncated = cases.iter().filter(|c| c.verdict == "!eof").count();
     let divergent = cases.iter().filter(|c| c.strictness == "empty").count();
-
     assert!(accepted > 1_000, "only {accepted} accepted cases");
     assert!(positioned > 500, "only {positioned} positioned errors");
     assert!(truncated > 100, "only {truncated} truncated headers");

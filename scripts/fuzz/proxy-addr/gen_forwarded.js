@@ -229,11 +229,13 @@ function withoutEmptyElements (header) {
   const dropped = (offset) => {
     if (offset >= 0 && offset < firstDropped) firstDropped = offset
   }
+  let lastEmpty = -1
   for (let i = 0; i <= last; i++) {
     if (!isEmpty(i)) continue
     // The whole segment goes, and so does the comma that delimited it: the one
     // before it, or - for an empty first segment - the one after it.
     dropped(i === 0 ? segments[i].start : segments[i].start - 1)
+    lastEmpty = i
   }
 
   const out = kept.map((i, position) => {
@@ -257,7 +259,14 @@ function withoutEmptyElements (header) {
     }
     return text
   })
-  return { text: out.join(','), firstDropped }
+  // True when every removed element sat before the first surviving one. The
+  // crate skips a comma only at an element boundary, with nothing collected
+  // yet, so a *leading* run of empty elements is the one shape where it
+  // provably reads the header exactly as it reads the stripped text. An empty
+  // element after a kept one can follow partial text (`for=,`), where the crate
+  // faults at the comma itself instead of skipping it.
+  const leadingOnly = kept.length > 0 && lastEmpty < kept[0]
+  return { text: out.join(','), firstDropped, leadingOnly }
 }
 
 // One row of the corpus: the header, how strictly it is compared, and the
@@ -281,23 +290,34 @@ function withoutEmptyElements (header) {
 //             index on the rewritten header is the same in both strings, it is
 //             recorded as `!pos:<n>` and compared exactly.
 //
-//             The bare `!` covers two things the code below cannot tell apart
-//             for this purpose: an index at or after the first removed
-//             character, which has moved, and an early end, which carries no
-//             index at all. The early end is itself two shapes - the header
-//             strips to nothing (`","`) or its remainder is still truncated
-//             (`",#="` -> `"#="`) - so the marker means "not compared", not
-//             "moved".
+//             A rejected remainder is otherwise compared by its shape, because
+//             that much needs no translation: `!eof` is compared when the crate
+//             provably skips exactly the commas that were removed, which is when
+//             every removed element was leading (see `withoutEmptyElements`).
+//             `",#="` -> `"#="` is that case and now demands `!eof`. Every other
+//             rejected remainder keeps the bare `!`, which therefore means "not
+//             compared", not "moved": an index can have moved, or the header
+//             can strip to nothing (`","`), where the crate reports "no
+//             element" with a position rather than truncation.
 function row (header) {
   const direct = verdict(header)
   if (!direct.startsWith('!')) return ['strict', direct]
-  const { text: stripped, firstDropped } = withoutEmptyElements(header)
+  const { text: stripped, firstDropped, leadingOnly } =
+    withoutEmptyElements(header)
   if (stripped === header) return ['strict', direct]
   const repaired = verdict(stripped)
   if (!repaired.startsWith('!')) return ['empty', repaired]
+  // `!eof` carries no index, so there is nothing to translate and it can be
+  // compared - but only when the crate reads both strings the same way. That
+  // holds when every removed element was leading: the commas the crate skips
+  // are exactly those, so it arrives at the surviving text in the same state
+  // and reports the same truncation. Any other removed element may have been a
+  // comma the crate faults on (`for=,` faults at index 4, while `for=` is
+  // merely truncated), so that shape keeps the weak verdict.
+  if (repaired === '!eof') return ['empty', leadingOnly ? '!eof' : '!']
   const at = repaired.startsWith('!pos:') ? Number(repaired.slice(5)) : null
   // The index is measured in UTF-16 code units, and `firstDropped` is one too,
-  // so the two are directly comparable. `!eof` has no index to keep.
+  // so the two are directly comparable.
   if (at !== null && at < firstDropped) return ['empty', repaired]
   return ['empty', '!']
 }

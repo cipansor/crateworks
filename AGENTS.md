@@ -586,6 +586,16 @@ regression coverage in CI at all.
   that rewrite expects a rejection the crate correctly does not give. Drop the
   whitespace with the separator, and only when the adjacent segment is dropped -
   whitespace next to a surviving comma is that comma's OWS and must stay.
+- **A "position-free" verdict is not automatically comparable.** `!eof` carries
+  no index, so tightening a rejection-only row to compare `!eof` looks like it
+  needs no translation - and it is wrong in general. The crate skips a comma
+  only at an element boundary, with nothing collected yet; `for=,` faults at the
+  comma itself (index 4), while its stripped form `for=` is merely truncated.
+  A corpus that compares `!eof` for every stripped row failed on three of five
+  unseen seeds for that one shape. The sound condition is that *every* removed
+  element was leading, where the crate provably skips exactly those commas.
+  Verify a corpus-tooling change with unseen seeds (`SEED=<n> OUT=<path>`), not
+  only against the committed fixture - the default fixture passed the wrong rule.
 - **A secret can go empty mid-session, and the failure looks like a permissions
   bug.** `GH_WRITE_TOKEN` was populated for the first pushes and later expanded to
   the empty string, so a credential helper wrote `password=` and GitHub answered

@@ -160,26 +160,33 @@ a strictness column (`strict` or `empty`), and the reference's verdict.
 | --- | --- | --- |
 | accepted | 2,125 | 16 |
 | rejected, unexpected character (index compared) | 3,676 | 23 |
-| rejected, early end | 155 | 0 |
-| rejected, remainder still invalid (rejection only) | 0 | 28 |
+| rejected, early end (`!eof` compared) | 155 | 1 |
+| rejected, remainder still invalid (rejection only) | 0 | 27 |
 
 The 23 `empty` rows with an index are the ones where the fault precedes the
 first removed character, so the index is still the index in the original header,
-and they are compared exactly. The remaining 28 compare rejection alone, and not
-for one reason:
+and they are compared exactly. One of the truncated rows is compared exactly
+too, and the remaining 27 compare rejection alone:
 
-| Why the index cannot be compared | Rows |
+| Why the verdict cannot be compared | Rows |
 | --- | --- |
 | the fault sits at or after the first removed character, so the index moved | 26 |
 | the header strips to the empty one (`","`), so there is no remainder to fault in | 1 |
-| the remainder is still truncated (`",#="` -> `"#="`), which reports no index | 1 |
 
-None of the three can be tightened, but "the index moved" describes only the
-first, and writing it of all 28 would claim a comparison the corpus does not
-make. The `","` row is the sharpest case: it is the one header in the corpus
-whose entire content is empty elements, so it is also the only one that tests
-"an empty-element-only header is rejected" rather than anything about a
-remainder.
+An early end carries no index, so nothing has to be translated for it - `",#="`
+strips to `"#="`, both are truncated, and the row now demands `!eof` exactly.
+That is sound only when the crate skips exactly the commas the stripper removed.
+It skips a comma only at an element boundary, with nothing collected yet, so the
+guarantee holds for a *leading* run of empty elements and nothing else. `for=,`
+is the counterexample that keeps the rest weak: it strips to `for=`, which is
+truncated, but the crate faults at the comma itself and reports `for=,` index 4.
+Reading the removed element as an element the crate would skip would be wrong
+there, and an unseen seed produces it readily - a first attempt that compared
+every `!eof` failed on three of five seeds for exactly this shape.
+
+The `","` row is the sharpest case: it is the one header in the corpus whose
+entire content is empty elements, so it is also the only one that tests "an
+empty-element-only header is rejected" rather than anything about a remainder.
 
 `tests/forwarded_oracle.rs` replays all of it, comparing the character index of
 every rejection, and `tests/forwarded_nodes.rs` covers the typed layer the
