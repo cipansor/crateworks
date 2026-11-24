@@ -993,6 +993,10 @@ def main() -> int:
     ) = rust_parse(CORPUS)
     mismatches = 0
     compared = 0
+    # Field differences are not replies. Counting them alongside the reply checks
+    # mixed two units in one total, so two bad fields in one message plus one bad
+    # ACK read as three failures. This set makes the message count explicit.
+    messages_with_mismatch: set[int] = set()
 
     for index, raw in enumerate(CORPUS):
         expected = reference_parse(raw)
@@ -1011,11 +1015,13 @@ def main() -> int:
             if got is None:
                 print(f"  msg {index}: {reference} missing from the crate")
                 mismatches += 1
+                messages_with_mismatch.add(index)
             elif got != value:
                 print(f"  msg {index}: {reference}")
                 print(f"    reference {value!r}")
                 print(f"    crate     {got!r}")
                 mismatches += 1
+                messages_with_mismatch.add(index)
 
     print(f"\n{compared - mismatches}/{compared} fields agree with hl7apy")
 
@@ -1052,10 +1058,12 @@ def main() -> int:
         f"{len(CORPUS) - field_only_problems}/{len(CORPUS)} field-only replies agree with hl7apy"
     )
 
-    # Each category contributes the number of *replies* that failed, not the
-    # number of findings printed for them, so the total is a count of bad replies.
+    # Every category contributes the number of *units* that failed - one per
+    # message for the field comparison, one per reply for the rest - never the
+    # number of findings printed for them. Mixing the two units in one total is
+    # what made three findings look like three failed replies.
     total = (
-        mismatches
+        len(messages_with_mismatch)
         + ack_problems
         + enhanced_problems
         + converted_problems

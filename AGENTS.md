@@ -549,7 +549,9 @@ regression coverage in CI at all.
   weaker comparison for a round after the field-only path was fixed, and a mutation
   that only damages a two-separator reply went unseen. Count *replies*, not findings:
   a checker that returns one per printed finding makes `len(corpus) - problems` go
-  negative, and the summary then understates what passed. When checking
+  negative, and the summary then understates what passed. Keep one unit per total:
+  field differences are counted per message and reply checks per reply, so summing
+  `mismatches` with them mixes two units and reports findings as failures. When checking
   this against `hl7apy`, compute the expectation from the reply's own MSH-1 and
   MSH-2: a message using `#` and `*` leaves `|` and `^` alone, so a hardcoded
   default-delimiter expectation fails on a case that is correct.

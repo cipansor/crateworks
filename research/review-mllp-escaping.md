@@ -479,3 +479,28 @@ report of it was not.
 Gate: 243/243 fields, 16/16 ACK, 16/16 enhanced, 16/16 converted, 16/16 field-only.
 
 `mllp` 0.12.0 -> 0.13.0: the gate's arithmetic, not the crate.
+
+## Follow-up: one total cannot hold two units
+
+A tenth review found the round-nine fix incomplete in the way round eight's was.
+
+`total` summed `mismatches`, which counts field differences inside parsed source
+messages, with the four reply counters, which count failed replies. Two wrong fields
+in one message plus one wrong ACK produced three "mismatches" from two units, so the
+total was not a count of anything a reader could act on. The comment I added in round
+nine claimed the total was a count of bad replies, which was false for the field term.
+
+The field comparison now records the set of messages that had any difference, and the
+total uses its size. Verified with a probe that injects two bad fields into every
+message: 32 findings print, and the total reads 16 - one per message - where the old
+arithmetic would have printed 32.
+
+This is the second time in two rounds that a fix was applied to the arithmetic without
+checking the units the terms were expressed in. Round nine corrected "findings versus
+replies" and left "fields versus messages" in place. The standing rule is now in
+`AGENTS.md`: a total has one unit, and every term must be converted to it before
+summing.
+
+Gate: 243/243 fields, 16/16 ACK, 16/16 enhanced, 16/16 converted, 16/16 field-only.
+
+`mllp` 0.13.0 -> 0.14.0: the gate's total, not the crate.
