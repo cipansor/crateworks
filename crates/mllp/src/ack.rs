@@ -1177,6 +1177,32 @@ mod tests {
     }
 
     #[test]
+    fn an_unmatched_marker_keeps_the_subcomponent_boundaries_after_it() {
+        // `LAB\ZID&1^2\` splits into components `LAB\ZID&1` and `2\`, so the
+        // first component's marker has no closer. Escaping the whole tail as
+        // text merged the two subcomponents into one: the reply still parsed, so
+        // only a subcomponent count catches it.
+        let message = Message::parse(
+            "MSH|^~\\&|LAB\\ZID&1^2\\|F|R|F|20260101||ADT^A01|MSGB|P|2.5.1\rPID|1\r",
+        )
+        .unwrap();
+        let context = AckContext::from_message(&message);
+        let reply_separators = Separators {
+            field: '@',
+            ..Separators::default()
+        };
+        let ack = build(&context, AckCode::Accept, "ACKB", "", reply_separators).unwrap();
+
+        let reply = Message::parse(&ack).unwrap();
+        let application = reply.field("MSH-5").unwrap();
+        // The first component keeps two subcomponents; the marker is data.
+        assert_eq!(application.subcomponent(1, 1), Some("LAB\\E\\ZID"));
+        assert_eq!(application.subcomponent(1, 2), Some("1"));
+        assert_eq!(application.subcomponent(1, 3), None);
+        assert_eq!(application.component(2), Some("2\\E\\"));
+    }
+
+    #[test]
     fn a_role_change_inside_one_component_is_an_error() {
         // The body sits inside a single component, so the split does not touch
         // it; what breaks it is the subcomponent separator becoming plain data.

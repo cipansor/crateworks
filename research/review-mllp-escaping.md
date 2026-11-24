@@ -338,3 +338,47 @@ Gate: 217/217 fields, 14/14 ACK, 14/14 enhanced, 14/14 converted, 14/14 field-on
 `mllp` 0.8.0 -> 0.9.0: `transcode`'s contract changed for split markers and MSH-9
 is no longer judged against the source, so a reply that was refused now succeeds
 and one that was written wrongly now carries the identity it should.
+
+## Follow-up: a marker is data, the boundaries after it are not
+
+A sixth review found the same mistake once more, in the smallest place left.
+
+**An unmatched marker was swallowing the structure after it.** When a component
+ends without a closer, `transcode_component` escaped the marker and then escaped
+*everything it had read* as plain text. That turned real subcomponent separators
+into data: `LAB\ZID&1^2\` splits into components `LAB\ZID&1` and `2\`, so the first
+component's marker has no pair, and the reply wrote `LAB\E\ZID\T\1` - one
+subcomponent where the source had two. The reply parsed, so nothing but a boundary
+count could see it. Only the marker is data now; the delimiters after it are
+re-emitted as structure. Reproduced first, and
+`an_unmatched_marker_keeps_the_subcomponent_boundaries_after_it` asserts the count
+through `Field::subcomponent`.
+
+**Decoded text cannot see a boundary.** This is why the earlier field-only test
+passed while the bug was present: escaping a separator as `\T\` decodes back to
+`&`, so the decoded identity is unchanged whether the boundary survived or not. The
+gate now compares `_boundaries` - the number of subcomponents per component from
+the raw split - and `check_field_only` reports `[1, 1]` against `[2, 1]`.
+
+**The README claimed bytes were preserved.** A field-only conversion keeps every
+boundary but not every byte: a stranded marker has to be re-encoded as `\E\` once
+the reply's escape character differs, as the previous round's fix established. The
+paragraph said "byte for byte", which the same paragraph's own reasoning
+contradicts. It now says what is preserved is the decoded value and the boundaries,
+not the bytes, and states that a body can never hold the component separator.
+
+**The gate never checked MSA-2.** `check_field_only` verified the reply's own
+MSH-10 but not the echoed original control id, which is what the sender matches the
+reply against - an ACK carrying the wrong original id passed. It is checked now,
+and verified by breaking the crate rather than the check: with MSA-2 hardcoded to
+`WRONGID`, the gate reports `fld 0: MSA-2 is ['WRONGID'], expected the original's
+MSH-10 ['MSG0001']`. Mutating the check instead would have proved nothing.
+
+Mutation-tested, two ways: the whole-tail escape restored (the new unit test fails
+and the gate reports `[1, 1]` against `[2, 1]`), and MSA-2 broken in the crate (the
+gate reports it per fixture).
+
+Gate: 230/230 fields, 15/15 ACK, 15/15 enhanced, 15/15 converted, 15/15 field-only.
+
+`mllp` 0.9.0 -> 0.10.0: the reply for an unmatched marker now keeps the
+subcomponent boundaries the source had.

@@ -540,7 +540,9 @@ regression coverage in CI at all.
   identity a peer decodes. Read the structure before rewriting it, and make the
   gate's fixtures agree - a corpus with no opaque body holding a delimiter that
   keeps its role cannot tell a role rule from a presence rule, and both mutations
-  pass. When checking
+  pass. A boundary is not visible in decoded text either: escaping `&` as `\T\`
+  decodes back to `&`, so a lost subcomponent boundary looks correct unless the
+  check counts the split a reader performs. When checking
   this against `hl7apy`, compute the expectation from the reply's own MSH-1 and
   MSH-2: a message using `#` and `*` leaves `|` and `^` alone, so a hardcoded
   default-delimiter expectation fails on a case that is correct.

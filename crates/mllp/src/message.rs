@@ -662,6 +662,24 @@ pub(crate) fn transcode(
     Ok(out)
 }
 
+/// Re-emits `text` keeping its structure: separators stay separators.
+fn push_structure(out: &mut String, text: &str, from: Separators, to: Separators) {
+    for c in text.chars() {
+        push_structure_char(out, c, from, to);
+    }
+}
+
+/// Re-emits one character, keeping a repetition or subcomponent boundary.
+fn push_structure_char(out: &mut String, c: char, from: Separators, to: Separators) {
+    if c == from.repetition {
+        out.push(to.repetition);
+    } else if c == from.subcomponent {
+        out.push(to.subcomponent);
+    } else {
+        push_escaped(out, c, to);
+    }
+}
+
 /// Re-emits one component, where escape markers are balanced by construction.
 fn transcode_component(
     component: &str,
@@ -672,13 +690,7 @@ fn transcode_component(
     let mut chars = component.chars().peekable();
     while let Some(c) = chars.next() {
         if c != from.escape {
-            if c == from.repetition {
-                out.push(to.repetition);
-            } else if c == from.subcomponent {
-                out.push(to.subcomponent);
-            } else {
-                push_escaped(out, c, to);
-            }
+            push_structure_char(out, c, from, to);
             continue;
         }
         let mut body = String::new();
@@ -691,13 +703,13 @@ fn transcode_component(
             body.push(inner);
         }
         if !closed {
-            // The component ends with an unmatched escape. The source was
-            // malformed, so the marker is written as data: that is what a reader
-            // sees, and it cannot gain structure the source never had.
+            // The component ends with an unmatched escape. The marker is data,
+            // because that is what a reader sees, but the delimiters after it are
+            // still structure: escaping the whole tail as text would merge
+            // subcomponents that the source kept apart. Only the marker itself is
+            // escaped, so the boundaries after it survive.
             push_escaped(out, from.escape, to);
-            for ch in body.chars() {
-                push_escaped(out, ch, to);
-            }
+            push_structure(out, &body, from, to);
             continue;
         }
         let delimiter = match body.as_str() {

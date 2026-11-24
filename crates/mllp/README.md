@@ -203,8 +203,15 @@ as `\ZLAB#1\` is structure: the body survives a conversion only when every
 character keeps the role it had. A separator that becomes data stops splitting
 the field, and data that becomes a separator starts splitting it, so both are
 refused - rewriting the body would silently change how many components the field
-has. Changing only the field separator keeps every boundary, so a body holding the
-unchanged component separator is carried byte for byte.
+has. A body can never hold the component separator: that separator splits the
+component before any reader looks for an escape.
+
+Changing only the field separator keeps every boundary, so such a reply is never
+refused. Its wire bytes can still differ from the source's, because a marker that
+was stranded - one ending a component, or opening one, with no pair - has to be
+re-encoded as `\E\` once the reply treats the escape character differently. What
+is preserved is what a peer decodes, and the component and subcomponent boundaries
+it splits on, not the bytes.
 
 A raw field separator is refused as well, and that verdict does not depend on the
 reply: the value is invalid before a reply exists, so no choice of delimiters can

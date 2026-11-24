@@ -186,6 +186,13 @@ CORPUS = [
     # that splits the component before any reader sees a body.
     "MSH|^~\\&|LAB\\ZID&1\\|F|R|F|20260101||ADT^A01|MSG0014|P|2.5.1\r"
     "PID|1||12345^^^MRN\r",
+
+    # A marker with no closer inside its component: `LAB\ZID&1` is component 1
+    # and `2\` is component 2. The marker is data, but the `&` after it still
+    # separates subcomponents, so a reply that escapes the whole tail as text
+    # merges two subcomponents into one and still parses.
+    "MSH|^~\\&|LAB\\ZID&1^2\\|F|R|F|20260101||ADT^A01|MSG0015|P|2.5.1\r"
+    "PID|1||12345^^^MRN\r",
 ]
 
 
@@ -516,6 +523,21 @@ def _conversion_must_refuse(raw: str) -> bool:
     )
 
 
+
+
+def _boundaries(value: str, separators: dict[str, str]) -> list[int]:
+    """How many subcomponents each component of `value` has.
+
+    A separator escaped as backslash-T-backslash decodes to the same character as a
+    raw one, so
+    comparing decoded text cannot tell a boundary from data. The count comes from
+    the split a reader performs, before escapes are resolved.
+    """
+    component = separators["component"]
+    subcomponent = separators["subcomponent"]
+    return [len(part.split(subcomponent)) for part in value.split(component)]
+
+
 def _opaque_bodies_per_component(raw: str, reference: str) -> list[str]:
     """The opaque escape bodies in one echoed MSH field, per component.
 
@@ -612,9 +634,32 @@ def check_field_only(raw: str, reply_ack: str, index: int) -> int:
                 f"  fld {index}: {mirrored} is {actual!r}, expected {expected!r}"
             )
             problems += 1
+        # Decoded text alone cannot see a lost boundary: escaping a separator as
+        # `\T\` still decodes to `&`, so the subcomponent count has to be
+        # compared from the split a reader performs.
+        expected_subs = _boundaries(_msh_field(source, original), source_sep)
+        actual_subs = _boundaries(_msh_field(reply, mirrored), reply_sep)
+        if expected_subs != actual_subs:
+            print(
+                f"  fld {index}: {mirrored} has subcomponent boundaries "
+                f"{actual_subs!r}, expected {expected_subs!r}"
+            )
+            problems += 1
     control = _identity(_msh_field(reply, "MSH-10"), reply_sep)
     if control != [f"FLD{index:04}"]:
         print(f"  fld {index}: MSH-10 is {control!r}, expected 'FLD{index:04}'")
+        problems += 1
+
+    # MSA-2 must echo the *original* control id, which is what the sender matches
+    # the reply against. Checking only the reply's own MSH-10 would let a reply
+    # carrying the wrong original id pass.
+    original = _identity(reference_parse(reply_ack, required=False)["MSA-2"], reply_sep)
+    expected_original = _identity(_msh_field(source, "MSH-10"), source_sep)
+    if original != expected_original:
+        print(
+            f"  fld {index}: MSA-2 is {original!r}, expected the original's "
+            f"MSH-10 {expected_original!r}"
+        )
         problems += 1
     return problems
 
