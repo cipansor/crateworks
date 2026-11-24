@@ -507,6 +507,136 @@ regression coverage in CI at all.
   find `ram:IssueDateTime`. Match on the local name. `Element::text()`
   concatenates only direct text children, so a value nested in a sub-element
   comes back empty.
+- **A `Forwarded` value is a token unless it is quoted, and the two header
+  families are in opposite order.** In RFC 7239 a bare value may only contain
+  `tchar`, so `host=example.com:8443` and `for=[2001:db8::1]` are syntax errors
+  that need quotes (`host="example.com:8443"`); the reference `forwarded-parse`
+  rejects them and `proxy-addr`'s parser must agree rather than helpfully
+  splitting on the colon. The order trap is worse because it fails silently:
+  RFC 7239 appends each hop, so the client is **first**, while
+  `X-Forwarded-For` is prepended and the crate's `forwarded` returns peer
+  first. `parse_forwarded` therefore keeps header order and does not reverse.
+  Also: the reference's `mustUnescape` flag is set once for the whole header and
+  never cleared, so a backslash in one element decodes later elements' values
+  too; the port keeps that quirk, since matching the reference is the point.
+- **A `Forwarded` corpus must be weighted towards valid headers.** Random text
+  over the reference's character classes is almost always a syntax error, so an
+  even split produced 848 accepted cases out of 6,013 and left the accept path
+  thin. The generator now builds whole `name=value` parameters from a token
+  pool and a quoted pool, and a test asserts each outcome has a floor.
+- **A `Forwarded` node port is independent of the node name.** RFC 7239 gives
+  `node = nodename [ ":" node-port ]` with
+  `nodename = IPv4address / "[" IPv6address "]" / "unknown" / obfnode` and
+  `node-port = port / obfport`, so `unknown:443`, `_hidden:443`,
+  `192.0.2.43:_edge` and `_hidden:_p` are all legal. Typing the port as
+  `Option<u16>` on the address variant made every one of those unparseable,
+  which silently erased a node from a header the outer grammar had already
+  accepted - the worst kind of gap, because `parse_forwarded` succeeded and only
+  the typed layer lost the value. The port is now a `Port` enum carried by every
+  variant.
+- **`obfnode` is narrower than `token`.** The outer grammar accepts any token as
+  a value, but RFC 7239's `obfnode` and `obfport` are
+  `"_" 1*( ALPHA / DIGIT / "." / "_" / "-" )`, so `_edge+2`, `_a!b` and `_a~b`
+  are tokens that are not obfuscated names. Validating them with the token
+  predicate accepted all three. Likewise `unknown` is an ABNF literal and so
+  case-insensitive (`Unknown` is the same identifier), and brackets are reserved
+  for IPv6, so `[192.0.2.43]` is not a node.
+- **Rust's `u16` parser is looser than `1*5DIGIT`.** `"+443"` parses, and so does
+  `"000443"`, so a port validated only by `str::parse::<u16>()` accepts shapes
+  RFC 7239 does not allow. Check the digit count and the character set before
+  parsing, as `Port::parse` does.
+- **A differential fixture must record an oracle disagreement, not hide it.**
+  RFC 7230 section 7 makes accepting empty list elements a **MUST** for a
+  recipient, and the reference `forwarded-parse` rejects them, so `,,` and a
+  trailing `,` are headers `proxy-addr` must read and the reference will not.
+  Deleting those rows would drop coverage; asserting agreement would pin the
+  crate to the reference's bug. Each such row carries an `empty` marker and the
+  reference's verdict for the header with the empty elements removed, and a test
+  re-derives that stripping them is what changes the reference's mind, so a
+  header broken for a second reason cannot be relabelled into passing. An error
+  **index** can only be compared when it has not moved: skipping an element
+  shifts every later position, so an index at or after the first removed
+  character is meaningless and those rows compare rejection only. An index
+  before it is still the index in the original header - ` for=a,,for=b` fails
+  at 0 for its leading space either way - so keep it and compare it exactly
+  rather than discarding a comparison that still holds.
+- **A comma after a dangling `;` is not an empty list element.** `for=1.1.1.1;,`
+  opened a parameter and never closed it; treating the comma as an empty element
+  merged the following element into the current one, turning two hops into one
+  with no error. The tolerance applies only when the element has collected no
+  parameters yet.
+- **A trailing `,` is an empty element; a trailing `;` is truncation.** Both
+  leave the parser with no parameter open, so a single "nothing open, done"
+  branch accepted `zz=1.1.1.1;` and silently dropped the element. Track the
+  separator that closed the last thing and allow the end only after a comma.
+  This one shipped through a green build and was caught by generating a corpus
+  from a **different seed** and replaying it; the committed corpus had no such
+  shape. Run the oracle against a fresh seed before believing a parser change.
+- **A generator's helper is code, and its bugs look like crate bugs.** The
+  "strip empty elements" helper first trimmed every surviving segment, which
+  repaired a leading space - a separate fault - and relabelled an
+  already-agreeing row as a divergence. It also joined with `", "`, adding a
+  space that changed the header being measured. Print the rewritten header and
+  diff it against the original before trusting a derived expectation.
+- **Whitespace around a dropped separator is part of the separator.** The list
+  rule is `#element => [ element ] *( OWS "," OWS [ element ] )`, so the space
+  in `, for=a` belongs to the comma, not to the element. Stripping an empty
+  element but leaving its neighbouring whitespace produces ` for=a`, which is
+  broken for a *different* reason (leading whitespace), and a fixture built on
+  that rewrite expects a rejection the crate correctly does not give. Drop the
+  whitespace with the separator, and only when the adjacent segment is dropped -
+  whitespace next to a surviving comma is that comma's OWS and must stay.
+- **A "position-free" verdict is not automatically comparable.** `!eof` carries
+  no index, so tightening a rejection-only row to compare `!eof` looks like it
+  needs no translation - and it is wrong in general. The crate skips a comma
+  only at an element boundary, with nothing collected yet; `for=,` faults at the
+  comma itself (index 4), while its stripped form `for=` is merely truncated.
+  A corpus that compares `!eof` for every stripped row failed on three of five
+  unseen seeds for that one shape. The sound condition is that *every* removed
+  element was leading, where the crate provably skips exactly those commas.
+  Verify a corpus-tooling change with unseen seeds (`SEED=<n> OUT=<path>`), not
+  only against the committed fixture - the default fixture passed the wrong rule.
+- **A secret can go empty mid-session, and the failure looks like a permissions
+  bug.** `GH_WRITE_TOKEN` was populated for the first pushes and later expanded to
+  the empty string, so a credential helper wrote `password=` and GitHub answered
+  "Invalid username or token"; `GITHUB_TOKEN` still authenticated but is a
+  read-only token here and answered 403 "Permission to ... denied". Check
+  `${#GH_WRITE_TOKEN}` and probe `https://api.github.com/user` before concluding
+  the remote or the helper is wrong.
+- **Test a credential helper's output before blaming the token.** A helper that
+  takes its secret from `"$1"` sends `password=get`, because git invokes a helper
+  as `helper get` - `$1` is the operation name, never the token. The helper was
+  never handed a token at all. Quoting is a red herring here: single quotes only
+  stop expansion when `$1` sits *inside* the format text (`printf 'password=$1'`
+  does print a literal `$1`), and this helper used `%s`, which expands its
+  argument correctly - it printed `get` because that is what it was given.
+  GitHub answers
+  "Invalid username or token", which reads exactly like a dead token, and a valid
+  PAT was reported dead twice because of it. The `$1` substitution is in the
+  shell, which has no idea git is the caller, so nothing about the code looks
+  wrong. Validate the token against the API (`GET /user`, then
+  `GET /repos/<owner>/<repo>` for `permissions.push`) and, when the API accepts
+  it, suspect the helper. Pass the secret through the environment and echo it
+  from a heredoc-written script (`echo "password=${GIT_PUSH_TOKEN}"`, variable set
+  for that one command); a `password=` with nothing after it then points at the
+  empty-variable trap above rather than at git. Feeding the helper a sample
+  `protocol=https`/`host=github.com` on stdin and reading its output takes a
+  second and is what separates the two faults: `password=get` is this trap,
+  `password=` is an empty secret.
+- **A mirrored helper must be diffed against its original, not just run.** The
+  Rust test carries its own copy of the generator's split-and-strip transform,
+  and both replay the same corpus, so a divergence between the two is invisible
+  to the tests: each agrees with the fixture it computes from. The copy trimmed
+  trailing whitespace when a header ended with no comma (`for=1.2.3.4 `), because
+  a missing neighbour at the end of the list was read as a dropped segment, while
+  the generator kept it. The corpus replay passed either way. Dump both
+  implementations' output over the whole corpus and `diff` them - that is the
+  only check that sees this class of bug.
+- **A new npm oracle dependency must regenerate the lockfile.** `package.json`
+  gained `forwarded-parse` while `package-lock.json` was untouched, so `npm ci`
+  failed with `Missing: forwarded-parse@2.2.0 from lock file` while `npm install`
+  worked, because `npm install` silently updates the lock. Run `npm install` and
+  commit the lock in the same change; the diff should add only the new package.
 - **An empty inline element is still a box.** WeasyPrint gives `<span></span>`
   an empty inline box with its own strut, even with no text in it: `<div>a<span
   style="font-size:24px"></span></div>` raises the line to 24px, and an empty

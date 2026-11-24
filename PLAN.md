@@ -708,10 +708,33 @@ drives the reference over a generated corpus and writes
 `tests/fixtures/oracle.tsv`, which `tests/oracle.rs` replays in CI, and
 `research/tools/verify_proxy_addr.py` reruns the two against a fresh corpus.
 
+0.2.0 added the RFC 7239 `Forwarded` header, which was the gap the reference's
+own `forwarded` package leaves open: there the header is a list of addresses,
+while `Forwarded` has each hop name itself with `for`, `by`, `proto` and `host`.
+`parse_forwarded` reads it into `ForwardedElement`s in header order, and `Node`
+reads a `for`/`by` value as an address, `unknown`, or an obfuscated name, each
+with an optional `Port`. The port is a type of its own because RFC 7239 gives
+`node = nodename [ ":" node-port ]`: the port does not depend on which name form
+precedes it, and `node-port` is `port / obfport`, so `192.0.2.43:_edge` and
+`_hidden:443` are as legal as `192.0.2.43:443`. The parser is a state machine
+over HTTP's `token` and `quoted-string` classes rather than a split on `;` and
+`,`, because a quoted-string may contain both. It is checked against npm
+`forwarded-parse` 2.2.0, pinned in the generator: `scripts/fuzz/proxy-addr/gen_forwarded.js`
+writes `tests/fixtures/forwarded.tsv` (6,019 headers, accepted and rejected),
+which `tests/forwarded_oracle.rs` replays including the character index of every
+rejection, and `tests/forwarded_nodes.rs` covers the typed layer the reference
+has no notion of. One rule is taken from RFC 7230 section 7 rather than from the
+reference: empty list elements are parsed and ignored, because that section
+makes it a **MUST** and the reference rejects them. Those corpus rows are marked
+`empty`, and a test re-derives that removing the empty elements is what changes
+the reference's mind, so a header broken for a second reason cannot be relabelled
+into passing.
+
 **Not covered.** Framework integration: the crate resolves an address and takes
 no request type, so wiring it to a particular web framework is the caller's job.
-The `forwarded` *header* (RFC 7239) is a different input from the
-`X-Forwarded-For` list and is not parsed.
+`parse_forwarded` reads the header; it does not choose which hop to attribute
+the request to, because that decision needs the same trust list `addr` uses and
+is left to the caller rather than guessed.
 
 ## 29. `fast-redact`
 

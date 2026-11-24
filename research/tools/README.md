@@ -58,9 +58,16 @@ APIs without a key. They need Python 3 and no external dependencies.
 | `gen_units.py` | **Table generator for `crates/runits`**: reads pint's definition files and writes the crate's unit table, so the scale of every name comes from the reference rather than being retyped. The logarithmic scales (`dB`, `Np`, `dBm`, ...) are emitted as a `LOGARITHMIC` table of base, divisor and reference, marked in the name table by `LOG_FLAG`. Needs `pip install pint` |
 | `verify_units.py` | **Regression gate for `crates/runits`**: checks every unit's scale and dimensions against pint and exits non-zero on any difference. A logarithmic scale is compared on its base, divisor and reference rather than a linear factor, and its 13 names are written to `tests/fixtures/pint_log_units.tsv`. It cannot check arithmetic, because a sum has an output and not just a scale; that is `scripts/fuzz/runits/gen.py`'s job. Needs `pip install pint` |
 | `verify_proxy_addr.py` | **Regression gate for `crates/proxy-addr`**: generates a fresh corpus with `scripts/fuzz/proxy-addr/gen.js` (which drives npm `proxy-addr`) and diffs it against a temporary Rust driver built on the crate's public API, line by line, reporting the failing input. `--cases` and `--seed` choose the corpus size and PRNG seed; the committed fixture is regenerated separately. Needs `npm install proxy-addr` and a Rust toolchain. `python3 research/tools/verify_proxy_addr.py --cases 200000` |
+| `scripts/fuzz/proxy-addr/gen_forwarded.js` | **Corpus generator for the RFC 7239 `Forwarded` parser in `crates/proxy-addr`**: drives npm **`forwarded-parse` 2.2.0** over generated header values and writes `crates/proxy-addr/tests/fixtures/forwarded.tsv`, which `crates/proxy-addr/tests/forwarded_oracle.rs` replays in CI. That crate is a **second, independent oracle** from `proxy-addr` above - `Forwarded` is a different grammar from `X-Forwarded-For`, so it needs its own reference and its own fixture. The version is asserted in the generator's `PINNED` and it exits non-zero on a mismatch, so a newer oracle cannot re-baseline the corpus silently. Needs `npm install forwarded-parse@2.2.0` in the repository root. Run from the repository root: `node scripts/fuzz/proxy-addr/gen_forwarded.js`; an unseen-seed replay needs **both** `OUT=<path>` and `SEED=<n>`, because `SEED` alone would rewrite the tracked fixture and the generator refuses to start in that case. Empty list elements are a **deliberate divergence** (RFC 7230 section 7 requires ignoring them, the reference rejects them) and are recorded as `empty` rows rather than hidden; see the generator's header comment and the crate's README |
 
 ## Operational warnings
 
+- **`SEED` without `OUT` re-baselines the tracked corpus.** The Forwarded
+  generator writes `crates/proxy-addr/tests/fixtures/forwarded.tsv` by default,
+  so setting only `SEED` for an unseen-seed replay replaces the committed corpus
+  with one from a different seed. The output looks like a normal run and the
+  fixture then differs from the one the review documented. The generator now
+  refuses when `SEED` is set without `OUT`; pass both.
 - **Do not run two scripts at once.** crates.io rate-limits requests; running them
   in parallel triggers HTTP 429 and produces false empty results — a gap that
   looks real but is not.

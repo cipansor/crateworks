@@ -12,4 +12,9 @@ The client-address resolution this crate performs is the behaviour of the npm
 distributed under the MIT License. This crate is an independent
 reimplementation for Rust and shares no code with them.
 
+The RFC 7239 `Forwarded` parser follows the npm `forwarded-parse` package by
+Luigi Pinca (https://github.com/lpinca/forwarded-parse), which is distributed
+under the MIT License. It is likewise an independent reimplementation that
+shares no code with it.
+
 Licensed under the Apache License, Version 2.0 (see LICENSE).

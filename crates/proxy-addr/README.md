@@ -52,6 +52,72 @@ assert_eq!(addr(direct, Some(header), &ingress), "203.0.113.9");
   configuration error and is returned as an [`Error`], never silently widened.
 - **Takes no framework types.** The peer is a [`std::net::IpAddr`] and the
   header is a `&str`, so the crate fits any HTTP stack.
+- **Reads the standard header too.** [`parse_forwarded`] parses RFC 7239
+  `Forwarded`, where each hop names itself instead of being inferred.
+
+## RFC 7239 `Forwarded`
+
+`X-Forwarded-For` is a list of addresses and nothing else, so which entry is a
+proxy has to be guessed from your trust list. `Forwarded` says so directly: each
+element carries parameters, and `for` names the node that made the request while
+`by` names the proxy that received it.
+
+```rust
+use proxy_addr::{parse_forwarded, Node, Port};
+
+// Two hops, in header order: the client first, the nearest proxy last.
+let hops = parse_forwarded("for=192.0.2.43, for=\"[2001:db8::1]:4711\"").unwrap();
+assert_eq!(hops.len(), 2);
+assert_eq!(hops[0].for_node(), Some("192.0.2.43"));
+assert_eq!(hops[0].node(), Some(Node::Address {
+    ip: "192.0.2.43".parse().unwrap(),
+    port: None,
+}));
+
+// The other parameters a proxy adds.
+let hops = parse_forwarded(r#"for=192.0.2.60;proto=https;by=203.0.113.43"#).unwrap();
+assert_eq!(hops[0].proto(), Some("https"));
+assert_eq!(hops[0].by(), Some("203.0.113.43"));
+
+// A port may be a number or an obfuscated name, and either fits any node.
+let hops = parse_forwarded("for=\"192.0.2.43:_edge\"").unwrap();
+assert_eq!(hops[0].node(), Some(Node::Address {
+    ip: "192.0.2.43".parse().unwrap(),
+    port: Some(Port::Obfuscated("edge".into())),
+}));
+```
+
+A `for` or `by` value is one of three things, and [`Node`] tells them apart: an
+address, the word `unknown` for a node that declines to identify itself, or an
+obfuscated name such as `_hidden`. Any of the three may carry a port, which is
+why the port is a [`Port`] of its own rather than a field on the address: RFC
+7239 gives `node = nodename [ ":" node-port ]`, so `unknown:443` and
+`_hidden:_p` are as legal as `192.0.2.43:4711`. A [`Port`] is either a number
+(`1*5DIGIT`, so `+443` and `000443` are not ports) or an obfuscated name.
+
+Order is the one trap. RFC 7239 appends each hop, so the **client is first** and
+the nearest proxy last - the reverse of `X-Forwarded-For`, which this crate
+returns peer first. `parse_forwarded` keeps the header's own order rather than
+reversing it, because the RFC's order is the meaningful one and reversing it
+twice is how a client ends up attributed to a proxy.
+
+Quoting is the second. A value may only be a bare token when it is made of token
+characters, so a colon, slash, bracket or non-ASCII byte has to be inside a
+quoted-string: `for=[2001:db8::1]` is a syntax error, and
+`for="[2001:db8::1]"` is not. The parser rejects the first, as the reference
+does, rather than guessing. Inside quotes, a backslash escapes the next
+character, so `for="\"quoted\""` reads as `"quoted"`.
+
+A header that does not parse returns a [`ForwardedError`] carrying the character
+index where it stopped, or no index when it ended in the middle of an element. A
+malformed header is not partially trusted.
+
+Empty list elements are the one place this crate is deliberately more tolerant
+than the npm reference. RFC 7230 section 7 says a recipient **must** parse and
+ignore a reasonable number of empty list elements, so `for=192.0.2.43,,for=198.51.100.7`
+and a trailing `for=192.0.2.43,` are read here; the reference rejects both. A
+header of nothing but separators is still an error, because a list needs at least
+one element.
 
 ## IPv4-mapped IPv6
 
@@ -81,5 +147,6 @@ IPv6 address, as in the reference.
 
 Apache-2.0. See `LICENSE` and `NOTICE`. The resolution behaviour follows the npm
 `proxy-addr` package and the `forwarded` and `ipaddr.js` libraries it builds on,
-all MIT-licensed; this crate is an independent reimplementation and shares no
-code with them.
+all MIT-licensed, and `Forwarded` parsing follows `forwarded-parse`
+<<https://github.com/lpinca/forwarded-parse>>, also MIT-licensed. This crate is
+an independent reimplementation and shares no code with them.
