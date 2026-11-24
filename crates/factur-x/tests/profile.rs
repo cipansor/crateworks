@@ -11,6 +11,9 @@
 //! The directory is named after the corpus content, so regenerating a changed
 //! corpus writes a new one instead of overwriting documents the live table still
 //! names. Only the table is replaced in place, and one rename is the switch.
+//! Old corpora are kept rather than pruned: this table is embedded at compile
+//! time but the documents are read at run time, so an already-built test binary
+//! still names the directory that was current when it was built.
 //!
 //! The last column is the reference's answer, or empty when the reference
 //! raises - the error path. The generator is

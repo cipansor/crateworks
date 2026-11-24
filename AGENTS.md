@@ -339,12 +339,28 @@ regression coverage in CI at all.
   portable crate acquires a test that only passes on Linux.
 - **Replacing a fixture directory deletes whatever else lives in it.** A
   maintainer's notes beside the documents are not generator output, and
-  `rmtree` plus rename removes them on every successful run. Either publish only
-  files the generator owns, or write a marker into each directory the generator
-  makes and refuse to remove one without it. Content-named corpus directories
-  (`profile/<digest>/`) plus an atomically replaced index give both: the index is
-  the only fixed path, and a stale corpus is removed only after the index stops
-  naming it and only if it carries the marker.
+  `rmtree` plus rename removes them on every successful run. Write a marker into
+  each directory the generator makes and refuse to reuse or remove one without
+  it. Content-named corpus directories (`profile/<digest>/`) plus an atomically
+  replaced index mean the index is the only fixed path.
+- **A content-addressed directory name says what was generated, not what is on
+  disk.** `corpus_digest` hashes the documents the run produced, so
+  `profile/<digest>/` can carry the right name and hold a file a maintainer
+  deleted to see it regenerated, or edited while investigating. Reusing it on the
+  name alone publishes an index computed from the fresh bytes while the replay
+  reads the damaged ones, and a deleted file simply fails to open. Compare every
+  expected file against the staged bytes before reuse; if any differ, publish
+  under a fresh suffixed name (`<digest>-2`) instead of replacing the old
+  directory, which the live index may still name. Both halves were reproduced:
+  the deleted document stayed missing with exit code 2, and an appended comment
+  survived while the gate still reported 33/33.
+- **Pruning a fixture corpus breaks binaries already built against it.** The
+  replay test embeds the index with `include_str!` at compile time but opens the
+  documents at run time, so removing a directory that a prebuilt test binary
+  still names makes it panic with `No such file or directory`. Reproduced by
+  changing one document so the digest moved, then running the binary built before
+  the change. Keep old corpora, or the fix costs every developer a rebuild after
+  the next regeneration.
 - **A staged write is not atomic if the index and the payload are published
   separately.** `verify_facturx_level.py` once wrote the new table, then replaced
   the document directory, so an interrupt between the two left a table naming
