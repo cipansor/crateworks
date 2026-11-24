@@ -132,6 +132,13 @@ CORPUS = [
     "MSH|^~\\&|LAB^1.2.3^ISO|FAC^9.9\\S\\1^DNS|RECV^4.5^ISO|FAC|20260101||ADT^A01|MSG0010|P|2.5.1^ABC\r"
     "PID|1||12345^^^MRN\r",
 
+    # The documented fallback: an opaque escape body holding the *source's own*
+    # component separator. Legal - the parser accepts it - so the reply built
+    # with the source's separators must exist. A refusal here would leave a
+    # receiver unable to acknowledge a message it could parse.
+    "MSH|#~\\&|LAB\\ZID#1\\|F|R|F|20260101||ADT#A01|MSG0012|P|2.5.1\r"
+    "PID|1||12345^^^MRN\r",
+
     # A site-defined escape whose body holds `#`. The reply built with the
     # original's separators carries it untouched, but the converted reply below
     # uses `#` as its field separator and cannot: the reader would split MSH-5
@@ -298,11 +305,20 @@ fn main() {
         if build.returncode != 0:
             sys.stderr.write(build.stderr)
             raise SystemExit("the driver failed to build")
-        out = subprocess.run(
+        run = subprocess.run(
             [str(tmp / "target" / "debug" / "driver")],
             input="\n".join(corpus),
-            capture_output=True, text=True, check=True, env=env,
-        ).stdout
+            capture_output=True, text=True, env=env,
+        )
+        if run.returncode != 0:
+            # A driver that panics is a failed gate, not a crashed script: the
+            # panic message names the case, and a traceback here would hide it.
+            sys.stderr.write(run.stderr)
+            raise SystemExit(
+                f"the driver exited {run.returncode}; the first failing case is "
+                "named in the panic above"
+            )
+        out = run.stdout
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
@@ -403,6 +419,50 @@ def check_ack(raw: str, ack: str, index: int) -> int:
     return problems
 
 
+def _conversion_must_refuse(raw: str) -> bool:
+    """Whether no reply can carry this header under the chosen reply pair.
+
+    True when a site-defined escape body in an HD field the reply echoes holds a
+    delimiter of either message. A reader splits on a delimiter before resolving
+    escapes, so such a body has source structure no different delimiter set can
+    express. Standard escapes are rewritten and never cause a refusal.
+    """
+    source = _separators_of(raw)
+    field, component = converted_pair(raw)
+    # Both sets count: the body's structure under the source delimiters is what a
+    # conversion would have to carry, and no rewrite of an opaque body can do it.
+    delimiters = set(source.values()) | {field, component}
+    for reference in ("MSH-3", "MSH-4", "MSH-5", "MSH-6"):
+        for body in _opaque_bodies(_raw_msh_field(raw, reference), raw[6]):
+            if delimiters & set(body):
+                return True
+    return False
+
+
+def _raw_msh_field(raw: str, reference: str) -> str:
+    """One MSH field of a message as it appears on the wire."""
+    number = int(reference.split("-")[1])
+    segments = raw.split("\r")
+    header = segments[0]
+    separator = header[3]
+    # MSH-1 is the separator itself, so the fields start at index 1 after the name.
+    fields = header[4:].split(separator)
+    index = number - 2
+    return fields[index] if 0 <= index < len(fields) else ""
+
+
+def _opaque_bodies(value: str, escape: str) -> list[str]:
+    """The bodies of the escapes in `value` that this crate cannot rewrite."""
+    standard = {"F", "S", "R", "E", "T"}
+    bodies = []
+    parts = value.split(escape)
+    # Odd indices are between a pair of escape characters.
+    for part in parts[1::2]:
+        if part and part not in standard:
+            bodies.append(part)
+    return bodies
+
+
 def check_converted(raw: str, reply_ack: str, refusal: str, index: int) -> int:
     """Check the reply built with a different delimiter pair than the source.
 
@@ -415,12 +475,40 @@ def check_converted(raw: str, reply_ack: str, refusal: str, index: int) -> int:
     """
     from hl7apy.parser import parse_message
 
+    field, component = converted_pair(raw)
+    expects_refusal = _conversion_must_refuse(raw)
+
     if refusal:
-        # Only a site-defined escape is unrepresentable this way, and the message
-        # must say so and point at the way out.
+        # A refusal is only correct where a delimiter of the *chosen reply pair*
+        # sits inside an opaque escape body. Accepting any refusal whose text
+        # looks right would let the gate report full agreement while parsing no
+        # converted reply at all, so the expectation is derived from the fixture
+        # rather than from the message.
+        if not expects_refusal:
+            print(
+                f"  cnv {index}: refused, but this fixture can be converted "
+                f"to {field!r}/{component!r}: {refusal!r}"
+            )
+            return 1
         if "site-defined escape" in refusal and "original's separators" in refusal:
             return 0
         print(f"  cnv {index}: refused for an unexpected reason: {refusal!r}")
+        return 1
+
+    if expects_refusal:
+        print(
+            f"  cnv {index}: expected a refusal - an opaque escape body holds a "
+            f"{field!r} or {component!r} delimiter - but a reply was produced"
+        )
+        return 1
+
+    if reply_ack[3] != field or reply_ack[4] != component:
+        # A reply that kept the source's delimiters would agree trivially: the
+        # identity comparison below would pass without a byte being converted.
+        print(
+            f"  cnv {index}: reply uses {reply_ack[3]!r}/{reply_ack[4]!r}, "
+            f"expected {field!r}/{component!r} - nothing was converted"
+        )
         return 1
 
     try:

@@ -193,11 +193,19 @@ assert_eq!(application.component(3), Some("ISO"));
 ```
 
 Because the reply is built with `received.separators()`, it never has to convert
-anything, and so it cannot fail. Answering with a *different* delimiter set is
-where the one error lives: a site-defined escape such as `\ZLAB#1\` has a body
-this crate cannot rewrite, and if that body holds one of the reply's delimiters
-the reader would split the field there and shift the control id out of MSH-10.
-The builders return [`AckError`](crate::AckError) rather than write that reply.
+anything, so it cannot fail - a receiver can always acknowledge a message it was
+able to parse, which is the whole point of the fallback.
+
+Answering with a *different* delimiter set is where the errors live. A reader
+splits on a delimiter before it resolves escapes, so a site-defined escape such
+as `\ZLAB#1\` holding a delimiter has source structure that cannot be carried
+into another delimiter set: rewriting the body would silently change how many
+components the field has. The builders return [`AckError`](crate::AckError)
+rather than write that reply.
+
+A raw field separator is refused too. It cannot occur in a parsed field - the
+parser splits on it - so it only comes from a hand-built [`AckContext`], where it
+was meant as data but would be read as structure.
 
 ```rust
 use mllp::{AckCode, AckContext, Message, Separators, build_ack};

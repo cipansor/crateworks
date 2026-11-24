@@ -520,7 +520,14 @@ regression coverage in CI at all.
   value treated as ER7: the `2.5.1` fallback version is plain text, so
   transcoding it writes `2^5^1` when the source's component separator is `.`,
   and a period field separator splits it into three fields. Decide per value
-  whether it came from parsing or from `format!`. When checking
+  whether it came from parsing or from `format!`. Keep an identity fast path in
+  any transcoder: answering in the source's own delimiters must never refuse,
+  because the parser already accepted that text and copy cannot introduce a
+  delimiter. A transcoder without that path refuses legal messages, and the
+  refusal message then tells the caller to do what it already did. A raw
+  delimiter inside an **opaque** escape body blocks any *conversion* in either
+  direction - a reader splits before it resolves escapes, so such a body has
+  source structure no other delimiter set can express. When checking
   this against `hl7apy`, compute the expectation from the reply's own MSH-1 and
   MSH-2: a message using `#` and `*` leaves `|` and `^` alone, so a hardcoded
   default-delimiter expectation fails on a case that is correct.

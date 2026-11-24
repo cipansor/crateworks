@@ -424,7 +424,11 @@ component separator. Converting a header to a different delimiter set can fail:
 a site-defined escape such as `\ZLAB#1\` has an opaque body, and if it holds one
 of the reply's delimiters no rewrite keeps its meaning, so the builders return
 `AckError::UnrepresentableEscape` and the caller answers with the original's
-separators instead. `verify_mllp.py` checks the parse, the minimal reply and the
+separators instead. Answering with the original's
+separators is the documented fallback and is never refused: the parser accepted
+that text, so copying it introduces no new delimiter. A delimiter inside an
+opaque escape body blocks only a *conversion*, in either direction, because a
+reader splits before resolving escapes. `verify_mllp.py` checks the parse, the minimal reply and the
 enhanced reply against `hl7apy`, with an MSA-3 that holds every delimiter.
 
 **Not covered.** ERR-1, the deprecated "error code and location" field, is left

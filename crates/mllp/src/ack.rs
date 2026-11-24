@@ -15,7 +15,7 @@
 
 use std::fmt::Write as _;
 
-use crate::message::{Separators, escape, transcode};
+use crate::message::{Separators, TranscodeError, escape, transcode};
 
 /// The version a reply speaks when the message it answers did not name one.
 pub const DEFAULT_VERSION: &str = "2.5.1";
@@ -45,6 +45,14 @@ pub enum AckError {
         /// The delimiters the reply was built with.
         separators: Separators,
     },
+    /// A header value held the raw field separator, which only a hand-built
+    /// [`AckContext`] can do: a parsed field never contains one.
+    RawFieldSeparator {
+        /// The field the value was destined for, such as `MSH-5`.
+        field: &'static str,
+        /// The separator, which cannot be written unescaped.
+        separator: char,
+    },
 }
 
 impl std::fmt::Display for AckError {
@@ -60,6 +68,12 @@ impl std::fmt::Display for AckError {
                  delimiter of the reply (field {:?}, component {:?}); answer with the \
                  original's separators instead",
                 separators.field, separators.component
+            ),
+            Self::RawFieldSeparator { field, separator } => write!(
+                f,
+                "{field} contains the raw field separator {separator:?}, which only a \
+                 hand-built AckContext can hold; set the field from a parsed message \
+                 instead"
             ),
         }
     }
@@ -424,6 +438,20 @@ pub fn build_enhanced(
     Ok(out)
 }
 
+/// Names the field a [`TranscodeError`] came from, for the caller's benefit.
+fn ack_error(field: &'static str, error: TranscodeError, separators: Separators) -> AckError {
+    match error {
+        TranscodeError::OpaqueEscapeCollision { body } => AckError::UnrepresentableEscape {
+            field,
+            body,
+            separators,
+        },
+        TranscodeError::RawFieldSeparator { separator } => {
+            AckError::RawFieldSeparator { field, separator }
+        }
+    }
+}
+
 /// Writes the MSH segment every acknowledgement starts with.
 ///
 /// MSH-1 and MSH-2 are written without a leading separator: the encoding
@@ -462,13 +490,8 @@ fn write_header(
     for (name, value) in composites {
         out.push(separators.field);
         out.push_str(
-            &transcode(value, context.separators, separators).map_err(|body| {
-                AckError::UnrepresentableEscape {
-                    field: name,
-                    body,
-                    separators,
-                }
-            })?,
+            &transcode(value, context.separators, separators)
+                .map_err(|error| ack_error(name, error, separators))?,
         );
     }
     // MSH-10 is the reply's own control id, an ST: plain text the caller
@@ -487,13 +510,8 @@ fn write_header(
         out.push_str(&escape(DEFAULT_VERSION, separators));
     } else {
         out.push_str(
-            &transcode(&context.version, context.separators, separators).map_err(|body| {
-                AckError::UnrepresentableEscape {
-                    field: "MSH-12",
-                    body,
-                    separators,
-                }
-            })?,
+            &transcode(&context.version, context.separators, separators)
+                .map_err(|error| ack_error("MSH-12", error, separators))?,
         );
     }
     out.push('\r');
@@ -920,6 +938,56 @@ mod tests {
         // One field, with the periods escaped as `\F\` rather than splitting.
         assert_eq!(reply.field("MSH-12").unwrap().text(), "2\\F\\5\\F\\1");
         assert_eq!(reply.value("MSH-12").unwrap(), "2.5.1");
+    }
+
+    #[test]
+    fn the_documented_fallback_answers_a_parsed_header_with_an_opaque_escape() {
+        // A component separator inside a site-defined escape body is legal in
+        // the source - the parser accepted it - and answering with the source's
+        // own delimiters introduces no new delimiter, so the documented fallback
+        // must produce a reply. Refusing here would leave a receiver unable to
+        // acknowledge a message it could parse.
+        let message =
+            Message::parse("MSH|#~\\&|LAB\\ZID#1\\|F|R|F|20260101||ADT#A01|M3|P|2.5.1\rPID|1\r")
+                .unwrap();
+        let context = AckContext::from_message(&message);
+        let ack = build(
+            &context,
+            AckCode::Reject,
+            "ACK9",
+            "bad",
+            message.separators(),
+        )
+        .unwrap();
+
+        let reply = Message::parse(&ack).unwrap();
+        assert_eq!(reply.value("MSH-10").unwrap(), "ACK9");
+        // The source's MSH-3 is the sending application and lands in the
+        // reply's MSH-5. The opaque body is copied unchanged, component
+        // separator included.
+        assert_eq!(reply.field("MSH-5").unwrap().text(), "LAB\\ZID#1\\");
+    }
+
+    #[test]
+    fn a_hand_built_context_holding_a_raw_field_separator_is_an_error() {
+        // A parsed field can never contain the field separator, so only a
+        // hand-built context can hold one - where it was meant as data but would
+        // be read as structure. Naming the field is more useful than silently
+        // escaping it.
+        let context = AckContext {
+            sending_application: "LAB|1".into(),
+            ..AckContext::default()
+        };
+        let error =
+            build(&context, AckCode::Accept, "ACKE", "", Separators::default()).unwrap_err();
+        assert_eq!(
+            error,
+            AckError::RawFieldSeparator {
+                field: "MSH-5",
+                separator: '|',
+            }
+        );
+        assert!(error.to_string().contains("MSH-5"), "{error}");
     }
 
     #[test]

@@ -176,3 +176,62 @@ enhanced form - which is exactly why conversion needed its own coverage.
 Gate: 178/178 fields, 11/11 ACK, 11/11 enhanced, 11/11 converted.
 
 `mllp` 0.5.0 -> 0.6.0: both builders return `Result`, which breaks every caller.
+
+## Follow-up: the fallback must never refuse, and the gate was too trusting
+
+A third review found that the previous round's fix had broken the documented
+fallback, and that the gate added to prove it could not have caught the break.
+
+**The identity path was gone.** The round-two `transcode` dropped the
+`from == to` early return and ran the collision check unconditionally. A parsed
+header is already valid ER7 under its own delimiters and copying it introduces no
+delimiter, so `\ZID#1\` inside MSH-3 with `#` as the source's component separator
+is legal - `Message::parse` accepts it - yet building a rejection with
+`message.separators()` returned `UnrepresentableEscape`. The error then advised
+the caller to "answer with the original's separators", which is precisely what
+they had done. That is the worst shape a bug can take: the documented recovery
+path refuses, and the refusal names itself as the fix.
+
+The identity path is back, and it checks the one thing that can still be wrong
+there: a raw field separator, which no parsed field can hold, so it can only come
+from a hand-built `AckContext`. That case now has its own variant,
+`AckError::RawFieldSeparator`, naming the field.
+
+**Opaque bodies block conversion in both directions.** Round two refused only
+when the body held a delimiter of `to`. But the *source* delimiters give such a
+body its structure, because a reader splits before it resolves escapes: `hl7apy`
+reads `LAB\ZID#1\` as two components, `LAB\E\ZID` and `1\E\`, when `#` is the
+source's component separator. Copying that body into a reply where `#` is ordinary
+data would collapse two components into one. Neither direction can be preserved,
+so a delimiter from either set refuses - only conversion, never the identity path.
+
+**The gate accepted refusals without checking they were due.** `check_converted`
+treated any refusal whose text matched as success, so a crate that refused every
+conversion would have scored full marks while parsing nothing. It now derives the
+expectation from the fixture (`_conversion_must_refuse`) and fails in both
+directions: an unexpected refusal, and a missing one where the fixture cannot be
+converted.
+
+**The gate never checked that the delimiters changed.** A reply that kept the
+source's pair would agree trivially with the identity comparison. It now asserts
+that `reply_ack[3]` and `reply_ack[4]` are the pair `converted_pair` chose.
+
+The corpus gained the fixture that would have caught the round-two regression: an
+opaque escape body holding the source's own component separator, which must
+produce a same-delimiter rejection ACK.
+
+Mutation-tested, five ways, each caught:
+
+| Mutation | Reported |
+| --- | --- |
+| remove the identity path | driver panics: `a reply in the source's separators cannot refuse: UnrepresentableEscape { field: "MSH-5", body: "ZID#1" ... }` |
+| converted reply keeps source delimiters | `cnv 0: reply uses '|'/'^', expected '#'/'*' - nothing was converted` |
+| refuse every conversion | `cnv 0: refused, but this fixture can be converted to '#'/'*'` |
+| refuse only when `body.is_empty()` | `cnv 11: expected a refusal ... but a reply was produced` |
+| driver panic | reported as `the driver exited 101; the first failing case is named in the panic above`, not a traceback |
+
+Gate: 191/191 fields, 12/12 ACK, 12/12 enhanced, 12/12 converted.
+
+`mllp` 0.6.0 -> 0.7.0: `AckError` gained a variant. The builders' signatures are
+unchanged from 0.6.0, so this is additive for callers that already handle the
+`Result`.

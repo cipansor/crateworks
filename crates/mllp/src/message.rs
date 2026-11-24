@@ -487,6 +487,46 @@ pub(crate) fn push_escaped(out: &mut String, c: char, separators: Separators) {
     out.push(separators.escape);
 }
 
+/// Why [`transcode`] cannot re-emit a header value.
+///
+/// Both variants describe a value the reply's delimiters cannot carry as written.
+/// They are separate variants because the caller can act on them differently: a
+/// raw field separator is a bug in a hand-built context, while an opaque escape
+/// body is a legal value the reply's delimiter set simply cannot express.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum TranscodeError {
+    /// A site-defined escape whose body holds one of the reply's delimiters.
+    OpaqueEscapeCollision {
+        /// The escape body, without its delimiters.
+        body: String,
+    },
+    /// A raw field separator in the value, which only a hand-built context can
+    /// produce.
+    RawFieldSeparator {
+        /// The offending separator.
+        separator: char,
+    },
+}
+
+impl std::fmt::Display for TranscodeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::OpaqueEscapeCollision { body } => {
+                write!(
+                    f,
+                    r"the site-defined escape \{body}\ contains a reply delimiter"
+                )
+            }
+            Self::RawFieldSeparator { separator } => {
+                write!(
+                    f,
+                    "the value contains the raw field separator {separator:?}"
+                )
+            }
+        }
+    }
+}
+
 /// Re-emits ER7 text read with `from` using `to`.
 ///
 /// Structure is kept. A component separator stays a component separator, so an
@@ -497,14 +537,44 @@ pub(crate) fn push_escaped(out: &mut String, c: char, separators: Separators) {
 ///
 /// # Errors
 ///
+/// Only two things are refused, and both would otherwise produce a reply whose
+/// fields mean something the sender never intended.
+///
 /// A *local* escape - one whose body is not `F`, `S`, `R`, `E` or `T`, such as
 /// the site-defined `\ZLAB#1\` - has an opaque body this function cannot
-/// rewrite, because it does not know what the site meant by it. If that body
-/// holds one of `to`'s delimiters the reply cannot carry it: the reader splits
-/// fields before it resolves escapes, so the delimiter ends the field and
-/// everything after it shifts. Rather than invent an escape the site did not
-/// define, the offending body is returned and the caller decides.
-pub(crate) fn transcode(er7: &str, from: Separators, to: Separators) -> Result<String, String> {
+/// rewrite, because it does not know what the site meant by it. Any delimiter
+/// inside such a body blocks a conversion: a reader splits on a delimiter before
+/// it resolves escapes, so the body's structure is whatever `from` says it is,
+/// and no rewriting of the body can carry that structure into a different
+/// delimiter set. The offending body is returned rather than silently changing
+/// how many components the field has.
+///
+/// Answering in `from`'s own delimiter set is never refused: it is the documented
+/// fallback, the value is already valid ER7 under those delimiters, and copying
+/// it introduces nothing new.
+///
+/// A raw `field` separator is refused outright. It cannot occur in a parsed
+/// field - the parser splits on it - so one can only come from a hand-built
+/// context, where it was meant as data but would be read as structure.
+pub(crate) fn transcode(
+    er7: &str,
+    from: Separators,
+    to: Separators,
+) -> Result<String, TranscodeError> {
+    // Answering in the source's own delimiters is the documented fallback, and a
+    // parsed field is already valid ER7 under those delimiters, so nothing needs
+    // rewriting and nothing may be refused. An opaque body holding the source's
+    // own component separator is legal - the parser accepted it - and copying it
+    // introduces no new delimiter. Only a raw field separator is still checked,
+    // because that is the one thing a hand-built context can get wrong.
+    if from == to {
+        if er7.contains(from.field) {
+            return Err(TranscodeError::RawFieldSeparator {
+                separator: from.field,
+            });
+        }
+        return Ok(er7.to_owned());
+    }
     let mut out = String::with_capacity(er7.len());
     let mut chars = er7.chars().peekable();
     while let Some(c) = chars.next() {
@@ -516,9 +586,10 @@ pub(crate) fn transcode(er7: &str, from: Separators, to: Separators) -> Result<S
             } else if c == from.subcomponent {
                 out.push(to.subcomponent);
             } else {
-                // A raw `from.field` cannot occur in a parsed field, but a
-                // hand-built context can hold one; escaping it is the safe
-                // direction, and it is the only choice that keeps the reply.
+                // Includes `from.field`, which cannot occur in a parsed field -
+                // the parser splits on it - so one can only come from a
+                // hand-built context holding something it meant as data.
+                // Escaping it keeps the reply rather than splitting it.
                 push_escaped(&mut out, c, to);
             }
             continue;
@@ -554,8 +625,19 @@ pub(crate) fn transcode(er7: &str, from: Separators, to: Separators) -> Result<S
             // is data under `to`.
             Some(delimiter) => push_escaped(&mut out, delimiter, to),
             None => {
-                if body.chars().any(|c| is_delimiter(c, to)) {
-                    return Err(body);
+                // Any delimiter in the body, from either set, makes it
+                // unrepresentable across a conversion. A reader splits on a
+                // delimiter *before* it resolves escapes, so a raw delimiter
+                // inside an opaque body is structure under `from` - hl7apy reads
+                // `LAB\ZID#1\` as two components - and copying it verbatim into
+                // a reply where `#` is ordinary data would collapse it into one.
+                // Neither direction can be preserved, so refuse rather than
+                // change how many components the field has.
+                if body
+                    .chars()
+                    .any(|c| is_delimiter(c, from) || is_delimiter(c, to))
+                {
+                    return Err(TranscodeError::OpaqueEscapeCollision { body });
                 }
                 out.push(to.escape);
                 out.push_str(&body);
