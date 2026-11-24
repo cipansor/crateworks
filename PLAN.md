@@ -411,9 +411,12 @@ explain a failure, `ack::build_enhanced` writes the enhanced form: MSA-4 carries
 the error condition code and an `ERR` segment repeats it as a CWE value with its
 text and an ERR-4 severity. When the caller knows where the error is, `ERR-2`
 carries the location as an ERL value (`ErrorLocation`: the segment, its sequence,
-the field, and optionally the repetition, component and subcomponent).
-`verify_mllp.py` checks the parse, the minimal reply and the enhanced reply
-against `hl7apy`.
+the field, and optionally the repetition, component and subcomponent). Every
+value the builders write is escaped first - `Field::escape` is the inverse of
+`Field::unescape` - because a control id or failure text holding a delimiter
+would otherwise end its field and shift every field after it, which a reader
+cannot detect. `verify_mllp.py` checks the parse, the minimal reply and the
+enhanced reply against `hl7apy`, with an MSA-3 that holds every delimiter.
 
 **Not covered.** ERR-1, the deprecated "error code and location" field, is left
 empty; ERR-2 carries the location and is the field a reader looks at. The builder

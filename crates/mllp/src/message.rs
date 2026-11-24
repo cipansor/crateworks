@@ -429,6 +429,64 @@ impl<'a> Field<'a> {
     pub fn unescape(&self) -> String {
         self.value().unescape(self.separators)
     }
+
+    /// The field as ER7 text with every delimiter escaped.
+    ///
+    /// This is the inverse of [`Field::unescape`] and the form a value must be
+    /// written in: a value that holds the field separator would otherwise end
+    /// the field and shift every field after it, which silently corrupts the
+    /// message rather than failing.
+    ///
+    /// The five standard escapes are produced: `\F\` `\S\` `\R\` `\T\` `\E\`.
+    #[must_use]
+    pub fn escape(&self) -> String {
+        escape(self.value(), self.separators)
+    }
+}
+
+/// Escapes the delimiters in a value so it can be written as one field.
+///
+/// Shared with [`crate::ack`], which writes caller-supplied values into a reply
+/// and needs the same rule the reader applies.
+pub(crate) fn escape(text: &str, separators: Separators) -> String {
+    // Every value goes through this, and most hold no delimiter, so the scan is
+    // skipped rather than allocating a copy that would be identical.
+    if !text.chars().any(|c| {
+        c == separators.field
+            || c == separators.component
+            || c == separators.repetition
+            || c == separators.escape
+            || c == separators.subcomponent
+    }) {
+        return text.to_owned();
+    }
+    let mut out = String::with_capacity(text.len() + 8);
+    for c in text.chars() {
+        if c == separators.field {
+            out.push(separators.escape);
+            out.push('F');
+            out.push(separators.escape);
+        } else if c == separators.component {
+            out.push(separators.escape);
+            out.push('S');
+            out.push(separators.escape);
+        } else if c == separators.repetition {
+            out.push(separators.escape);
+            out.push('R');
+            out.push(separators.escape);
+        } else if c == separators.escape {
+            out.push(separators.escape);
+            out.push('E');
+            out.push(separators.escape);
+        } else if c == separators.subcomponent {
+            out.push(separators.escape);
+            out.push('T');
+            out.push(separators.escape);
+        } else {
+            out.push(c);
+        }
+    }
+    out
 }
 
 /// Resolves the delimiter escapes in a value.

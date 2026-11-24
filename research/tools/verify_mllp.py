@@ -33,6 +33,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 CRATE = ROOT / "crates" / "mllp"
 
+# The MSA-3 text the driver builds every ACK with. It holds every delimiter on
+# purpose: an interface quotes the offending value, so the reply has to escape
+# what it writes. Kept in one place so the driver and the check cannot drift.
+ACK_TEXT = "rejected | value ^ ~ & \\ here"
+
 # Messages that between them exercise every delimiter the parser handles.
 CORPUS = [
     # A patient administration feed, the shape of the ADT^A01 every interface
@@ -79,6 +84,18 @@ CORPUS = [
     # Unicode in a name, which must survive byte for byte.
     "MSH|^~\\&|S|F|R|F|20260101||ADT^A01|MSG0008|P|2.5.1\r"
     "PID|1||1^^^MRN||أحمد^محمد\r",
+
+    # A control id and facility names holding escaped delimiters. An `ACK`
+    # echoes MSH-3..MSH-6 and MSH-10 back into its own fields, so a value
+    # written unescaped splits the reply: `MSA-2` would look like two fields and
+    # MSA-3 would start in the middle of the control id. The values here are the
+    # inputs that would have caught that.
+    #
+    # The delimiters are written in escaped form on purpose. A raw `~` in MSH-5
+    # would make it a repeating field, which MSH-5 is not, so the message would
+    # be malformed rather than testing anything.
+    "MSH|^~\\&|SEND\\F\\APP|FAC\\S\\1|RECV\\R\\APP|FAC\\T\\TWO|20260101||ADT^A01|MSG\\F\\0009|P|2.5.1\r"
+    "PID|1||12345^^^MRN\r",
 ]
 
 
@@ -141,7 +158,8 @@ fn main() {
             &context,
             AckCode::Accept,
             &format!("ACK{index:04}"),
-            "ok",
+            // The text carries every delimiter on purpose; see ACK_TEXT.
+            __ACK_TEXT__,
             message.separators(),
         );
         println!("ACK\t{index}\t{}", ack.replace('\r', "\\r"));
@@ -165,7 +183,11 @@ fn main() {
 '''
     tmp = Path(tempfile.mkdtemp(prefix="verify-mllp-"))
     try:
-        (tmp / "main.rs").write_text(driver)
+        # ACK_TEXT lives in Python so the driver and the check share it; it is
+        # injected as a Rust literal so the two cannot drift apart.
+        (tmp / "main.rs").write_text(
+            driver.replace("__ACK_TEXT__", '"' + ACK_TEXT.replace("\\", "\\\\") + '"')
+        )
         (tmp / "Cargo.toml").write_text(
             "[package]\n"
             'name = "verify-mllp"\n'
@@ -214,6 +236,25 @@ fn main() {
     return parsed, acks, enhanced
 
 
+def escape_text(text: str, field: str, encoding: str) -> str:
+    """Escape `text` for one message's delimiters.
+
+    `field` is MSH-1 and `encoding` is MSH-2, the four characters after it:
+    component, repetition, escape, subcomponent. The crate applies exactly this
+    rule when it writes a value, so the expectation is computed from the reply's
+    own delimiters rather than assuming the default set.
+    """
+    component, repetition, escape, subcomponent = encoding[:4]
+    replacements = {
+        field: f"{escape}F{escape}",
+        component: f"{escape}S{escape}",
+        repetition: f"{escape}R{escape}",
+        escape: f"{escape}E{escape}",
+        subcomponent: f"{escape}T{escape}",
+    }
+    return "".join(replacements.get(c, c) for c in text)
+
+
 def check_ack(raw: str, ack: str, index: int) -> int:
     """Read the crate's ACK back with hl7apy and assert the reply contract.
 
@@ -249,6 +290,17 @@ def check_ack(raw: str, ack: str, index: int) -> int:
     # The version is kept so both ends agree on the grammar. A message with no
     # MSH-12 is malformed; the reply still names the version it speaks.
     expect("MSH-12", original.get("MSH-12") or "2.5.1", "kept version")
+    # MSA-3 is the text the crate was given, and that text holds every
+    # delimiter. hl7apy returns it in escaped ER7, so this compares the wire
+    # form: a value written raw would leave MSA-3 holding only the part before
+    # the first `|`, and every later field would be missing or shifted. The
+    # expected escaping follows the reply's own delimiter set, which is the
+    # original message's: a message using `#` and `*` leaves `|` and `^` alone.
+    expect(
+        "MSA-3",
+        escape_text(ACK_TEXT, reply.get("MSH-1") or "|", reply.get("MSH-2") or "^~\\&"),
+        "escaped failure text",
+    )
     return problems
 
 

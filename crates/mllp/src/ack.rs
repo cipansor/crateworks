@@ -15,7 +15,7 @@
 
 use std::fmt::Write as _;
 
-use crate::message::Separators;
+use crate::message::{Separators, escape};
 
 /// The MSA-1 code: what happened to the message being acknowledged.
 ///
@@ -191,12 +191,15 @@ impl ErrorLocation {
         self
     }
 
-    /// The ERL value as ER7 text, using `component` as the separator.
+    /// The ERL value as ER7 text.
     ///
     /// A part that is unset but followed by a set one becomes an empty component,
     /// so the position is preserved; trailing unset parts are dropped, so a
     /// location that stops at the field is `PID^1^3` and never `PID^1^3^^^`.
-    fn to_er7(&self, component: char) -> String {
+    ///
+    /// The segment id is caller-supplied and escaped, since a delimiter in it
+    /// would shift the components that follow.
+    fn to_er7(&self, separators: Separators) -> String {
         let optional = [
             self.field_repetition,
             self.component_number,
@@ -208,7 +211,7 @@ impl ErrorLocation {
             .rposition(Option::is_some)
             .map_or(0, |i| i + 1);
         let mut parts = vec![
-            self.segment_id.clone(),
+            escape(&self.segment_id, separators),
             self.segment_sequence.to_string(),
             self.field_position.to_string(),
         ];
@@ -217,7 +220,7 @@ impl ErrorLocation {
                 .iter()
                 .map(|part| part.map_or_else(String::new, |number| number.to_string())),
         );
-        parts.join(&component.to_string())
+        parts.join(&separators.component.to_string())
     }
 }
 
@@ -320,15 +323,15 @@ pub fn build_enhanced(
     let location = error
         .location
         .as_ref()
-        .map_or(String::new(), |l| l.to_er7(separators.component));
+        .map_or(String::new(), |l| l.to_er7(separators));
     let _ = write!(
         out,
         "ERR{field}{field}{location}{field}{code}{component}{text}{component}{system}{field}{severity}\r",
         field = separators.field,
         component = separators.component,
-        code = error.code,
-        text = error.text,
-        system = error.coding_system,
+        code = escape(&error.code, separators),
+        text = escape(&error.text, separators),
+        system = escape(&error.coding_system, separators),
         severity = error.severity.as_str(),
     );
     out
@@ -370,7 +373,7 @@ fn write_header(out: &mut String, context: &AckContext, control_id: &str, separa
     ];
     for value in fields {
         out.push(separators.field);
-        out.push_str(value);
+        out.push_str(&escape(value, separators));
     }
     out.push('\r');
 }
@@ -389,12 +392,13 @@ fn write_msa(
         out,
         "MSA{field}{code}{field}{original}{field}{text}",
         code = code.as_str(),
-        original = context.control_id,
+        original = escape(&context.control_id, separators),
+        text = escape(text, separators),
     );
     // A minimal ACK stops at MSA-3. The enhanced one appends MSA-4, the error
     // condition code.
     if let Some(condition) = condition {
-        let _ = write!(out, "{field}{condition}");
+        let _ = write!(out, "{field}{}", escape(condition, separators));
     }
     out.push('\r');
 }
@@ -554,7 +558,7 @@ mod tests {
     #[test]
     fn a_location_without_narrowing_is_segment_sequence_and_field() {
         let location = ErrorLocation::field("PID", 2, 5);
-        assert_eq!(location.to_er7('^'), "PID^2^5");
+        assert_eq!(location.to_er7(Separators::default()), "PID^2^5");
     }
 
     #[test]
@@ -562,23 +566,30 @@ mod tests {
         // A component with no repetition before it: the repetition is an empty
         // component, so the component lands in the right position (ERL-5).
         let location = ErrorLocation::field("PID", 1, 3).with_component(4);
-        assert_eq!(location.to_er7('^'), "PID^1^3^^4");
+        assert_eq!(location.to_er7(Separators::default()), "PID^1^3^^4");
 
         // A subcomponent with neither repetition nor component set.
         let location = ErrorLocation::field("PID", 1, 3).with_subcomponent(2);
-        assert_eq!(location.to_er7('^'), "PID^1^3^^^2");
+        assert_eq!(location.to_er7(Separators::default()), "PID^1^3^^^2");
 
         // Everything set, in order.
         let location = ErrorLocation::field("OBX", 3, 5)
             .with_repetition(1)
             .with_component(2)
             .with_subcomponent(3);
-        assert_eq!(location.to_er7('^'), "OBX^3^5^1^2^3");
+        assert_eq!(location.to_er7(Separators::default()), "OBX^3^5^1^2^3");
     }
 
     #[test]
     fn a_location_uses_the_component_separator_of_the_message() {
-        assert_eq!(ErrorLocation::field("PID", 1, 3).to_er7('*'), "PID*1*3");
+        let separators = Separators {
+            component: '*',
+            ..Separators::default()
+        };
+        assert_eq!(
+            ErrorLocation::field("PID", 1, 3).to_er7(separators),
+            "PID*1*3"
+        );
     }
 
     #[test]
@@ -628,5 +639,91 @@ mod tests {
             reply.value("ERR-3").unwrap(),
             "207^Application internal error^HL70357"
         );
+    }
+
+    #[test]
+    fn a_text_holding_delimiters_stays_one_field() {
+        // A failure explanation quotes the input that failed, so it can hold any
+        // delimiter. Written raw, the first `|` ends MSA-3 and every later field
+        // shifts; the reply still parses, which is what makes it dangerous.
+        let message = Message::parse(ADT).unwrap();
+        let context = AckContext::from_message(&message);
+        let ack = build(
+            &context,
+            AckCode::Error,
+            "ACK0006",
+            "bad | value ^ ~ & \\ here",
+            Separators::default(),
+        );
+
+        // The wire form carries the escapes, so the value is one field.
+        let msa = ack.split('\r').nth(1).unwrap();
+        assert_eq!(msa.split('|').count(), 4);
+        let reply = Message::parse(&ack).unwrap();
+        assert_eq!(
+            reply.field("MSA-3").unwrap().text(),
+            "bad \\F\\ value \\S\\ \\R\\ \\T\\ \\E\\ here"
+        );
+        // And reading it back returns the text the caller supplied.
+        assert_eq!(reply.value("MSA-3").unwrap(), "bad | value ^ ~ & \\ here");
+    }
+
+    #[test]
+    fn escaping_is_reversible_and_only_touches_delimiters() {
+        let separators = Separators::default();
+        let plain = "ordinary text, no delimiters";
+        assert_eq!(escape(plain, separators), plain);
+
+        let escaped = escape("a|b^c~d&e\\f", separators);
+        assert_eq!(escaped, "a\\F\\b\\S\\c\\R\\d\\T\\e\\E\\f");
+        let message = format!("MSH|^~\\&|S|F|R|F|20260101||ADT^A01|1|P|2.5.1\rPID|1||{escaped}\r");
+        let parsed = Message::parse(&message).unwrap();
+        assert_eq!(
+            parsed.segment("PID").unwrap().field(3).unwrap().unescape(),
+            "a|b^c~d&e\\f"
+        );
+    }
+
+    #[test]
+    fn a_control_id_holding_the_field_separator_is_escaped_too() {
+        // MSA-2 echoes a value the sender chose, so it needs the same treatment
+        // as the text. A raw `|` there would make MSA-2 look like two fields.
+        let message = Message::parse(ADT).unwrap();
+        let mut context = AckContext::from_message(&message);
+        context.control_id = "MSG|0001".into();
+        let ack = build(
+            &context,
+            AckCode::Accept,
+            "ACK0007",
+            "",
+            Separators::default(),
+        );
+
+        let reply = Message::parse(&ack).unwrap();
+        assert_eq!(reply.field("MSA-2").unwrap().text(), "MSG\\F\\0001");
+        assert_eq!(reply.value("MSA-2").unwrap(), "MSG|0001");
+    }
+
+    #[test]
+    fn an_enhanced_ack_escapes_the_error_text_and_the_location() {
+        let message = Message::parse(ADT).unwrap();
+        let context = AckContext::from_message(&message);
+        let error = ErrorDetail::new("101", "value | not ^ allowed", Severity::Error)
+            .at(ErrorLocation::field("PI|D", 1, 3));
+        let ack = build_enhanced(
+            &context,
+            AckCode::Error,
+            "ACK0008",
+            "bad",
+            &error,
+            Separators::default(),
+        );
+
+        let reply = Message::parse(&ack).unwrap();
+        assert_eq!(
+            reply.field("ERR-3").unwrap().text(),
+            "101^value \\F\\ not \\S\\ allowed^HL70357"
+        );
+        assert_eq!(reply.field("ERR-2").unwrap().text(), "PI\\F\\D^1^3");
     }
 }

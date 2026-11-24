@@ -137,6 +137,37 @@ reply is written with the delimiters of the message it answers, so a peer that
 uses `#` as its field separator gets a reply it can read. MSH-7, the build time,
 is left empty; a caller that wants it sets it afterwards.
 
+Every value the builders write is escaped first. A control id or a failure text
+is caller-supplied and can hold any character, including a delimiter; written
+raw, the first `|` would end its field and every later field would shift. The
+reply would still parse, which is what makes it dangerous - it would mean
+something the sender never intended. `Field::escape` is the inverse of
+`Field::unescape`:
+
+```rust
+use mllp::{AckCode, AckContext, Message, build_ack};
+
+let received = Message::parse(
+    "MSH|^~\\&|SEND|FAC|RECV|FAC|20260101||ADT^A01|MSG0001|P|2.5.1\rPID|1||12345\r",
+).unwrap();
+let context = AckContext::from_message(&received);
+
+// The text quotes the value that failed, so it holds a field separator.
+let ack = build_ack(
+    &context,
+    AckCode::Error,
+    "ACK0003",
+    "rejected | bad value",
+    received.separators(),
+);
+
+// On the wire the separator is escaped, so MSA-3 is still one field.
+let reply = Message::parse(&ack).unwrap();
+assert_eq!(reply.field("MSA-3").unwrap().text(), "rejected \\F\\ bad value");
+// And reading it back returns the text the caller supplied.
+assert_eq!(reply.value("MSA-3").unwrap(), "rejected | bad value");
+```
+
 ## Explaining an error
 
 An `AE` or an `AR` can say what went wrong. The *enhanced* acknowledgement fills
