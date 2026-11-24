@@ -203,9 +203,18 @@ into another delimiter set: rewriting the body would silently change how many
 components the field has. The builders return [`AckError`](crate::AckError)
 rather than write that reply.
 
-A raw field separator is refused too. It cannot occur in a parsed field - the
-parser splits on it - so it only comes from a hand-built [`AckContext`], where it
-was meant as data but would be read as structure.
+A raw field separator is refused too, and that verdict does not depend on the
+reply: the value is invalid before a reply exists, so no choice of delimiters can
+make it acceptable. It cannot occur in a parsed field - the parser splits on it -
+so it only comes from a hand-built [`AckContext`], where it was meant as data but
+would be read as structure.
+
+The collision rule is about *roles*, not about which characters appear. A
+delimiter inside an opaque body is structure, so the body survives a conversion
+only when every character keeps the role it had: a separator that becomes data
+stops splitting the field, and data that becomes a separator starts splitting it.
+Changing only the field separator, then, carries a body holding the unchanged
+component separator byte for byte - the reply can express it exactly.
 
 ```rust
 use mllp::{AckCode, AckContext, Message, Separators, build_ack};

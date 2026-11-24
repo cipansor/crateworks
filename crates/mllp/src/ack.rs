@@ -15,33 +15,43 @@
 
 use std::fmt::Write as _;
 
-use crate::message::{Separators, TranscodeError, escape, transcode};
+use crate::message::{DelimiterRole, Separators, TranscodeError, article, escape, transcode};
 
 /// The version a reply speaks when the message it answers did not name one.
 pub const DEFAULT_VERSION: &str = "2.5.1";
 
 /// Why an acknowledgement could not be built.
 ///
-/// The only failure is a header value the reply's delimiters cannot carry. It is
-/// an error rather than a silent rewrite because the alternative - a reply whose
-/// control id sits in the wrong field - is worse than no reply, and the caller
-/// still has a decision to make: answer in the original's delimiter set, or drop
-/// the acknowledgement and log.
+/// Both failures are header values the reply cannot carry as written. They are an
+/// error rather than a silent rewrite because the alternative - a reply whose
+/// field boundaries differ from what the sender meant - is worse than no reply,
+/// and the caller still has a decision to make: answer in the original's delimiter
+/// set, or drop the acknowledgement and log.
+///
+/// A reply built with [`Message::separators`](crate::Message::separators) cannot
+/// fail this way: it needs no conversion, so every value is copied as parsed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AckError {
-    /// A site-defined escape in a header value holds one of the reply's
-    /// delimiters, which no escaping rule of this crate can express.
+    /// A site-defined escape whose body holds a character that means something
+    /// different in the reply's delimiters.
     ///
-    /// The body is opaque: `\ZLAB#1\` is defined by the site, so its content is
-    /// theirs to interpret. When the reply uses `#` as its field separator, the
-    /// reader splits the field there before it ever resolves the escape, so the
-    /// control id and version after it shift out of their fields. Nothing can be
-    /// inserted inside the body without changing what the site meant.
+    /// The body is opaque: `\ZID#1\` is defined by the site, so its content is
+    /// theirs to interpret. A reader splits on a delimiter before it resolves an
+    /// escape, so a delimiter inside the body is structure. When the reply gives
+    /// that character another role, or no role at all, the field's component
+    /// boundaries change and nothing can be inserted into the body without
+    /// changing what the site meant.
     UnrepresentableEscape {
         /// The field the value was destined for, such as `MSH-5`.
         field: &'static str,
         /// The escape body, without its delimiters.
         body: String,
+        /// The character inside the body that cannot be carried.
+        delimiter: char,
+        /// What that character means in the message being answered.
+        in_source: DelimiterRole,
+        /// What the same character will mean in the reply.
+        in_reply: DelimiterRole,
         /// The delimiters the reply was built with.
         separators: Separators,
     },
@@ -61,13 +71,20 @@ impl std::fmt::Display for AckError {
             Self::UnrepresentableEscape {
                 field,
                 body,
+                delimiter,
+                in_source,
+                in_reply,
                 separators,
             } => write!(
                 f,
-                "{field} holds the site-defined escape \\{body}\\ whose body contains a \
-                 delimiter of the reply (field {:?}, component {:?}); answer with the \
-                 original's separators instead",
-                separators.field, separators.component
+                "{field} holds the site-defined escape \\{body}\\ whose body contains \
+                 {delimiter:?}, {} in the message but {} in the reply \
+                 (field {:?}, component {:?}); answer with the original's separators \
+                 instead",
+                article(*in_source),
+                article(*in_reply),
+                separators.field,
+                separators.component
             ),
             Self::RawFieldSeparator { field, separator } => write!(
                 f,
@@ -441,9 +458,17 @@ pub fn build_enhanced(
 /// Names the field a [`TranscodeError`] came from, for the caller's benefit.
 fn ack_error(field: &'static str, error: TranscodeError, separators: Separators) -> AckError {
     match error {
-        TranscodeError::OpaqueEscapeCollision { body } => AckError::UnrepresentableEscape {
+        TranscodeError::OpaqueEscapeCollision {
+            body,
+            delimiter,
+            in_source,
+            in_reply,
+        } => AckError::UnrepresentableEscape {
             field,
             body,
+            delimiter,
+            in_source,
+            in_reply,
             separators,
         },
         TranscodeError::RawFieldSeparator { separator } => {
@@ -991,6 +1016,105 @@ mod tests {
     }
 
     #[test]
+    fn a_raw_field_separator_is_refused_for_every_reply_delimiter_set() {
+        // The verdict must not depend on the reply. A caller could otherwise
+        // make an invalid hand-built header acceptable by choosing delimiters,
+        // which is the wrong way round: the value is invalid before the reply
+        // exists.
+        let context = AckContext {
+            sending_application: "LAB|1".into(),
+            ..AckContext::default()
+        };
+        for field in ['|', '#', '@', '!'] {
+            let reply = Separators {
+                field,
+                component: if field == '|' { '^' } else { '|' },
+                ..Separators::default()
+            };
+            let error = build(&context, AckCode::Accept, "ACKR", "", reply).unwrap_err();
+            assert_eq!(
+                error,
+                AckError::RawFieldSeparator {
+                    field: "MSH-5",
+                    separator: '|',
+                },
+                "reply field {field:?} changed the verdict"
+            );
+        }
+    }
+
+    #[test]
+    fn a_field_only_change_carries_an_opaque_body_unchanged() {
+        // The source's component separator is `#` and the reply keeps it, so the
+        // body's component boundaries do not move even though the field
+        // separator changes from `|` to `@`. Refusing this would reject a header
+        // the reply can carry byte for byte.
+        let message =
+            Message::parse("MSH|#~\\&|LAB\\ZID#1\\|F|R|F|20260101||ADT#A01|M6|P|2.5.1\rPID|1\r")
+                .unwrap();
+        let context = AckContext::from_message(&message);
+        let reply_separators = Separators {
+            field: '@',
+            component: '#',
+            ..Separators::default()
+        };
+        let ack = build(&context, AckCode::Accept, "ACK6", "", reply_separators).unwrap();
+
+        let reply = Message::parse(&ack).unwrap();
+        assert_eq!(reply.separators().field, '@');
+        assert_eq!(reply.value("MSH-10").unwrap(), "ACK6");
+        // Same bytes, so the same two components the source had.
+        assert_eq!(reply.field("MSH-5").unwrap().text(), "LAB\\ZID#1\\");
+        assert_eq!(
+            reply
+                .field("MSH-5")
+                .unwrap()
+                .components()
+                .collect::<Vec<_>>(),
+            ["LAB\\ZID", "1\\"]
+        );
+    }
+
+    #[test]
+    fn a_role_change_for_an_unchanged_delimiter_is_an_error() {
+        // `#` stays a delimiter in both sets but moves from component to field.
+        // The body's boundaries would move, so the reply cannot carry it even
+        // though the character itself is still a delimiter.
+        let message =
+            Message::parse("MSH|#~\\&|LAB\\ZID#1\\|F|R|F|20260101||ADT#A01|M7|P|2.5.1\rPID|1\r")
+                .unwrap();
+        let context = AckContext::from_message(&message);
+        let reply_separators = Separators {
+            field: '#',
+            component: '*',
+            ..Separators::default()
+        };
+        let error = build(&context, AckCode::Accept, "ACK7", "", reply_separators).unwrap_err();
+        assert_eq!(
+            error,
+            AckError::UnrepresentableEscape {
+                field: "MSH-5",
+                body: "ZID#1".into(),
+                delimiter: '#',
+                in_source: DelimiterRole::Component,
+                in_reply: DelimiterRole::Field,
+                separators: reply_separators,
+            }
+        );
+        // The message blames the character and names both roles, so a reader can
+        // see the collision is with the *source* component separator.
+        let rendered = error.to_string();
+        assert!(
+            rendered.contains("a component separator in the message"),
+            "{rendered}"
+        );
+        assert!(
+            rendered.contains("a field separator in the reply"),
+            "{rendered}"
+        );
+    }
+
+    #[test]
     fn a_local_escape_colliding_with_the_reply_separator_is_an_error() {
         // `\ZLAB#1\` is site-defined, so its body cannot be rewritten. With `#`
         // as the reply's field separator the reader would split MSH-5 there and
@@ -1011,6 +1135,11 @@ mod tests {
             AckError::UnrepresentableEscape {
                 field: "MSH-5",
                 body: "ZLAB#1".into(),
+                delimiter: '#',
+                // `#` is ordinary data in the message and becomes a separator in
+                // the reply, which is what changes the field's boundaries.
+                in_source: DelimiterRole::Data,
+                in_reply: DelimiterRole::Field,
                 separators: reply_separators,
             }
         );

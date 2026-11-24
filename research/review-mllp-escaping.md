@@ -235,3 +235,48 @@ Gate: 191/191 fields, 12/12 ACK, 12/12 enhanced, 12/12 converted.
 `mllp` 0.6.0 -> 0.7.0: `AckError` gained a variant. The builders' signatures are
 unchanged from 0.6.0, so this is additive for callers that already handle the
 `Result`.
+
+## Follow-up: validate the value, then judge the roles
+
+A fourth review found that the round-three rule asked the wrong question. It
+checked which *characters* appeared in an opaque body; what decides whether a
+reply can carry the body is which *role* each character plays.
+
+**The verdict depended on the reply.** The raw field separator check sat inside
+the `from == to` branch, so a hand-built context holding `LAB|1` was refused with
+default reply delimiters and accepted with `#` as the reply's field separator.
+That inverts the order of the argument: the value is invalid before a reply
+exists, so no reply delimiter set may make it acceptable. The check now runs
+first, and a test asserts the same error for four different reply sets.
+
+**A field-only change was refused for no reason.** The round-three rule refused
+an opaque body containing *any* delimiter from either set. But a body holding the
+source's component separator survives a conversion that changes only the field
+separator: the component boundaries do not move. `hl7apy` reads `LAB\ZID#1\` as
+`['LAB\E\ZID', '1\E\']` in both the source and such a reply, so the reply carries
+it byte for byte. The rule is now a role comparison per character: a separator
+that becomes data stops splitting the field, and data that becomes a separator
+starts splitting it, so both are refused; a role that is unchanged is not.
+
+**The message blamed the wrong message.** `UnrepresentableEscape` said the body
+"contains a delimiter of the reply", which is false when the collision is with the
+*source* component separator. It now carries the offending character and both
+roles, and renders as `'#' , a component separator in the message but a field
+separator in the reply`.
+
+**The gate could traceback.** `check_converted` indexed `reply_ack[3]` before any
+guard, so an omitted reply raised `IndexError` and aborted the run without naming
+the fixture. Verified by removing the guard: `IndexError: string index out of
+range`. A missing reply is now reported as `cnv N: no converted reply was produced
+for this fixture`.
+
+Mutation-tested, four ways, each caught: moving the raw-field check back inside
+the identity branch (the new four-set test fails), refusing on delimiter presence
+instead of role (`a_field_only_change_carries_an_opaque_body_unchanged` fails),
+blaming the reply in the message (`a_role_change_for_an_unchanged_delimiter_is_an_error`
+fails on its wording assertions), and removing the gate guard (`IndexError`).
+
+Gate: 191/191 fields, 12/12 ACK, 12/12 enhanced, 12/12 converted.
+
+`mllp` 0.7.0 -> 0.8.0: `AckError::UnrepresentableEscape` gained `delimiter`,
+`in_source` and `in_reply`, and `DelimiterRole` is public.

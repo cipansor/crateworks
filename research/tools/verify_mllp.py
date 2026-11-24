@@ -502,6 +502,13 @@ def check_converted(raw: str, reply_ack: str, refusal: str, index: int) -> int:
         )
         return 1
 
+    # Guard before indexing: an omitted reply would otherwise raise IndexError
+    # from inside this check, which aborts the gate with a traceback that never
+    # names the fixture. That is the failure a reader most needs named.
+    if not reply_ack:
+        print(f"  cnv {index}: no converted reply was produced for this fixture")
+        return 1
+
     if reply_ack[3] != field or reply_ack[4] != component:
         # A reply that kept the source's delimiters would agree trivially: the
         # identity comparison below would pass without a byte being converted.

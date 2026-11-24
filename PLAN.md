@@ -427,8 +427,10 @@ of the reply's delimiters no rewrite keeps its meaning, so the builders return
 separators instead. Answering with the original's
 separators is the documented fallback and is never refused: the parser accepted
 that text, so copying it introduces no new delimiter. A delimiter inside an
-opaque escape body blocks only a *conversion*, in either direction, because a
-reader splits before resolving escapes. `verify_mllp.py` checks the parse, the minimal reply and the
+opaque escape body blocks a *conversion* only when a delimiter inside it changes
+role, because a reader splits before resolving escapes and the body's structure is
+whatever the source says it is. A raw field separator is refused before either
+branch, so the verdict cannot be changed by picking reply delimiters. `verify_mllp.py` checks the parse, the minimal reply and the
 enhanced reply against `hl7apy`, with an MSA-3 that holds every delimiter.
 
 **Not covered.** ERR-1, the deprecated "error code and location" field, is left

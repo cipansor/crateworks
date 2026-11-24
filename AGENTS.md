@@ -527,7 +527,14 @@ regression coverage in CI at all.
   refusal message then tells the caller to do what it already did. A raw
   delimiter inside an **opaque** escape body blocks any *conversion* in either
   direction - a reader splits before it resolves escapes, so such a body has
-  source structure no other delimiter set can express. When checking
+  source structure no other delimiter set can express - but only when a
+  delimiter *changes role*. Judge that by the role each character plays, not by
+  whether it appears in both sets: changing only the field separator leaves a
+  body holding the component separator byte-identical, and refusing it rejects a
+  header the reply can carry exactly. A validation that must hold regardless of
+  the reply - a raw field separator from a hand-built context - has to run
+  before any branch on the reply's delimiters, or the caller can make an invalid
+  value acceptable by choosing them. When checking
   this against `hl7apy`, compute the expectation from the reply's own MSH-1 and
   MSH-2: a message using `#` and `*` leaves `|` and `^` alone, so a hardcoded
   default-delimiter expectation fails on a case that is correct.

@@ -487,18 +487,60 @@ pub(crate) fn push_escaped(out: &mut String, c: char, separators: Separators) {
     out.push(separators.escape);
 }
 
+/// What a character means in an ER7 delimiter set.
+///
+/// A reply can only carry a header value whose characters keep the role they had
+/// in the message being answered. `Data` is not a delimiter but is just as
+/// important: a character that is ordinary data in one set can be a separator in
+/// another, and that change alters how a reader splits the field.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DelimiterRole {
+    /// MSH-1, which separates fields.
+    Field,
+    /// MSH-2's first character, which separates the components of a field.
+    Component,
+    /// MSH-2's second character, which separates repetitions.
+    Repetition,
+    /// MSH-2's third character, which opens and closes an escape.
+    Escape,
+    /// MSH-2's fourth character, which separates subcomponents.
+    Subcomponent,
+    /// Not one of the five delimiters, so the character is plain content.
+    Data,
+}
+
+impl std::fmt::Display for DelimiterRole {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Field => "field",
+            Self::Component => "component",
+            Self::Repetition => "repetition",
+            Self::Escape => "escape",
+            Self::Subcomponent => "subcomponent",
+            Self::Data => "data",
+        })
+    }
+}
+
 /// Why [`transcode`] cannot re-emit a header value.
 ///
-/// Both variants describe a value the reply's delimiters cannot carry as written.
-/// They are separate variants because the caller can act on them differently: a
-/// raw field separator is a bug in a hand-built context, while an opaque escape
-/// body is a legal value the reply's delimiter set simply cannot express.
+/// Both variants describe a value the reply cannot carry as written, and they are
+/// separate because the caller acts on them differently: a raw field separator is
+/// a bug in a hand-built context, while an opaque escape body is a legal value the
+/// chosen reply delimiters cannot express.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum TranscodeError {
-    /// A site-defined escape whose body holds one of the reply's delimiters.
+    /// A site-defined escape whose body holds a delimiter whose *role* changes
+    /// in the reply.
     OpaqueEscapeCollision {
         /// The escape body, without its delimiters.
         body: String,
+        /// The delimiter in the body that changes role.
+        delimiter: char,
+        /// What the character means in the source.
+        in_source: DelimiterRole,
+        /// What the same character would mean in the reply.
+        in_reply: DelimiterRole,
     },
     /// A raw field separator in the value, which only a hand-built context can
     /// produce.
@@ -511,12 +553,18 @@ pub(crate) enum TranscodeError {
 impl std::fmt::Display for TranscodeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::OpaqueEscapeCollision { body } => {
-                write!(
-                    f,
-                    r"the site-defined escape \{body}\ contains a reply delimiter"
-                )
-            }
+            Self::OpaqueEscapeCollision {
+                body,
+                delimiter,
+                in_source,
+                in_reply,
+            } => write!(
+                f,
+                "the site-defined escape \\{body}\\ contains {delimiter:?}, which is {} \
+                 in the message but {} in the reply",
+                article(*in_source),
+                article(*in_reply)
+            ),
             Self::RawFieldSeparator { separator } => {
                 write!(
                     f,
@@ -524,6 +572,33 @@ impl std::fmt::Display for TranscodeError {
                 )
             }
         }
+    }
+}
+
+/// `a field separator`, `an escape character`, `plain data`, for reading in a
+/// sentence.
+pub(crate) fn article(role: DelimiterRole) -> String {
+    match role {
+        DelimiterRole::Escape => "an escape character".to_owned(),
+        DelimiterRole::Data => "plain data".to_owned(),
+        _ => format!("a {role} separator"),
+    }
+}
+
+/// The role a character plays in a delimiter set.
+fn role_of(character: char, separators: Separators) -> DelimiterRole {
+    if character == separators.field {
+        DelimiterRole::Field
+    } else if character == separators.component {
+        DelimiterRole::Component
+    } else if character == separators.repetition {
+        DelimiterRole::Repetition
+    } else if character == separators.escape {
+        DelimiterRole::Escape
+    } else if character == separators.subcomponent {
+        DelimiterRole::Subcomponent
+    } else {
+        DelimiterRole::Data
     }
 }
 
@@ -537,42 +612,38 @@ impl std::fmt::Display for TranscodeError {
 ///
 /// # Errors
 ///
-/// Only two things are refused, and both would otherwise produce a reply whose
-/// fields mean something the sender never intended.
+/// A raw `field` separator is refused outright, whatever `to` is. It cannot occur
+/// in a parsed field - the parser splits on it - so one can only come from a
+/// hand-built context, where it was meant as data but would be read as structure.
+/// Checking it before anything else keeps the verdict the same for every reply
+/// delimiter set, so a caller cannot make an invalid header acceptable by
+/// changing the reply.
 ///
 /// A *local* escape - one whose body is not `F`, `S`, `R`, `E` or `T`, such as
 /// the site-defined `\ZLAB#1\` - has an opaque body this function cannot
-/// rewrite, because it does not know what the site meant by it. Any delimiter
-/// inside such a body blocks a conversion: a reader splits on a delimiter before
-/// it resolves escapes, so the body's structure is whatever `from` says it is,
-/// and no rewriting of the body can carry that structure into a different
-/// delimiter set. The offending body is returned rather than silently changing
-/// how many components the field has.
+/// rewrite. A reader splits on a delimiter before it resolves escapes, so the
+/// body's structure is whatever `from` says it is. That structure survives a
+/// conversion only when every delimiter in the body keeps its role; if one would
+/// become a different delimiter, or data, no rewrite of the body can carry it and
+/// the offending character is returned.
 ///
 /// Answering in `from`'s own delimiter set is never refused: it is the documented
 /// fallback, the value is already valid ER7 under those delimiters, and copying
 /// it introduces nothing new.
-///
-/// A raw `field` separator is refused outright. It cannot occur in a parsed
-/// field - the parser splits on it - so one can only come from a hand-built
-/// context, where it was meant as data but would be read as structure.
 pub(crate) fn transcode(
     er7: &str,
     from: Separators,
     to: Separators,
 ) -> Result<String, TranscodeError> {
-    // Answering in the source's own delimiters is the documented fallback, and a
-    // parsed field is already valid ER7 under those delimiters, so nothing needs
-    // rewriting and nothing may be refused. An opaque body holding the source's
-    // own component separator is legal - the parser accepted it - and copying it
-    // introduces no new delimiter. Only a raw field separator is still checked,
-    // because that is the one thing a hand-built context can get wrong.
+    if er7.contains(from.field) {
+        return Err(TranscodeError::RawFieldSeparator {
+            separator: from.field,
+        });
+    }
+    // Nothing needs rewriting, and an opaque body holding the source's own
+    // delimiters is legal - the parser accepted it - because copying preserves
+    // every role.
     if from == to {
-        if er7.contains(from.field) {
-            return Err(TranscodeError::RawFieldSeparator {
-                separator: from.field,
-            });
-        }
         return Ok(er7.to_owned());
     }
     let mut out = String::with_capacity(er7.len());
@@ -586,10 +657,6 @@ pub(crate) fn transcode(
             } else if c == from.subcomponent {
                 out.push(to.subcomponent);
             } else {
-                // Includes `from.field`, which cannot occur in a parsed field -
-                // the parser splits on it - so one can only come from a
-                // hand-built context holding something it meant as data.
-                // Escaping it keeps the reply rather than splitting it.
                 push_escaped(&mut out, c, to);
             }
             continue;
@@ -625,19 +692,24 @@ pub(crate) fn transcode(
             // is data under `to`.
             Some(delimiter) => push_escaped(&mut out, delimiter, to),
             None => {
-                // Any delimiter in the body, from either set, makes it
-                // unrepresentable across a conversion. A reader splits on a
-                // delimiter *before* it resolves escapes, so a raw delimiter
-                // inside an opaque body is structure under `from` - hl7apy reads
-                // `LAB\ZID#1\` as two components - and copying it verbatim into
-                // a reply where `#` is ordinary data would collapse it into one.
-                // Neither direction can be preserved, so refuse rather than
-                // change how many components the field has.
-                if body
-                    .chars()
-                    .any(|c| is_delimiter(c, from) || is_delimiter(c, to))
-                {
-                    return Err(TranscodeError::OpaqueEscapeCollision { body });
+                // The body is opaque, so a delimiter inside it is structure
+                // under `from`. Every character must keep its role for the
+                // structure to survive: a separator that becomes data stops
+                // splitting the field, and data that becomes a separator starts
+                // splitting it. Both change how many components the field has,
+                // and neither can be repaired inside a body whose meaning is the
+                // site's.
+                for character in body.chars() {
+                    let in_source = role_of(character, from);
+                    let in_reply = role_of(character, to);
+                    if in_source != in_reply {
+                        return Err(TranscodeError::OpaqueEscapeCollision {
+                            body,
+                            delimiter: character,
+                            in_source,
+                            in_reply,
+                        });
+                    }
                 }
                 out.push(to.escape);
                 out.push_str(&body);
