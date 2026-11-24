@@ -73,9 +73,10 @@ APIs without a key. They need Python 3 and no external dependencies.
   gen.py > tests/fixtures/x.tsv` truncates the file before the script runs, so a
   version mismatch or a new oracle disagreement leaves an empty fixture behind
   and the replay test fails until it is restored from git. The generators that
-  write a tracked fixture (`gen_distance.py`, `gen_forwarded.js`,
-  `verify_facturx_level.py`) write atomically to a path instead; use `--out` or
-  `OUT=` for an unseen-seed run.
+  write a tracked fixture - `gen_distance.py` and `gen_forwarded.js` - write
+  atomically to a path instead, and `verify_facturx_level.py` stages its whole
+  corpus in a sibling directory and swaps it in at the end, so a failure leaves
+  the previous fixtures intact. Use `--out` or `OUT=` for an unseen-seed run.
 - **Do not run two scripts at once.** crates.io rate-limits requests; running them
   in parallel triggers HTTP 429 and produces false empty results — a gap that
   looks real but is not.

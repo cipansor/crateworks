@@ -256,6 +256,69 @@ so the two pinned oracle versions appeared nowhere a reader would look. The
 generator now has an entry naming `rapidfuzz` 3.14.6 and `jellyfish` 1.3.0, and
 an operational warning about `>` redirects.
 
+## Round four: four findings, three real and one already fixed
+
+### The wide-alphabet test proved nothing (real)
+
+The test I added last round used a *substitution* in a wide alphabet. A
+substitution scores one edit through the ordinary recurrence, so the answer was
+1 whether or not the transposition term ran - which means it passed with the
+snapshots deleted and with the snapshot taken after the row swap, the two
+mutations it was written to catch. I confirmed both before changing anything.
+
+The input is now an adjacent swap in an all-distinct alphabet, the one shape the
+transposition term is required for: Damerau says 1, Levenshtein says 2. Both
+mutations now fail it. This is the second time this file has recorded the same
+lesson - a test is only evidence once it has been seen to fail - and it is now a
+trap in `AGENTS.md`.
+
+Its peak-memory assertion was also absent, as the review noted. Adding one
+exposed a measurement problem worth recording: `VmHWM` is a per-process maximum,
+so a delta around a single call reads zero after any larger earlier allocation,
+and untouched `vec![0; n]` pages are not resident at all - a 64 MiB buffer showed
+as +4 KiB. `clear_refs` resets `VmHWM` but not `VmPeak`. A counting allocator
+would measure the right thing and needs `unsafe`, which this workspace forbids.
+The measurement therefore lives in `tests/memory.rs`, which re-executes its own
+binary so the reading comes from a fresh process. Verified in both directions:
+correct code peaks at ~33 MiB against a 48 MiB ceiling, and a reintroduced full
+matrix peaks at 52 MiB and fails.
+
+### Memory bounds omitted the input copies (real)
+
+The table claimed `O(min(m, n))` for four functions. Each of them first does
+`chars().collect::<Vec<char>>()` on **both** inputs, which is `O(m + n)` at four
+bytes per scalar - measurable, and larger than the row buffers for short strings.
+
+The README now states the copies explicitly, and `hamming` is called out as the
+only function that allocates nothing at all, which is what makes it the right
+choice for a very long comparison that only needs a count.
+
+While measuring this I found a real inefficiency rather than only a documentation
+gap: `levenshtein` did not put the shorter string in the column role, so
+`levenshtein(short, long)` allocated rows as long as the *long* argument. `osa`
+already did the swap. Fixed, and measured: 112 KiB before, 12 KiB after, on an
+8 KiB against 4 KiB comparison.
+
+### The Factur-X verifier deleted before it wrote (real)
+
+`verify_facturx_level.py` removed every `*.xml` in the corpus directory and then
+wrote the replacements in place. A missing `factur-x`, a reference change or a
+Ctrl-C between those two steps left the tracked fixtures destroyed with nothing
+to restore them from - the same class of bug as the `>` redirect, in a script
+that had no `--out` to escape to.
+
+It now builds the whole corpus in a staging directory, writes the table there
+too, and swaps both in only after every document has been written and answered
+for. Verified by failing it deliberately part-way through: the table is
+byte-identical afterwards and no staging directory is left behind.
+
+### The corpus losing 1,283 pairs (not reproducible)
+
+This finding repeats last round's, and the code no longer has the defect. The
+generator reads the existing fixture before generating and merges, and I checked
+the claim directly rather than trusting the comment: all 6,094 pairs from
+`50a60f1` are present in the current 7,718. Nothing to fix.
+
 ## Mutation proof
 
 A fixture that passes proves nothing unless it would fail. Each fix was reverted
@@ -281,6 +344,8 @@ taken after the row swap.
 | Rejected change | Cases failing |
 |---|---|
 | Snapshot only repeated characters | 2 unit tests (the corpus is unaffected) |
+| Full `m * n` matrix restored (memory test) | 1 test, 52 MiB against a 48 MiB ceiling |
+| Snapshots deleted (wide-alphabet unit test) | 1 test, before the input was fixed this passed |
 
 The Damerau mutation also fails one of the ten curated unit tests, which is the
 one case where a hand-written test caught it - the divergence pair `CA`/`ABC`,
@@ -292,7 +357,8 @@ have been fully green on a 3,366-case bug.
 - `cargo fmt --all -- --check`: clean
 - `cargo clippy --workspace --all-targets -- -D warnings`: clean
 - `cargo test --workspace --all-targets`: green, including the new
-  `distance_oracle` (7,718 pairs) and 15 unit tests
+  `distance_oracle` (7,718 pairs), 15 unit tests, and a child-process
+  peak-memory test
 - `cargo test --workspace --doc`: green, including the new README example
 - MSRV 1.88 `clippy` and doctests: clean, with `RUSTUP_TOOLCHAIN=1.88.0` set so
   `rust-toolchain.toml` cannot override it

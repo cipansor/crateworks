@@ -175,13 +175,24 @@ Every function counts Unicode scalar values rather than bytes, so
 two transposition variants at run time through `damerau`, and
 `levenshtein_similarity` turns a distance into a value between zero and one.
 
-Memory depends on which function is called, and the difference matters:
+Memory depends on which function is called, and the difference matters. Every
+function except `hamming` first copies both inputs into a `Vec<char>` (four bytes
+per scalar), because a DP recurrence indexes the column string by position; that
+copy is `O(m + n)` and is in the table below. `hamming` compares the two `Chars`
+iterators in lockstep and allocates nothing.
 
-| Function | Memory |
+| Function | Extra memory |
 |---|---|
-| `levenshtein`, `hamming`, `jaro`, `jaro_winkler` | `O(min(m, n))` |
-| `osa` | `O(min(m, n))` - three rolling rows |
-| `damerau_levenshtein` | `O(s * min(m, n))`, where `s` is the number of distinct characters the two strings share |
+| `hamming` | `O(1)` - no allocation at all |
+| `levenshtein` | `O(m + n)` for the input copies, plus two rows of `min(m, n)` |
+| `osa` | `O(m + n)` for the input copies, plus three rows of `min(m, n)` |
+| `jaro`, `jaro_winkler` | `O(m + n)` for the input copies, plus two `bool` masks and two match sequences |
+| `damerau_levenshtein` | `O(m + n)` for the input copies, plus `O(s * min(m, n))` for the snapshots |
+
+The copy means "linear" is only true up to a constant: an 8 KiB comparison
+allocates about 32 KiB for the copies before any row buffer exists. That is
+negligible next to the row buffers for any string longer than a few hundred
+characters, and it is the reason the figures below are not smaller.
 
 Unrestricted Damerau-Levenshtein cannot be done in `O(min(m, n))` with rolling
 rows: its transposition term reads an arbitrary earlier row of the matrix, so one

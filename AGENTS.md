@@ -952,6 +952,25 @@ regression coverage in CI at all.
   `random.seed` drops cases it used to have - 1,283 of them in this repository.
   Read the existing fixture, re-ask those pairs and merge, so a corpus only
   grows; report the carried count so a shrink is visible in the log.
+- **A test whose input does not need the code under test passes without it.**
+  The wide-alphabet Damerau test used a substitution, which the ordinary
+  recurrence already scores as one edit, so it passed with the snapshots deleted
+  and with the snapshot taken after the row swap. A transposition in an
+  all-distinct alphabet is the shape that *requires* the term. Check a new test
+  by deleting the code it covers: if it still passes, it tests nothing.
+- **`VmHWM` cannot measure a single call.** It is a maximum for the whole
+  process and never falls, so a delta around one call is zero after any larger
+  earlier allocation, and `clear_refs` does not reset `VmPeak`. Untouched
+  `vec![0; n]` pages are also not resident, so a 64 MiB buffer reads as +4 KiB.
+  Measuring peak needs a fresh child process; `crates/fuzzy-score/tests/memory.rs`
+  re-executes its own binary to get one. A global counting allocator would be
+  better but needs `unsafe`, which this workspace forbids.
+- **A `Vec<char>` copy of both inputs is `O(m + n)` that the DP bounds miss.**
+  Every function except `hamming` copies its arguments, because a recurrence
+  indexes the column string by position. Document the copies or the table
+  overstates the saving. The shorter string belongs in the column role, or a
+  long *second* argument allocates a row as long as itself - `levenshtein` was
+  missing that swap while `osa` had it.
 - **"Attributable to X" is not a check; "equal to what X predicts" is.** A
   classifier that says "this pair contains a grapheme, so the references may
   disagree" accepts every future mismatch on any such pair, including one caused

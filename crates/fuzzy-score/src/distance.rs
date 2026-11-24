@@ -79,7 +79,14 @@ pub enum Damerau {
 pub fn levenshtein(a: &str, b: &str) -> usize {
     let a: Vec<char> = a.chars().collect();
     let b: Vec<char> = b.chars().collect();
-    levenshtein_chars(&a, &b)
+    // The row buffers are `b.len() + 1` wide and the distance is symmetric, so
+    // the shorter string belongs in that role; without the swap a long second
+    // argument allocates a row as long as itself.
+    if b.len() <= a.len() {
+        levenshtein_chars(&a, &b)
+    } else {
+        levenshtein_chars(&b, &a)
+    }
 }
 
 fn levenshtein_chars(a: &[char], b: &[char]) -> usize {
@@ -502,22 +509,31 @@ mod tests {
     #[test]
     fn damerau_memory_is_bounded_by_distinct_characters_not_by_area() {
         // The documented bound is `O(s * min(m, n))`, so a wide alphabet costs
-        // more than text does but still far less than the `m * n` matrix that
-        // this replaced. 2,048 distinct characters at 6 KiB was 94 MiB when
-        // measured and would be 288 MiB as a full matrix; the assertion here is
-        // the answer, and the length keeps the test quick.
+        // more than text does but still far less than the `m * n` matrix this
+        // replaced. The input is an adjacent swap in an all-distinct alphabet,
+        // which is the shape that *needs* the transposition term: a substitution
+        // scores 1 through the ordinary recurrence, so it would pass even with
+        // the snapshots removed.
+        //
+        // Peak memory is asserted in `tests/memory.rs`, not here: it needs a
+        // process of its own, because `/proc/self/status` reports a maximum for
+        // the whole process and no amount of resetting makes a second reading
+        // independent of the first.
         let n = 2048;
         let a: String = (0..n)
             .map(|i| char::from_u32(0x4e00 + i as u32).unwrap())
             .collect();
         let mut chars: Vec<char> = a.chars().collect();
-        chars[n / 2] = '\u{9fff}';
+        chars.swap(n / 2 - 1, n / 2);
         let b: String = chars.into_iter().collect();
 
         assert_eq!(damerau_levenshtein(&a, &b), 1);
-        // Symmetry: the shorter string is always the column dimension, so the
-        // answer must not depend on argument order.
-        assert_eq!(damerau_levenshtein(&b, &a), 1);
+        assert_eq!(levenshtein(&a, &b), 2, "the swap is not a transposition");
+        assert_eq!(
+            damerau_levenshtein(&b, &a),
+            1,
+            "the answer must be symmetric"
+        );
     }
 
     #[test]
