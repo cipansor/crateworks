@@ -467,17 +467,18 @@ def check_ack(raw: str, ack: str, index: int) -> int:
     if reply is None:
         print(f"  ack {index}: the reference parser rejects the reply: {ack!r}")
         return 1
-    problems = 0
+    # Every finding is printed, but the reply counts as one failure.
+    failed = False
 
     def expect(reference: str, value: str, why: str) -> None:
-        nonlocal problems
+        nonlocal failed
         # hl7apy omits an absent field rather than returning an empty string,
         # while the crate writes the empty field. Both mean "no value", so an
         # absent field is compared as empty.
         got = reply.get(reference) or ""
         if got != value:
             print(f"  ack {index}: {reference} is {got!r}, expected {value!r} ({why})")
-            problems += 1
+            failed = True
 
     # MSH-10 is the reply's own control id, not the one being acknowledged.
     expect("MSH-10", f"ACK{index:04}", "fresh control id")
@@ -502,7 +503,7 @@ def check_ack(raw: str, ack: str, index: int) -> int:
         escape_text(ACK_TEXT, reply.get("MSH-1") or "|", reply.get("MSH-2") or "^~\\&"),
         "escaped failure text",
     )
-    return problems
+    return int(failed)
 
 
 def _conversion_must_refuse(raw: str) -> bool:
@@ -664,7 +665,9 @@ def check_field_only(raw: str, reply_ack: str, index: int) -> int:
 
     source_sep = _separators_of(raw)
     reply_sep = _separators_of(reply_ack)
-    problems = 0
+    # Every finding is printed, but the reply counts as one failure: the summary
+    # subtracts this from the number of replies.
+    failed = False
     for original, mirrored in (
         ("MSH-5", "MSH-3"),
         ("MSH-6", "MSH-4"),
@@ -677,7 +680,7 @@ def check_field_only(raw: str, reply_ack: str, index: int) -> int:
             print(
                 f"  fld {index}: {mirrored} is {actual!r}, expected {expected!r}"
             )
-            problems += 1
+            failed = True
         # Decoded text alone cannot see a lost boundary: escaping a separator as
         # `\T\` still decodes to `&`, so the subcomponent count has to be
         # compared from the split a reader performs.
@@ -688,11 +691,11 @@ def check_field_only(raw: str, reply_ack: str, index: int) -> int:
                 f"  fld {index}: {mirrored} splits into subcomponents "
                 f"{actual_subs!r}, expected {expected_subs!r}"
             )
-            problems += 1
+            failed = True
     control = _identity(_msh_field(reply, "MSH-10"), reply_sep)
     if control != [f"FLD{index:04}"]:
         print(f"  fld {index}: MSH-10 is {control!r}, expected 'FLD{index:04}'")
-        problems += 1
+        failed = True
 
     # MSA-2 must echo the *original* control id, which is what the sender matches
     # the reply against. Checking only the reply's own MSH-10 would let a reply
@@ -703,8 +706,7 @@ def check_field_only(raw: str, reply_ack: str, index: int) -> int:
     parsed_reply = reference_parse(reply_ack, required=False) or {}
     if "MSA-2" not in parsed_reply:
         print(f"  fld {index}: the reply has no MSA-2, so it echoes no original id")
-        problems += 1
-        return problems
+        return 1
     original = _identity(parsed_reply["MSA-2"], reply_sep)
     expected_original = _identity(_msh_field(source, "MSH-10"), source_sep)
     if original != expected_original:
@@ -712,8 +714,8 @@ def check_field_only(raw: str, reply_ack: str, index: int) -> int:
             f"  fld {index}: MSA-2 is {original!r}, expected the original's "
             f"MSH-10 {expected_original!r}"
         )
-        problems += 1
-    return problems
+        failed = True
+    return int(failed)
 
 
 def check_converted(raw: str, reply_ack: str, refusal: str, index: int) -> int:
@@ -778,7 +780,10 @@ def check_converted(raw: str, reply_ack: str, refusal: str, index: int) -> int:
         print(f"  cnv {index}: a parser rejects the message: {error}")
         return 1
 
-    problems = 0
+    # Every disagreement is printed, but a reply counts as one failure however
+    # many of its fields are wrong: the summary subtracts this from the number of
+    # replies, so counting each finding would understate how many passed.
+    failed = False
     source_sep = _separators_of(raw)
     reply_sep = _separators_of(reply_ack)
 
@@ -802,7 +807,7 @@ def check_converted(raw: str, reply_ack: str, refusal: str, index: int) -> int:
             print(
                 f"  cnv {index}: {mirrored} is {actual!r}, expected {expected!r} ({why})"
             )
-            problems += 1
+            failed = True
         # A decoded component string hides where the subcomponent boundaries fell,
         # and a conversion that changes *both* separators has the most room to move
         # one. Compare the split, not only the text.
@@ -813,14 +818,14 @@ def check_converted(raw: str, reply_ack: str, refusal: str, index: int) -> int:
                 f"  cnv {index}: {mirrored} splits into subcomponents "
                 f"{actual_shape!r}, expected {expected_shape!r} ({why})"
             )
-            problems += 1
+            failed = True
 
     # A delimiter copied out of an escape body would push the control id along.
     control = _identity(_msh_field(reply, "MSH-10"), reply_sep)
     if control != [f"CNV{index:04}"]:
         print(f"  cnv {index}: MSH-10 is {control!r}, expected 'CNV{index:04}'")
-        problems += 1
-    return problems
+        failed = True
+    return int(failed)
 
 
 def _separators_of(er7: str) -> dict[str, str]:
@@ -903,14 +908,15 @@ def check_enhanced(raw: str, enhanced: str, index: int) -> int:
     if reply is None:
         print(f"  enh {index}: the reference parser rejects the reply: {enhanced!r}")
         return 1
-    problems = 0
+    # Every finding is printed, but the reply counts as one failure.
+    failed = False
 
     def expect(reference: str, value: str, why: str) -> None:
-        nonlocal problems
+        nonlocal failed
         got = reply.get(reference) or ""
         if got != value:
             print(f"  enh {index}: {reference} is {got!r}, expected {value!r} ({why})")
-            problems += 1
+            failed = True
 
     # The reply uses the original's delimiters, so the component separator is
     # read from MSH-2 rather than assumed to be `^`. MSH-1 is at index 3 and
@@ -948,7 +954,7 @@ def check_enhanced(raw: str, enhanced: str, index: int) -> int:
             got = got.value if got is not None else ""
             if got != value:
                 print(f"  enh {index}: ERR-3.{component} is {got!r}, expected {value!r}")
-                problems += 1
+                failed = True
         # ERR-2 is an ERL. Read its components so a location put in the wrong
         # place is caught even if the raw text happens to match.
         erl = err.err_2
@@ -962,11 +968,11 @@ def check_enhanced(raw: str, enhanced: str, index: int) -> int:
             got = got.value if got is not None else ""
             if got != value:
                 print(f"  enh {index}: ERR-2.{component_name} is {got!r}, expected {value!r}")
-                problems += 1
+                failed = True
     except Exception as error:  # noqa: BLE001
         print(f"  enh {index}: hl7apy could not read the ERR segment: {error}")
-        problems += 1
-    return problems
+        failed = True
+    return int(failed)
 
 
 def main() -> int:
@@ -1046,6 +1052,8 @@ def main() -> int:
         f"{len(CORPUS) - field_only_problems}/{len(CORPUS)} field-only replies agree with hl7apy"
     )
 
+    # Each category contributes the number of *replies* that failed, not the
+    # number of findings printed for them, so the total is a count of bad replies.
     total = (
         mismatches
         + ack_problems

@@ -547,7 +547,9 @@ regression coverage in CI at all.
   and the decoded text, so compare the per-subcomponent split, not the number of
   parts. Fix the check once and apply it to every path: the converted path kept the
   weaker comparison for a round after the field-only path was fixed, and a mutation
-  that only damages a two-separator reply went unseen. When checking
+  that only damages a two-separator reply went unseen. Count *replies*, not findings:
+  a checker that returns one per printed finding makes `len(corpus) - problems` go
+  negative, and the summary then understates what passed. When checking
   this against `hl7apy`, compute the expectation from the reply's own MSH-1 and
   MSH-2: a message using `#` and `*` leaves `|` and `^` alone, so a hardcoded
   default-delimiter expectation fails on a case that is correct.

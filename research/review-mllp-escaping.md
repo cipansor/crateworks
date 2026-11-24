@@ -451,3 +451,31 @@ per call site.
 Gate: 243/243 fields, 16/16 ACK, 16/16 enhanced, 16/16 converted, 16/16 field-only.
 
 `mllp` 0.11.0 -> 0.12.0: the gate was weaker than the crate, not the other way round.
+
+## Follow-up: count replies, not findings
+
+A ninth review found the gate's arithmetic wrong, and wrong in a way that hid
+nothing today but would have hidden a lot later.
+
+Every checker returned the number of *findings* it printed, and the summary
+computed `len(CORPUS) - problems`. So a reply with two bad fields counted as two
+failures, and the printed "N/16 agree" understated how many replies passed. With
+enough findings the fraction could go negative, which reads as nonsense rather than
+as a bug.
+
+Two failures on one reply is not two failed replies. Every checker now prints each
+finding and returns `1` if any occurred, and the aggregate is a count of bad
+replies. Verified by echoing the source's sending application into MSH-6, which
+makes both the identity and the shape check fire on the same field of every reply:
+the summary now reads `1/16 converted` instead of a negative number, and the
+findings are still all printed.
+
+This is the fourth round in a row where the gate, not the crate, was wrong. The
+pattern across five to nine: a summary stood in for the thing it summarised -
+decoded text for structure, a count for which boundary, one call site for all of
+them, and now findings for replies. Each time the implementation was right and the
+report of it was not.
+
+Gate: 243/243 fields, 16/16 ACK, 16/16 enhanced, 16/16 converted, 16/16 field-only.
+
+`mllp` 0.12.0 -> 0.13.0: the gate's arithmetic, not the crate.
