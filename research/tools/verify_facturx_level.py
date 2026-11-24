@@ -25,7 +25,10 @@ crate and is never installed by CI.
 Publication replaces only the table, by one atomic rename, and gives each corpus
 a directory named after its own content. A directory with that name is reused only
 after every file in it is compared byte for byte against what this run staged, so
-a file a maintainer deleted or edited is republished rather than silently kept.
+a file a maintainer deleted, edited or saved in another encoding is
+republished rather than silently kept. Every occupied name for the digest is
+considered and the one the table already names is preferred, so an unchanged
+rerun publishes nothing.
 Files a maintainer keeps beside the documents are left alone: a corpus directory
 is only reused, never replaced or removed, and only when it carries the
 generator's marker file.
@@ -161,28 +164,70 @@ def holds_exactly(directory: pathlib.Path, documents: list[tuple[str, str, str]]
     present = {entry.name for entry in directory.iterdir() if entry.is_file()}
     if present != set(expected) | {MARKER}:
         return False
-    return all((directory / name).read_text() == xml for name, xml in expected.items())
+    # Compare bytes, not text. A maintainer may have saved a fixture in another
+    # encoding - UTF-16 on a UTF-8 system, say - and decoding it here would raise
+    # before the mismatch could be acted on, aborting the run with the live table
+    # still naming a file the Rust test cannot read.
+    return all(
+        (directory / name).read_bytes() == xml.encode("utf-8")
+        for name, xml in expected.items()
+    )
+
+
+def indexed_corpus(table: pathlib.Path) -> str | None:
+    """The corpus directory the live table names, if it names one.
+
+    Checked first when choosing a directory, so an unchanged rerun keeps the
+    corpus it already published instead of moving to the next free suffix.
+    """
+    try:
+        lines = table.read_text(encoding="utf-8").splitlines()
+    except FileNotFoundError:
+        return None
+    for line in lines:
+        if line.startswith("#") or not line.strip():
+            continue
+        fields = line.split("\t")
+        if len(fields) >= 3 and "/" in fields[2]:
+            return fields[2].split("/", 1)[0]
+    return None
 
 
 def choose_corpus(
-    root: pathlib.Path, digest: str, documents: list[tuple[str, str, str]]
+    root: pathlib.Path,
+    digest: str,
+    documents: list[tuple[str, str, str]],
+    indexed: str | None = None,
 ) -> tuple[pathlib.Path, bool]:
     """Where to publish, and whether that directory is already correct.
 
-    The content-named directory is reused only when it is ours and already holds
-    these exact bytes. Otherwise the first free name is taken, because replacing a
-    damaged directory in place would delete documents while the live table still
-    names them, and a directory this script did not make must not be replaced at
-    all. A suffixed name still records the content digest.
+    Every directory already on disk for this digest is considered, not only the
+    primary one: a run that recovered a damaged corpus published a suffixed name,
+    and the next unchanged run must find that one rather than take a further
+    suffix and rewrite every path in the table. The directory the table currently
+    names is checked first, so an unchanged rerun touches nothing.
+
+    A directory is reused only when it is ours and already holds these exact
+    bytes. Otherwise the first free name is taken, because replacing a damaged
+    directory in place would delete documents while the live table still names
+    them, and a directory this script did not make must not be replaced at all. A
+    suffixed name still records the content digest.
     """
     primary = root / digest
-    if holds_exactly(primary, documents):
-        return primary, True
-    candidate, suffix = primary, 1
-    while candidate.exists():
+    candidates: list[pathlib.Path] = []
+    if indexed and indexed != digest:
+        candidates.append(root / indexed)
+    candidates.append(primary)
+    free = primary
+    suffix = 1
+    while free.exists():
         suffix += 1
-        candidate = root / f"{digest}-{suffix}"
-    return candidate, False
+        free = root / f"{digest}-{suffix}"
+        candidates.append(free)
+    for candidate in candidates:
+        if holds_exactly(candidate, documents):
+            return candidate, True
+    return free, False
 
 
 def main() -> int:
@@ -198,12 +243,14 @@ def main() -> int:
     documents = list(cases())
     digest = corpus_digest(documents)
     CORPUS_ROOT.mkdir(parents=True, exist_ok=True)
-    target, reusable = choose_corpus(CORPUS_ROOT, digest, documents)
+    target, reusable = choose_corpus(
+        CORPUS_ROOT, digest, documents, indexed_corpus(FIXTURES / "profile.tsv")
+    )
     corpus = target.name
     rows: list[tuple[str, str, str, str]] = []
     try:
         for name, syntax, xml in documents:
-            (work / f"{name}.xml").write_text(xml)
+            (work / f"{name}.xml").write_text(xml, encoding="utf-8")
             rows.append((name, syntax, f"{corpus}/{name}.xml", reference_level(xml) or ""))
 
         lines = ["# Generated by research/tools/verify_facturx_level.py. Do not edit.",
@@ -211,7 +258,7 @@ def main() -> int:
         for name, syntax, file, level in rows:
             lines.append(f"{name}\t{syntax}\t{file}\t{level}")
         (work / MARKER).write_text(MARKER_TEXT)
-        (work / "profile.tsv").write_text("\n".join(lines) + "\n")
+        (work / "profile.tsv").write_text("\n".join(lines) + "\n", encoding="utf-8")
     except BaseException:
         # Nothing has been published, so the live fixtures are untouched.
         shutil.rmtree(work, ignore_errors=True)

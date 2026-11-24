@@ -498,3 +498,39 @@ The cost of keeping corpora is real and worth naming: nothing in CI reads a stal
 directory, so it can accumulate, and a maintainer has to remove one by hand when
 it is no longer wanted. That is the trade for not breaking builds, and it is
 recorded in `AGENTS.md` rather than left implicit.
+
+## Round seven: the recovery path had two edges
+
+Both findings are in `choose_corpus`, added in round six, and both reproduce.
+
+**Comparing as text turns an encoding problem into an abort.** `holds_exactly`
+used `read_text()`. A maintainer who saved a fixture as UTF-16 on a UTF-8 system
+got `UnicodeDecodeError` from inside the comparison, which runs *before* a
+directory is chosen. So the run died at the one moment the mismatch was known,
+with the live table still naming a file the Rust test cannot read - the recovery
+path failing exactly when it is needed. Reproduced: exit 1, table untouched.
+Fixed by comparing bytes, `read_bytes() == xml.encode("utf-8")`, which is also
+what `corpus_digest` hashes.
+
+**Recovering to a suffix made the next run take another suffix.** Only the
+primary name was checked. After a recovery published `<digest>-2`, the following
+unchanged run still saw a damaged primary, found `-2` occupied, and moved to
+`-3`, rewriting every path in the table. Reproduced: three unchanged reruns gave
+`-2`, `-3`, `-4`, each leaving another identical corpus. Fixed by collecting
+every occupied name for the digest and preferring the one the table already
+names; the marker check still runs first, so an unmarked directory is never
+reused even when the index points at it.
+
+A third defect turned up while testing the fix, and it was mine: the free-name
+loop started at `-2`, so a fresh tree with no corpus at all published
+`<digest>-2` rather than `<digest>`. Caught by running the generator with the
+corpus directory moved away, which is the state a fresh clone is in.
+
+Verified: an unchanged rerun changes no file; a UTF-16 fixture recovers to a
+fresh UTF-8 corpus with exit 0; reruns after a recovery stay on the same suffix
+with no new directory; a fresh tree publishes the primary name; an unmarked
+directory is neither reused nor touched, including when the index names it; the
+Rust replay passes; 33/33 agree with the reference.
+
+Both traps are recorded in `AGENTS.md`, including that the marker rule outranks
+the indexed-name preference.

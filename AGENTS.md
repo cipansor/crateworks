@@ -361,6 +361,22 @@ regression coverage in CI at all.
   changing one document so the digest moved, then running the binary built before
   the change. Keep old corpora, or the fix costs every developer a rebuild after
   the next regeneration.
+- **Comparing fixtures as text makes an encoding problem fatal instead of
+  fixable.** `read_text()` on a fixture a maintainer saved as UTF-16 raises
+  `UnicodeDecodeError` inside the comparison, before the mismatch can be acted
+  on, so the recovery path - delete or damage a file, rerun - aborts with the
+  live index still naming a document the UTF-8 reader cannot open. Compare bytes:
+  `read_bytes() == xml.encode("utf-8")`. Reproduced by re-saving one fixture as
+  UTF-16, which failed with exit 1, and then recovered by publishing a fresh
+  corpus under `<digest>-2`.
+- **Recovering to a suffixed directory has to look at the suffixed ones again.**
+  Checking only the primary name means the next unchanged run sees a damaged
+  primary, takes the next free suffix, and rewrites every path in the index, so
+  each run leaves another identical corpus. Reproduced: three unchanged reruns
+  produced `<digest>-2`, `-3`, `-4`. Collect every occupied name for the digest,
+  check the one the index already names first, and reuse the first that matches.
+  The marker rule still outranks that preference: a directory without it is never
+  reused, even when the index names it.
 - **A staged write is not atomic if the index and the payload are published
   separately.** `verify_facturx_level.py` once wrote the new table, then replaced
   the document directory, so an interrupt between the two left a table naming
