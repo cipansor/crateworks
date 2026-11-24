@@ -317,6 +317,41 @@ it - so a calendar whose behaviour is not frozen as a committed fixture has no
 regression coverage in CI at all.
 
 ## Known traps
+- **A memory test with a wide alphabet cannot tell snapshots from a matrix.**
+  With `n` distinct characters, `s == n`, so `s * (n + 1)` snapshot cells and an
+  `n * n` matrix are the same size and no ceiling separates them. The test in
+  `crates/fuzzy-score/tests/memory.rs` therefore uses a two-character alphabet
+  with one adjacent swap: 64 KiB of snapshots against a 128 MiB matrix at 4,096
+  characters. Verified by reintroducing the matrix, which peaks at 36 MiB and
+  fails the 16 MiB ceiling. A wide-alphabet version of the same test passed with
+  a matrix restored.
+- **`VmHWM` is a per-process maximum, so a delta around one call measures
+  nothing.** Any earlier larger allocation leaves the high-water mark above the
+  current call, so `after - before` reads zero and the assertion is vacuous.
+  `clear_refs` resets `VmHWM` but not `VmPeak`, and a counting allocator needs
+  `unsafe`, which this workspace forbids. The measurement has to run in a fresh
+  child process that reads `VmHWM` once. `VmHWM` also only counts pages that
+  were written: a `vec![0; n]` that is never touched showed +4 KiB for 64 MiB, so
+  a case whose rows are never written measures as free.
+- **A test that needs `/proc` must skip, not fail, elsewhere.** Reading
+  `VmHWM` panics on macOS and Windows. Guard the read and return early, so the
+  crate's test suite still passes on a platform that cannot measure; otherwise a
+  portable crate acquires a test that only passes on Linux.
+- **Replacing a fixture directory deletes whatever else lives in it.** A
+  maintainer's notes beside the documents are not generator output, and
+  `rmtree` plus rename removes them on every successful run. Either publish only
+  files the generator owns, or write a marker into each directory the generator
+  makes and refuse to remove one without it. Content-named corpus directories
+  (`profile/<digest>/`) plus an atomically replaced index give both: the index is
+  the only fixed path, and a stale corpus is removed only after the index stops
+  naming it and only if it carries the marker.
+- **A staged write is not atomic if the index and the payload are published
+  separately.** `verify_facturx_level.py` once wrote the new table, then replaced
+  the document directory, so an interrupt between the two left a table naming
+  documents that did not exist and the replay failed. Publish the payload first
+  and switch the index last, so before the switch the old pair is intact and
+  after it the new pair is complete.
+
 - **A holiday table fitted from 2000 back-projects the year-2000 rules.** Two
   separate defects hid behind that: `ObservedShift { from: 2000 }` on a country
   whose reference starts substituting earlier (Seychelles 1994, Namibia 1991,

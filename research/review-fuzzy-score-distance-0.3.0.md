@@ -397,3 +397,55 @@ in CI enforces the credit rather than a reviewer's memory.
   input will want `unicode-normalization` first. The crate does not depend on it
   and does not normalize silently, because a silent normalization would make the
   function stop matching the reference it is checked against.
+
+## Round five: the memory gate could not tell snapshots from a matrix
+
+Five findings. All five were real; two of them were real in a way the finding did
+not say.
+
+**The peak-memory test had a ceiling that both implementations fit.** It used
+2,048 distinct characters. With `s == n` there, `s * (n + 1)` snapshot cells and
+an `n * n` matrix are both about 32 MiB, so the 48 MiB ceiling accepted either.
+Reintroducing a matrix now fails at 36 MiB against a 16 MiB ceiling, because the
+case is 4,096 characters over a two-character alphabet: 64 KiB of snapshots
+against 128 MiB of matrix. The gap is four orders of magnitude, not a factor of
+1.5, which is what a ceiling needs to be worth having.
+
+**The test needed `/proc`, and panicked without it.** Reading `VmHWM` on macOS or
+Windows returned `None`, and the child asserted on it. It now returns early, so
+the crate's suite passes on a platform that cannot measure instead of acquiring a
+test that only passes on Linux. Verified by pointing the reader at a path that
+does not exist: the test passes and prints the skip.
+
+**The README's copy arithmetic was wrong by a factor of two.** It said an 8 KiB
+comparison allocates "about 32 KiB for the copies". Two 8 KiB inputs are 8,192
+scalars each at four bytes, twice: 64 KiB. The claim that the copies are
+negligible is also only true for similar lengths - only the rows scale with the
+shorter string, so on very unequal inputs the copies dominate. Measured rather
+than asserted: `levenshtein` of 1 MiB against 16 characters peaks at 3,968 KiB,
+almost all of it the two copies.
+
+**Regeneration deleted files it did not write.** `shutil.rmtree` on the corpus
+directory removed a maintainer's `notes.txt` and any subdirectory, on every
+successful run, because the staging tree held only generated documents. A
+maintainer investigating a reference disagreement would lose their notes exactly
+when the run succeeded.
+
+**Publication was not atomic across the table and the documents.** The table was
+installed first and the corpus directory replaced second, so an interrupt between
+the two left the new table naming documents that did not exist. Reproduced: the
+table named 33 documents and the directory was gone.
+
+Both are fixed by one change of shape. Each corpus now lives in
+`tests/fixtures/profile/<digest>/`, named after a hash of its own documents, and
+carries a `.generated` marker. The only fixed path is `profile.tsv`, so publishing
+is: move the documents into their new directory, then one `os.replace` of the
+table. Before that rename the old pair is consistent; after it the new pair is
+consistent; there is no ordering in between. Cleanup runs last, skips any
+directory without the marker, and skips the one the table now names.
+
+Verified: a `notes.txt` and a `scratch/draft.md` beside the documents survive a
+successful run; an interrupt forced at the table swap leaves 0 missing documents
+and no staging tree; an unmarked `deadbeefdeadbeef/` directory is preserved; a
+marked stale one is pruned. The regenerated documents are byte-identical to the
+previous corpus, and all 33 cases still agree with the reference.

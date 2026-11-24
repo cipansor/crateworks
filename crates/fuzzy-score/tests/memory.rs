@@ -8,7 +8,12 @@
 //! from a fresh process, which is the only reading that means anything.
 //!
 //! The allocator cannot be counted instead: a global allocator needs `unsafe`,
-//! and the workspace forbids it.
+//! and the workspace forbids it. `VmHWM` also only sees pages that were written,
+//! which is why the case below is chosen so that its rows are written.
+//!
+//! Where `/proc` does not exist - macOS, Windows - there is no reading to take,
+//! so the test skips instead of failing: a portable crate should not carry a
+//! test that can only pass on Linux.
 
 use std::process::Command;
 
@@ -20,43 +25,55 @@ fn peak_kib() -> Option<u64> {
     line.split_whitespace().nth(1)?.parse().ok()
 }
 
-/// An adjacent swap in an all-distinct alphabet: the only shape the
-/// transposition term can score as one edit, so a missing snapshot shows up.
-fn swapped(n: usize) -> (String, String) {
-    let a: String = (0..n)
-        .map(|i| char::from_u32(0x4e00 + i as u32).unwrap())
-        .collect();
+/// A long string over a two-character alphabet with one adjacent swap.
+///
+/// The alphabet is deliberately tiny. With two shared characters the snapshots
+/// cost `2 * (n + 1)` cells, which is tens of kilobytes, while a full matrix
+/// costs `n * n` cells, which is 128 MiB at this length. A wide alphabet cannot
+/// make that distinction: `s == n` there makes the two costs the same size, so
+/// the ceiling would have to allow both.
+///
+/// The swap is the only edit that needs the transposition term, so the answer
+/// proves the snapshots exist and the peak proves they are not a matrix.
+fn narrow_swapped(n: usize) -> (String, String) {
+    let a: String = (0..n).map(|i| if i % 2 == 0 { 'a' } else { 'b' }).collect();
     let mut chars: Vec<char> = a.chars().collect();
-    chars.swap(n / 2 - 1, n / 2);
+    let mut i = chars.len() / 2;
+    while chars[i] == chars[i + 1] {
+        i += 1;
+    }
+    chars.swap(i, i + 1);
     (a, chars.into_iter().collect())
 }
 
 #[test]
 fn damerau_peak_memory_stays_within_the_snapshot_bound() {
-    let n = 2048;
+    let n = 4096;
 
     if std::env::var_os(MODE).is_some() {
         // Child: one measurement, from a process that has done nothing else.
-        let (a, b) = swapped(n);
-        assert_eq!(fuzzy_score::distance::damerau_levenshtein(&a, &b), 1);
+        if peak_kib().is_none() {
+            // No `/proc` here, so there is nothing to measure.
+            return;
+        }
+
+        let (a, b) = narrow_swapped(n);
+        assert_eq!(
+            fuzzy_score::distance::damerau_levenshtein(&a, &b),
+            1,
+            "the input is not a transposition"
+        );
         assert_eq!(fuzzy_score::distance::levenshtein(&a, &b), 2);
 
-        // The documented bound is `s * min(m, n)` snapshot cells. Here
-        // `s == m == n == 2048`, so that is about 33 MiB. A full matrix would be
-        // another 33 MiB on top, so a 48 MiB ceiling separates them: above the
-        // documented bound, below an implementation that keeps both.
+        // The documented bound is `s * min(m, n)` snapshot cells: two
+        // characters over 4,096 columns is about 64 KiB, and the input copies add
+        // 32 KiB. A full matrix would be 4,096^2 * 8 = 128 MiB, so this ceiling
+        // is far above the documented bound and far below a matrix.
         let peak = peak_kib().expect("VmHWM readable in the child");
         assert!(
-            peak < 48 * 1024,
-            "peak RSS {peak} KiB, above the 48 MiB ceiling that the snapshot \
-             bound allows and a full matrix exceeds"
-        );
-        // A floor, so a reading of zero cannot pass: the snapshots have to exist
-        // for the answer above to be 1, and they cost about 33 MiB.
-        assert!(
-            peak > 16 * 1024,
-            "peak RSS {peak} KiB is below the 16 MiB the snapshots need, so \
-             this measured nothing"
+            peak < 16 * 1024,
+            "peak RSS {peak} KiB, above the 16 MiB ceiling: two characters need \
+             kilobytes of snapshots, so this measured a matrix"
         );
         return;
     }
@@ -79,4 +96,8 @@ fn damerau_peak_memory_stays_within_the_snapshot_bound() {
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr),
     );
+
+    if peak_kib().is_none() {
+        eprintln!("skipping the peak-memory assertion: no /proc/self/status here");
+    }
 }

@@ -189,10 +189,13 @@ iterators in lockstep and allocates nothing.
 | `jaro`, `jaro_winkler` | `O(m + n)` for the input copies, plus two `bool` masks and two match sequences |
 | `damerau_levenshtein` | `O(m + n)` for the input copies, plus `O(s * min(m, n))` for the snapshots |
 
-The copy means "linear" is only true up to a constant: an 8 KiB comparison
-allocates about 32 KiB for the copies before any row buffer exists. That is
-negligible next to the row buffers for any string longer than a few hundred
-characters, and it is the reason the figures below are not smaller.
+The copy means "linear" is only true up to a constant: two 8 KiB ASCII inputs
+allocate 64 KiB for the copies before any row buffer exists - 8,192 scalars each
+at four bytes, twice. That is negligible next to the row buffers when the strings
+are similar in length, and it is the reason the figures below are not smaller.
+On very unequal inputs it can dominate: `levenshtein` of a 1 MiB string against a
+16-character one allocates about 4 MiB for the copies and only 16 cells of rows,
+because only the rows scale with the shorter string.
 
 Unrestricted Damerau-Levenshtein cannot be done in `O(min(m, n))` with rolling
 rows: its transposition term reads an arbitrary earlier row of the matrix, so one
