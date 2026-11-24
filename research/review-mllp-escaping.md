@@ -422,3 +422,32 @@ Gate: 243/243 fields, 16/16 ACK, 16/16 enhanced, 16/16 converted, 16/16 field-on
 
 `mllp` 0.10.0 -> 0.11.0: no behaviour change in the crate itself - the gate and the
 documentation were wrong, not the reply.
+
+## Follow-up: fix the check once, then apply it everywhere
+
+An eighth review found the field-only path and the converted path disagreeing about
+what "the same identity" means.
+
+`check_field_only` compares `_shape` - every component split into decoded
+subcomponents. `check_converted` still compared `_identity`, the decoded component
+string. So a boundary move limited to replies that change *both* separators passed,
+and that is the path with the most room to move one, since the component separator
+itself is rewritten.
+
+The fix is two lines, and the interesting part is why it was needed. The previous
+round replaced the count with a split in one place and did not look for other places
+holding the same weakened comparison. A check that is correct in one path and weaker
+in another reads as green, because the gate reports a single total.
+
+Verified by mutating the crate so that a subcomponent separator is escaped as data
+**only when the component separator changes**. Before the fix that mutation passed;
+now `cnv 15` reports `[['LAB&X&Y']]` against `[['LAB&X', 'Y']]` while field-only stays
+16/16, which is the signature of a gap specific to the two-separator path.
+
+The standing lesson from rounds five to eight: when a comparison turns out to be too
+weak, grep for every use of it. Structure is compared one way in a gate, not one way
+per call site.
+
+Gate: 243/243 fields, 16/16 ACK, 16/16 enhanced, 16/16 converted, 16/16 field-only.
+
+`mllp` 0.11.0 -> 0.12.0: the gate was weaker than the crate, not the other way round.

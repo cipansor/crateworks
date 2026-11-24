@@ -803,6 +803,17 @@ def check_converted(raw: str, reply_ack: str, refusal: str, index: int) -> int:
                 f"  cnv {index}: {mirrored} is {actual!r}, expected {expected!r} ({why})"
             )
             problems += 1
+        # A decoded component string hides where the subcomponent boundaries fell,
+        # and a conversion that changes *both* separators has the most room to move
+        # one. Compare the split, not only the text.
+        expected_shape = _shape(_msh_field(source, original), source_sep)
+        actual_shape = _shape(_msh_field(reply, mirrored), reply_sep)
+        if expected_shape != actual_shape:
+            print(
+                f"  cnv {index}: {mirrored} splits into subcomponents "
+                f"{actual_shape!r}, expected {expected_shape!r} ({why})"
+            )
+            problems += 1
 
     # A delimiter copied out of an escape body would push the control id along.
     control = _identity(_msh_field(reply, "MSH-10"), reply_sep)

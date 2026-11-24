@@ -545,7 +545,9 @@ regression coverage in CI at all.
   check counts the split a reader performs - and a count is not enough either: one
   literal separator swapping places with one structural separator keeps the count
   and the decoded text, so compare the per-subcomponent split, not the number of
-  parts. When checking
+  parts. Fix the check once and apply it to every path: the converted path kept the
+  weaker comparison for a round after the field-only path was fixed, and a mutation
+  that only damages a two-separator reply went unseen. When checking
   this against `hl7apy`, compute the expectation from the reply's own MSH-1 and
   MSH-2: a message using `#` and `*` leaves `|` and `^` alone, so a hardcoded
   default-delimiter expectation fails on a case that is correct.
