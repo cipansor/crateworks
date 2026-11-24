@@ -133,12 +133,153 @@ let unique = dedupe(names, 70);
 assert!(unique.contains(&"Frodo Baggins".to_string()));
 ```
 
+## Edit distances and the Jaro family
+
+The `fuzz` scores are a policy inherited from `difflib`. They are not a metric:
+they do not satisfy the triangle inequality, they cannot be compared across
+string lengths, and they say nothing about how many edits separate two strings.
+`fuzzy_score::distance` provides the numbers the maintained libraries provide -
+`rapidfuzz`, `jellyfish`, and the `strsim` crate - and each one returns the same
+value those libraries return.
+
+```rust
+use fuzzy_score::distance::{
+    damerau_levenshtein, hamming, jaro, jaro_winkler, levenshtein, osa,
+};
+
+// Insertions, deletions and substitutions.
+assert_eq!(levenshtein("kitten", "sitting"), 3);
+
+// A transposition of two adjacent characters is one edit.
+assert_eq!(damerau_levenshtein("ab", "ba"), 1);
+assert_eq!(levenshtein("ab", "ba"), 2);
+
+// Two variants of Damerau-Levenshtein, and they disagree on short inputs. The
+// unrestricted one may transpose a substring that was edited first; the
+// restricted one (OSA) may not.
+assert_eq!(damerau_levenshtein("CA", "ABC"), 2);
+assert_eq!(osa("CA", "ABC"), 3);
+
+// Positions that differ. Unequal lengths count each extra position, as both
+// references do, rather than being an error.
+assert_eq!(hamming("karolin", "kathrin"), 3);
+assert_eq!(hamming("ab", "abc"), 1);
+
+// Similarity in 0.0..=1.0, with a bonus for a shared prefix.
+assert!((jaro("MARTHA", "MARHTA") - 0.944_444_444_444_444_5).abs() < 1e-12);
+assert!((jaro_winkler("MARTHA", "MARHTA") - 0.961_111_111_111_111_1).abs() < 1e-12);
+```
+
+Every function counts Unicode scalar values rather than bytes, so
+`levenshtein("café", "cafe")` is one edit. The `Damerau` enum selects between the
+two transposition variants at run time through `damerau`, and
+`levenshtein_similarity` turns a distance into a value between zero and one.
+
+Memory depends on which function is called, and the difference matters. Every
+function except `hamming` first copies both inputs into a `Vec<char>` (four bytes
+per scalar), because a DP recurrence indexes the column string by position; that
+copy is `O(m + n)` and is in the table below. `hamming` compares the two `Chars`
+iterators in lockstep and allocates nothing.
+
+| Function | Extra memory |
+|---|---|
+| `hamming` | `O(1)` - no allocation at all |
+| `levenshtein` | `O(m + n)` for the input copies, plus two rows of `min(m, n)` |
+| `osa` | `O(m + n)` for the input copies, plus three rows of `min(m, n)` |
+| `jaro`, `jaro_winkler` | `O(m + n)` for the input copies, plus two `bool` masks and two match sequences |
+| `damerau_levenshtein` | `O(m + n)` for the input copies, plus `O(s * min(m, n))` for the snapshots |
+
+The copy means "linear" is only true up to a constant: two 8 KiB ASCII inputs
+allocate 64 KiB for the copies before any row buffer exists - 8,192 scalars each
+at four bytes, twice. That is negligible next to the row buffers when the strings
+are similar in length, and it is the reason the figures below are not smaller.
+On very unequal inputs it can dominate: `levenshtein` of a 1 MiB string against a
+16-character one allocates about 4 MiB for the copies and only 16 cells of rows,
+because only the rows scale with the shorter string.
+
+Unrestricted Damerau-Levenshtein cannot be done in `O(min(m, n))` with rolling
+rows: its transposition term reads an arbitrary earlier row of the matrix, so one
+row must be kept per distinct character, and a character that occurs only once
+still needs its row. The saving over a full matrix is therefore real but not
+unconditional. Measured on 64-bit, comparing two 8 KiB strings:
+
+| Input | `damerau_levenshtein` peak |
+|---|---|
+| English text, 26 distinct characters | 1 MiB |
+| 2,048 distinct characters | 94 MiB |
+| 8,192 distinct characters | 416 MiB |
+
+So text costs kilobytes where a full matrix cost 512 MiB, and a string of
+thousands of *distinct* characters still costs a large allocation - roughly
+`s * min(m, n) * 8` bytes. True linear space needs Zhao-Sahni, which is not
+implemented here. `osa` and `levenshtein` are linear for any input, and are the
+right choice when the strings are large and their alphabet is wide.
+
+### Two contracts worth checking before switching
+
+`hamming` **counts** unequal lengths as differences, so `hamming("ab", "abc")` is
+1 and the function never fails. `strsim::hamming` returns
+`Err(DifferentLengthArgs)` for the same input. Both conventions exist; this one
+follows `rapidfuzz` and `jellyfish` so that a truncated field yields a number
+instead of an error a caller might skip.
+
+The unit is the **scalar**, not the grapheme cluster. `jellyfish` 1.3 segments
+into extended grapheme clusters, so text containing combining marks or joined
+emoji scores differently there:
+
+| Inputs | `rapidfuzz` / this crate | `jellyfish` 1.3 |
+|---|---|---|
+| `"e"` vs `"e"` + U+0301, Jaro | 0.833 | 0.0 |
+| `"👩‍💻"` vs `"👨‍🔬"`, Levenshtein | 2 | 1 |
+
+Neither is wrong, but a caller comparing user input should normalize to NFC
+first, or the same visible text scores as different strings.
+
+### The two references disagree once
+
+`rapidfuzz` and `jellyfish` agree on every metric in this module except at two
+places, and both are checked rather than tolerated:
+
+- **Two empty strings.** `rapidfuzz` returns `1.0` and `jellyfish` returns `0.0`
+  for Jaro and Jaro-Winkler. This crate returns `1.0`, along with `strsim` and
+  the reading that two identical strings are identical.
+- **Multi-scalar graphemes.** The references disagree about the unit, as the
+  table above shows. This crate follows `rapidfuzz`.
+
+The generator asserts both, and refuses to write the fixture if either reference
+changes its answer. Both reference versions are pinned and verified, because a
+fixture regenerated against a different release is a different fixture.
+
+### What the corpus found
+
+`scripts/fuzz/fuzzy-score/gen_distance.py` asks both references for 6,435 pairs
+and writes `tests/fixtures/distance.tsv`. Writing the implementation first and
+the fixture second was a mistake worth recording: the corpus immediately failed
+on three things that curated cases had passed.
+
+- `hamming` counted **bytes** of the length difference, so any non-ASCII string
+  reported a difference at every byte rather than every character.
+- The transposition count in `jaro` was divided as `f64`, where both references
+  use **integer** division (`jellyfish` writes `trans_count //= 2`). An odd
+  transposition count therefore lost its remainder and produced a score that was
+  too high.
+- The Damerau-Levenshtein matrix has a sentinel row and column at index zero, so
+  the cell for a position pair is `d[i + 1][j + 1]`, not `d[i][j]`. Reading the
+  unshifted cell reads the sentinel and under-reports the distance.
+
+The third is the one a curated test would never have caught: it only shows up on
+pairs with no characters in common, where the sentinel is the value that gets
+read.
+
 ## What it does not do
 
-It does not give the same numbers as `rapidfuzz`, and it is not meant to.
-`rapidfuzz` computes several of the same metrics with its own formulations and
-is much faster; `fuzzywuzzy` computes them with `difflib.SequenceMatcher`. The
-two disagree on ordinary inputs, so pick one and stay with it.
+The `fuzz` scores do not give the same numbers as `rapidfuzz`, and they are not
+meant to. `rapidfuzz` computes several of the same metrics with its own
+formulations and is much faster; `fuzzywuzzy` computes them with
+`difflib.SequenceMatcher`. The two disagree on ordinary inputs, so pick one and
+stay with it. The `distance` module is the opposite: it is bit-compatible with
+`rapidfuzz` and `jellyfish`, because there the algorithms are unambiguous and a
+different number would be a bug rather than a policy.
 
 It does not stem, transliterate or spell-correct. `ratio("Cães", "Caes")` is 75,
 because `ã` is dropped rather than folded to `a`. See below.

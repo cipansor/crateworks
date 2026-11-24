@@ -3,12 +3,17 @@
 #![warn(missing_docs)]
 
 mod difflib;
+pub mod distance;
 pub mod fuzz;
 pub mod process;
 mod unicode_tables;
 pub mod utils;
 mod word_chars;
 
+pub use distance::{
+    Damerau, damerau, damerau_levenshtein, hamming, jaro, jaro_winkler, levenshtein,
+    levenshtein_similarity, osa,
+};
 pub use fuzz::{
     Options, partial_ratio, partial_token_set_ratio, partial_token_set_ratio_with_options,
     partial_token_sort_ratio, partial_token_sort_ratio_with_options, q_ratio, q_ratio_with_options,

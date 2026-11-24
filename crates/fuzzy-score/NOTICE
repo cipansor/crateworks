@@ -12,4 +12,10 @@ divergence from the reference shows up as a failing test. The algorithm itself
 comes from CPython's difflib, which is distributed under the Python Software
 Foundation Licence.
 
+The edit distances and the Jaro family in `src/distance.rs` follow the
+formulations published by Lowrance and Wagner for Damerau-Levenshtein and by
+Jaro and Winkler for the similarity measures. Their values were checked against
+`rapidfuzz` (MIT) and `jellyfish` (MIT), which are reference material for
+development and are never a dependency of this crate.
+
 Licensed under the Apache License, Version 2.0 (see LICENSE).

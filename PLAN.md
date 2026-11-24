@@ -628,9 +628,21 @@ documentation alone gets them wrong and both are reproduced: the underscore is a
 accented Latin letter is dropped rather than transliterated while a CJK one is
 kept.
 
-**Not covered.** The `rapidfuzz` formulations, which differ on ordinary inputs by
-design; stemming, transliteration and spell correction. `research/tools/verify_fuzzy_score.py`
-checks the whole surface against PyPI `fuzzywuzzy` 0.18.
+**Also covered.** The `distance` module: `levenshtein`, `damerau_levenshtein`
+(unrestricted), `osa` (restricted), `hamming`, `jaro`, `jaro_winkler` and
+`levenshtein_similarity`. These are the metrics `strsim`, `rapidfuzz` and
+`jellyfish` provide and the `fuzz` family does not: a true metric, comparable
+across string lengths, that says how many edits separate two strings. Every
+value is bit-compatible with `rapidfuzz` 3.14 and `jellyfish`, checked over 6,094
+pairs in `tests/fixtures/distance.tsv`, and the two references are cross-checked
+against each other so a fixture cannot encode one library's bug.
+
+**Not covered.** The `fuzz` formulations of `rapidfuzz`, which differ from
+`fuzzywuzzy` on ordinary inputs by design; stemming, transliteration and spell
+correction. `research/tools/verify_fuzzy_score.py` checks the `fuzz` and
+`process` surface against PyPI `fuzzywuzzy` 0.18, and
+`scripts/fuzz/fuzzy-score/gen_distance.py` regenerates the distance corpus from
+`rapidfuzz` and `jellyfish`.
 
 ## 25. `address-parser`
 

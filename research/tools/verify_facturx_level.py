@@ -12,15 +12,36 @@ Usage:
     pip install factur-x
     python3 research/tools/verify_facturx_level.py
 
+The corpus is staged and swapped in at the end, so a run that fails part-way -
+no `factur-x`, a reference change, Ctrl-C - leaves the previous fixtures intact
+rather than deleted.
+
 It writes the corpus and the expected levels to
 `crates/factur-x/tests/fixtures/profile.tsv` and
-`crates/factur-x/tests/fixtures/profile/`, so the Rust test can replay them
-without the reference installed. The reference is never a dependency of the
+`crates/factur-x/tests/fixtures/profile/<digest>/`, so the Rust test can replay
+them without the reference installed. The reference is never a dependency of the
 crate and is never installed by CI.
+
+Publication replaces only the table, by one atomic rename, and gives each corpus
+a directory named after its own content. A directory with that name is reused only
+after every file in it is compared byte for byte against what this run staged, so
+a file a maintainer deleted, edited or saved in another encoding is
+republished rather than silently kept. Every occupied name for the digest is
+considered and the one the table already names is preferred, so an unchanged
+rerun publishes nothing.
+Files a maintainer keeps beside the documents are left alone: a corpus directory
+is only reused, never replaced or removed, and only when it carries the
+generator's marker file.
+
+Earlier corpora are kept. The replay test embeds the table at compile time but
+opens the documents at run time, so removing a directory an already-built test
+binary still names would break that binary.
 """
 
+import hashlib
 import os
 import pathlib
+import shutil
 import subprocess
 import sys
 
@@ -31,7 +52,12 @@ import facturx.facturx as f
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 CRATE = ROOT / "crates" / "factur-x"
 FIXTURES = CRATE / "tests" / "fixtures"
-CORPUS = FIXTURES / "profile"
+CORPUS_ROOT = FIXTURES / "profile"
+MARKER = ".generated"
+MARKER_TEXT = (
+    "Every file in this directory is written by "
+    "research/tools/verify_facturx_level.py and is replaced when it runs.\n"
+)
 
 CII = "urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100"
 RAM = "urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100"
@@ -102,29 +128,164 @@ def reference_level(xml: str) -> str | None:
         return None
 
 
+def corpus_digest(documents: list[tuple[str, str, str]]) -> str:
+    """A short name for this corpus, so a new one never reuses an old path."""
+    digest = hashlib.sha256()
+    for name, _syntax, xml in documents:
+        digest.update(name.encode())
+        digest.update(b"\0")
+        digest.update(xml.encode())
+        digest.update(b"\0")
+    return digest.hexdigest()[:16]
+
+
+def owned_by_generator(directory: pathlib.Path) -> bool:
+    """Whether this script made `directory`, and may therefore reuse it.
+
+    The marker is written into every corpus this script produces. A directory
+    without one was not made here - a maintainer's notes directory, say - so it
+    is left alone rather than reused.
+    """
+    return (directory / MARKER).is_file()
+
+
+def holds_exactly(directory: pathlib.Path, documents: list[tuple[str, str, str]]) -> bool:
+    """Whether `directory` already holds these documents, byte for byte.
+
+    The directory name is a digest of what the generator produced, not of what is
+    on disk, so a directory can carry the right name and still be wrong: a
+    maintainer may have deleted a file to see it regenerated, or edited one while
+    investigating. Comparing only names would keep the damaged copy and then read
+    it against freshly computed expectations.
+    """
+    if not owned_by_generator(directory):
+        return False
+    expected = {f"{name}.xml": xml for name, _syntax, xml in documents}
+    present = {entry.name for entry in directory.iterdir() if entry.is_file()}
+    if present != set(expected) | {MARKER}:
+        return False
+    # Compare bytes, not text. A maintainer may have saved a fixture in another
+    # encoding - UTF-16 on a UTF-8 system, say - and decoding it here would raise
+    # before the mismatch could be acted on, aborting the run with the live table
+    # still naming a file the Rust test cannot read.
+    return all(
+        (directory / name).read_bytes() == xml.encode("utf-8")
+        for name, xml in expected.items()
+    )
+
+
+def indexed_corpus(table: pathlib.Path) -> str | None:
+    """The corpus directory the live table names, if it names one.
+
+    Checked first when choosing a directory, so an unchanged rerun keeps the
+    corpus it already published instead of moving to the next free suffix.
+    """
+    try:
+        lines = table.read_text(encoding="utf-8").splitlines()
+    except FileNotFoundError:
+        return None
+    for line in lines:
+        if line.startswith("#") or not line.strip():
+            continue
+        fields = line.split("\t")
+        if len(fields) >= 3 and "/" in fields[2]:
+            return fields[2].split("/", 1)[0]
+    return None
+
+
+def choose_corpus(
+    root: pathlib.Path,
+    digest: str,
+    documents: list[tuple[str, str, str]],
+    indexed: str | None = None,
+) -> tuple[pathlib.Path, bool]:
+    """Where to publish, and whether that directory is already correct.
+
+    Every directory already on disk for this digest is considered, not only the
+    primary one: a run that recovered a damaged corpus published a suffixed name,
+    and the next unchanged run must find that one rather than take a further
+    suffix and rewrite every path in the table. The directory the table currently
+    names is checked first, so an unchanged rerun touches nothing.
+
+    A directory is reused only when it is ours and already holds these exact
+    bytes. Otherwise the first free name is taken, because replacing a damaged
+    directory in place would delete documents while the live table still names
+    them, and a directory this script did not make must not be replaced at all. A
+    suffixed name still records the content digest.
+    """
+    primary = root / digest
+    candidates: list[pathlib.Path] = []
+    if indexed and indexed != digest:
+        candidates.append(root / indexed)
+    candidates.append(primary)
+    free = primary
+    suffix = 1
+    while free.exists():
+        suffix += 1
+        free = root / f"{digest}-{suffix}"
+        candidates.append(free)
+    for candidate in candidates:
+        if holds_exactly(candidate, documents):
+            return candidate, True
+    return free, False
+
+
 def main() -> int:
     if not (CRATE / "Cargo.toml").is_file():
         print(f"cannot find the crate at {CRATE}", file=sys.stderr)
         return 2
 
-    CORPUS.mkdir(parents=True, exist_ok=True)
-    for old in CORPUS.glob("*.xml"):
-        old.unlink()
+    work = FIXTURES / ".profile-staging"
+    if work.exists():
+        shutil.rmtree(work)
+    work.mkdir(parents=True)
 
-    rows = []
-    for name, syntax, xml in cases():
-        path = CORPUS / f"{name}.xml"
-        path.write_text(xml)
-        level = reference_level(xml)
-        rows.append((name, syntax, f"{name}.xml", level or ""))
+    documents = list(cases())
+    digest = corpus_digest(documents)
+    CORPUS_ROOT.mkdir(parents=True, exist_ok=True)
+    target, reusable = choose_corpus(
+        CORPUS_ROOT, digest, documents, indexed_corpus(FIXTURES / "profile.tsv")
+    )
+    corpus = target.name
+    rows: list[tuple[str, str, str, str]] = []
+    try:
+        for name, syntax, xml in documents:
+            (work / f"{name}.xml").write_text(xml, encoding="utf-8")
+            rows.append((name, syntax, f"{corpus}/{name}.xml", reference_level(xml) or ""))
 
-    lines = ["# Generated by research/tools/verify_facturx_level.py. Do not edit.",
-             "# name\tsyntax\tfile\tlevel"]
-    for name, syntax, file, level in rows:
-        lines.append(f"{name}\t{syntax}\t{file}\t{level}")
-    (FIXTURES / "profile.tsv").write_text("\n".join(lines) + "\n")
+        lines = ["# Generated by research/tools/verify_facturx_level.py. Do not edit.",
+                 "# name\tsyntax\tfile\tlevel"]
+        for name, syntax, file, level in rows:
+            lines.append(f"{name}\t{syntax}\t{file}\t{level}")
+        (work / MARKER).write_text(MARKER_TEXT)
+        (work / "profile.tsv").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    except BaseException:
+        # Nothing has been published, so the live fixtures are untouched.
+        shutil.rmtree(work, ignore_errors=True)
+        raise
 
-    print(f"{len(rows)} cases -> {FIXTURES / 'profile.tsv'}")
+    staged_table = FIXTURES / ".profile-staging.tsv"
+    try:
+        # The documents and the table are staged together but published
+        # separately, because the table sits outside the corpus directory. Take
+        # the table out first, so moving the rest leaves exactly the corpus.
+        os.replace(work / "profile.tsv", staged_table)
+
+        # Documents first, table second. Before the second rename the old corpus is
+        # intact and the live table still names it; after it the new corpus is
+        # complete and the table names that. No ordering leaves the table naming
+        # documents that are not there. A directory that already holds these bytes
+        # is left as it is, so an unchanged corpus does not churn the tree.
+        if not reusable:
+            os.replace(work, target)
+        os.replace(staged_table, FIXTURES / "profile.tsv")
+    finally:
+        # An interrupt here is survivable - the live fixture is consistent - but
+        # it must not leave a staging tree for the next run to trip over.
+        shutil.rmtree(work, ignore_errors=True)
+        staged_table.unlink(missing_ok=True)
+
+    print(f"{len(rows)} cases -> {FIXTURES / 'profile.tsv'} (corpus {corpus})")
     ok = sum(1 for _, _, _, level in rows if level)
     print(f"  {ok} name a level, {len(rows) - ok} are the error path")
 
@@ -135,9 +296,11 @@ def main() -> int:
     example.write_text(EXAMPLE)
     env = dict(os.environ)
     env["PATH"] = os.environ.get("PATH", "")
-    names = [name for name, _, _, _ in rows]
+    # Documents live under `<digest>/`, so the crate reads the same relative path
+    # the table names rather than assuming a flat directory.
+    files = [file for _, _, file, _ in rows]
     proc = subprocess.run(
-        ["cargo", "run", "--quiet", "--example", "_oracle_profile", "--", *names],
+        ["cargo", "run", "--quiet", "--example", "_oracle_profile", "--", *files],
         cwd=CRATE, capture_output=True, text=True, env=env,
     )
     if proc.returncode != 0:
@@ -166,8 +329,13 @@ use std::path::PathBuf;
 
 fn main() {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/profile");
-    for name in std::env::args().skip(1) {
-        let xml = std::fs::read_to_string(dir.join(format!("{name}.xml"))).unwrap();
+    for file in std::env::args().skip(1) {
+        let name = PathBuf::from(&file)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap()
+            .to_string();
+        let xml = std::fs::read_to_string(dir.join(&file)).unwrap();
         match factur_x::profile_of(&xml) {
             Ok(p) => println!("{name}\\t{p}"),
             Err(_) => println!("{name}\\t"),

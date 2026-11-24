@@ -317,6 +317,73 @@ it - so a calendar whose behaviour is not frozen as a committed fixture has no
 regression coverage in CI at all.
 
 ## Known traps
+- **A memory test with a wide alphabet cannot tell snapshots from a matrix.**
+  With `n` distinct characters, `s == n`, so `s * (n + 1)` snapshot cells and an
+  `n * n` matrix are the same size and no ceiling separates them. The test in
+  `crates/fuzzy-score/tests/memory.rs` therefore uses a two-character alphabet
+  with one adjacent swap: 64 KiB of snapshots against a 128 MiB matrix at 4,096
+  characters. Verified by reintroducing the matrix, which peaks at 36 MiB and
+  fails the 16 MiB ceiling. A wide-alphabet version of the same test passed with
+  a matrix restored.
+- **`VmHWM` is a per-process maximum, so a delta around one call measures
+  nothing.** Any earlier larger allocation leaves the high-water mark above the
+  current call, so `after - before` reads zero and the assertion is vacuous.
+  `clear_refs` resets `VmHWM` but not `VmPeak`, and a counting allocator needs
+  `unsafe`, which this workspace forbids. The measurement has to run in a fresh
+  child process that reads `VmHWM` once. `VmHWM` also only counts pages that
+  were written: a `vec![0; n]` that is never touched showed +4 KiB for 64 MiB, so
+  a case whose rows are never written measures as free.
+- **A test that needs `/proc` must skip, not fail, elsewhere.** Reading
+  `VmHWM` panics on macOS and Windows. Guard the read and return early, so the
+  crate's test suite still passes on a platform that cannot measure; otherwise a
+  portable crate acquires a test that only passes on Linux.
+- **Replacing a fixture directory deletes whatever else lives in it.** A
+  maintainer's notes beside the documents are not generator output, and
+  `rmtree` plus rename removes them on every successful run. Write a marker into
+  each directory the generator makes and refuse to reuse or remove one without
+  it. Content-named corpus directories (`profile/<digest>/`) plus an atomically
+  replaced index mean the index is the only fixed path.
+- **A content-addressed directory name says what was generated, not what is on
+  disk.** `corpus_digest` hashes the documents the run produced, so
+  `profile/<digest>/` can carry the right name and hold a file a maintainer
+  deleted to see it regenerated, or edited while investigating. Reusing it on the
+  name alone publishes an index computed from the fresh bytes while the replay
+  reads the damaged ones, and a deleted file simply fails to open. Compare every
+  expected file against the staged bytes before reuse; if any differ, publish
+  under a fresh suffixed name (`<digest>-2`) instead of replacing the old
+  directory, which the live index may still name. Both halves were reproduced:
+  the deleted document stayed missing with exit code 2, and an appended comment
+  survived while the gate still reported 33/33.
+- **Pruning a fixture corpus breaks binaries already built against it.** The
+  replay test embeds the index with `include_str!` at compile time but opens the
+  documents at run time, so removing a directory that a prebuilt test binary
+  still names makes it panic with `No such file or directory`. Reproduced by
+  changing one document so the digest moved, then running the binary built before
+  the change. Keep old corpora, or the fix costs every developer a rebuild after
+  the next regeneration.
+- **Comparing fixtures as text makes an encoding problem fatal instead of
+  fixable.** `read_text()` on a fixture a maintainer saved as UTF-16 raises
+  `UnicodeDecodeError` inside the comparison, before the mismatch can be acted
+  on, so the recovery path - delete or damage a file, rerun - aborts with the
+  live index still naming a document the UTF-8 reader cannot open. Compare bytes:
+  `read_bytes() == xml.encode("utf-8")`. Reproduced by re-saving one fixture as
+  UTF-16, which failed with exit 1, and then recovered by publishing a fresh
+  corpus under `<digest>-2`.
+- **Recovering to a suffixed directory has to look at the suffixed ones again.**
+  Checking only the primary name means the next unchanged run sees a damaged
+  primary, takes the next free suffix, and rewrites every path in the index, so
+  each run leaves another identical corpus. Reproduced: three unchanged reruns
+  produced `<digest>-2`, `-3`, `-4`. Collect every occupied name for the digest,
+  check the one the index already names first, and reuse the first that matches.
+  The marker rule still outranks that preference: a directory without it is never
+  reused, even when the index names it.
+- **A staged write is not atomic if the index and the payload are published
+  separately.** `verify_facturx_level.py` once wrote the new table, then replaced
+  the document directory, so an interrupt between the two left a table naming
+  documents that did not exist and the replay failed. Publish the payload first
+  and switch the index last, so before the switch the old pair is intact and
+  after it the new pair is complete.
+
 - **A holiday table fitted from 2000 back-projects the year-2000 rules.** Two
   separate defects hid behind that: `ObservedShift { from: 2000 }` on a country
   whose reference starts substituting earlier (Seychelles 1994, Namibia 1991,
@@ -926,6 +993,95 @@ regression coverage in CI at all.
   not.** `^0.1.9` accepts `0.1.10`, so dependents need no release for it, but
   `0.2.0` falls outside the requirement and every dependent has to be re-released
   against it. `bump.py` updates `[workspace.dependencies]` and names them.
+- **A quadratic distance matrix aborts the caller before it returns a wrong
+  answer.** Unrestricted Damerau-Levenshtein and OSA both allocate a cell per
+  pair of positions, so two 8 KiB strings need 512 MiB. That is not a slow
+  function, it is an allocation failure in a library whose signature has no way
+  to report one. OSA needs only the previous two rows. Damerau-Levenshtein needs
+  an arbitrary earlier row for its transposition term, so rolling rows alone
+  cannot do it: save one copy of the row per distinct character, taken when that
+  character's last occurrence is processed. That is `O(s * min(m, n))` rather
+  than `O(m * n)`. The saving is not unconditional: a character that occurs only
+  once in the longer string still needs its row (`ab` against `ba` reads row 0
+  through the single `a`), so a string of thousands of *distinct* characters
+  still allocates tens of megabytes. Measured at 8 KiB: 26 distinct characters
+  cost 1 MiB, 2,048 cost 94 MiB, 8,192 cost 416 MiB. Say `O(s * min(m, n))` and
+  show the measurements; do not write "linear" and stop. The corpus must contain
+  long inputs or the bug is invisible - the original fixture capped at 12
+  characters, where the matrix is 144 cells.
+- **`gen.py > fixture.tsv` destroys the fixture on failure.** The shell truncates
+  before the script starts, so a version mismatch or a new oracle disagreement
+  leaves an empty file and the replay test fails until git restores it. Fixture
+  generators must write to a temporary sibling and rename, and take the path as
+  an argument.
+- **A seeded corpus regenerated with more draws silently loses pairs.** Adding
+  one draw shifts every later one, so widening a corpus that shares a
+  `random.seed` drops cases it used to have - 1,283 of them in this repository.
+  Read the existing fixture, re-ask those pairs and merge, so a corpus only
+  grows; report the carried count so a shrink is visible in the log.
+- **A test whose input does not need the code under test passes without it.**
+  The wide-alphabet Damerau test used a substitution, which the ordinary
+  recurrence already scores as one edit, so it passed with the snapshots deleted
+  and with the snapshot taken after the row swap. A transposition in an
+  all-distinct alphabet is the shape that *requires* the term. Check a new test
+  by deleting the code it covers: if it still passes, it tests nothing.
+- **`VmHWM` cannot measure a single call.** It is a maximum for the whole
+  process and never falls, so a delta around one call is zero after any larger
+  earlier allocation, and `clear_refs` does not reset `VmPeak`. Untouched
+  `vec![0; n]` pages are also not resident, so a 64 MiB buffer reads as +4 KiB.
+  Measuring peak needs a fresh child process; `crates/fuzzy-score/tests/memory.rs`
+  re-executes its own binary to get one. A global counting allocator would be
+  better but needs `unsafe`, which this workspace forbids.
+- **A `Vec<char>` copy of both inputs is `O(m + n)` that the DP bounds miss.**
+  Every function except `hamming` copies its arguments, because a recurrence
+  indexes the column string by position. Document the copies or the table
+  overstates the saving. The shorter string belongs in the column role, or a
+  long *second* argument allocates a row as long as itself - `levenshtein` was
+  missing that swap while `osa` had it.
+- **"Attributable to X" is not a check; "equal to what X predicts" is.** A
+  classifier that says "this pair contains a grapheme, so the references may
+  disagree" accepts every future mismatch on any such pair, including one caused
+  by a bug. The check that means something re-derives the expected value - here,
+  re-asking `rapidfuzz` with both strings reduced to one scalar per cluster - and
+  fails when the two differ.
+- **A reference that segments grapheme clusters is not comparable on the same
+  unit.** `jellyfish` 1.3 compares extended grapheme clusters; `rapidfuzz` and
+  `strsim` compare Unicode scalar values. They disagree on any text with a
+  combining mark or a joined emoji - `"e"` against `"e"` + U+0301 is Jaro `0.833`
+  against `0.0`, and `"👩‍💻"` against `"👨‍🔬"` is Levenshtein 2 against 1 - and
+  neither is wrong. Pick the unit, say so in the crate docs, and put the
+  divergent pairs in the generator with both values pinned, or the cross-check
+  either fails on every such pair or hides them by skipping.
+- **A distance function that returns `Result` and one that returns a number have
+  different contracts, not different quality.** `strsim::hamming` rejects unequal
+  lengths; `rapidfuzz` and `jellyfish` count the extra positions. A caller
+  switching crates changes behaviour on the first truncated input, so the
+  divergence belongs in the function docs rather than in a changelog.
+- **An edit-distance matrix with a sentinel row shifts every index by one.** The
+  published Damerau-Levenshtein transcription (Lowrance and Wagner) reserves
+  `d[0][*]` and `d[*][0]` for a sentinel, so the cell for characters `i` and `j`
+  is `d[i + 1][j + 1]`, and the transposition term reads `d[k][l]` with `k` from
+  the last row a character was seen in and `l` from the current match column.
+  Writing the loop 1-based but reading `d[i - 1][j - 1]` reads the sentinel and
+  under-reports the distance. It only shows on pairs with no characters in
+  common, which is why a curated test passes and a corpus fails: the fixture in
+  `crates/fuzzy-score/tests/fixtures/distance.tsv` caught it on the first run.
+- **A "half a transposition" is integer division in every reference.** Jaro
+  counts transpositions in pairs and halves the count with `//` (jellyfish
+  literally writes `trans_count //= 2`), so an odd count loses its remainder.
+  Dividing by `2.0` gives a score that is too high on roughly half of all pairs
+  and looks plausible on the examples.
+- **A reference that returns a similarity in `0..=1` has no normalized form.**
+  `rapidfuzz`'s `JaroWinkler.normalized_similarity` is `1 - (1 - s)`, which
+  re-rounds the last bit and can differ from `s` by one ULP. Pinning a fixture to
+  it asserts a floating-point artifact rather than the algorithm, so the fixture
+  records the similarity and not its normalization.
+- **Two references can disagree, and the disagreement is the finding.** Jaro of
+  two empty strings is `1.0` in `rapidfuzz` and `0.0` in `jellyfish`. A generator
+  that quietly accepted either would hide a future change in both, so
+  `scripts/fuzz/fuzzy-score/gen_distance.py` asserts that this pair is the *only*
+  disagreement and fails on any other. Pick a side, document it, and make the
+  choice a checked assertion rather than a comment.
 - **A crate name cannot be changed after publication.** Check with
   `research/tools/namecheck.py` before writing code, not after.
 - **A gate that fetches live data fails on the data, not the code.**
