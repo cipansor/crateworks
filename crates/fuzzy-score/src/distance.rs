@@ -25,8 +25,27 @@
 //! * [`jaro`] and [`jaro_winkler`] - similarity in `0.0..=1.0` that rewards
 //!   matching characters appearing in the same order.
 //!
-//! Every function counts **characters**, not bytes, so `"café"` against
-//! `"cafe"` is one edit and not two.
+//! # What counts as one character
+//!
+//! Every function counts **Unicode scalar values**, not bytes and not grapheme
+//! clusters. `"café"` against `"cafe"` is one edit, and `"👩‍💻"` is three
+//! scalars - so it is three edits from `""`, not one.
+//!
+//! This is `rapidfuzz`'s unit, and it is the reason this module is **not**
+//! jellyfish-compatible for text containing multi-scalar graphemes. `jellyfish`
+//! 1.3 segments into extended grapheme clusters, so a decomposed `e` plus a
+//! combining acute is one unit there and two here, and a joined emoji is one
+//! there and three here. On `"e"` against `"e" + U+0301`, `rapidfuzz` returns a
+//! Jaro similarity of `0.833` and `jellyfish` returns `0.0`; on
+//! `"👩‍💻"` against `"👨‍🔬"`, the Levenshtein distance is 2 here and 1 there.
+//!
+//! Neither is wrong - they answer different questions - but a caller comparing
+//! user input should normalize to NFC (`unicode-normalization`) before calling
+//! either, or the same visible text can score as different strings. The corpus
+//! generator pins both values for these pairs so the divergence is measured
+//! rather than assumed absent.
+
+use std::collections::{HashMap, HashSet};
 
 /// The Damerau-Levenshtein variant to compute.
 ///
@@ -111,41 +130,47 @@ pub fn damerau_levenshtein(a: &str, b: &str) -> usize {
 }
 
 fn damerau_levenshtein_chars(a: &[char], b: &[char]) -> usize {
-    if a.is_empty() {
-        return b.len();
-    }
-    if b.is_empty() {
-        return a.len();
+    // The row buffers and the per-character snapshots below are all `b.len() + 1`
+    // wide and the distance is symmetric, so the shorter string is the column
+    // dimension. That alone turns an `m * n` matrix into `min(m, n)` columns.
+    let (a, b) = if b.len() <= a.len() { (a, b) } else { (b, a) };
+    let (m, n) = (a.len(), b.len());
+    if n == 0 {
+        return m;
     }
 
-    // Lowrance and Wagner's algorithm, transcribed as it is usually published:
-    // `d` has a sentinel row and column at index zero, `i` and `j` below are
-    // 1-based positions in `a` and `b`, and the cell holding the answer for the
-    // first `i` and `j` characters is `d[i + 1][j + 1]`. `last_seen` remembers
-    // the 1-based index at which each character of `a` last appeared, which is
-    // what prices a transposition.
+    // Lowrance and Wagner's recurrence, in the indexing the paper and the usual
+    // transcription use: `i` and `j` are 1-based positions, and the answer for
+    // the first `i` and `j` characters is `d[i][j]`.
     //
-    // The shift is the part that is easy to get wrong: the sentinel occupies
-    // `d[0][*]` and `d[*][0]`, so every write is offset by one and the
-    // transposition term reads `d[k][l]` with `k` and `l` from `last_seen` and
-    // the current column, not `d[i - 1][j - 1]`.
-    let max_distance = a.len() + b.len();
-    let mut d = vec![vec![0usize; b.len() + 2]; a.len() + 2];
-    d[0][0] = max_distance;
-    for i in 0..=a.len() {
-        d[i + 1][0] = max_distance;
-        d[i + 1][1] = i;
-    }
-    for j in 0..=b.len() {
-        d[0][j + 1] = max_distance;
-        d[1][j + 1] = j;
-    }
+    //   d[i][j] = min(d[i-1][j-1] + cost, d[i][j-1] + 1, d[i-1][j] + 1,
+    //                 d[k-1][l-1] + (i-k-1) + 1 + (j-l-1))
+    //
+    // where `k` is the last position in `a` at which `b[j]` occurred and `l` the
+    // last position in `b` at which `a[i]` matched. Only the first three terms
+    // look one row back, so `prev` and `curr` are enough for them. The fourth
+    // reaches into an arbitrary earlier row, which is why the naive
+    // transcription needs the whole matrix - and why 8 KiB inputs allocated
+    // 512 MiB.
+    //
+    // `snapshot[c]` holds row `k - 1` of the matrix for the character `c` whose
+    // last occurrence in `a` is at position `k`, so the fourth term becomes
+    // `snapshot[b[j]][l - 1]`. The snapshot is taken when that occurrence is
+    // processed, at which point the row it needs *is* `prev`. Memory is
+    // therefore `O(s * min(m, n))` for `s` distinct characters shared by the two
+    // strings, not `O(m * n)`; `AGENTS.md` records why rolling rows alone cannot
+    // do it.
+    let mut prev: Vec<usize> = (0..=n).collect();
+    let mut curr = vec![0usize; n + 1];
+    let mut last_seen: HashMap<char, usize> = HashMap::new();
+    let mut snapshot: HashMap<char, Vec<usize>> = HashMap::new();
+    let queryable: HashSet<char> = b.iter().copied().collect();
 
-    let mut last_seen: std::collections::HashMap<char, usize> = std::collections::HashMap::new();
-    for i in 1..=a.len() {
+    for i in 1..=m {
+        curr[0] = i;
         let mut last_match_column = 0usize;
-        for j in 1..=b.len() {
-            let k = *last_seen.get(&b[j - 1]).unwrap_or(&0);
+        for j in 1..=n {
+            let k = last_seen.get(&b[j - 1]).copied().unwrap_or(0);
             let l = last_match_column;
             let cost = if a[i - 1] == b[j - 1] {
                 last_match_column = j;
@@ -153,15 +178,29 @@ fn damerau_levenshtein_chars(a: &[char], b: &[char]) -> usize {
             } else {
                 1
             };
-            let substitution = d[i][j] + cost;
-            let insertion = d[i + 1][j] + 1;
-            let deletion = d[i][j + 1] + 1;
-            let transposition = d[k][l] + (i - k - 1) + 1 + (j - l - 1);
-            d[i + 1][j + 1] = substitution.min(insertion).min(deletion).min(transposition);
+            let substitution = prev[j - 1] + cost;
+            let insertion = curr[j - 1] + 1;
+            let deletion = prev[j] + 1;
+            let mut value = substitution.min(insertion).min(deletion);
+            // `k == 0` or `l == 0` means the character has not been seen yet; the
+            // naive form reads a sentinel there that is at least `m + n`, so the
+            // term can never win and skipping it is exact rather than a shortcut.
+            if k > 0 && l > 0 {
+                let transposition = snapshot[&b[j - 1]][l - 1] + (i - k - 1) + 1 + (j - l - 1);
+                value = value.min(transposition);
+            }
+            curr[j] = value;
         }
-        last_seen.insert(a[i - 1], i);
+        // Before `a[i - 1]` becomes the last occurrence of its character, `prev`
+        // is row `i - 1`, which is exactly the row its future transposition
+        // terms will read.
+        if queryable.contains(&a[i - 1]) {
+            snapshot.insert(a[i - 1], prev.clone());
+            last_seen.insert(a[i - 1], i);
+        }
+        std::mem::swap(&mut prev, &mut curr);
     }
-    d[a.len() + 1][b.len() + 1]
+    prev[n]
 }
 
 /// Optimal string alignment distance: Levenshtein plus transposition of two
@@ -185,41 +224,56 @@ fn damerau_levenshtein_chars(a: &[char], b: &[char]) -> usize {
 pub fn osa(a: &str, b: &str) -> usize {
     let a: Vec<char> = a.chars().collect();
     let b: Vec<char> = b.chars().collect();
-    if a.is_empty() {
-        return b.len();
-    }
+    // The distance is symmetric and the rows below are `b.len() + 1` wide, so
+    // the shorter string belongs in that role.
+    let (a, b) = if b.len() <= a.len() {
+        (&a, &b)
+    } else {
+        (&b, &a)
+    };
     if b.is_empty() {
         return a.len();
     }
 
-    let mut d = vec![vec![0usize; b.len() + 1]; a.len() + 1];
-    for (i, row) in d.iter_mut().enumerate() {
-        row[0] = i;
-    }
-    for (j, cell) in d[0].iter_mut().enumerate() {
-        *cell = j;
-    }
+    // The recurrence reads only the previous row (`prev`) and the one before it
+    // (`prev2`), so three rows are enough. A full `m * n` matrix is what made an
+    // 8 KiB comparison allocate 512 MiB before this was written this way.
+    let n = b.len();
+    let mut prev2 = vec![0usize; n + 1];
+    let mut prev: Vec<usize> = (0..=n).collect();
+    let mut curr = vec![0usize; n + 1];
     for i in 1..=a.len() {
-        for j in 1..=b.len() {
+        curr[0] = i;
+        for j in 1..=n {
             let cost = usize::from(a[i - 1] != b[j - 1]);
-            let mut value = (d[i - 1][j] + 1)
-                .min(d[i][j - 1] + 1)
-                .min(d[i - 1][j - 1] + cost);
+            let mut value = (prev[j] + 1).min(curr[j - 1] + 1).min(prev[j - 1] + cost);
             if i > 1 && j > 1 && a[i - 1] == b[j - 2] && a[i - 2] == b[j - 1] {
-                value = value.min(d[i - 2][j - 2] + 1);
+                value = value.min(prev2[j - 2] + 1);
             }
-            d[i][j] = value;
+            curr[j] = value;
         }
+        std::mem::swap(&mut prev2, &mut prev);
+        std::mem::swap(&mut prev, &mut curr);
     }
-    d[a.len()][b.len()]
+    prev[n]
 }
 
 /// Hamming distance: the number of positions at which the two strings differ.
 ///
-/// The usual definition requires equal lengths and is undefined otherwise. Both
-/// references this crate checks against instead count each extra position as a
-/// difference, so `"ab"` against `"abc"` is 1 and not an error - which is also
-/// the more useful answer for a caller comparing a truncated field.
+/// The textbook definition requires equal lengths and is undefined otherwise.
+/// There are two conventions in the Rust ecosystem and they are **not**
+/// interchangeable:
+///
+/// * `strsim::hamming` returns `Err(DifferentLengthArgs)` for unequal lengths.
+/// * `rapidfuzz` and `jellyfish` count each extra position as a difference, so
+///   `"ab"` against `"abc"` is 1.
+///
+/// This function follows the second, so it always returns a value and never
+/// fails. The reason is that the caller that needs Hamming distance is usually
+/// comparing a field that may have been truncated, and an `Err` there means a
+/// caller either unwraps or silently skips the pair; a count means the same
+/// thing to both sides. A caller that requires the strict contract should check
+/// the lengths first, which is one comparison.
 ///
 /// ```
 /// use fuzzy_score::distance::hamming;
@@ -420,6 +474,71 @@ mod tests {
         assert_eq!(levenshtein("", "abc"), 3);
         assert_eq!(levenshtein("abc", ""), 3);
         assert_eq!(levenshtein("abc", "abc"), 0);
+    }
+
+    #[test]
+    fn long_inputs_stay_within_linear_space() {
+        // A quadratic matrix is 32 MiB at this length and 512 MiB at 8 KiB, which
+        // is enough to abort a process. The test cannot measure allocation
+        // directly, so it asserts the answer on an input where the full matrix
+        // was the only thing standing between the caller and a result, and keeps
+        // the length small enough that it does not dominate the suite.
+        let n = 2048;
+        let a: String = (0..n).map(|i| char::from(b'a' + (i % 26) as u8)).collect();
+        let mut chars: Vec<char> = a.chars().collect();
+        chars[n / 2] = 'z';
+        let b: String = chars.into_iter().collect();
+
+        assert_eq!(levenshtein(&a, &b), 1);
+        assert_eq!(osa(&a, &b), 1);
+        assert_eq!(damerau_levenshtein(&a, &b), 1);
+    }
+
+    #[test]
+    fn damerau_matches_the_matrix_form_on_repetitive_input() {
+        // The snapshot-based implementation replaces a full matrix, so it has to
+        // agree with the recurrence it replaces on input built to need the
+        // transposition term: repeated characters make the last-seen positions
+        // far apart, which is where a wrong snapshot row shows.
+        assert_eq!(damerau_levenshtein("aab", "aba"), 1);
+        assert_eq!(damerau_levenshtein("abab", "baba"), 2);
+        assert_eq!(damerau_levenshtein("aaaa", "aaaa"), 0);
+        assert_eq!(damerau_levenshtein("abcd", "badc"), 2);
+        assert_eq!(damerau_levenshtein("ca", "abc"), 2);
+        assert_eq!(damerau_levenshtein("ab", "ba"), 1);
+    }
+
+    #[test]
+    fn the_unit_is_a_scalar_and_that_is_documented() {
+        // A joined emoji is three scalars: woman, ZWJ, laptop. `jellyfish` treats
+        // it as one grapheme cluster and would return 1 against another joined
+        // emoji; this crate follows `rapidfuzz` and counts scalars.
+        let woman_technologist = "\u{1f469}\u{200d}\u{1f4bb}";
+        let man_scientist = "\u{1f468}\u{200d}\u{1f52c}";
+        assert_eq!(levenshtein(woman_technologist, man_scientist), 2);
+        assert_eq!(levenshtein("", woman_technologist), 3);
+
+        // A decomposed accent is two scalars, so it is one edit from the plain
+        // letter and zero from an identical pair.
+        let decomposed = "e\u{301}";
+        assert_eq!(levenshtein("e", decomposed), 1);
+        assert_eq!(levenshtein(decomposed, decomposed), 0);
+        // The precomposed form is one scalar, so it is a *different* string from
+        // the two-scalar decomposed form: substituting `é` for `e` and then
+        // inserting the combining mark is two edits, which is the whole reason
+        // NFC normalization matters before comparing user input.
+        assert_eq!(levenshtein("\u{e9}", decomposed), 2);
+    }
+
+    #[test]
+    fn hamming_counts_unequal_lengths_instead_of_failing() {
+        // `strsim::hamming` returns `Err` here. This follows `rapidfuzz` and
+        // `jellyfish`: every extra position is a difference, so the function
+        // cannot fail.
+        assert_eq!(hamming("ab", "abc"), 1);
+        assert_eq!(hamming("abc", "ab"), 1);
+        assert_eq!(hamming("", "abc"), 3);
+        assert_eq!(hamming("abc", ""), 3);
     }
 
     #[test]

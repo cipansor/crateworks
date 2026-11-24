@@ -926,6 +926,29 @@ regression coverage in CI at all.
   not.** `^0.1.9` accepts `0.1.10`, so dependents need no release for it, but
   `0.2.0` falls outside the requirement and every dependent has to be re-released
   against it. `bump.py` updates `[workspace.dependencies]` and names them.
+- **A quadratic distance matrix aborts the caller before it returns a wrong
+  answer.** Unrestricted Damerau-Levenshtein and OSA both allocate a cell per
+  pair of positions, so two 8 KiB strings need 512 MiB. That is not a slow
+  function, it is an allocation failure in a library whose signature has no way
+  to report one. OSA needs only the previous two rows. Damerau-Levenshtein needs
+  an arbitrary earlier row for its transposition term, so rolling rows alone
+  cannot do it: save one copy of the row per distinct character, taken when that
+  character's last occurrence is processed. That is `O(s * min(m, n))` rather
+  than `O(m * n)`. The corpus must contain long inputs or the bug is invisible -
+  the original fixture capped at 12 characters, where the matrix is 144 cells.
+- **A reference that segments grapheme clusters is not comparable on the same
+  unit.** `jellyfish` 1.3 compares extended grapheme clusters; `rapidfuzz` and
+  `strsim` compare Unicode scalar values. They disagree on any text with a
+  combining mark or a joined emoji - `"e"` against `"e"` + U+0301 is Jaro `0.833`
+  against `0.0`, and `"👩‍💻"` against `"👨‍🔬"` is Levenshtein 2 against 1 - and
+  neither is wrong. Pick the unit, say so in the crate docs, and put the
+  divergent pairs in the generator with both values pinned, or the cross-check
+  either fails on every such pair or hides them by skipping.
+- **A distance function that returns `Result` and one that returns a number have
+  different contracts, not different quality.** `strsim::hamming` rejects unequal
+  lengths; `rapidfuzz` and `jellyfish` count the extra positions. A caller
+  switching crates changes behaviour on the first truncated input, so the
+  divergence belongs in the function docs rather than in a changelog.
 - **An edit-distance matrix with a sentinel row shifts every index by one.** The
   published Damerau-Levenshtein transcription (Lowrance and Wagner) reserves
   `d[0][*]` and `d[*][0]` for a sentinel, so the cell for characters `i` and `j`

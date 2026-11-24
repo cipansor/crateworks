@@ -170,23 +170,56 @@ assert!((jaro("MARTHA", "MARHTA") - 0.944_444_444_444_444_5).abs() < 1e-12);
 assert!((jaro_winkler("MARTHA", "MARHTA") - 0.961_111_111_111_111_1).abs() < 1e-12);
 ```
 
-Every function counts characters rather than bytes, so `levenshtein("café",
-"cafe")` is one edit. The `Damerau` enum selects between the two transposition
-variants at run time through `damerau`, and `levenshtein_similarity` turns a
-distance into a value between zero and one.
+Every function counts Unicode scalar values rather than bytes, so
+`levenshtein("café", "cafe")` is one edit. The `Damerau` enum selects between the
+two transposition variants at run time through `damerau`, and
+`levenshtein_similarity` turns a distance into a value between zero and one.
+
+Memory is linear in the shorter input, not quadratic. The two algorithms that
+need more than one row use `O(min(m, n))` buffers - three rolling rows for OSA,
+and for unrestricted Damerau-Levenshtein one saved row per distinct character
+that the two strings share, because its transposition term reaches into an
+arbitrary earlier row. Comparing two 8 KiB strings therefore costs kilobytes
+rather than the 512 MiB a full matrix would take.
+
+### Two contracts worth checking before switching
+
+`hamming` **counts** unequal lengths as differences, so `hamming("ab", "abc")` is
+1 and the function never fails. `strsim::hamming` returns
+`Err(DifferentLengthArgs)` for the same input. Both conventions exist; this one
+follows `rapidfuzz` and `jellyfish` so that a truncated field yields a number
+instead of an error a caller might skip.
+
+The unit is the **scalar**, not the grapheme cluster. `jellyfish` 1.3 segments
+into extended grapheme clusters, so text containing combining marks or joined
+emoji scores differently there:
+
+| Inputs | `rapidfuzz` / this crate | `jellyfish` 1.3 |
+|---|---|---|
+| `"e"` vs `"e"` + U+0301, Jaro | 0.833 | 0.0 |
+| `"👩‍💻"` vs `"👨‍🔬"`, Levenshtein | 2 | 1 |
+
+Neither is wrong, but a caller comparing user input should normalize to NFC
+first, or the same visible text scores as different strings.
 
 ### The two references disagree once
 
-`rapidfuzz` and `jellyfish` agree on every metric in this module except Jaro of
-two empty strings: `rapidfuzz` returns `1.0` and `jellyfish` returns `0.0`. This
-crate returns `1.0`, along with `strsim` and the reading that two identical
-strings are identical. The generator asserts that this is the *only* disagreement
-between the two references, so a future release of either cannot widen the gap
-without the fixture regeneration failing.
+`rapidfuzz` and `jellyfish` agree on every metric in this module except at two
+places, and both are checked rather than tolerated:
+
+- **Two empty strings.** `rapidfuzz` returns `1.0` and `jellyfish` returns `0.0`
+  for Jaro and Jaro-Winkler. This crate returns `1.0`, along with `strsim` and
+  the reading that two identical strings are identical.
+- **Multi-scalar graphemes.** The references disagree about the unit, as the
+  table above shows. This crate follows `rapidfuzz`.
+
+The generator asserts both, and refuses to write the fixture if either reference
+changes its answer. Both reference versions are pinned and verified, because a
+fixture regenerated against a different release is a different fixture.
 
 ### What the corpus found
 
-`scripts/fuzz/fuzzy-score/gen_distance.py` asks both references for 6,094 pairs
+`scripts/fuzz/fuzzy-score/gen_distance.py` asks both references for 6,435 pairs
 and writes `tests/fixtures/distance.tsv`. Writing the implementation first and
 the fixture second was a mistake worth recording: the corpus immediately failed
 on three things that curated cases had passed.
