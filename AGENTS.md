@@ -542,7 +542,10 @@ regression coverage in CI at all.
   keeps its role cannot tell a role rule from a presence rule, and both mutations
   pass. A boundary is not visible in decoded text either: escaping `&` as `\T\`
   decodes back to `&`, so a lost subcomponent boundary looks correct unless the
-  check counts the split a reader performs. When checking
+  check counts the split a reader performs - and a count is not enough either: one
+  literal separator swapping places with one structural separator keeps the count
+  and the decoded text, so compare the per-subcomponent split, not the number of
+  parts. When checking
   this against `hl7apy`, compute the expectation from the reply's own MSH-1 and
   MSH-2: a message using `#` and `*` leaves `|` and `^` alone, so a hardcoded
   default-delimiter expectation fails on a case that is correct.

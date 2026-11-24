@@ -382,3 +382,43 @@ Gate: 230/230 fields, 15/15 ACK, 15/15 enhanced, 15/15 converted, 15/15 field-on
 
 `mllp` 0.9.0 -> 0.10.0: the reply for an unmatched marker now keeps the
 subcomponent boundaries the source had.
+
+## Follow-up: a count cannot see a separator move
+
+A seventh review found the check I had just added was one level too weak, plus two
+gaps around it.
+
+**A count of subcomponents cannot see a boundary move.** `LAB\T\X&Y` and
+`LAB&X\T\Y` each hold one raw `&`, so both split into two subcomponents, and both
+decode to `LAB&X&Y`. Swapping which `&` is literal and which is structural changes
+the field's meaning while leaving the count and the decoded component string
+identical - the exact blind spot the count was added to close, one level down. The
+gate now compares `_shape`: each component split on its raw subcomponent separator
+with every part decoded, so the boundary stays where the reader put it. A fixture
+holds the case, and the mutation that moves the boundary reports
+`[['LAB&X', 'Y']]` against `[['LAB', 'X&Y']]`.
+
+The general lesson is the third instance of one mistake: a summary of structure is
+not structure. A decoded string hides boundaries; a count hides which boundary. Each
+round replaced the summary with something closer to what a reader does, and only
+splitting every level the reader splits was enough.
+
+**A missing field crashed the gate instead of naming the fixture.** `check_field_only`
+indexed `["MSA-2"]` directly, so a reply with an `MSA` segment but no original id
+raised `KeyError` and stopped the run - losing every check after it, including the
+replies that would have passed. It is now reported against the fixture and the run
+continues.
+
+**The README said a field-only reply is never refused.** It is refused when the new
+field separator appears inside an opaque escape body - the role rule again, since
+the character was data in the message and would become a boundary in the reply. The
+example directly below the paragraph was that very refusal, so the prose and its own
+example disagreed. Both the refusal and its reason are stated now.
+
+Mutation-tested: the whole-tail escape restored is caught by the field-only gate with
+the moved-boundary fixture present, and the missing-MSA-2 path is exercised directly.
+
+Gate: 243/243 fields, 16/16 ACK, 16/16 enhanced, 16/16 converted, 16/16 field-only.
+
+`mllp` 0.10.0 -> 0.11.0: no behaviour change in the crate itself - the gate and the
+documentation were wrong, not the reply.

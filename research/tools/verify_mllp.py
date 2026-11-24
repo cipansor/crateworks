@@ -193,6 +193,13 @@ CORPUS = [
     # merges two subcomponents into one and still parses.
     "MSH|^~\\&|LAB\\ZID&1^2\\|F|R|F|20260101||ADT^A01|MSG0015|P|2.5.1\r"
     "PID|1||12345^^^MRN\r",
+
+    # A literal `&` beside a structural one, in the same component. A reply that
+    # moved the boundary - `LAB&X\\T\\Y` for `LAB\\T\\X&Y` - would keep the
+    # subcomponent count and the decoded text, so only a per-subcomponent split
+    # shows it.
+    "MSH|^~\\&|LAB\\T\\X&Y|F|R|F|20260101||ADT^A01|MSG0016|P|2.5.1\r"
+    "PID|1||12345^^^MRN\r",
 ]
 
 
@@ -525,17 +532,54 @@ def _conversion_must_refuse(raw: str) -> bool:
 
 
 
-def _boundaries(value: str, separators: dict[str, str]) -> list[int]:
-    """How many subcomponents each component of `value` has.
+def _shape(value: str, separators: dict[str, str]) -> list[list[str]]:
+    """`value` as its components, each split into decoded subcomponents.
 
-    A separator escaped as backslash-T-backslash decodes to the same character as a
-    raw one, so
-    comparing decoded text cannot tell a boundary from data. The count comes from
-    the split a reader performs, before escapes are resolved.
+    A count is not enough. `LAB\\T\\X&Y` and `LAB&X\\T\\Y` each hold one raw
+    `&`, so both have two subcomponents, and both decode to `LAB&X&Y` - a literal
+    `&` trading places with a structural one is invisible to a count and to a
+    decoded component string. Splitting on the raw separator and decoding each
+    part keeps every boundary where the reader put it, so a moved separator shows
+    up as a different subcomponent list.
     """
     component = separators["component"]
     subcomponent = separators["subcomponent"]
-    return [len(part.split(subcomponent)) for part in value.split(component)]
+    return [
+        [
+            _decode(part, separators)
+            for part in raw_component.split(subcomponent)
+        ]
+        for raw_component in value.split(component)
+    ]
+
+
+def _decode(text: str, separators: dict[str, str]) -> str:
+    """Resolve the five standard escapes in one subcomponent."""
+    escape = separators["escape"]
+    named = {
+        "F": separators["field"],
+        "S": separators["component"],
+        "R": separators["repetition"],
+        "E": escape,
+        "T": separators["subcomponent"],
+    }
+    out = []
+    i = 0
+    while i < len(text):
+        if text[i] != escape:
+            out.append(text[i])
+            i += 1
+            continue
+        close = text.find(escape, i + 1)
+        if close < 0:
+            out.append(text[i:])
+            break
+        body = text[i + 1 : close]
+        # An unknown escape is site-defined and kept verbatim.
+        out.append(named.get(body, f"{escape}{body}{escape}"))
+        i = close + 1
+    return "".join(out)
+
 
 
 def _opaque_bodies_per_component(raw: str, reference: str) -> list[str]:
@@ -637,11 +681,11 @@ def check_field_only(raw: str, reply_ack: str, index: int) -> int:
         # Decoded text alone cannot see a lost boundary: escaping a separator as
         # `\T\` still decodes to `&`, so the subcomponent count has to be
         # compared from the split a reader performs.
-        expected_subs = _boundaries(_msh_field(source, original), source_sep)
-        actual_subs = _boundaries(_msh_field(reply, mirrored), reply_sep)
+        expected_subs = _shape(_msh_field(source, original), source_sep)
+        actual_subs = _shape(_msh_field(reply, mirrored), reply_sep)
         if expected_subs != actual_subs:
             print(
-                f"  fld {index}: {mirrored} has subcomponent boundaries "
+                f"  fld {index}: {mirrored} splits into subcomponents "
                 f"{actual_subs!r}, expected {expected_subs!r}"
             )
             problems += 1
@@ -653,7 +697,15 @@ def check_field_only(raw: str, reply_ack: str, index: int) -> int:
     # MSA-2 must echo the *original* control id, which is what the sender matches
     # the reply against. Checking only the reply's own MSH-10 would let a reply
     # carrying the wrong original id pass.
-    original = _identity(reference_parse(reply_ack, required=False)["MSA-2"], reply_sep)
+    # `MSA-2` is absent from the mapping when the segment omits it, and indexing
+    # it directly raised KeyError, which aborted the whole run instead of naming
+    # this fixture and checking the rest.
+    parsed_reply = reference_parse(reply_ack, required=False) or {}
+    if "MSA-2" not in parsed_reply:
+        print(f"  fld {index}: the reply has no MSA-2, so it echoes no original id")
+        problems += 1
+        return problems
+    original = _identity(parsed_reply["MSA-2"], reply_sep)
     expected_original = _identity(_msh_field(source, "MSH-10"), source_sep)
     if original != expected_original:
         print(
