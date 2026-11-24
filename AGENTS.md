@@ -586,6 +586,13 @@ regression coverage in CI at all.
   that rewrite expects a rejection the crate correctly does not give. Drop the
   whitespace with the separator, and only when the adjacent segment is dropped -
   whitespace next to a surviving comma is that comma's OWS and must stay.
+- **A secret can go empty mid-session, and the failure looks like a permissions
+  bug.** `GH_WRITE_TOKEN` was populated for the first pushes and later expanded to
+  the empty string, so a credential helper wrote `password=` and GitHub answered
+  "Invalid username or token"; `GITHUB_TOKEN` still authenticated but is a
+  read-only token here and answered 403 "Permission to ... denied". Check
+  `${#GH_WRITE_TOKEN}` and probe `https://api.github.com/user` before concluding
+  the remote or the helper is wrong.
 - **A mirrored helper must be diffed against its original, not just run.** The
   Rust test carries its own copy of the generator's split-and-strip transform,
   and both replay the same corpus, so a divergence between the two is invisible
