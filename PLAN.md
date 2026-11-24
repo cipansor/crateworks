@@ -417,7 +417,14 @@ value the builders write is escaped first - `mllp::escape` inverts the resolutio
 would otherwise end its field and shift every field after it, which a reader
 cannot detect. The four HD header fields and the VID version are the exception:
 they are kept as ER7 and re-emitted, so `LAB^1.2.3^ISO` stays three components
-instead of collapsing into one. `verify_mllp.py` checks the parse, the minimal reply and the
+instead of collapsing into one. The version a reply falls back to when the source
+has none is generated locally, so it is plain text and is escaped, not
+transcoded - `2.5.1` must not become `2^5^1` because the source named `.` as its
+component separator. Converting a header to a different delimiter set can fail:
+a site-defined escape such as `\ZLAB#1\` has an opaque body, and if it holds one
+of the reply's delimiters no rewrite keeps its meaning, so the builders return
+`AckError::UnrepresentableEscape` and the caller answers with the original's
+separators instead. `verify_mllp.py` checks the parse, the minimal reply and the
 enhanced reply against `hl7apy`, with an MSA-3 that holds every delimiter.
 
 **Not covered.** ERR-1, the deprecated "error code and location" field, is left

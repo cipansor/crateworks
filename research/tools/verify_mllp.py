@@ -42,6 +42,27 @@ CRATE = ROOT / "crates" / "mllp"
 # with only the default set in the text, that half of the rule was never tested.
 ACK_TEXT = "rejected | value ^ ~ & \\ here # and * too"
 
+# The delimiter pair a converted reply uses. The gate builds a second ACK with
+# these in place of the incoming field and component separators, so a conversion
+# is checked by the reference parser and not only by the crate's own reader.
+# The pair that a source already uses is skipped, so the conversion is real.
+ALTERNATE_PAIRS = [("#", "*"), ("@", "!"), (";", "%")]
+
+
+def converted_pair(raw: str) -> tuple[str, str]:
+    """The alternate (field, component) pair to answer `raw` with.
+
+    A pair is usable when neither character is already one of the source's five
+    delimiters; answering with a separator the source also uses would leave that
+    axis unconverted and test nothing.
+    """
+    field, encoding = raw[3], raw[4:8]
+    used = {field, *encoding[:4]}
+    for pair in ALTERNATE_PAIRS:
+        if not used & set(pair):
+            return pair
+    raise SystemExit(f"no alternate delimiter pair left for {raw!r}")
+
 # Messages that between them exercise every delimiter the parser handles.
 CORPUS = [
     # A patient administration feed, the shape of the ADT^A01 every interface
@@ -110,6 +131,13 @@ CORPUS = [
     # which is data and must stay data while the separators around it do not.
     "MSH|^~\\&|LAB^1.2.3^ISO|FAC^9.9\\S\\1^DNS|RECV^4.5^ISO|FAC|20260101||ADT^A01|MSG0010|P|2.5.1^ABC\r"
     "PID|1||12345^^^MRN\r",
+
+    # A site-defined escape whose body holds `#`. The reply built with the
+    # original's separators carries it untouched, but the converted reply below
+    # uses `#` as its field separator and cannot: the reader would split MSH-5
+    # there. The crate must refuse that reply rather than shift the control id.
+    "MSH|^~\\&|S\\ZLAB#1\\|F|R|F|20260101||ADT^A01|MSG0011|P|2.5.1\r"
+    "PID|1||12345^^^MRN\r",
 ]
 
 
@@ -149,15 +177,19 @@ def reference_parse(raw: str, required: bool = True) -> dict:
     return out
 
 
-def rust_parse(corpus: list[str]) -> tuple[list[dict], list[str]]:
+def rust_parse(corpus: list[str]) -> tuple[list[dict], list[str], list[str], list[str], dict[int, str]]:
     """Compile a driver against the crate and parse the corpus with it.
 
     Also builds an `ACK` for every message, so the gate checks the reply the
     crate produces and not only the fields it reads.
     """
     driver = r'''
-use mllp::{AckCode, AckContext, ErrorDetail, ErrorLocation, Message, Severity, build_ack, build_ack_enhanced};
+use mllp::{AckCode, AckContext, ErrorDetail, ErrorLocation, Message, Severity, Separators, build_ack, build_ack_enhanced};
 use std::io::Read;
+
+/// The (field, component) pair each message is answered with, injected by the
+/// gate so the check and the driver cannot pick different pairs.
+const CONVERSIONS: [(char, char); __CONV_COUNT__] = [__CONV_PAIRS__];
 
 fn main() {
     let mut input = String::new();
@@ -184,8 +216,30 @@ fn main() {
             // The text carries every delimiter on purpose; see ACK_TEXT.
             __ACK_TEXT__,
             message.separators(),
-        );
+        )
+        // Answering in the source's own delimiter set never has to convert, so
+        // it must never refuse: a refusal here is a finding of its own.
+        .expect("a reply in the source's separators cannot refuse");
         println!("ACK\t{index}\t{}", ack.replace('\r', "\\r"));
+
+        // The same reply in a different delimiter set. This is the case the
+        // oracle had no coverage for: the composite identities above must still
+        // read as the same three components after the conversion. A body the
+        // alternate set cannot carry makes the builder refuse, which is a
+        // result the gate checks for rather than a crash.
+        let mut converted = Separators::default();
+        converted.field = CONVERSIONS[index].0;
+        converted.component = CONVERSIONS[index].1;
+        match build_ack(
+            &context,
+            AckCode::Accept,
+            &format!("CNV{index:04}"),
+            __ACK_TEXT__,
+            converted,
+        ) {
+            Ok(reply) => println!("CNV\t{index}\t{}", reply.replace('\r', "\\r")),
+            Err(error) => println!("CNVERR\t{index}\t{error}"),
+        }
 
         // The enhanced reply: an application error explained with MSA-4, ERR-2
         // (the location) and an ERR segment. The error condition is fixed so the
@@ -199,7 +253,8 @@ fn main() {
             "bad patient",
             &error,
             message.separators(),
-        );
+        )
+        .expect("a reply in the source's separators cannot refuse");
         println!("ENH\t{index}\t{}", enhanced.replace('\r', "\\r"));
     }
 }
@@ -208,8 +263,14 @@ fn main() {
     try:
         # ACK_TEXT lives in Python so the driver and the check share it; it is
         # injected as a Rust literal so the two cannot drift apart.
+        pairs = ", ".join(
+            "('" + converted_pair(raw)[0] + "', '" + converted_pair(raw)[1] + "')"
+            for raw in corpus
+        )
         (tmp / "main.rs").write_text(
             driver.replace("__ACK_TEXT__", '"' + ACK_TEXT.replace("\\", "\\\\") + '"')
+            .replace("__CONV_COUNT__", str(len(corpus)))
+            .replace("__CONV_PAIRS__", pairs)
         )
         (tmp / "Cargo.toml").write_text(
             "[package]\n"
@@ -248,8 +309,16 @@ fn main() {
     parsed: list[dict[str, str]] = [{} for _ in corpus]
     acks: list[str] = ["" for _ in corpus]
     enhanced: list[str] = ["" for _ in corpus]
+    converted: list[str] = ["" for _ in corpus]
+    refusals: dict[int, str] = {}
     for line in out.splitlines():
         parts = line.split("\t")
+        if parts[0] == "CNV" and len(parts) == 3:
+            converted[int(parts[1])] = parts[2].replace("\\r", "\r")
+            continue
+        if parts[0] == "CNVERR" and len(parts) == 3:
+            refusals[int(parts[1])] = parts[2]
+            continue
         if parts[0] == "ACK" and len(parts) == 3:
             acks[int(parts[1])] = parts[2].replace("\\r", "\r")
             continue
@@ -260,7 +329,7 @@ fn main() {
             continue
         index, reference, text = parts
         parsed[int(index)][reference] = text
-    return parsed, acks, enhanced
+    return parsed, acks, enhanced, converted, refusals
 
 
 def escape_text(text: str, field: str, encoding: str) -> str:
@@ -332,6 +401,132 @@ def check_ack(raw: str, ack: str, index: int) -> int:
         "escaped failure text",
     )
     return problems
+
+
+def check_converted(raw: str, reply_ack: str, refusal: str, index: int) -> int:
+    """Check the reply built with a different delimiter pair than the source.
+
+    The crate's own reader agrees with itself too easily here, so the comparison
+    goes through hl7apy on both sides: the components the reference reads in the
+    source must be the components it reads in the converted reply. That is what a
+    peer at the other end does, and what this gate never asked before - it
+    answered every message in its own delimiter set, so a conversion that
+    flattened an HD identity passed.
+    """
+    from hl7apy.parser import parse_message
+
+    if refusal:
+        # Only a site-defined escape is unrepresentable this way, and the message
+        # must say so and point at the way out.
+        if "site-defined escape" in refusal and "original's separators" in refusal:
+            return 0
+        print(f"  cnv {index}: refused for an unexpected reason: {refusal!r}")
+        return 1
+
+    try:
+        source = parse_message(raw)
+        reply = parse_message(reply_ack)
+    except Exception as error:
+        print(f"  cnv {index}: a parser rejects the message: {error}")
+        return 1
+
+    problems = 0
+    source_sep = _separators_of(raw)
+    reply_sep = _separators_of(reply_ack)
+
+    # The reply swaps sender and receiver, so the source's MSH-5 lands in MSH-3.
+    # The fields are compared as *identities*, not as ER7 text: a field is split
+    # into components and each component has its escapes resolved, using the
+    # separators of the message it came from. Comparing the wire strings instead
+    # would fail on a correct reply, because `\F\` in the source denotes a
+    # literal `|` and that same `|` needs no escape once the reply's field
+    # separator is `#`. Two renderings of one identity are what the conversion is
+    # for; it is only a bug when the identities differ.
+    for original, mirrored, why in (
+        ("MSH-5", "MSH-3", "swapped sending application"),
+        ("MSH-6", "MSH-4", "swapped sending facility"),
+        ("MSH-3", "MSH-5", "swapped receiving application"),
+        ("MSH-4", "MSH-6", "swapped receiving facility"),
+    ):
+        expected = _identity(_msh_field(source, original), source_sep)
+        actual = _identity(_msh_field(reply, mirrored), reply_sep)
+        if expected != actual:
+            print(
+                f"  cnv {index}: {mirrored} is {actual!r}, expected {expected!r} ({why})"
+            )
+            problems += 1
+
+    # A delimiter copied out of an escape body would push the control id along.
+    control = _identity(_msh_field(reply, "MSH-10"), reply_sep)
+    if control != [f"CNV{index:04}"]:
+        print(f"  cnv {index}: MSH-10 is {control!r}, expected 'CNV{index:04}'")
+        problems += 1
+    return problems
+
+
+def _separators_of(er7: str) -> dict[str, str]:
+    """The five delimiters an ER7 message declares in MSH-1 and MSH-2."""
+    return {
+        "field": er7[3],
+        "component": er7[4],
+        "repetition": er7[5],
+        "escape": er7[6],
+        "subcomponent": er7[7],
+    }
+
+
+def _identity(er7: str, separators: dict[str, str]) -> list[str]:
+    """One field as its list of decoded components.
+
+    Split on the raw component separator and resolve the five standard escapes in
+    each part. A delimiter that arrives escaped is data and comes back as itself,
+    while a raw separator is structure and ends the component - which is exactly
+    the distinction the conversion has to preserve. This is written from the
+    standard rather than shared with the crate, so it can disagree with it.
+    """
+    escape = separators["escape"]
+    named = {
+        "F": separators["field"],
+        "S": separators["component"],
+        "R": separators["repetition"],
+        "E": escape,
+        "T": separators["subcomponent"],
+    }
+    decoded = []
+    for component in er7.split(separators["component"]):
+        out = []
+        i = 0
+        while i < len(component):
+            if component[i] != escape:
+                out.append(component[i])
+                i += 1
+                continue
+            close = component.find(escape, i + 1)
+            if close < 0:
+                out.append(component[i:])
+                break
+            body = component[i + 1 : close]
+            # An unknown escape is site-defined and kept verbatim.
+            out.append(named.get(body, f"{escape}{body}{escape}"))
+            i = close + 1
+        decoded.append("".join(out))
+    return decoded
+
+
+def _msh_field(message, reference: str) -> str:
+    """One MSH field of a parsed message in its own ER7 encoding.
+
+    Matched by name, not by index: hl7apy treats MSH-1, the field separator, as
+    the encoding character rather than a child, so `msh[10]` is MSH-11 and the
+    off-by-one silently reads the wrong field.
+    """
+    for segment in message.children:
+        if getattr(segment, "name", None) != "MSH":
+            continue
+        for child in segment.children:
+            if child.name.replace("_", "-", 1) == reference:
+                return child.to_er7()
+    return ""
 
 
 def check_enhanced(raw: str, enhanced: str, index: int) -> int:
@@ -422,7 +617,7 @@ def main() -> int:
         print("needs: pip install hl7apy==1.3.5")
         return 2
 
-    rust, acks, enhanced = rust_parse(CORPUS)
+    rust, acks, enhanced, converted, refusals = rust_parse(CORPUS)
     mismatches = 0
     compared = 0
 
@@ -432,6 +627,14 @@ def main() -> int:
         for reference, value in sorted(expected.items()):
             compared += 1
             got = actual.get(reference)
+            if got is not None:
+                # Compared as an identity, not as ER7: hl7apy re-renders the
+                # escape character itself (`\E\`), so the two sides are the same
+                # value in different renderings. `_identity` resolves escapes on
+                # both sides and compares what they mean.
+                separators = _separators_of(raw)
+                got = _identity(got, separators)
+                value = _identity(value, separators)
             if got is None:
                 print(f"  msg {index}: {reference} missing from the crate")
                 mismatches += 1
@@ -455,8 +658,15 @@ def main() -> int:
         f"{len(CORPUS) - enhanced_problems}/{len(CORPUS)} enhanced ACK replies agree with hl7apy"
     )
 
-    if mismatches or ack_problems or enhanced_problems:
-        print(f"{mismatches + ack_problems + enhanced_problems} MISMATCH(ES)")
+    converted_problems = 0
+    for index, raw in enumerate(CORPUS):
+        converted_problems += check_converted(
+            raw, converted[index], refusals.get(index, ""), index
+        )
+    print(f"{len(CORPUS) - converted_problems}/{len(CORPUS)} converted replies agree with hl7apy")
+
+    if mismatches or ack_problems or enhanced_problems or converted_problems:
+        print(f"{mismatches + ack_problems + enhanced_problems + converted_problems} MISMATCH(ES)")
         return 1
     return 0
 

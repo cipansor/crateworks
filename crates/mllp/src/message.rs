@@ -494,10 +494,17 @@ pub(crate) fn push_escaped(out: &mut String, c: char, separators: Separators) {
 /// was *escaped* in the source was data and stays data. Decoding first and
 /// escaping the result would lose that distinction - every structural separator
 /// would become a literal one, which is exactly the corruption this avoids.
-pub(crate) fn transcode(er7: &str, from: Separators, to: Separators) -> String {
-    if from == to {
-        return er7.to_owned();
-    }
+///
+/// # Errors
+///
+/// A *local* escape - one whose body is not `F`, `S`, `R`, `E` or `T`, such as
+/// the site-defined `\ZLAB#1\` - has an opaque body this function cannot
+/// rewrite, because it does not know what the site meant by it. If that body
+/// holds one of `to`'s delimiters the reply cannot carry it: the reader splits
+/// fields before it resolves escapes, so the delimiter ends the field and
+/// everything after it shifts. Rather than invent an escape the site did not
+/// define, the offending body is returned and the caller decides.
+pub(crate) fn transcode(er7: &str, from: Separators, to: Separators) -> Result<String, String> {
     let mut out = String::with_capacity(er7.len());
     let mut chars = er7.chars().peekable();
     while let Some(c) = chars.next() {
@@ -509,8 +516,9 @@ pub(crate) fn transcode(er7: &str, from: Separators, to: Separators) -> String {
             } else if c == from.subcomponent {
                 out.push(to.subcomponent);
             } else {
-                // Includes `from.field`, which cannot occur inside a field; if
-                // one does it is data, and escaping it is the safe direction.
+                // A raw `from.field` cannot occur in a parsed field, but a
+                // hand-built context can hold one; escaping it is the safe
+                // direction, and it is the only choice that keeps the reply.
                 push_escaped(&mut out, c, to);
             }
             continue;
@@ -545,16 +553,17 @@ pub(crate) fn transcode(er7: &str, from: Separators, to: Separators) -> String {
             // The escape stood for a delimiter, so it was data under `from` and
             // is data under `to`.
             Some(delimiter) => push_escaped(&mut out, delimiter, to),
-            // A formatting instruction or an escape this crate does not model:
-            // keep it verbatim so nothing is lost.
             None => {
+                if body.chars().any(|c| is_delimiter(c, to)) {
+                    return Err(body);
+                }
                 out.push(to.escape);
                 out.push_str(&body);
                 out.push(to.escape);
             }
         }
     }
-    out
+    Ok(out)
 }
 
 /// Resolves the delimiter escapes in a value.

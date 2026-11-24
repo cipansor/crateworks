@@ -123,7 +123,7 @@ let context = AckContext::from_message(&received);
 
 // Build the reply. The control id is the reply's own MSH-10, which is new;
 // the original one is echoed in MSA-2.
-let ack = build_ack(&context, AckCode::Accept, "ACK0001", "", received.separators());
+let ack = build_ack(&context, AckCode::Accept, "ACK0001", "", received.separators()).unwrap();
 
 let reply = Message::parse(&ack).unwrap();
 assert_eq!(reply.value("MSA-1").unwrap(), "AA");
@@ -159,7 +159,8 @@ let ack = build_ack(
     "ACK0003",
     "rejected | bad value",
     received.separators(),
-);
+)
+.unwrap();
 
 // On the wire the separator is escaped, so MSA-3 is still one field.
 let reply = Message::parse(&ack).unwrap();
@@ -182,7 +183,7 @@ let received = Message::parse(
     "MSH|^~\\&|LAB^1.2.3^ISO|FAC|RECV|FAC|20260101||ADT^A01|MSG0002|P|2.5.1\rPID|1||12345\r",
 ).unwrap();
 let context = AckContext::from_message(&received);
-let ack = build_ack(&context, AckCode::Accept, "ACK0004", "", received.separators());
+let ack = build_ack(&context, AckCode::Accept, "ACK0004", "", received.separators()).unwrap();
 
 let reply = Message::parse(&ack).unwrap();
 let application = reply.field("MSH-5").unwrap();
@@ -190,6 +191,34 @@ assert_eq!(application.component(1), Some("LAB"));
 assert_eq!(application.component(2), Some("1.2.3"));
 assert_eq!(application.component(3), Some("ISO"));
 ```
+
+Because the reply is built with `received.separators()`, it never has to convert
+anything, and so it cannot fail. Answering with a *different* delimiter set is
+where the one error lives: a site-defined escape such as `\ZLAB#1\` has a body
+this crate cannot rewrite, and if that body holds one of the reply's delimiters
+the reader would split the field there and shift the control id out of MSH-10.
+The builders return [`AckError`](crate::AckError) rather than write that reply.
+
+```rust
+use mllp::{AckCode, AckContext, Message, Separators, build_ack};
+
+let received = Message::parse(
+    "MSH|^~\\&|S\\ZLAB#1\\|F|R|F|20260101||ADT^A01|MSG0005|P|2.5.1\rPID|1||12345\r",
+).unwrap();
+let context = AckContext::from_message(&received);
+
+// A reply whose field separator is `#` cannot carry that escape body.
+let mut reply_separators = Separators::default();
+reply_separators.field = '#';
+let error = build_ack(&context, AckCode::Accept, "ACK0006", "", reply_separators).unwrap_err();
+assert!(error.to_string().contains("MSH-5"));
+
+// The way out is to answer with the original's separators, which is what the
+// usual call does.
+let ack = build_ack(&context, AckCode::Accept, "ACK0007", "", received.separators()).unwrap();
+assert_eq!(Message::parse(&ack).unwrap().value("MSH-10").unwrap(), "ACK0007");
+```
+
 
 
 ## Explaining an error
@@ -217,7 +246,8 @@ let ack = build_ack_enhanced(
     "bad patient",
     &error,
     received.separators(),
-);
+)
+.unwrap();
 
 let reply = Message::parse(&ack).unwrap();
 assert_eq!(reply.value("MSA-4").unwrap(), "207"); // the code, repeated

@@ -126,3 +126,53 @@ the reply (`2.5.1\S\ABC` is not a version) and the gate reports 6/10 ACK and
 
 `mllp` 0.4.0 -> 0.5.0: `AckContext` gained a field, so old literals no longer
 compile, and `Field::escape` was removed.
+
+## Follow-up: locally generated values, and an unrepresentable header
+
+A second review found two more places where the split between "came from the
+wire" and "generated here" was decided wrongly, and that the gate could not see
+delimiter conversion at all.
+
+**The fallback version was treated as ER7.** When the source carries no MSH-12,
+`write_header` invents `2.5.1`. That string is generated, not parsed, but it went
+through `transcode`, which reads its input as shaped by the source's separators.
+A source naming `.` as its component separator turned the reply's MSH-12 into
+`2^5^1`, and a source naming `.` as its *field* separator split it into three
+fields. Both are malformed replies. The fallback is now escaped as plain text;
+only a version the context actually holds is transcoded.
+
+**An opaque escape body can be unrepresentable.** `transcode` copied a
+site-defined escape such as `\ZLAB#1\` verbatim after swapping its delimiters.
+The body is the site's to define, so nothing can be inserted into it - but if it
+holds one of the reply's delimiters, the reader splits the field there before it
+resolves any escape. With `#` as the reply's field separator, `MSH-5` ended early
+and the control id landed in MSH-9, the version in MSH-11. There is no correct
+rewrite, so `transcode` now returns the offending body and the builders report
+`AckError::UnrepresentableEscape`, naming the field and pointing at the way out:
+answer with the original's separators, which is what `build(&ctx, ...,
+message.separators())` already does and which never needs a conversion.
+
+That made the builders fallible, so `build` and `build_enhanced` return
+`Result<String, AckError>`. It is a `Result` rather than an option to keep the
+reply or a silent rewrite because the caller has a decision to make and the error
+carries what is needed to make it.
+
+**The gate never converted a delimiter.** Every reply it built used
+`message.separators()`, so `transcode` was exercised only along the identity
+path, where it returns its input unchanged. The composite fixture proved
+preservation, not conversion. The driver now also builds each reply with a
+different field/component pair, chosen per message so it cannot collide with the
+source's own, and `check_converted` compares the HD identities the reference
+reads on each side. Comparison is by decoded component list, not by wire string:
+`\F\` in the source denotes a literal `|`, which needs no escape once the reply's
+field separator is `#`, so two correct renderings of one identity would fail a
+text comparison.
+
+Mutation-tested: escaping the composites again makes the converted check report
+`MSH-5 is ['LAB^1.2.3^ISO'], expected ['LAB', '1.2.3', 'ISO']` and 4/11
+converted replies, while the identity-set ACK check still reads 11/11 for the
+enhanced form - which is exactly why conversion needed its own coverage.
+
+Gate: 178/178 fields, 11/11 ACK, 11/11 enhanced, 11/11 converted.
+
+`mllp` 0.5.0 -> 0.6.0: both builders return `Result`, which breaks every caller.

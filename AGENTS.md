@@ -516,7 +516,11 @@ regression coverage in CI at all.
   `LAB^1.2.3^ISO` becomes one component. Keep parsed composites as ER7 and
   re-emit them; only decode-then-escape if you have a structure to rejoin. Do
   not put `escape` on `Field`: a parsed field is already ER7, so escaping it
-  doubles every escape it holds. When checking
+  doubles every escape it holds. The mirror trap is a **locally generated**
+  value treated as ER7: the `2.5.1` fallback version is plain text, so
+  transcoding it writes `2^5^1` when the source's component separator is `.`,
+  and a period field separator splits it into three fields. Decide per value
+  whether it came from parsing or from `format!`. When checking
   this against `hl7apy`, compute the expectation from the reply's own MSH-1 and
   MSH-2: a message using `#` and `*` leaves `|` and `^` alone, so a hardcoded
   default-delimiter expectation fails on a case that is correct.
