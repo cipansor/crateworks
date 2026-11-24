@@ -56,8 +56,21 @@ if (installed !== PINNED) {
 
 // `OUT` and `SEED` let the verification gate write a fresh corpus to a
 // temporary file and leave the committed one alone.
-const OUT = process.env.OUT || path.join(__dirname, '..', '..', '..', 'crates',
-  'proxy-addr', 'tests', 'fixtures', 'forwarded.tsv')
+const FIXTURE = path.join(__dirname, '..', '..', '..', 'crates', 'proxy-addr',
+  'tests', 'fixtures', 'forwarded.tsv')
+const OUT = process.env.OUT || FIXTURE
+
+// An unseen-seed replay that forgets `OUT` rewrites the tracked fixture with a
+// corpus from a different seed, which looks like a normal run and silently
+// re-baselines the corpus the pinned oracle exists to protect. Refuse instead.
+if (process.env.SEED && !process.env.OUT) {
+  console.error(
+    'SEED is set but OUT is not, so this would overwrite the committed corpus ' +
+    'with a different seed. Pass OUT=<path> for an unseen-seed replay, or ' +
+    'unset SEED to regenerate ' + path.relative(process.cwd(), FIXTURE) + '.'
+  )
+  process.exit(1)
+}
 
 // A tiny deterministic PRNG so the corpus is reproducible without a seed file.
 function mulberry32(a) {
@@ -260,13 +273,21 @@ function withoutEmptyElements (header) {
 //             reject it.
 //
 //             A bare `!` is the weak form, and it is only used when the index
-//             really has moved. Removing an element shifts every position after
-//             it, but an error before the first removed character keeps its
-//             index, and dropping it would throw away a comparison for nothing:
-//             ` for=a,,for=b` fails at index 0 for its leading space whether or
-//             not the empty element is gone. When the reference's index on the
-//             rewritten header is the same in both strings, it is recorded as
-//             `!pos:<n>` and compared exactly.
+//             cannot be compared. Removing an element shifts every position
+//             after it, but an error before the first removed character keeps
+//             its index, and dropping it would throw away a comparison for
+//             nothing: ` for=a,,for=b` fails at index 0 for its leading space
+//             whether or not the empty element is gone. When the reference's
+//             index on the rewritten header is the same in both strings, it is
+//             recorded as `!pos:<n>` and compared exactly.
+//
+//             The bare `!` covers two things the code below cannot tell apart
+//             for this purpose: an index at or after the first removed
+//             character, which has moved, and an early end, which carries no
+//             index at all. The early end is itself two shapes - the header
+//             strips to nothing (`","`) or its remainder is still truncated
+//             (`",#="` -> `"#="`) - so the marker means "not compared", not
+//             "moved".
 function row (header) {
   const direct = verdict(header)
   if (!direct.startsWith('!')) return ['strict', direct]

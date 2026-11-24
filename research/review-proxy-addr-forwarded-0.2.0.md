@@ -164,9 +164,22 @@ a strictness column (`strict` or `empty`), and the reference's verdict.
 | rejected, remainder still invalid (rejection only) | 0 | 28 |
 
 The 23 `empty` rows with an index are the ones where the fault precedes the
-first removed character, so the index is still the index in the original header.
-They are compared exactly; only the 28 rows where the index genuinely moved
-compare rejection alone.
+first removed character, so the index is still the index in the original header,
+and they are compared exactly. The remaining 28 compare rejection alone, and not
+for one reason:
+
+| Why the index cannot be compared | Rows |
+| --- | --- |
+| the fault sits at or after the first removed character, so the index moved | 26 |
+| the header strips to the empty one (`","`), so there is no remainder to fault in | 1 |
+| the remainder is still truncated (`",#="` -> `"#="`), which reports no index | 1 |
+
+None of the three can be tightened, but "the index moved" describes only the
+first, and writing it of all 28 would claim a comparison the corpus does not
+make. The `","` row is the sharpest case: it is the one header in the corpus
+whose entire content is empty elements, so it is also the only one that tests
+"an empty-element-only header is rejected" rather than anything about a
+remainder.
 
 `tests/forwarded_oracle.rs` replays all of it, comparing the character index of
 every rejection, and `tests/forwarded_nodes.rs` covers the typed layer the

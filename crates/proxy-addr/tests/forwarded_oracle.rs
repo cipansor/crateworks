@@ -26,11 +26,14 @@
 //! empty elements removed — so the corpus still says what the crate must
 //! return, and a `!...` verdict still means the crate must reject.
 //!
-//! A bare `!` is only used when the index genuinely moved. Removing an element
-//! shifts every position after it, but a fault before the first removed
-//! character keeps its index, so those rows carry `!pos:<n>` and are compared
-//! exactly like a `strict` row. Dropping the index there would discard a
-//! comparison that still holds.
+//! A bare `!` means the index cannot be compared, not that it moved. Removing
+//! an element shifts every position after it, but a fault before the first
+//! removed character keeps its index, so those rows carry `!pos:<n>` and are
+//! compared exactly like a `strict` row; dropping the index there would discard
+//! a comparison that still holds. A row keeps the bare `!` when its index sits
+//! at or after the first removed character, or when the reference reported an
+//! early end instead of an index - which covers both `","`, whose remainder is
+//! empty, and `",#="`, whose remainder is still truncated.
 //!
 //! The row is only marked `empty` when removing the empty elements is what
 //! changes the reference's mind: `the_divergence_is_only_about_empty_elements`
