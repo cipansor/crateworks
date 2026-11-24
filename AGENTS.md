@@ -502,6 +502,82 @@ regression coverage in CI at all.
   its path (`[`crate::parse`]`, not `[`parse`]`), because the item is not in scope
   in the module holding the doc comment. Run the doc command before pushing
   anything that touches documentation.
+- **A written HL7 value must be escaped, and a reader cannot tell when it was
+  not.** `mllp`'s ACK builders wrote MSA-3 raw, so a failure text holding `|`
+  ended the field: hl7apy read `MSA-3` as `"bad "` and the rest of the text
+  became phantom fields. The reply parsed cleanly, which is why nothing caught
+  it - the gate's MSA-3 was `"ok"`, and no case carried a delimiter. Any value
+  an `ACK` echoes from the peer (MSH-3..MSH-6, MSH-10, the failure text, the
+  ERR location) is attacker-influenced, so writing it unescaped is a
+  correctness and injection bug. `escape` inverts the resolution
+  `Field::unescape` does; use it for every primitive value a builder writes.
+  A **composite** field is the trap: MSH-3..MSH-6 are HD and MSH-12 is a VID, so
+  escaping the whole field turns its component separators into data and
+  `LAB^1.2.3^ISO` becomes one component. Keep parsed composites as ER7 and
+  re-emit them; only decode-then-escape if you have a structure to rejoin. Do
+  not put `escape` on `Field`: a parsed field is already ER7, so escaping it
+  doubles every escape it holds. The mirror trap is a **locally generated**
+  value treated as ER7: the `2.5.1` fallback version is plain text, so
+  transcoding it writes `2^5^1` when the source's component separator is `.`,
+  and a period field separator splits it into three fields. Decide per value
+  whether it came from parsing or from `format!`. Keep an identity fast path in
+  any transcoder: answering in the source's own delimiters must never refuse,
+  because the parser already accepted that text and copy cannot introduce a
+  delimiter. A transcoder without that path refuses legal messages, and the
+  refusal message then tells the caller to do what it already did. A raw
+  delimiter inside an **opaque** escape body blocks any *conversion* in either
+  direction - a reader splits before it resolves escapes, so such a body has
+  source structure no other delimiter set can express - but only when a
+  delimiter *changes role*. Judge that by the role each character plays, not by
+  whether it appears in both sets: changing only the field separator leaves a
+  body holding the component separator byte-identical, and refusing it rejects a
+  header the reply can carry exactly. A validation that must hold regardless of
+  the reply - a raw field separator from a hand-built context - has to run
+  before any branch on the reply's delimiters, or the caller can make an invalid
+  value acceptable by choosing them. A body can never hold the component
+  separator, because splitting happens first: `LAB%ZID^1%` is two components with
+  stranded markers, not one escape, so rewriting those markers changes the
+  identity a peer decodes. Read the structure before rewriting it, and make the
+  gate's fixtures agree - a corpus with no opaque body holding a delimiter that
+  keeps its role cannot tell a role rule from a presence rule, and both mutations
+  pass. A boundary is not visible in decoded text either: escaping `&` as `\T\`
+  decodes back to `&`, so a lost subcomponent boundary looks correct unless the
+  check counts the split a reader performs - and a count is not enough either: one
+  literal separator swapping places with one structural separator keeps the count
+  and the decoded text, so compare the per-subcomponent split, not the number of
+  parts. Fix the check once and apply it to every path: the converted path kept the
+  weaker comparison for a round after the field-only path was fixed, and a mutation
+  that only damages a two-separator reply went unseen. Count *replies*, not findings:
+  a checker that returns one per printed finding makes `len(corpus) - problems` go
+  negative, and the summary then understates what passed. Keep one unit per total:
+  field differences are counted per message and reply checks per reply, so summing
+  `mismatches` with them mixes two units and reports findings as failures, and summing
+  the per-check counters reports one message failing five checks as five failures. The
+  headline is distinct messages that failed, with the per-check counts printed beside
+  it, never added into it. When checking
+  this against `hl7apy`, compute the expectation from the reply's own MSH-1 and
+  MSH-2: a message using `#` and `*` leaves `|` and `^` alone, so a hardcoded
+  default-delimiter expectation fails on a case that is correct.
+- **A gate that shells out must force its build directory, not default it.**
+  `verify_mllp.py` compiled a driver into a tempdir and then ran it from that
+  path, but set `CARGO_TARGET_DIR` with `setdefault`. An ambient value - left
+  over from an earlier release build - sent the binary elsewhere and the run
+  died with `FileNotFoundError` on the binary, which reads like a compile
+  failure and is not one. Assign the variable. And when an oracle rejects its
+  input outright, report it as a finding: hl7apy raises `UnsupportedVersion` on
+  a reply whose MSH-12 was corrupted, and an uncaught exception printed a
+  traceback instead of the one line naming the bad field.
+- **A corpus case can be malformed and look like a crate bug.** A raw `~` in
+  MSH-5 made it a repeating field, which MSH-5 is not; the reference then
+  reported the value differently and the crate looked wrong. Escape delimiters
+  in the fixture when the point is that a value *holds* one, or the case tests
+  the parser's repetition split instead.
+- **A value the builder generates is not a value the source sent.** MSH-9 (`ACK`)
+  and the `2.5.1` fallback version are written locally, so they are plain text
+  under the reply's delimiters and must be escaped, never transcoded. Sending them
+  through the source-ER7 path judged `ACK` against the *incoming* field separator:
+  a source using `K` made it look like a value holding a raw field separator, and
+  the builder refused a reply the outgoing delimiters carry unchanged.
 - **`xmlkit` name matching.** `Element::child` and `children_named` match the
   full name including the prefix, so `child(el, "IssueDateTime")` does **not**
   find `ram:IssueDateTime`. Match on the local name. `Element::text()`

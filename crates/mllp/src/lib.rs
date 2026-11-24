@@ -7,12 +7,12 @@ mod frame;
 mod message;
 
 pub use ack::{
-    AckCode, AckContext, ErrorDetail, ErrorLocation, Severity, build as build_ack,
-    build_enhanced as build_ack_enhanced,
+    AckCode, AckContext, AckError, DEFAULT_VERSION, ErrorDetail, ErrorLocation, Severity,
+    build as build_ack, build_enhanced as build_ack_enhanced,
 };
 pub use decoder::Decoder;
 pub use frame::{CARRIAGE_RETURN, END_BLOCK, START_BLOCK, frame, unframe};
-pub use message::{Field, Message, ParseError, Segment, Separators};
+pub use message::{DelimiterRole, Field, Message, ParseError, Segment, Separators, escape};
 
 /// Why a byte sequence is not a valid MLLP frame.
 ///

@@ -431,6 +431,328 @@ impl<'a> Field<'a> {
     }
 }
 
+/// Escapes the delimiters in `text` so it can be written as one primitive value.
+///
+/// This is the inverse of the delimiter resolution [`Field::unescape`] does, and
+/// the form a caller-supplied value must be written in: a value that holds the
+/// field separator would otherwise end the field and shift every field after it,
+/// which a reader cannot detect. The five standard escapes are produced: `\F\`
+/// `\S\` `\R\` `\T\` `\E\`.
+///
+/// `text` is plain text, not ER7. Escaping a string that still holds its own
+/// escapes doubles them, so a caller re-emitting a parsed field unchanged wants
+/// [`Field::text`], not this function.
+#[must_use]
+pub fn escape(text: &str, separators: Separators) -> String {
+    // Every value goes through this, and most hold no delimiter, so the scan is
+    // skipped rather than allocating a copy that would be identical.
+    if !text.chars().any(|c| is_delimiter(c, separators)) {
+        return text.to_owned();
+    }
+    let mut out = String::with_capacity(text.len() + 8);
+    for c in text.chars() {
+        push_escaped(&mut out, c, separators);
+    }
+    out
+}
+
+/// Whether `c` is one of the five delimiters of `separators`.
+fn is_delimiter(c: char, separators: Separators) -> bool {
+    c == separators.field
+        || c == separators.component
+        || c == separators.repetition
+        || c == separators.escape
+        || c == separators.subcomponent
+}
+
+/// Appends one character of plain text, escaped if `separators` treats it as a
+/// delimiter.
+pub(crate) fn push_escaped(out: &mut String, c: char, separators: Separators) {
+    let code = if c == separators.field {
+        'F'
+    } else if c == separators.component {
+        'S'
+    } else if c == separators.repetition {
+        'R'
+    } else if c == separators.escape {
+        'E'
+    } else if c == separators.subcomponent {
+        'T'
+    } else {
+        out.push(c);
+        return;
+    };
+    out.push(separators.escape);
+    out.push(code);
+    out.push(separators.escape);
+}
+
+/// What a character means in an ER7 delimiter set.
+///
+/// A reply can only carry a header value whose characters keep the role they had
+/// in the message being answered. `Data` is not a delimiter but is just as
+/// important: a character that is ordinary data in one set can be a separator in
+/// another, and that change alters how a reader splits the field.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DelimiterRole {
+    /// MSH-1, which separates fields.
+    Field,
+    /// MSH-2's first character, which separates the components of a field.
+    Component,
+    /// MSH-2's second character, which separates repetitions.
+    Repetition,
+    /// MSH-2's third character, which opens and closes an escape.
+    Escape,
+    /// MSH-2's fourth character, which separates subcomponents.
+    Subcomponent,
+    /// Not one of the five delimiters, so the character is plain content.
+    Data,
+}
+
+impl std::fmt::Display for DelimiterRole {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Field => "field",
+            Self::Component => "component",
+            Self::Repetition => "repetition",
+            Self::Escape => "escape",
+            Self::Subcomponent => "subcomponent",
+            Self::Data => "data",
+        })
+    }
+}
+
+/// Why [`transcode`] cannot re-emit a header value.
+///
+/// Both variants describe a value the reply cannot carry as written, and they are
+/// separate because the caller acts on them differently: a raw field separator is
+/// a bug in a hand-built context, while an opaque escape body is a legal value the
+/// chosen reply delimiters cannot express.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum TranscodeError {
+    /// A site-defined escape whose body holds a delimiter whose *role* changes
+    /// in the reply.
+    OpaqueEscapeCollision {
+        /// The escape body, without its delimiters.
+        body: String,
+        /// The delimiter in the body that changes role.
+        delimiter: char,
+        /// What the character means in the source.
+        in_source: DelimiterRole,
+        /// What the same character would mean in the reply.
+        in_reply: DelimiterRole,
+    },
+    /// A raw field separator in the value, which only a hand-built context can
+    /// produce.
+    RawFieldSeparator {
+        /// The offending separator.
+        separator: char,
+    },
+}
+
+impl std::fmt::Display for TranscodeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::OpaqueEscapeCollision {
+                body,
+                delimiter,
+                in_source,
+                in_reply,
+            } => write!(
+                f,
+                "the site-defined escape \\{body}\\ contains {delimiter:?}, which is {} \
+                 in the message but {} in the reply",
+                article(*in_source),
+                article(*in_reply)
+            ),
+            Self::RawFieldSeparator { separator } => {
+                write!(
+                    f,
+                    "the value contains the raw field separator {separator:?}"
+                )
+            }
+        }
+    }
+}
+
+/// `a field separator`, `an escape character`, `plain data`, for reading in a
+/// sentence.
+pub(crate) fn article(role: DelimiterRole) -> String {
+    match role {
+        DelimiterRole::Escape => "an escape character".to_owned(),
+        DelimiterRole::Data => "plain data".to_owned(),
+        _ => format!("a {role} separator"),
+    }
+}
+
+/// The role a character plays in a delimiter set.
+fn role_of(character: char, separators: Separators) -> DelimiterRole {
+    if character == separators.field {
+        DelimiterRole::Field
+    } else if character == separators.component {
+        DelimiterRole::Component
+    } else if character == separators.repetition {
+        DelimiterRole::Repetition
+    } else if character == separators.escape {
+        DelimiterRole::Escape
+    } else if character == separators.subcomponent {
+        DelimiterRole::Subcomponent
+    } else {
+        DelimiterRole::Data
+    }
+}
+
+/// Re-emits ER7 text read with `from` using `to`.
+///
+/// Structure is kept. A component separator stays a component separator, so an
+/// HD value such as `LAB^1.2.3^ISO` keeps its three components; a delimiter that
+/// was *escaped* in the source was data and stays data. Decoding first and
+/// escaping the result would lose that distinction - every structural separator
+/// would become a literal one, which is exactly the corruption this avoids.
+///
+/// # Errors
+///
+/// A raw `field` separator is refused outright, whatever `to` is. It cannot occur
+/// in a parsed field - the parser splits on it - so one can only come from a
+/// hand-built context, where it was meant as data but would be read as structure.
+/// Checking it before anything else keeps the verdict the same for every reply
+/// delimiter set, so a caller cannot make an invalid header acceptable by
+/// changing the reply.
+///
+/// A *local* escape - one whose body is not `F`, `S`, `R`, `E` or `T`, such as
+/// the site-defined `\ZLAB#1\` - has an opaque body this function cannot
+/// rewrite. A reader splits on a delimiter before it resolves escapes, so the
+/// body's structure is whatever `from` says it is. That structure survives a
+/// conversion only when every delimiter in the body keeps its role; if one would
+/// become a different delimiter, or data, no rewrite of the body can carry it and
+/// the offending character is returned.
+///
+/// Answering in `from`'s own delimiter set is never refused: it is the documented
+/// fallback, the value is already valid ER7 under those delimiters, and copying
+/// it introduces nothing new.
+pub(crate) fn transcode(
+    er7: &str,
+    from: Separators,
+    to: Separators,
+) -> Result<String, TranscodeError> {
+    if er7.contains(from.field) {
+        return Err(TranscodeError::RawFieldSeparator {
+            separator: from.field,
+        });
+    }
+    // Nothing needs rewriting, and an opaque body holding the source's own
+    // delimiters is legal - the parser accepted it - because copying preserves
+    // every role.
+    if from == to {
+        return Ok(er7.to_owned());
+    }
+    // Read the structure first. A reader splits on the component separator before
+    // it resolves escapes, so a pair of escape characters that straddles one is
+    // not an escape at all: it is a marker ending one component and another
+    // starting the next. Rewriting such a pair as an escape changes literal
+    // characters in the identity, which is why this walks the components rather
+    // than the raw text.
+    let mut out = String::with_capacity(er7.len());
+    for (index, component) in er7.split(from.component).enumerate() {
+        if index > 0 {
+            out.push(to.component);
+        }
+        transcode_component(component, from, to, &mut out)?;
+    }
+    Ok(out)
+}
+
+/// Re-emits `text` keeping its structure: separators stay separators.
+fn push_structure(out: &mut String, text: &str, from: Separators, to: Separators) {
+    for c in text.chars() {
+        push_structure_char(out, c, from, to);
+    }
+}
+
+/// Re-emits one character, keeping a repetition or subcomponent boundary.
+fn push_structure_char(out: &mut String, c: char, from: Separators, to: Separators) {
+    if c == from.repetition {
+        out.push(to.repetition);
+    } else if c == from.subcomponent {
+        out.push(to.subcomponent);
+    } else {
+        push_escaped(out, c, to);
+    }
+}
+
+/// Re-emits one component, where escape markers are balanced by construction.
+fn transcode_component(
+    component: &str,
+    from: Separators,
+    to: Separators,
+    out: &mut String,
+) -> Result<(), TranscodeError> {
+    let mut chars = component.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c != from.escape {
+            push_structure_char(out, c, from, to);
+            continue;
+        }
+        let mut body = String::new();
+        let mut closed = false;
+        for inner in chars.by_ref() {
+            if inner == from.escape {
+                closed = true;
+                break;
+            }
+            body.push(inner);
+        }
+        if !closed {
+            // The component ends with an unmatched escape. The marker is data,
+            // because that is what a reader sees, but the delimiters after it are
+            // still structure: escaping the whole tail as text would merge
+            // subcomponents that the source kept apart. Only the marker itself is
+            // escaped, so the boundaries after it survive.
+            push_escaped(out, from.escape, to);
+            push_structure(out, &body, from, to);
+            continue;
+        }
+        let delimiter = match body.as_str() {
+            "F" => Some(from.field),
+            "S" => Some(from.component),
+            "R" => Some(from.repetition),
+            "E" => Some(from.escape),
+            "T" => Some(from.subcomponent),
+            _ => None,
+        };
+        match delimiter {
+            // The escape stood for a delimiter, so it was data under `from` and
+            // is data under `to`.
+            Some(delimiter) => push_escaped(out, delimiter, to),
+            None => {
+                // The body is opaque, so a delimiter inside it is structure
+                // under `from`. Every character must keep its role for the
+                // structure to survive: a separator that becomes data stops
+                // splitting the field, and data that becomes a separator starts
+                // splitting it. Both change how many components the field has,
+                // and neither can be repaired inside a body whose meaning is the
+                // site's.
+                for character in body.chars() {
+                    let in_source = role_of(character, from);
+                    let in_reply = role_of(character, to);
+                    if in_source != in_reply {
+                        return Err(TranscodeError::OpaqueEscapeCollision {
+                            body,
+                            delimiter: character,
+                            in_source,
+                            in_reply,
+                        });
+                    }
+                }
+                out.push(to.escape);
+                out.push_str(&body);
+                out.push(to.escape);
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Resolves the delimiter escapes in a value.
 trait Unescape {
     fn unescape(&self, separators: Separators) -> String;

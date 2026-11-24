@@ -15,7 +15,88 @@
 
 use std::fmt::Write as _;
 
-use crate::message::Separators;
+use crate::message::{DelimiterRole, Separators, TranscodeError, article, escape, transcode};
+
+/// The version a reply speaks when the message it answers did not name one.
+pub const DEFAULT_VERSION: &str = "2.5.1";
+
+/// Why an acknowledgement could not be built.
+///
+/// Both failures are header values the reply cannot carry as written. They are an
+/// error rather than a silent rewrite because the alternative - a reply whose
+/// field boundaries differ from what the sender meant - is worse than no reply,
+/// and the caller still has a decision to make: answer in the original's delimiter
+/// set, or drop the acknowledgement and log.
+///
+/// A reply built with [`Message::separators`](crate::Message::separators) cannot
+/// fail this way: it needs no conversion, so every value is copied as parsed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AckError {
+    /// A site-defined escape whose body holds a character that means something
+    /// different in the reply's delimiters.
+    ///
+    /// The body is opaque: `\ZID#1\` is defined by the site, so its content is
+    /// theirs to interpret. A reader splits on a delimiter before it resolves an
+    /// escape, so a delimiter inside the body is structure. When the reply gives
+    /// that character another role, or no role at all, the field's component
+    /// boundaries change and nothing can be inserted into the body without
+    /// changing what the site meant.
+    UnrepresentableEscape {
+        /// The field the value was destined for, such as `MSH-5`.
+        field: &'static str,
+        /// The escape body, without its delimiters.
+        body: String,
+        /// The character inside the body that cannot be carried.
+        delimiter: char,
+        /// What that character means in the message being answered.
+        in_source: DelimiterRole,
+        /// What the same character will mean in the reply.
+        in_reply: DelimiterRole,
+        /// The delimiters the reply was built with.
+        separators: Separators,
+    },
+    /// A header value held the raw field separator, which only a hand-built
+    /// [`AckContext`] can do: a parsed field never contains one.
+    RawFieldSeparator {
+        /// The field the value was destined for, such as `MSH-5`.
+        field: &'static str,
+        /// The separator, which cannot be written unescaped.
+        separator: char,
+    },
+}
+
+impl std::fmt::Display for AckError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::UnrepresentableEscape {
+                field,
+                body,
+                delimiter,
+                in_source,
+                in_reply,
+                separators,
+            } => write!(
+                f,
+                "{field} holds the site-defined escape \\{body}\\ whose body contains \
+                 {delimiter:?}, {} in the message but {} in the reply \
+                 (field {:?}, component {:?}); answer with the original's separators \
+                 instead",
+                article(*in_source),
+                article(*in_reply),
+                separators.field,
+                separators.component
+            ),
+            Self::RawFieldSeparator { field, separator } => write!(
+                f,
+                "{field} contains the raw field separator {separator:?}, which only a \
+                 hand-built AckContext can hold; set the field from a parsed message \
+                 instead"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for AckError {}
 
 /// The MSA-1 code: what happened to the message being acknowledged.
 ///
@@ -56,20 +137,35 @@ impl std::fmt::Display for AckCode {
 /// back; MSH-3, MSH-4, MSH-5 and MSH-6 are the sending and receiving
 /// applications and facilities, which swap in the reply. MSH-12 is the version,
 /// which the reply keeps so both ends agree on the grammar.
+///
+/// The application, facility and version fields are **ER7, not plain text**.
+/// They are HD and VID values, so they are composite: `LAB^1.2.3^ISO` is three
+/// components, and the reply must keep them apart. [`AckContext::from_message`]
+/// therefore stores them exactly as they appeared. A caller filling them by hand
+/// writes ER7 too, escaping any delimiter that is meant as data - [`crate::escape`]
+/// does that for one primitive value.
+///
+/// `control_id` is plain text, because MSH-10 is an ST, a primitive.
+///
+/// `separators` records the delimiter set the ER7 fields were read with, so the
+/// reply can re-emit them in its own set when the two differ.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AckContext {
-    /// MSH-10 of the message being acknowledged.
+    /// MSH-10 of the message being acknowledged, as plain text.
     pub control_id: String,
-    /// MSH-3 of the message being acknowledged, the sending application.
+    /// MSH-3 of the message being acknowledged, the sending application, in ER7.
     pub sending_application: String,
-    /// MSH-4 of the message being acknowledged, the sending facility.
+    /// MSH-4 of the message being acknowledged, the sending facility, in ER7.
     pub sending_facility: String,
-    /// MSH-5 of the message being acknowledged, the receiving application.
+    /// MSH-5 of the message being acknowledged, the receiving application, in ER7.
     pub receiving_application: String,
-    /// MSH-6 of the message being acknowledged, the receiving facility.
+    /// MSH-6 of the message being acknowledged, the receiving facility, in ER7.
     pub receiving_facility: String,
-    /// MSH-12 of the message being acknowledged, the version. Empty means 2.5.1.
+    /// MSH-12 of the message being acknowledged, the version, in ER7. Empty
+    /// means 2.5.1.
     pub version: String,
+    /// The delimiters the ER7 fields above were read with.
+    pub separators: Separators,
 }
 
 impl AckContext {
@@ -77,16 +173,27 @@ impl AckContext {
     ///
     /// Every field is optional in the standard, so a message that omits one
     /// yields an empty string rather than an error; the reply is still valid.
+    ///
+    /// The composite fields keep their ER7 form, separators and escapes
+    /// untouched. Decoding them here would erase the difference between a
+    /// component boundary and an escaped delimiter, and the reply could not put
+    /// it back.
     #[must_use]
     pub fn from_message(message: &crate::Message<'_>) -> Self {
-        let field = |reference: &str| message.value(reference).unwrap_or_default();
+        let er7 = |reference: &str| {
+            message
+                .field(reference)
+                .map(|field| field.text().to_owned())
+                .unwrap_or_default()
+        };
         Self {
-            control_id: field("MSH-10"),
-            sending_application: field("MSH-3"),
-            sending_facility: field("MSH-4"),
-            receiving_application: field("MSH-5"),
-            receiving_facility: field("MSH-6"),
-            version: field("MSH-12"),
+            control_id: message.value("MSH-10").unwrap_or_default(),
+            sending_application: er7("MSH-3"),
+            sending_facility: er7("MSH-4"),
+            receiving_application: er7("MSH-5"),
+            receiving_facility: er7("MSH-6"),
+            version: er7("MSH-12"),
+            separators: message.separators(),
         }
     }
 }
@@ -191,12 +298,15 @@ impl ErrorLocation {
         self
     }
 
-    /// The ERL value as ER7 text, using `component` as the separator.
+    /// The ERL value as ER7 text.
     ///
     /// A part that is unset but followed by a set one becomes an empty component,
     /// so the position is preserved; trailing unset parts are dropped, so a
     /// location that stops at the field is `PID^1^3` and never `PID^1^3^^^`.
-    fn to_er7(&self, component: char) -> String {
+    ///
+    /// The segment id is caller-supplied and escaped, since a delimiter in it
+    /// would shift the components that follow.
+    fn to_er7(&self, separators: Separators) -> String {
         let optional = [
             self.field_repetition,
             self.component_number,
@@ -208,7 +318,7 @@ impl ErrorLocation {
             .rposition(Option::is_some)
             .map_or(0, |i| i + 1);
         let mut parts = vec![
-            self.segment_id.clone(),
+            escape(&self.segment_id, separators),
             self.segment_sequence.to_string(),
             self.field_position.to_string(),
         ];
@@ -217,7 +327,7 @@ impl ErrorLocation {
                 .iter()
                 .map(|part| part.map_or_else(String::new, |number| number.to_string())),
         );
-        parts.join(&component.to_string())
+        parts.join(&separators.component.to_string())
     }
 }
 
@@ -274,18 +384,29 @@ impl ErrorDetail {
 ///
 /// `text` is MSA-3, the human-readable text. It is empty for an `AA`, where
 /// there is nothing to say.
-#[must_use]
+///
+/// # Errors
+///
+/// [`AckError::RawFieldSeparator`] when a header value holds the raw field
+/// separator, which only a hand-built [`AckContext`] can do.
+///
+/// [`AckError::UnrepresentableEscape`] when a header value holds a site-defined
+/// escape whose body contains a character that plays a different role under
+/// `separators` - either a separator that becomes plain data, or data that
+/// becomes a separator. Answer with the original's separators, as the usual
+/// `build(&context, ..., message.separators())` call already does.
+#[must_use = "the reply has to be sent, and the error is a decision"]
 pub fn build(
     context: &AckContext,
     code: AckCode,
     control_id: &str,
     text: &str,
     separators: Separators,
-) -> String {
+) -> Result<String, AckError> {
     let mut out = String::with_capacity(128);
-    write_header(&mut out, context, control_id, separators);
+    write_header(&mut out, context, control_id, separators)?;
     write_msa(&mut out, code, context, text, None, separators);
-    out
+    Ok(out)
 }
 
 /// Builds the ER7 text of an *enhanced* `ACK`, which explains an error.
@@ -302,7 +423,11 @@ pub fn build(
 /// `code` should be [`AckCode::Error`] or [`AckCode::Reject`]; a caller that
 /// passes [`AckCode::Accept`] gets the enhanced structure with an accept code,
 /// which is legal but unusual.
-#[must_use]
+/// # Errors
+///
+/// The same as [`build`]: a header value holding a site-defined escape that
+/// collides with the reply's delimiters.
+#[must_use = "the reply has to be sent, and the error is a decision"]
 pub fn build_enhanced(
     context: &AckContext,
     code: AckCode,
@@ -310,9 +435,9 @@ pub fn build_enhanced(
     text: &str,
     error: &ErrorDetail,
     separators: Separators,
-) -> String {
+) -> Result<String, AckError> {
     let mut out = String::with_capacity(192);
-    write_header(&mut out, context, control_id, separators);
+    write_header(&mut out, context, control_id, separators)?;
     write_msa(&mut out, code, context, text, Some(&error.code), separators);
     // ERR-1 (the deprecated "error code and location") is left empty; ERR-2 is
     // the location, ERR-3 the code, ERR-4 the severity. ERR-2 is only written
@@ -320,18 +445,40 @@ pub fn build_enhanced(
     let location = error
         .location
         .as_ref()
-        .map_or(String::new(), |l| l.to_er7(separators.component));
+        .map_or(String::new(), |l| l.to_er7(separators));
     let _ = write!(
         out,
         "ERR{field}{field}{location}{field}{code}{component}{text}{component}{system}{field}{severity}\r",
         field = separators.field,
         component = separators.component,
-        code = error.code,
-        text = error.text,
-        system = error.coding_system,
+        code = escape(&error.code, separators),
+        text = escape(&error.text, separators),
+        system = escape(&error.coding_system, separators),
         severity = error.severity.as_str(),
     );
-    out
+    Ok(out)
+}
+
+/// Names the field a [`TranscodeError`] came from, for the caller's benefit.
+fn ack_error(field: &'static str, error: TranscodeError, separators: Separators) -> AckError {
+    match error {
+        TranscodeError::OpaqueEscapeCollision {
+            body,
+            delimiter,
+            in_source,
+            in_reply,
+        } => AckError::UnrepresentableEscape {
+            field,
+            body,
+            delimiter,
+            in_source,
+            in_reply,
+            separators,
+        },
+        TranscodeError::RawFieldSeparator { separator } => {
+            AckError::RawFieldSeparator { field, separator }
+        }
+    }
 }
 
 /// Writes the MSH segment every acknowledgement starts with.
@@ -340,12 +487,12 @@ pub fn build_enhanced(
 /// characters follow the field separator directly. Every later field is
 /// preceded by one. Building the list explicitly keeps the numbering honest
 /// rather than relying on a hand-counted format string.
-fn write_header(out: &mut String, context: &AckContext, control_id: &str, separators: Separators) {
-    let version = if context.version.is_empty() {
-        "2.5.1"
-    } else {
-        &context.version
-    };
+fn write_header(
+    out: &mut String,
+    context: &AckContext,
+    control_id: &str,
+    separators: Separators,
+) -> Result<(), AckError> {
     let encoding = format!(
         "{}{}{}{}",
         separators.component, separators.repetition, separators.escape, separators.subcomponent
@@ -356,23 +503,54 @@ fn write_header(out: &mut String, context: &AckContext, control_id: &str, separa
     out.push_str(&encoding);
     // MSH-3..MSH-12. MSH-7 (build time) and MSH-8 (security) stay empty, which
     // is legal and means unknown; a caller that knows the time sets it after.
-    let fields = [
-        context.receiving_application.as_str(),
-        context.receiving_facility.as_str(),
-        context.sending_application.as_str(),
-        context.sending_facility.as_str(),
-        "",
-        "",
-        "ACK",
-        control_id,
-        "P",
-        version,
+    //
+    // The four HD fields are ER7 already, so they are transcoded rather than
+    // escaped: their component separators are structure, and escaping them
+    // would collapse `LAB^1.2.3^ISO` into one component.
+    let composites: [(&'static str, &str); 6] = [
+        ("MSH-3", context.receiving_application.as_str()),
+        ("MSH-4", context.receiving_facility.as_str()),
+        ("MSH-5", context.sending_application.as_str()),
+        ("MSH-6", context.sending_facility.as_str()),
+        ("MSH-7", ""),
+        ("MSH-8", ""),
     ];
-    for value in fields {
+    for (name, value) in composites {
         out.push(separators.field);
-        out.push_str(value);
+        out.push_str(
+            &transcode(value, context.separators, separators)
+                .map_err(|error| ack_error(name, error, separators))?,
+        );
+    }
+    // MSH-9 is generated here, not copied, so it is plain text under the reply's
+    // delimiters and is escaped rather than transcoded. Passing it through
+    // `transcode` would judge it against the source's field separator, and a
+    // source using `K` would make `ACK` look like a value holding a raw field
+    // separator - a refusal for a value the reply can carry unchanged.
+    out.push(separators.field);
+    out.push_str(&escape("ACK", separators));
+    // MSH-10 is the reply's own control id, an ST: plain text the caller
+    // supplied, so it is escaped rather than transcoded.
+    out.push(separators.field);
+    out.push_str(&escape(control_id, separators));
+    out.push(separators.field);
+    out.push('P');
+    out.push(separators.field);
+    // MSH-12 is a VID, so a version the context holds is ER7 and is transcoded.
+    // The fallback is generated here, not parsed, so it is plain text and must
+    // be escaped: treating `2.5.1` as ER7 turns it into `2^5^1` when the source
+    // names `.` as its component separator, and a period field separator would
+    // split it into three fields.
+    if context.version.is_empty() {
+        out.push_str(&escape(DEFAULT_VERSION, separators));
+    } else {
+        out.push_str(
+            &transcode(&context.version, context.separators, separators)
+                .map_err(|error| ack_error("MSH-12", error, separators))?,
+        );
     }
     out.push('\r');
+    Ok(())
 }
 
 /// Writes the MSA segment, with MSA-4 present only in the enhanced mode.
@@ -389,12 +567,13 @@ fn write_msa(
         out,
         "MSA{field}{code}{field}{original}{field}{text}",
         code = code.as_str(),
-        original = context.control_id,
+        original = escape(&context.control_id, separators),
+        text = escape(text, separators),
     );
     // A minimal ACK stops at MSA-3. The enhanced one appends MSA-4, the error
     // condition code.
     if let Some(condition) = condition {
-        let _ = write!(out, "{field}{condition}");
+        let _ = write!(out, "{field}{}", escape(condition, separators));
     }
     out.push('\r');
 }
@@ -417,7 +596,8 @@ mod tests {
             "ACK0001",
             "",
             message.separators(),
-        );
+        )
+        .unwrap();
 
         // MSH-10 is the reply's own control id; MSA-2 echoes the original.
         let reply = Message::parse(&ack).unwrap();
@@ -439,7 +619,8 @@ mod tests {
             "ACK0002",
             "bad patient",
             Separators::default(),
-        );
+        )
+        .unwrap();
 
         // The hand-counted field order is the easiest thing to get wrong, so
         // assert the whole header text, not just the fields read back.
@@ -457,7 +638,7 @@ mod tests {
             control_id: "X".into(),
             ..AckContext::default()
         };
-        let ack = build(&context, AckCode::Reject, "R", "", Separators::default());
+        let ack = build(&context, AckCode::Reject, "R", "", Separators::default()).unwrap();
         assert_eq!(
             Message::parse(&ack).unwrap().value("MSH-12").unwrap(),
             "2.5.1"
@@ -469,7 +650,7 @@ mod tests {
         let message =
             Message::parse("MSH#*~\\&#SEND#FAC#R#F#20260101##ADT*A01#M1#P#2.5.1\rPID#1\r").unwrap();
         let context = AckContext::from_message(&message);
-        let ack = build(&context, AckCode::Accept, "A1", "", message.separators());
+        let ack = build(&context, AckCode::Accept, "A1", "", message.separators()).unwrap();
         assert!(ack.starts_with("MSH#*~\\&#"));
         let reply = Message::parse(&ack).unwrap();
         assert_eq!(reply.separators().field, '#');
@@ -487,7 +668,7 @@ mod tests {
     fn a_minimal_ack_has_no_msa_4_or_err() {
         let message = Message::parse(ADT).unwrap();
         let context = AckContext::from_message(&message);
-        let ack = build(&context, AckCode::Error, "A1", "bad", Separators::default());
+        let ack = build(&context, AckCode::Error, "A1", "bad", Separators::default()).unwrap();
         let reply = Message::parse(&ack).unwrap();
         assert!(reply.value("MSA-4").is_none());
         assert!(reply.segment("ERR").is_none());
@@ -505,7 +686,8 @@ mod tests {
             "bad patient",
             &error,
             Separators::default(),
-        );
+        )
+        .unwrap();
 
         // The whole MSA and ERR text, because the field positions are the
         // easiest thing to get wrong.
@@ -534,7 +716,8 @@ mod tests {
             "",
             &error,
             message.separators(),
-        );
+        )
+        .unwrap();
         let lines: Vec<&str> = ack.split('\r').collect();
         assert_eq!(lines[1], "MSA#AR#M1##100");
         assert_eq!(lines[2], "ERR###100*Segment sequence error*HL70357#E");
@@ -554,7 +737,7 @@ mod tests {
     #[test]
     fn a_location_without_narrowing_is_segment_sequence_and_field() {
         let location = ErrorLocation::field("PID", 2, 5);
-        assert_eq!(location.to_er7('^'), "PID^2^5");
+        assert_eq!(location.to_er7(Separators::default()), "PID^2^5");
     }
 
     #[test]
@@ -562,23 +745,30 @@ mod tests {
         // A component with no repetition before it: the repetition is an empty
         // component, so the component lands in the right position (ERL-5).
         let location = ErrorLocation::field("PID", 1, 3).with_component(4);
-        assert_eq!(location.to_er7('^'), "PID^1^3^^4");
+        assert_eq!(location.to_er7(Separators::default()), "PID^1^3^^4");
 
         // A subcomponent with neither repetition nor component set.
         let location = ErrorLocation::field("PID", 1, 3).with_subcomponent(2);
-        assert_eq!(location.to_er7('^'), "PID^1^3^^^2");
+        assert_eq!(location.to_er7(Separators::default()), "PID^1^3^^^2");
 
         // Everything set, in order.
         let location = ErrorLocation::field("OBX", 3, 5)
             .with_repetition(1)
             .with_component(2)
             .with_subcomponent(3);
-        assert_eq!(location.to_er7('^'), "OBX^3^5^1^2^3");
+        assert_eq!(location.to_er7(Separators::default()), "OBX^3^5^1^2^3");
     }
 
     #[test]
     fn a_location_uses_the_component_separator_of_the_message() {
-        assert_eq!(ErrorLocation::field("PID", 1, 3).to_er7('*'), "PID*1*3");
+        let separators = Separators {
+            component: '*',
+            ..Separators::default()
+        };
+        assert_eq!(
+            ErrorLocation::field("PID", 1, 3).to_er7(separators),
+            "PID*1*3"
+        );
     }
 
     #[test]
@@ -594,7 +784,8 @@ mod tests {
             "bad patient",
             &error,
             Separators::default(),
-        );
+        )
+        .unwrap();
 
         let lines: Vec<&str> = ack.split('\r').collect();
         // ERR-1 empty, ERR-2 the location, ERR-3 the code, ERR-4 the severity.
@@ -620,7 +811,8 @@ mod tests {
             "bad",
             &error,
             Separators::default(),
-        );
+        )
+        .unwrap();
         let reply = Message::parse(&ack).unwrap();
         // ERR-2 is present but empty, the way the crate writes an unset field.
         assert_eq!(reply.value("ERR-2").unwrap_or_default(), "");
@@ -628,5 +820,568 @@ mod tests {
             reply.value("ERR-3").unwrap(),
             "207^Application internal error^HL70357"
         );
+    }
+
+    #[test]
+    fn a_composite_application_keeps_its_components() {
+        // MSH-3 is an HD, so `LAB^1.2.3^ISO` is three components: namespace,
+        // universal id, id type. Escaping the whole string would collapse them
+        // into one, which loses the identity a peer routes on.
+        let message = Message::parse(
+            "MSH|^~\\&|LAB^1.2.3^ISO|FAC^9.9^DNS|RECV|FAC|20260101||ADT^A01|M1|P|2.5.1\rPID|1\r",
+        )
+        .unwrap();
+        let context = AckContext::from_message(&message);
+        let ack = build(
+            &context,
+            AckCode::Accept,
+            "ACK0009",
+            "",
+            message.separators(),
+        )
+        .unwrap();
+
+        let reply = Message::parse(&ack).unwrap();
+        // The original sender is now the receiver, so it lands in MSH-5.
+        assert_eq!(reply.field("MSH-5").unwrap().text(), "LAB^1.2.3^ISO");
+        let application = reply.field("MSH-5").unwrap();
+        assert_eq!(application.component(1), Some("LAB"));
+        assert_eq!(application.component(2), Some("1.2.3"));
+        assert_eq!(application.component(3), Some("ISO"));
+        assert_eq!(reply.field("MSH-6").unwrap().text(), "FAC^9.9^DNS");
+    }
+
+    #[test]
+    fn a_composite_holding_an_escaped_delimiter_keeps_both_meanings() {
+        // The facility's universal id holds a literal `^`, written `\S\`. The
+        // reply must keep the two component separators structural and the
+        // escaped one as data, so the field still has three components.
+        let message = Message::parse(
+            "MSH|^~\\&|S|FAC^9.9\\S\\1^DNS|R|F|20260101||ADT^A01|M2|P|2.5.1\rPID|1\r",
+        )
+        .unwrap();
+        let context = AckContext::from_message(&message);
+        let ack = build(
+            &context,
+            AckCode::Accept,
+            "ACK0010",
+            "",
+            message.separators(),
+        )
+        .unwrap();
+
+        let reply = Message::parse(&ack).unwrap();
+        let facility = reply.field("MSH-6").unwrap();
+        // Three components: the two `^` are structure, the `\S\` is data.
+        assert_eq!(facility.text(), "FAC^9.9\\S\\1^DNS");
+        assert_eq!(facility.component(1), Some("FAC"));
+        assert_eq!(facility.component(2), Some("9.9\\S\\1"));
+        assert_eq!(facility.component(3), Some("DNS"));
+        // Reading the field resolves the escape, so the literal `^` returns.
+        assert_eq!(reply.value("MSH-6").unwrap(), "FAC^9.9^1^DNS");
+    }
+
+    #[test]
+    fn a_composite_version_keeps_its_components() {
+        // MSH-12 is a VID, also composite.
+        let message =
+            Message::parse("MSH|^~\\&|S|F|R|F|20260101||ADT^A01|M3|P|2.5.1^ABC\rPID|1\r").unwrap();
+        let context = AckContext::from_message(&message);
+        let ack = build(
+            &context,
+            AckCode::Accept,
+            "ACK0011",
+            "",
+            message.separators(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            Message::parse(&ack)
+                .unwrap()
+                .field("MSH-12")
+                .unwrap()
+                .text(),
+            "2.5.1^ABC"
+        );
+    }
+
+    #[test]
+    fn a_composite_is_transcoded_when_the_reply_uses_other_separators() {
+        // A caller may answer with a different delimiter set. The component
+        // boundary must move with it, and an escaped delimiter must stay data.
+        let mut context = AckContext {
+            sending_application: "LAB^1.2.3^ISO".into(),
+            sending_facility: "FAC^9.9\\S\\1^DNS".into(),
+            control_id: "M4".into(),
+            version: "2.5.1".into(),
+            ..AckContext::default()
+        };
+        context.separators = Separators::default();
+        let reply_separators = Separators {
+            field: '#',
+            component: '*',
+            ..Separators::default()
+        };
+        let ack = build(&context, AckCode::Accept, "ACK0012", "", reply_separators).unwrap();
+
+        let reply = Message::parse(&ack).unwrap();
+        assert_eq!(reply.separators().component, '*');
+        // Structure follows the reply's separator; the literal `^` does not.
+        assert_eq!(reply.field("MSH-5").unwrap().text(), "LAB*1.2.3*ISO");
+        assert_eq!(reply.field("MSH-5").unwrap().component(2), Some("1.2.3"));
+        // `\S\` meant a literal `^` under the source set. Under the reply's
+        // set `^` is ordinary data, so it is written bare - escaping it would
+        // be wrong, and a reader there would see `\S\` as text.
+        assert_eq!(reply.field("MSH-6").unwrap().text(), "FAC*9.9^1*DNS");
+        assert_eq!(reply.field("MSH-6").unwrap().component(2), Some("9.9^1"));
+    }
+
+    #[test]
+    fn the_fallback_version_is_plain_text_not_er7() {
+        // `2.5.1` is generated here, so it is plain text, not ER7. The source
+        // names `.` as its component separator and supplies no MSH-12, so a
+        // transcode would read the two periods as structure and write `2^5^1`.
+        let message = Message::parse("MSH|.~\\&|S|F|R|F|20260101||ADT.A01|M1|P\rPID|1\r").unwrap();
+        let context = AckContext::from_message(&message);
+        assert!(context.version.is_empty());
+        let ack = build(&context, AckCode::Reject, "ACK1", "", Separators::default()).unwrap();
+
+        let reply = Message::parse(&ack).unwrap();
+        assert_eq!(reply.field("MSH-12").unwrap().text(), "2.5.1");
+        assert_eq!(reply.field("MSH-12").unwrap().component(1), Some("2.5.1"));
+    }
+
+    #[test]
+    fn the_fallback_version_survives_a_period_field_separator() {
+        // A period field separator would split `2.5.1` into three fields, which
+        // shifts MSH-12 and makes the reply malformed. The fallback is escaped,
+        // so it stays one field.
+        let source = Separators {
+            field: '.',
+            component: '^',
+            ..Separators::default()
+        };
+        let context = AckContext {
+            control_id: "M1".into(),
+            ..AckContext::default()
+        };
+        let ack = build(&context, AckCode::Reject, "ACK2", "", source).unwrap();
+
+        let reply = Message::parse(&ack).unwrap();
+        assert_eq!(reply.separators().field, '.');
+        // One field, with the periods escaped as `\F\` rather than splitting.
+        assert_eq!(reply.field("MSH-12").unwrap().text(), "2\\F\\5\\F\\1");
+        assert_eq!(reply.value("MSH-12").unwrap(), "2.5.1");
+    }
+
+    #[test]
+    fn the_documented_fallback_answers_a_parsed_header_with_an_opaque_escape() {
+        // A component separator inside a site-defined escape body is legal in
+        // the source - the parser accepted it - and answering with the source's
+        // own delimiters introduces no new delimiter, so the documented fallback
+        // must produce a reply. Refusing here would leave a receiver unable to
+        // acknowledge a message it could parse.
+        let message =
+            Message::parse("MSH|#~\\&|LAB\\ZID#1\\|F|R|F|20260101||ADT#A01|M3|P|2.5.1\rPID|1\r")
+                .unwrap();
+        let context = AckContext::from_message(&message);
+        let ack = build(
+            &context,
+            AckCode::Reject,
+            "ACK9",
+            "bad",
+            message.separators(),
+        )
+        .unwrap();
+
+        let reply = Message::parse(&ack).unwrap();
+        assert_eq!(reply.value("MSH-10").unwrap(), "ACK9");
+        // The source's MSH-3 is the sending application and lands in the
+        // reply's MSH-5. The opaque body is copied unchanged, component
+        // separator included.
+        assert_eq!(reply.field("MSH-5").unwrap().text(), "LAB\\ZID#1\\");
+    }
+
+    #[test]
+    fn a_hand_built_context_holding_a_raw_field_separator_is_an_error() {
+        // A parsed field can never contain the field separator, so only a
+        // hand-built context can hold one - where it was meant as data but would
+        // be read as structure. Naming the field is more useful than silently
+        // escaping it.
+        let context = AckContext {
+            sending_application: "LAB|1".into(),
+            ..AckContext::default()
+        };
+        let error =
+            build(&context, AckCode::Accept, "ACKE", "", Separators::default()).unwrap_err();
+        assert_eq!(
+            error,
+            AckError::RawFieldSeparator {
+                field: "MSH-5",
+                separator: '|',
+            }
+        );
+        assert!(error.to_string().contains("MSH-5"), "{error}");
+    }
+
+    #[test]
+    fn a_raw_field_separator_is_refused_for_every_reply_delimiter_set() {
+        // The verdict must not depend on the reply. A caller could otherwise
+        // make an invalid hand-built header acceptable by choosing delimiters,
+        // which is the wrong way round: the value is invalid before the reply
+        // exists.
+        let context = AckContext {
+            sending_application: "LAB|1".into(),
+            ..AckContext::default()
+        };
+        for field in ['|', '#', '@', '!'] {
+            let reply = Separators {
+                field,
+                component: if field == '|' { '^' } else { '|' },
+                ..Separators::default()
+            };
+            let error = build(&context, AckCode::Accept, "ACKR", "", reply).unwrap_err();
+            assert_eq!(
+                error,
+                AckError::RawFieldSeparator {
+                    field: "MSH-5",
+                    separator: '|',
+                },
+                "reply field {field:?} changed the verdict"
+            );
+        }
+    }
+
+    /// Decodes one component's five standard escapes, for comparing what a peer
+    /// reads rather than how it was written.
+    fn decoded(component: &str, separators: Separators) -> String {
+        let mut out = String::new();
+        let mut chars = component.chars().peekable();
+        while let Some(c) = chars.next() {
+            if c != separators.escape {
+                out.push(c);
+                continue;
+            }
+            let mut body = String::new();
+            let mut closed = false;
+            for inner in chars.by_ref() {
+                if inner == separators.escape {
+                    closed = true;
+                    break;
+                }
+                body.push(inner);
+            }
+            match (closed, body.as_str()) {
+                (true, "F") => out.push(separators.field),
+                (true, "S") => out.push(separators.component),
+                (true, "R") => out.push(separators.repetition),
+                (true, "E") => out.push(separators.escape),
+                (true, "T") => out.push(separators.subcomponent),
+                // Unmatched, or a code this crate does not model: a reader keeps
+                // the marker, and so does this comparison.
+                _ => {
+                    out.push(separators.escape);
+                    out.push_str(&body);
+                    if closed {
+                        out.push(separators.escape);
+                    }
+                }
+            }
+        }
+        out
+    }
+
+    /// Each side is decoded with the separators it declares, because `\F\`
+    /// denotes the field separator of the message it appears in.
+    fn decoded_components(message: &crate::Message<'_>, name: &str) -> Vec<String> {
+        let separators = message.separators();
+        message
+            .field(name)
+            .unwrap()
+            .components()
+            .map(|component| decoded(component, separators))
+            .collect()
+    }
+
+    #[test]
+    fn a_field_only_change_keeps_the_decoded_identity() {
+        // The source's component separator is `#` and the reply keeps it, so the
+        // body's component boundaries do not move even though the field separator
+        // changes from `|` to `@`. What must hold is that a peer decodes the same
+        // identity on both sides - the wire bytes may differ, because a marker
+        // that ends one component has to be re-encoded as `\E\` once the reply
+        // treats `\` as an escape character.
+        let message =
+            Message::parse("MSH|#~\\&|LAB\\ZID#1\\@|F|R|F|20260101||ADT#A01|M6|P|2.5.1\rPID|1\r")
+                .unwrap();
+        let context = AckContext::from_message(&message);
+        let reply_separators = Separators {
+            field: '@',
+            component: '#',
+            ..Separators::default()
+        };
+        let ack = build(&context, AckCode::Accept, "ACK6", "", reply_separators).unwrap();
+
+        let reply = Message::parse(&ack).unwrap();
+        assert_eq!(reply.separators().field, '@');
+        assert_eq!(reply.value("MSH-10").unwrap(), "ACK6");
+        assert_eq!(
+            decoded_components(&message, "MSH-3"),
+            ["LAB\\ZID", "1\\@"],
+            "the source fixture is not what this test assumes"
+        );
+        assert_eq!(
+            decoded_components(&reply, "MSH-5"),
+            ["LAB\\ZID", "1\\@"],
+            "the reply decodes to a different identity"
+        );
+    }
+
+    #[test]
+    fn a_split_escape_marker_is_not_treated_as_an_escape() {
+        // `%` is the source's escape character and `^` its component separator,
+        // so `LAB%ZID^1%` is two components whose markers are stranded. Reading
+        // the raw text as one escape and rewriting the markers turned them into
+        // backslashes, which changed the identity a peer decodes. The reply must
+        // keep `%` here: it is a literal character, not a marker.
+        let message =
+            Message::parse("MSH|^~%&|LAB%ZID^1%|F|R|F|20260101||ADT^A01|M8|P|2.5.1\rPID|1\r")
+                .unwrap();
+        let context = AckContext::from_message(&message);
+        let reply_separators = Separators {
+            escape: '\\',
+            ..Separators::default()
+        };
+        let ack = build(&context, AckCode::Accept, "ACK8", "", reply_separators).unwrap();
+
+        let reply = Message::parse(&ack).unwrap();
+        assert_eq!(reply.separators().escape, '\\');
+        assert_eq!(reply.field("MSH-5").unwrap().text(), "LAB%ZID^1%");
+    }
+
+    #[test]
+    fn a_generated_message_type_is_never_judged_against_the_source() {
+        // `ACK` is written here, not copied, so it is plain text under the
+        // reply's delimiters. Judging it against the source's field separator
+        // refused the reply when the source used `K`, even though the reply can
+        // carry `ACK` unchanged.
+        let message =
+            Message::parse("MSHK^~\\&KLABKFKRKFK20260101KKADT^A01KM9KPK2.5.1\rPIDK1\r").unwrap();
+        let context = AckContext::from_message(&message);
+        let ack = build(&context, AckCode::Accept, "ACK9", "", Separators::default()).unwrap();
+
+        let reply = Message::parse(&ack).unwrap();
+        assert_eq!(reply.value("MSH-9").unwrap(), "ACK");
+        assert_eq!(reply.value("MSH-10").unwrap(), "ACK9");
+    }
+
+    #[test]
+    fn an_unmatched_marker_keeps_the_subcomponent_boundaries_after_it() {
+        // `LAB\ZID&1^2\` splits into components `LAB\ZID&1` and `2\`, so the
+        // first component's marker has no closer. Escaping the whole tail as
+        // text merged the two subcomponents into one: the reply still parsed, so
+        // only a subcomponent count catches it.
+        let message = Message::parse(
+            "MSH|^~\\&|LAB\\ZID&1^2\\|F|R|F|20260101||ADT^A01|MSGB|P|2.5.1\rPID|1\r",
+        )
+        .unwrap();
+        let context = AckContext::from_message(&message);
+        let reply_separators = Separators {
+            field: '@',
+            ..Separators::default()
+        };
+        let ack = build(&context, AckCode::Accept, "ACKB", "", reply_separators).unwrap();
+
+        let reply = Message::parse(&ack).unwrap();
+        let application = reply.field("MSH-5").unwrap();
+        // The first component keeps two subcomponents; the marker is data.
+        assert_eq!(application.subcomponent(1, 1), Some("LAB\\E\\ZID"));
+        assert_eq!(application.subcomponent(1, 2), Some("1"));
+        assert_eq!(application.subcomponent(1, 3), None);
+        assert_eq!(application.component(2), Some("2\\E\\"));
+    }
+
+    #[test]
+    fn a_role_change_inside_one_component_is_an_error() {
+        // The body sits inside a single component, so the split does not touch
+        // it; what breaks it is the subcomponent separator becoming plain data.
+        // `&` separates subcomponents in the source and is data in the reply, so
+        // the subcomponent boundary would disappear.
+        let message =
+            Message::parse("MSH|^~\\&|LAB\\ZID&1\\|F|R|F|20260101||ADT^A01|M7|P|2.5.1\rPID|1\r")
+                .unwrap();
+        let context = AckContext::from_message(&message);
+        let reply_separators = Separators {
+            field: '#',
+            component: '*',
+            subcomponent: '!',
+            ..Separators::default()
+        };
+        let error = build(&context, AckCode::Accept, "ACK7", "", reply_separators).unwrap_err();
+        assert_eq!(
+            error,
+            AckError::UnrepresentableEscape {
+                field: "MSH-5",
+                body: "ZID&1".into(),
+                delimiter: '&',
+                in_source: DelimiterRole::Subcomponent,
+                in_reply: DelimiterRole::Data,
+                separators: reply_separators,
+            }
+        );
+        let rendered = error.to_string();
+        assert!(
+            rendered.contains("a subcomponent separator in the message"),
+            "{rendered}"
+        );
+        assert!(rendered.contains("plain data in the reply"), "{rendered}");
+    }
+
+    #[test]
+    fn a_local_escape_colliding_with_the_reply_separator_is_an_error() {
+        // `\ZLAB#1\` is site-defined, so its body cannot be rewritten. With `#`
+        // as the reply's field separator the reader would split MSH-5 there and
+        // shift the control id out of MSH-10. Refusing beats a reply whose
+        // fields mean something the sender never intended.
+        let message =
+            Message::parse("MSH|^~\\&|S\\ZLAB#1\\|F|R|F|20260101||ADT^A01|M2|P|2.5.1\rPID|1\r")
+                .unwrap();
+        let context = AckContext::from_message(&message);
+        let reply_separators = Separators {
+            field: '#',
+            ..Separators::default()
+        };
+
+        let error = build(&context, AckCode::Accept, "ACK3", "", reply_separators).unwrap_err();
+        assert_eq!(
+            error,
+            AckError::UnrepresentableEscape {
+                field: "MSH-5",
+                body: "ZLAB#1".into(),
+                delimiter: '#',
+                // `#` is ordinary data in the message and becomes a separator in
+                // the reply, which is what changes the field's boundaries.
+                in_source: DelimiterRole::Data,
+                in_reply: DelimiterRole::Field,
+                separators: reply_separators,
+            }
+        );
+        // The message names the field and what to do about it.
+        let rendered = error.to_string();
+        assert!(rendered.contains("MSH-5"), "{rendered}");
+        assert!(rendered.contains("ZLAB#1"), "{rendered}");
+        assert!(rendered.contains("original's separators"), "{rendered}");
+
+        // Answering in the original's separator set is the way out, and the
+        // escape survives because nothing has to be rewritten.
+        let ack = build(&context, AckCode::Accept, "ACK4", "", message.separators()).unwrap();
+        let reply = Message::parse(&ack).unwrap();
+        assert_eq!(reply.value("MSH-10").unwrap(), "ACK4");
+        assert_eq!(reply.field("MSH-5").unwrap().text(), "S\\ZLAB#1\\");
+    }
+
+    #[test]
+    fn a_local_escape_without_a_collision_is_copied_verbatim() {
+        // The same escape is harmless when the reply keeps `|`: its body holds
+        // no delimiter of the reply, so it is copied as it stands.
+        let message =
+            Message::parse("MSH|^~\\&|S\\ZLAB#1\\|F|R|F|20260101||ADT^A01|M5|P|2.5.1\rPID|1\r")
+                .unwrap();
+        let context = AckContext::from_message(&message);
+        let ack = build(&context, AckCode::Accept, "ACK5", "", Separators::default()).unwrap();
+
+        let reply = Message::parse(&ack).unwrap();
+        assert_eq!(reply.value("MSH-10").unwrap(), "ACK5");
+        assert_eq!(reply.field("MSH-5").unwrap().text(), "S\\ZLAB#1\\");
+    }
+
+    #[test]
+    fn a_text_holding_delimiters_stays_one_field() {
+        // A failure explanation quotes the input that failed, so it can hold any
+        // delimiter. Written raw, the first `|` ends MSA-3 and every later field
+        // shifts; the reply still parses, which is what makes it dangerous.
+        let message = Message::parse(ADT).unwrap();
+        let context = AckContext::from_message(&message);
+        let ack = build(
+            &context,
+            AckCode::Error,
+            "ACK0006",
+            "bad | value ^ ~ & \\ here",
+            Separators::default(),
+        )
+        .unwrap();
+
+        // The wire form carries the escapes, so the value is one field.
+        let msa = ack.split('\r').nth(1).unwrap();
+        assert_eq!(msa.split('|').count(), 4);
+        let reply = Message::parse(&ack).unwrap();
+        assert_eq!(
+            reply.field("MSA-3").unwrap().text(),
+            "bad \\F\\ value \\S\\ \\R\\ \\T\\ \\E\\ here"
+        );
+        // And reading it back returns the text the caller supplied.
+        assert_eq!(reply.value("MSA-3").unwrap(), "bad | value ^ ~ & \\ here");
+    }
+
+    #[test]
+    fn escaping_is_reversible_and_only_touches_delimiters() {
+        let separators = Separators::default();
+        let plain = "ordinary text, no delimiters";
+        assert_eq!(escape(plain, separators), plain);
+
+        let escaped = escape("a|b^c~d&e\\f", separators);
+        assert_eq!(escaped, "a\\F\\b\\S\\c\\R\\d\\T\\e\\E\\f");
+        let message = format!("MSH|^~\\&|S|F|R|F|20260101||ADT^A01|1|P|2.5.1\rPID|1||{escaped}\r");
+        let parsed = Message::parse(&message).unwrap();
+        assert_eq!(
+            parsed.segment("PID").unwrap().field(3).unwrap().unescape(),
+            "a|b^c~d&e\\f"
+        );
+    }
+
+    #[test]
+    fn a_control_id_holding_the_field_separator_is_escaped_too() {
+        // MSA-2 echoes a value the sender chose, so it needs the same treatment
+        // as the text. A raw `|` there would make MSA-2 look like two fields.
+        let message = Message::parse(ADT).unwrap();
+        let mut context = AckContext::from_message(&message);
+        context.control_id = "MSG|0001".into();
+        let ack = build(
+            &context,
+            AckCode::Accept,
+            "ACK0007",
+            "",
+            Separators::default(),
+        )
+        .unwrap();
+
+        let reply = Message::parse(&ack).unwrap();
+        assert_eq!(reply.field("MSA-2").unwrap().text(), "MSG\\F\\0001");
+        assert_eq!(reply.value("MSA-2").unwrap(), "MSG|0001");
+    }
+
+    #[test]
+    fn an_enhanced_ack_escapes_the_error_text_and_the_location() {
+        let message = Message::parse(ADT).unwrap();
+        let context = AckContext::from_message(&message);
+        let error = ErrorDetail::new("101", "value | not ^ allowed", Severity::Error)
+            .at(ErrorLocation::field("PI|D", 1, 3));
+        let ack = build_enhanced(
+            &context,
+            AckCode::Error,
+            "ACK0008",
+            "bad",
+            &error,
+            Separators::default(),
+        )
+        .unwrap();
+
+        let reply = Message::parse(&ack).unwrap();
+        assert_eq!(
+            reply.field("ERR-3").unwrap().text(),
+            "101^value \\F\\ not \\S\\ allowed^HL70357"
+        );
+        assert_eq!(reply.field("ERR-2").unwrap().text(), "PI\\F\\D^1^3");
     }
 }

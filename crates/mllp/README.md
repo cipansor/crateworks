@@ -123,7 +123,7 @@ let context = AckContext::from_message(&received);
 
 // Build the reply. The control id is the reply's own MSH-10, which is new;
 // the original one is echoed in MSA-2.
-let ack = build_ack(&context, AckCode::Accept, "ACK0001", "", received.separators());
+let ack = build_ack(&context, AckCode::Accept, "ACK0001", "", received.separators()).unwrap();
 
 let reply = Message::parse(&ack).unwrap();
 assert_eq!(reply.value("MSA-1").unwrap(), "AA");
@@ -136,6 +136,122 @@ an application failure and `Reject` (`AR`) for a version or format problem. The
 reply is written with the delimiters of the message it answers, so a peer that
 uses `#` as its field separator gets a reply it can read. MSH-7, the build time,
 is left empty; a caller that wants it sets it afterwards.
+
+Every value the builders write is escaped first. A control id or a failure text
+is caller-supplied and can hold any character, including a delimiter; written
+raw, the first `|` would end its field and every later field would shift. The
+reply would still parse, which is what makes it dangerous - it would mean
+something the sender never intended. `mllp::escape` is the inverse of the
+resolution `Field::unescape` does, and takes plain text:
+
+```rust
+use mllp::{AckCode, AckContext, Message, build_ack};
+
+let received = Message::parse(
+    "MSH|^~\\&|SEND|FAC|RECV|FAC|20260101||ADT^A01|MSG0001|P|2.5.1\rPID|1||12345\r",
+).unwrap();
+let context = AckContext::from_message(&received);
+
+// The text quotes the value that failed, so it holds a field separator.
+let ack = build_ack(
+    &context,
+    AckCode::Error,
+    "ACK0003",
+    "rejected | bad value",
+    received.separators(),
+)
+.unwrap();
+
+// On the wire the separator is escaped, so MSA-3 is still one field.
+let reply = Message::parse(&ack).unwrap();
+assert_eq!(reply.field("MSA-3").unwrap().text(), "rejected \\F\\ bad value");
+// And reading it back returns the text the caller supplied.
+assert_eq!(reply.value("MSA-3").unwrap(), "rejected | bad value");
+```
+
+The header is different. MSH-3, MSH-4, MSH-5 and MSH-6 are HD values and MSH-12
+is a VID, so their components are structure: `LAB^1.2.3^ISO` is a namespace, a
+universal id and an id type. `AckContext` therefore keeps those fields as ER7,
+and the builder re-emits them rather than escaping them, so the reply carries the
+same three components. A delimiter that was escaped in the source stays data
+while the separators around it stay structure.
+
+```rust
+use mllp::{AckCode, AckContext, Message, build_ack};
+
+let received = Message::parse(
+    "MSH|^~\\&|LAB^1.2.3^ISO|FAC|RECV|FAC|20260101||ADT^A01|MSG0002|P|2.5.1\rPID|1||12345\r",
+).unwrap();
+let context = AckContext::from_message(&received);
+let ack = build_ack(&context, AckCode::Accept, "ACK0004", "", received.separators()).unwrap();
+
+let reply = Message::parse(&ack).unwrap();
+let application = reply.field("MSH-5").unwrap();
+assert_eq!(application.component(1), Some("LAB"));
+assert_eq!(application.component(2), Some("1.2.3"));
+assert_eq!(application.component(3), Some("ISO"));
+```
+
+Because the reply is built with `received.separators()`, it never has to convert
+anything, so it cannot fail - a receiver can always acknowledge a message it was
+able to parse, which is the whole point of the fallback.
+
+Answering with a *different* delimiter set is where the errors live. The rule is
+about *roles*, not about which characters appear. A reader splits on a delimiter
+before it resolves escapes, so a delimiter inside a site-defined escape body such
+as `\ZLAB#1\` is structure: the body survives a conversion only when every
+character keeps the role it had. A separator that becomes data stops splitting
+the field, and data that becomes a separator starts splitting it, so both are
+refused - rewriting the body would silently change how many components the field
+has. A body can never hold the component separator: that separator splits the
+component before any reader looks for an escape.
+
+Changing only the field separator keeps every component and subcomponent
+boundary, so such a reply is normally accepted. It is still refused in one case:
+the new field separator itself appears inside an opaque escape body. That is the
+role rule again - the character was data in the message and would become a field
+boundary in the reply - and no rewrite of the body can carry it. The example below
+is exactly that case, and it is why the way out it shows is to answer with the
+original's separators.
+
+The wire bytes of an accepted field-only reply can still differ from the source's,
+because a marker that was stranded - one ending a component, or opening one, with
+no pair - has to be re-encoded as `\E\` once the reply treats the escape
+character differently. What is preserved is what a peer decodes, and the component
+and subcomponent boundaries it splits on, not the bytes.
+
+A raw field separator is refused as well, and that verdict does not depend on the
+reply: the value is invalid before a reply exists, so no choice of delimiters can
+make it acceptable. It cannot occur in a parsed field - the parser splits on it -
+so it only comes from a hand-built [`AckContext`], where it was meant as data but
+would be read as structure.
+
+Two values are written by the builders rather than copied, and neither is judged
+against the incoming message: MSH-9 (`ACK`) and the `2.5.1` fallback version. They
+are plain text under the reply's own delimiters, so they are escaped, never
+transcoded.
+
+```rust
+use mllp::{AckCode, AckContext, Message, Separators, build_ack};
+
+let received = Message::parse(
+    "MSH|^~\\&|S\\ZLAB#1\\|F|R|F|20260101||ADT^A01|MSG0005|P|2.5.1\rPID|1||12345\r",
+).unwrap();
+let context = AckContext::from_message(&received);
+
+// A reply whose field separator is `#` cannot carry that escape body.
+let mut reply_separators = Separators::default();
+reply_separators.field = '#';
+let error = build_ack(&context, AckCode::Accept, "ACK0006", "", reply_separators).unwrap_err();
+assert!(error.to_string().contains("MSH-5"));
+
+// The way out is to answer with the original's separators, which is what the
+// usual call does.
+let ack = build_ack(&context, AckCode::Accept, "ACK0007", "", received.separators()).unwrap();
+assert_eq!(Message::parse(&ack).unwrap().value("MSH-10").unwrap(), "ACK0007");
+```
+
+
 
 ## Explaining an error
 
@@ -162,7 +278,8 @@ let ack = build_ack_enhanced(
     "bad patient",
     &error,
     received.separators(),
-);
+)
+.unwrap();
 
 let reply = Message::parse(&ack).unwrap();
 assert_eq!(reply.value("MSA-4").unwrap(), "207"); // the code, repeated

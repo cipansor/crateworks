@@ -411,9 +411,27 @@ explain a failure, `ack::build_enhanced` writes the enhanced form: MSA-4 carries
 the error condition code and an `ERR` segment repeats it as a CWE value with its
 text and an ERR-4 severity. When the caller knows where the error is, `ERR-2`
 carries the location as an ERL value (`ErrorLocation`: the segment, its sequence,
-the field, and optionally the repetition, component and subcomponent).
-`verify_mllp.py` checks the parse, the minimal reply and the enhanced reply
-against `hl7apy`.
+the field, and optionally the repetition, component and subcomponent). Every
+value the builders write is escaped first - `mllp::escape` inverts the resolution
+`Field::unescape` does - because a control id or failure text holding a delimiter
+would otherwise end its field and shift every field after it, which a reader
+cannot detect. The four HD header fields and the VID version are the exception:
+they are kept as ER7 and re-emitted, so `LAB^1.2.3^ISO` stays three components
+instead of collapsing into one. The version a reply falls back to when the source
+has none is generated locally, so it is plain text and is escaped, not
+transcoded - `2.5.1` must not become `2^5^1` because the source named `.` as its
+component separator. Converting a header to a different delimiter set can fail:
+a site-defined escape such as `\ZLAB#1\` has an opaque body, and if it holds one
+of the reply's delimiters no rewrite keeps its meaning, so the builders return
+`AckError::UnrepresentableEscape` and the caller answers with the original's
+separators instead. Answering with the original's
+separators is the documented fallback and is never refused: the parser accepted
+that text, so copying it introduces no new delimiter. A delimiter inside an
+opaque escape body blocks a *conversion* only when a delimiter inside it changes
+role, because a reader splits before resolving escapes and the body's structure is
+whatever the source says it is. A raw field separator is refused before either
+branch, so the verdict cannot be changed by picking reply delimiters. `verify_mllp.py` checks the parse, the minimal reply and the
+enhanced reply against `hl7apy`, with an MSA-3 that holds every delimiter.
 
 **Not covered.** ERR-1, the deprecated "error code and location" field, is left
 empty; ERR-2 carries the location and is the field a reader looks at. The builder
