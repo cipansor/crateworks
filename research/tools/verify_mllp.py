@@ -1025,23 +1025,32 @@ def main() -> int:
 
     print(f"\n{compared - mismatches}/{compared} fields agree with hl7apy")
 
+    # One message can fail several checks, so the headline total is the number of
+    # distinct messages that failed any of them. Summing the checks instead would
+    # report one bad message as five failures and invite the reader to divide.
+    failed_messages: set[int] = set(messages_with_mismatch)
+
     ack_problems = 0
     for index, raw in enumerate(CORPUS):
-        ack_problems += check_ack(raw, acks[index], index)
+        if check_ack(raw, acks[index], index):
+            ack_problems += 1
+            failed_messages.add(index)
     print(f"{len(CORPUS) - ack_problems}/{len(CORPUS)} ACK replies agree with hl7apy")
 
     enhanced_problems = 0
     for index, raw in enumerate(CORPUS):
-        enhanced_problems += check_enhanced(raw, enhanced[index], index)
+        if check_enhanced(raw, enhanced[index], index):
+            enhanced_problems += 1
+            failed_messages.add(index)
     print(
         f"{len(CORPUS) - enhanced_problems}/{len(CORPUS)} enhanced ACK replies agree with hl7apy"
     )
 
     converted_problems = 0
     for index, raw in enumerate(CORPUS):
-        converted_problems += check_converted(
-            raw, converted[index], refusals.get(index, ""), index
-        )
+        if check_converted(raw, converted[index], refusals.get(index, ""), index):
+            converted_problems += 1
+            failed_messages.add(index)
     print(f"{len(CORPUS) - converted_problems}/{len(CORPUS)} converted replies agree with hl7apy")
 
     # Changing only the field separator keeps every component boundary, so an
@@ -1052,25 +1061,26 @@ def main() -> int:
         if refusal:
             print(f"  fld {index}: refused a field-only conversion: {refusal!r}")
             field_only_problems += 1
+            failed_messages.add(index)
             continue
-        field_only_problems += check_field_only(raw, field_only[index], index)
+        if check_field_only(raw, field_only[index], index):
+            field_only_problems += 1
+            failed_messages.add(index)
     print(
         f"{len(CORPUS) - field_only_problems}/{len(CORPUS)} field-only replies agree with hl7apy"
     )
 
-    # Every category contributes the number of *units* that failed - one per
-    # message for the field comparison, one per reply for the rest - never the
-    # number of findings printed for them. Mixing the two units in one total is
-    # what made three findings look like three failed replies.
-    total = (
-        len(messages_with_mismatch)
-        + ack_problems
-        + enhanced_problems
-        + converted_problems
-        + field_only_problems
-    )
-    if total:
-        print(f"{total} MISMATCH(ES)")
+    if failed_messages:
+        # The counts below are per check and may overlap; the total is not their
+        # sum, because five failing checks on one message are one bad message.
+        print(
+            f"{len(failed_messages)} of {len(CORPUS)} messages failed verification:"
+        )
+        print(f"  {len(messages_with_mismatch)} with field differences")
+        print(f"  {ack_problems} with a bad ACK")
+        print(f"  {enhanced_problems} with a bad enhanced ACK")
+        print(f"  {converted_problems} with a bad converted reply")
+        print(f"  {field_only_problems} with a bad field-only reply")
         return 1
     return 0
 

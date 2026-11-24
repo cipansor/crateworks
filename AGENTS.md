@@ -551,7 +551,10 @@ regression coverage in CI at all.
   a checker that returns one per printed finding makes `len(corpus) - problems` go
   negative, and the summary then understates what passed. Keep one unit per total:
   field differences are counted per message and reply checks per reply, so summing
-  `mismatches` with them mixes two units and reports findings as failures. When checking
+  `mismatches` with them mixes two units and reports findings as failures, and summing
+  the per-check counters reports one message failing five checks as five failures. The
+  headline is distinct messages that failed, with the per-check counts printed beside
+  it, never added into it. When checking
   this against `hl7apy`, compute the expectation from the reply's own MSH-1 and
   MSH-2: a message using `#` and `*` leaves `|` and `^` alone, so a hardcoded
   default-delimiter expectation fails on a case that is correct.

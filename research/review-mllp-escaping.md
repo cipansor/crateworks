@@ -504,3 +504,38 @@ summing.
 Gate: 243/243 fields, 16/16 ACK, 16/16 enhanced, 16/16 converted, 16/16 field-only.
 
 `mllp` 0.13.0 -> 0.14.0: the gate's total, not the crate.
+
+## Follow-up: a total of overlapping counts is not a total
+
+An eleventh review found the same arithmetic error a third time, one level up.
+
+Round nine fixed findings-versus-replies. Round ten fixed fields-versus-messages. Both
+left the headline as a sum of the five per-check counters, so one message failing the
+field comparison and all four reply checks reported `5 MISMATCH(ES)`. That number is
+not five of anything: it is one message, counted five times, and the reader is left to
+work out whether five checks failed once or one check failed five times.
+
+The five counters overlap, and overlapping counts cannot be summed. The headline is now
+the number of **distinct messages** that failed any check, and the per-check counts are
+printed beside it rather than added into it:
+
+```
+1 of 16 messages failed verification:
+  1 with field differences
+  1 with a bad ACK
+  1 with a bad enhanced ACK
+  1 with a bad converted reply
+  1 with a bad field-only reply
+```
+
+Verified by forcing exactly one corpus message to fail all five checks: the headline
+reads `1 of 16` where the old arithmetic read `5`.
+
+Three rounds, three versions of one bug: a number was computed in a unit nobody could
+name, then reported without saying which unit it was. The rule in `AGENTS.md` now says
+what the earlier two should have said - counts that can overlap are printed, never
+summed, and a headline names its unit.
+
+Gate: 243/243 fields, 16/16 ACK, 16/16 enhanced, 16/16 converted, 16/16 field-only.
+
+`mllp` 0.14.0 -> 0.15.0: the gate's headline, not the crate.
