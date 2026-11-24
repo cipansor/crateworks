@@ -603,6 +603,15 @@ regression coverage in CI at all.
   read-only token here and answered 403 "Permission to ... denied". Check
   `${#GH_WRITE_TOKEN}` and probe `https://api.github.com/user` before concluding
   the remote or the helper is wrong.
+- **Test a credential helper's output before blaming the token.** A helper built
+  by `printf ... "$1"` with the format string in single quotes never expands the
+  argument, so it emitted `password=get` - the git operation name - and GitHub
+  answered "Invalid username or token". That reads exactly like a dead token, and
+  a valid PAT was reported dead twice because of it. Validate the token against
+  the API (`GET /user`, then `GET /repos/<owner>/<repo>` for `permissions.push`)
+  and, when the API accepts it, suspect the helper. `"$1"` inside a single-quoted
+  `printf` format is the specific trap; pass secrets through the environment and
+  echo them from a heredoc-written script instead.
 - **A mirrored helper must be diffed against its original, not just run.** The
   Rust test carries its own copy of the generator's split-and-strip transform,
   and both replay the same corpus, so a divergence between the two is invisible
