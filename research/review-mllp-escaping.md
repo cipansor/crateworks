@@ -280,3 +280,61 @@ Gate: 191/191 fields, 12/12 ACK, 12/12 enhanced, 12/12 converted.
 
 `mllp` 0.7.0 -> 0.8.0: `AckError::UnrepresentableEscape` gained `delimiter`,
 `in_source` and `in_reply`, and `DelimiterRole` is public.
+
+## Follow-up: read the structure before rewriting it
+
+A fifth review found the deepest error yet, and it was a modelling one.
+
+**An escape that straddles a component boundary is not an escape.** The walk
+consumed `\ZID#1\` from the raw text, so `LAB\ZID#1\@` read as one escape with a
+body holding `#` and `@`. But a reader splits on the component separator *first*,
+so it sees `LAB\ZID` and `1\@` - two stranded markers, no escape at all. Rewriting
+the pair as an escape changed literal characters: with `^` as the component and
+`%` as the escape, `LAB%ZID^1%` came back as `LAB\ZID` + `1\`, and the
+default-escape case turned `1\@` into `1\\F\`. `transcode` now splits on the
+source's component separator and walks each component, where markers are balanced
+by construction. Both reviewer examples were reproduced first and are now
+regressions: `a_split_escape_marker_is_not_treated_as_an_escape` and
+`a_field_only_change_keeps_the_decoded_identity`.
+
+The lesson generalises: this crate's whole escaping problem is that a reader splits
+before it resolves, and every rule has to be written in that order. Two of the five
+rounds failed by reading the raw text as though it were already parsed.
+
+**A generated value is not a copied value.** `write_header` put MSH-9 in the same
+loop as the copied HD fields, so `ACK` was judged against the *incoming* field
+separator. A source using `K` made it look like a raw field separator, and the
+builder refused a reply that carries `ACK` unchanged. MSH-9 is now escaped like the
+generated fallback version, and
+`a_generated_message_type_is_never_judged_against_the_source` covers it.
+
+**The gate had the same bug, in both directions.** `converted_pair` always replaced
+the component separator, so a field-only conversion was never checked at all -
+the accepted case had no coverage, and a rule refusing every opaque body would have
+scored full marks. There is now a `field_only_pair` and a `check_field_only`, and
+`_conversion_must_refuse` compares roles instead of delimiter presence.
+
+Finding the fixture took two attempts, and the first was wrong in a way worth
+recording: a body can *never* hold the component separator, because that splits the
+component before any reader sees a body. The fixture that distinguishes a role rule
+from a presence rule is an opaque body holding the **subcomponent** separator,
+which a field-only reply keeps. With that fixture, the presence mutation is caught
+(`fld 13: refused a field-only conversion`); without it, it passed. The corpus is
+now 14 messages, 217 fields.
+
+**Documentation.** The README paragraph above the role rule still said a body
+holding "a delimiter" is unrepresentable, contradicting the paragraph after it, and
+`build`'s error docs omitted the separator-becomes-data direction. Both now state
+the role rule and name `RawFieldSeparator` separately.
+
+Mutation-tested, four ways: the raw-text walk restored (three tests fail), MSH-9
+back through `transcode` (`a_generated_message_type_is_never_judged_against_the_source`
+fails), the presence rule restored (the field-only gate fails once the fixture
+holds a subcomponent separator), and the gate's per-field body search restored
+(`cnv 10` and `fld 11` disagree with `hl7apy`).
+
+Gate: 217/217 fields, 14/14 ACK, 14/14 enhanced, 14/14 converted, 14/14 field-only.
+
+`mllp` 0.8.0 -> 0.9.0: `transcode`'s contract changed for split markers and MSH-9
+is no longer judged against the source, so a reply that was refused now succeeds
+and one that was written wrongly now carries the identity it should.

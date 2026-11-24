@@ -387,9 +387,13 @@ impl ErrorDetail {
 ///
 /// # Errors
 ///
+/// [`AckError::RawFieldSeparator`] when a header value holds the raw field
+/// separator, which only a hand-built [`AckContext`] can do.
+///
 /// [`AckError::UnrepresentableEscape`] when a header value holds a site-defined
-/// escape whose body contains one of `separators`' delimiters. Answer with the
-/// original's separators, as the usual
+/// escape whose body contains a character that plays a different role under
+/// `separators` - either a separator that becomes plain data, or data that
+/// becomes a separator. Answer with the original's separators, as the usual
 /// `build(&context, ..., message.separators())` call already does.
 #[must_use = "the reply has to be sent, and the error is a decision"]
 pub fn build(
@@ -503,14 +507,13 @@ fn write_header(
     // The four HD fields are ER7 already, so they are transcoded rather than
     // escaped: their component separators are structure, and escaping them
     // would collapse `LAB^1.2.3^ISO` into one component.
-    let composites: [(&'static str, &str); 7] = [
+    let composites: [(&'static str, &str); 6] = [
         ("MSH-3", context.receiving_application.as_str()),
         ("MSH-4", context.receiving_facility.as_str()),
         ("MSH-5", context.sending_application.as_str()),
         ("MSH-6", context.sending_facility.as_str()),
         ("MSH-7", ""),
         ("MSH-8", ""),
-        ("MSH-9", "ACK"),
     ];
     for (name, value) in composites {
         out.push(separators.field);
@@ -519,6 +522,13 @@ fn write_header(
                 .map_err(|error| ack_error(name, error, separators))?,
         );
     }
+    // MSH-9 is generated here, not copied, so it is plain text under the reply's
+    // delimiters and is escaped rather than transcoded. Passing it through
+    // `transcode` would judge it against the source's field separator, and a
+    // source using `K` would make `ACK` look like a value holding a raw field
+    // separator - a refusal for a value the reply can carry unchanged.
+    out.push(separators.field);
+    out.push_str(&escape("ACK", separators));
     // MSH-10 is the reply's own control id, an ST: plain text the caller
     // supplied, so it is escaped rather than transcoded.
     out.push(separators.field);
@@ -1043,14 +1053,67 @@ mod tests {
         }
     }
 
+    /// Decodes one component's five standard escapes, for comparing what a peer
+    /// reads rather than how it was written.
+    fn decoded(component: &str, separators: Separators) -> String {
+        let mut out = String::new();
+        let mut chars = component.chars().peekable();
+        while let Some(c) = chars.next() {
+            if c != separators.escape {
+                out.push(c);
+                continue;
+            }
+            let mut body = String::new();
+            let mut closed = false;
+            for inner in chars.by_ref() {
+                if inner == separators.escape {
+                    closed = true;
+                    break;
+                }
+                body.push(inner);
+            }
+            match (closed, body.as_str()) {
+                (true, "F") => out.push(separators.field),
+                (true, "S") => out.push(separators.component),
+                (true, "R") => out.push(separators.repetition),
+                (true, "E") => out.push(separators.escape),
+                (true, "T") => out.push(separators.subcomponent),
+                // Unmatched, or a code this crate does not model: a reader keeps
+                // the marker, and so does this comparison.
+                _ => {
+                    out.push(separators.escape);
+                    out.push_str(&body);
+                    if closed {
+                        out.push(separators.escape);
+                    }
+                }
+            }
+        }
+        out
+    }
+
+    /// Each side is decoded with the separators it declares, because `\F\`
+    /// denotes the field separator of the message it appears in.
+    fn decoded_components(message: &crate::Message<'_>, name: &str) -> Vec<String> {
+        let separators = message.separators();
+        message
+            .field(name)
+            .unwrap()
+            .components()
+            .map(|component| decoded(component, separators))
+            .collect()
+    }
+
     #[test]
-    fn a_field_only_change_carries_an_opaque_body_unchanged() {
+    fn a_field_only_change_keeps_the_decoded_identity() {
         // The source's component separator is `#` and the reply keeps it, so the
-        // body's component boundaries do not move even though the field
-        // separator changes from `|` to `@`. Refusing this would reject a header
-        // the reply can carry byte for byte.
+        // body's component boundaries do not move even though the field separator
+        // changes from `|` to `@`. What must hold is that a peer decodes the same
+        // identity on both sides - the wire bytes may differ, because a marker
+        // that ends one component has to be re-encoded as `\E\` once the reply
+        // treats `\` as an escape character.
         let message =
-            Message::parse("MSH|#~\\&|LAB\\ZID#1\\|F|R|F|20260101||ADT#A01|M6|P|2.5.1\rPID|1\r")
+            Message::parse("MSH|#~\\&|LAB\\ZID#1\\@|F|R|F|20260101||ADT#A01|M6|P|2.5.1\rPID|1\r")
                 .unwrap();
         let context = AckContext::from_message(&message);
         let reply_separators = Separators {
@@ -1063,30 +1126,70 @@ mod tests {
         let reply = Message::parse(&ack).unwrap();
         assert_eq!(reply.separators().field, '@');
         assert_eq!(reply.value("MSH-10").unwrap(), "ACK6");
-        // Same bytes, so the same two components the source had.
-        assert_eq!(reply.field("MSH-5").unwrap().text(), "LAB\\ZID#1\\");
         assert_eq!(
-            reply
-                .field("MSH-5")
-                .unwrap()
-                .components()
-                .collect::<Vec<_>>(),
-            ["LAB\\ZID", "1\\"]
+            decoded_components(&message, "MSH-3"),
+            ["LAB\\ZID", "1\\@"],
+            "the source fixture is not what this test assumes"
+        );
+        assert_eq!(
+            decoded_components(&reply, "MSH-5"),
+            ["LAB\\ZID", "1\\@"],
+            "the reply decodes to a different identity"
         );
     }
 
     #[test]
-    fn a_role_change_for_an_unchanged_delimiter_is_an_error() {
-        // `#` stays a delimiter in both sets but moves from component to field.
-        // The body's boundaries would move, so the reply cannot carry it even
-        // though the character itself is still a delimiter.
+    fn a_split_escape_marker_is_not_treated_as_an_escape() {
+        // `%` is the source's escape character and `^` its component separator,
+        // so `LAB%ZID^1%` is two components whose markers are stranded. Reading
+        // the raw text as one escape and rewriting the markers turned them into
+        // backslashes, which changed the identity a peer decodes. The reply must
+        // keep `%` here: it is a literal character, not a marker.
         let message =
-            Message::parse("MSH|#~\\&|LAB\\ZID#1\\|F|R|F|20260101||ADT#A01|M7|P|2.5.1\rPID|1\r")
+            Message::parse("MSH|^~%&|LAB%ZID^1%|F|R|F|20260101||ADT^A01|M8|P|2.5.1\rPID|1\r")
+                .unwrap();
+        let context = AckContext::from_message(&message);
+        let reply_separators = Separators {
+            escape: '\\',
+            ..Separators::default()
+        };
+        let ack = build(&context, AckCode::Accept, "ACK8", "", reply_separators).unwrap();
+
+        let reply = Message::parse(&ack).unwrap();
+        assert_eq!(reply.separators().escape, '\\');
+        assert_eq!(reply.field("MSH-5").unwrap().text(), "LAB%ZID^1%");
+    }
+
+    #[test]
+    fn a_generated_message_type_is_never_judged_against_the_source() {
+        // `ACK` is written here, not copied, so it is plain text under the
+        // reply's delimiters. Judging it against the source's field separator
+        // refused the reply when the source used `K`, even though the reply can
+        // carry `ACK` unchanged.
+        let message =
+            Message::parse("MSHK^~\\&KLABKFKRKFK20260101KKADT^A01KM9KPK2.5.1\rPIDK1\r").unwrap();
+        let context = AckContext::from_message(&message);
+        let ack = build(&context, AckCode::Accept, "ACK9", "", Separators::default()).unwrap();
+
+        let reply = Message::parse(&ack).unwrap();
+        assert_eq!(reply.value("MSH-9").unwrap(), "ACK");
+        assert_eq!(reply.value("MSH-10").unwrap(), "ACK9");
+    }
+
+    #[test]
+    fn a_role_change_inside_one_component_is_an_error() {
+        // The body sits inside a single component, so the split does not touch
+        // it; what breaks it is the subcomponent separator becoming plain data.
+        // `&` separates subcomponents in the source and is data in the reply, so
+        // the subcomponent boundary would disappear.
+        let message =
+            Message::parse("MSH|^~\\&|LAB\\ZID&1\\|F|R|F|20260101||ADT^A01|M7|P|2.5.1\rPID|1\r")
                 .unwrap();
         let context = AckContext::from_message(&message);
         let reply_separators = Separators {
             field: '#',
             component: '*',
+            subcomponent: '!',
             ..Separators::default()
         };
         let error = build(&context, AckCode::Accept, "ACK7", "", reply_separators).unwrap_err();
@@ -1094,24 +1197,19 @@ mod tests {
             error,
             AckError::UnrepresentableEscape {
                 field: "MSH-5",
-                body: "ZID#1".into(),
-                delimiter: '#',
-                in_source: DelimiterRole::Component,
-                in_reply: DelimiterRole::Field,
+                body: "ZID&1".into(),
+                delimiter: '&',
+                in_source: DelimiterRole::Subcomponent,
+                in_reply: DelimiterRole::Data,
                 separators: reply_separators,
             }
         );
-        // The message blames the character and names both roles, so a reader can
-        // see the collision is with the *source* component separator.
         let rendered = error.to_string();
         assert!(
-            rendered.contains("a component separator in the message"),
+            rendered.contains("a subcomponent separator in the message"),
             "{rendered}"
         );
-        assert!(
-            rendered.contains("a field separator in the reply"),
-            "{rendered}"
-        );
+        assert!(rendered.contains("plain data in the reply"), "{rendered}");
     }
 
     #[test]

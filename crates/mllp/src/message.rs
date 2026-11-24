@@ -646,18 +646,38 @@ pub(crate) fn transcode(
     if from == to {
         return Ok(er7.to_owned());
     }
+    // Read the structure first. A reader splits on the component separator before
+    // it resolves escapes, so a pair of escape characters that straddles one is
+    // not an escape at all: it is a marker ending one component and another
+    // starting the next. Rewriting such a pair as an escape changes literal
+    // characters in the identity, which is why this walks the components rather
+    // than the raw text.
     let mut out = String::with_capacity(er7.len());
-    let mut chars = er7.chars().peekable();
+    for (index, component) in er7.split(from.component).enumerate() {
+        if index > 0 {
+            out.push(to.component);
+        }
+        transcode_component(component, from, to, &mut out)?;
+    }
+    Ok(out)
+}
+
+/// Re-emits one component, where escape markers are balanced by construction.
+fn transcode_component(
+    component: &str,
+    from: Separators,
+    to: Separators,
+    out: &mut String,
+) -> Result<(), TranscodeError> {
+    let mut chars = component.chars().peekable();
     while let Some(c) = chars.next() {
         if c != from.escape {
-            if c == from.component {
-                out.push(to.component);
-            } else if c == from.repetition {
+            if c == from.repetition {
                 out.push(to.repetition);
             } else if c == from.subcomponent {
                 out.push(to.subcomponent);
             } else {
-                push_escaped(&mut out, c, to);
+                push_escaped(out, c, to);
             }
             continue;
         }
@@ -671,11 +691,12 @@ pub(crate) fn transcode(
             body.push(inner);
         }
         if !closed {
-            // The source was malformed. Treat what was read as data, so the
-            // reply cannot gain structure the source never had.
-            push_escaped(&mut out, from.escape, to);
+            // The component ends with an unmatched escape. The source was
+            // malformed, so the marker is written as data: that is what a reader
+            // sees, and it cannot gain structure the source never had.
+            push_escaped(out, from.escape, to);
             for ch in body.chars() {
-                push_escaped(&mut out, ch, to);
+                push_escaped(out, ch, to);
             }
             continue;
         }
@@ -690,7 +711,7 @@ pub(crate) fn transcode(
         match delimiter {
             // The escape stood for a delimiter, so it was data under `from` and
             // is data under `to`.
-            Some(delimiter) => push_escaped(&mut out, delimiter, to),
+            Some(delimiter) => push_escaped(out, delimiter, to),
             None => {
                 // The body is opaque, so a delimiter inside it is structure
                 // under `from`. Every character must keep its role for the
@@ -717,7 +738,7 @@ pub(crate) fn transcode(
             }
         }
     }
-    Ok(out)
+    Ok(())
 }
 
 /// Resolves the delimiter escapes in a value.

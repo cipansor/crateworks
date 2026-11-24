@@ -63,6 +63,31 @@ def converted_pair(raw: str) -> tuple[str, str]:
             return pair
     raise SystemExit(f"no alternate delimiter pair left for {raw!r}")
 
+
+def field_only_pair(raw: str) -> tuple[str, str]:
+    """A pair that changes only the field separator.
+
+    The component separator is the source's own, so a delimiter inside an opaque
+    body keeps its component boundary and the reply must be accepted. Replacing
+    both, as `converted_pair` does, never exercises that case - and a rule that
+    refuses it would look correct against this gate.
+    """
+    field, encoding = raw[3], raw[4:8]
+    used = {field, *encoding[:4]}
+    in_bodies = {
+        character
+        for reference in ("MSH-3", "MSH-4", "MSH-5", "MSH-6")
+        for body in _opaque_bodies_per_component(raw, reference)
+        for character in body
+    }
+    for candidate, _ in ALTERNATE_PAIRS:
+        # A candidate inside an opaque body would collide for real, so the reply
+        # could not carry it; that is a conversion refusal, not the case this
+        # pair is for.
+        if candidate not in used and candidate not in in_bodies:
+            return candidate, encoding[0]
+    raise SystemExit(f"no field-only separator left for {raw!r}")
+
 # Messages that between them exercise every delimiter the parser handles.
 CORPUS = [
     # A patient administration feed, the shape of the ADT^A01 every interface
@@ -145,6 +170,22 @@ CORPUS = [
     # there. The crate must refuse that reply rather than shift the control id.
     "MSH|^~\\&|S\\ZLAB#1\\|F|R|F|20260101||ADT^A01|MSG0011|P|2.5.1\r"
     "PID|1||12345^^^MRN\r",
+
+    # The escape character itself changes while the component separator stays.
+    # `LAB%ZID^1%` is two components whose `%` markers are stranded, because a
+    # reader splits before it resolves escapes. Rewriting those markers as
+    # backslashes would change the identity a peer decodes.
+    "MSH|^~%&|LAB%ZID^1%|F|R|F|20260101||ADT^A01|MSG0013|P|2.5.1\r"
+    "PID|1||12345^^^MRN\r",
+
+    # An opaque body holding the subcomponent separator, which a field-only reply
+    # keeps. This is the case that separates a rule keyed on *presence* from one
+    # keyed on *role*: `&` is in both delimiter sets, so a presence rule refuses,
+    # while its role is unchanged and the boundaries do not move, so the reply
+    # carries the body exactly. A body can never hold the component separator -
+    # that splits the component before any reader sees a body.
+    "MSH|^~\\&|LAB\\ZID&1\\|F|R|F|20260101||ADT^A01|MSG0014|P|2.5.1\r"
+    "PID|1||12345^^^MRN\r",
 ]
 
 
@@ -197,6 +238,9 @@ use std::io::Read;
 /// The (field, component) pair each message is answered with, injected by the
 /// gate so the check and the driver cannot pick different pairs.
 const CONVERSIONS: [(char, char); __CONV_COUNT__] = [__CONV_PAIRS__];
+/// Field-only pairs: the source's own component separator is kept, so an opaque
+/// body keeps its boundaries and the reply must never be refused.
+const FIELD_ONLY: [(char, char); __CONV_COUNT__] = [__FIELD_ONLY_PAIRS__];
 
 fn main() {
     let mut input = String::new();
@@ -248,6 +292,21 @@ fn main() {
             Err(error) => println!("CNVERR\t{index}\t{error}"),
         }
 
+        // Only the field separator changes. Every opaque body keeps its component
+        // boundary, so this reply must exist for every fixture.
+        let mut field_only = message.separators();
+        field_only.field = FIELD_ONLY[index].0;
+        match build_ack(
+            &context,
+            AckCode::Accept,
+            &format!("FLD{index:04}"),
+            __ACK_TEXT__,
+            field_only,
+        ) {
+            Ok(reply) => println!("FLD\t{index}\t{}", reply.replace('\r', "\\r")),
+            Err(error) => println!("FLDNONE\t{index}\t{error}"),
+        }
+
         // The enhanced reply: an application error explained with MSA-4, ERR-2
         // (the location) and an ERR segment. The error condition is fixed so the
         // gate can name it, and the location points at PID-3, component 1.
@@ -274,10 +333,15 @@ fn main() {
             "('" + converted_pair(raw)[0] + "', '" + converted_pair(raw)[1] + "')"
             for raw in corpus
         )
+        field_only_pairs = ", ".join(
+            "('" + field_only_pair(raw)[0] + "', '" + field_only_pair(raw)[1] + "')"
+            for raw in corpus
+        )
         (tmp / "main.rs").write_text(
             driver.replace("__ACK_TEXT__", '"' + ACK_TEXT.replace("\\", "\\\\") + '"')
             .replace("__CONV_COUNT__", str(len(corpus)))
             .replace("__CONV_PAIRS__", pairs)
+            .replace("__FIELD_ONLY_PAIRS__", field_only_pairs)
         )
         (tmp / "Cargo.toml").write_text(
             "[package]\n"
@@ -326,6 +390,8 @@ fn main() {
     acks: list[str] = ["" for _ in corpus]
     enhanced: list[str] = ["" for _ in corpus]
     converted: list[str] = ["" for _ in corpus]
+    field_only: list[str] = ["" for _ in corpus]
+    field_only_refusals: dict[int, str] = {}
     refusals: dict[int, str] = {}
     for line in out.splitlines():
         parts = line.split("\t")
@@ -341,11 +407,17 @@ fn main() {
         if parts[0] == "ENH" and len(parts) == 3:
             enhanced[int(parts[1])] = parts[2].replace("\\r", "\r")
             continue
+        if parts[0] == "FLD" and len(parts) == 3:
+            field_only[int(parts[1])] = parts[2].replace("\\r", "\r")
+            continue
+        if parts[0] == "FLDNONE" and len(parts) == 3:
+            field_only_refusals[int(parts[1])] = parts[2]
+            continue
         if len(parts) != 3:
             continue
         index, reference, text = parts
         parsed[int(index)][reference] = text
-    return parsed, acks, enhanced, converted, refusals
+    return parsed, acks, enhanced, converted, refusals, field_only, field_only_refusals
 
 
 def escape_text(text: str, field: str, encoding: str) -> str:
@@ -423,20 +495,48 @@ def _conversion_must_refuse(raw: str) -> bool:
     """Whether no reply can carry this header under the chosen reply pair.
 
     True when a site-defined escape body in an HD field the reply echoes holds a
-    delimiter of either message. A reader splits on a delimiter before resolving
-    escapes, so such a body has source structure no different delimiter set can
-    express. Standard escapes are rewritten and never cause a refusal.
+    character whose *role* differs between the two messages. A body that straddles
+    a component boundary is not a body at all - a reader splits first - so the
+    bodies are found per component, exactly as the crate reads them.
     """
     source = _separators_of(raw)
     field, component = converted_pair(raw)
-    # Both sets count: the body's structure under the source delimiters is what a
-    # conversion would have to carry, and no rewrite of an opaque body can do it.
-    delimiters = set(source.values()) | {field, component}
-    for reference in ("MSH-3", "MSH-4", "MSH-5", "MSH-6"):
-        for body in _opaque_bodies(_raw_msh_field(raw, reference), raw[6]):
-            if delimiters & set(body):
-                return True
-    return False
+    reply = {
+        "field": field,
+        "component": component,
+        "repetition": source["repetition"],
+        "escape": source["escape"],
+        "subcomponent": source["subcomponent"],
+    }
+    return any(
+        _role(character, source) != _role(character, reply)
+        for reference in ("MSH-3", "MSH-4", "MSH-5", "MSH-6")
+        for body in _opaque_bodies_per_component(raw, reference)
+        for character in body
+    )
+
+
+def _opaque_bodies_per_component(raw: str, reference: str) -> list[str]:
+    """The opaque escape bodies in one echoed MSH field, per component.
+
+    A reader splits on the component separator before it resolves escapes, so a
+    pair of escape characters straddling one is a stranded marker, not a body.
+    Searching the whole field instead invents bodies that no reader sees.
+    """
+    component = _separators_of(raw)["component"]
+    escape = _separators_of(raw)["escape"]
+    bodies = []
+    for part in _raw_msh_field(raw, reference).split(component):
+        bodies.extend(_opaque_bodies(part, escape))
+    return bodies
+
+
+def _role(character: str, separators: dict[str, str]) -> str:
+    """The role a character plays in one delimiter set, mirroring the crate."""
+    for role, value in separators.items():
+        if character == value:
+            return role
+    return "data"
 
 
 def _raw_msh_field(raw: str, reference: str) -> str:
@@ -461,6 +561,62 @@ def _opaque_bodies(value: str, escape: str) -> list[str]:
         if part and part not in standard:
             bodies.append(part)
     return bodies
+
+
+def check_field_only(raw: str, reply_ack: str, index: int) -> int:
+    """Check a reply that changed only the field separator.
+
+    The component separator is the source's own, so an opaque body keeps its
+    component boundaries and every identity must survive untouched. This is the
+    case a rule keyed on delimiter *presence* refuses and a rule keyed on *role*
+    accepts, so it is the case the gate must exercise: without it, a rule that
+    rejected every opaque body would look correct.
+    """
+    from hl7apy.parser import parse_message
+
+    if not reply_ack:
+        print(f"  fld {index}: no field-only reply was produced for this fixture")
+        return 1
+    field, component = field_only_pair(raw)
+    if reply_ack[3] != field:
+        print(f"  fld {index}: reply uses field {reply_ack[3]!r}, expected {field!r}")
+        return 1
+    if reply_ack[4] != component:
+        print(
+            f"  fld {index}: reply changed the component to {reply_ack[4]!r}, "
+            f"expected the source's {component!r} - that is a conversion, not "
+            "a field-only change"
+        )
+        return 1
+
+    try:
+        source = parse_message(raw)
+        reply = parse_message(reply_ack)
+    except Exception as error:
+        print(f"  fld {index}: a parser rejects the message: {error}")
+        return 1
+
+    source_sep = _separators_of(raw)
+    reply_sep = _separators_of(reply_ack)
+    problems = 0
+    for original, mirrored in (
+        ("MSH-5", "MSH-3"),
+        ("MSH-6", "MSH-4"),
+        ("MSH-3", "MSH-5"),
+        ("MSH-4", "MSH-6"),
+    ):
+        expected = _identity(_msh_field(source, original), source_sep)
+        actual = _identity(_msh_field(reply, mirrored), reply_sep)
+        if expected != actual:
+            print(
+                f"  fld {index}: {mirrored} is {actual!r}, expected {expected!r}"
+            )
+            problems += 1
+    control = _identity(_msh_field(reply, "MSH-10"), reply_sep)
+    if control != [f"FLD{index:04}"]:
+        print(f"  fld {index}: MSH-10 is {control!r}, expected 'FLD{index:04}'")
+        problems += 1
+    return problems
 
 
 def check_converted(raw: str, reply_ack: str, refusal: str, index: int) -> int:
@@ -712,7 +868,15 @@ def main() -> int:
         print("needs: pip install hl7apy==1.3.5")
         return 2
 
-    rust, acks, enhanced, converted, refusals = rust_parse(CORPUS)
+    (
+        rust,
+        acks,
+        enhanced,
+        converted,
+        refusals,
+        field_only,
+        field_only_refusals,
+    ) = rust_parse(CORPUS)
     mismatches = 0
     compared = 0
 
@@ -760,8 +924,29 @@ def main() -> int:
         )
     print(f"{len(CORPUS) - converted_problems}/{len(CORPUS)} converted replies agree with hl7apy")
 
-    if mismatches or ack_problems or enhanced_problems or converted_problems:
-        print(f"{mismatches + ack_problems + enhanced_problems + converted_problems} MISMATCH(ES)")
+    # Changing only the field separator keeps every component boundary, so an
+    # opaque body needs no rewrite and no reply may be refused.
+    field_only_problems = 0
+    for index, raw in enumerate(CORPUS):
+        refusal = field_only_refusals.get(index)
+        if refusal:
+            print(f"  fld {index}: refused a field-only conversion: {refusal!r}")
+            field_only_problems += 1
+            continue
+        field_only_problems += check_field_only(raw, field_only[index], index)
+    print(
+        f"{len(CORPUS) - field_only_problems}/{len(CORPUS)} field-only replies agree with hl7apy"
+    )
+
+    total = (
+        mismatches
+        + ack_problems
+        + enhanced_problems
+        + converted_problems
+        + field_only_problems
+    )
+    if total:
+        print(f"{total} MISMATCH(ES)")
         return 1
     return 0
 

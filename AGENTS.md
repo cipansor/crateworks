@@ -534,7 +534,13 @@ regression coverage in CI at all.
   header the reply can carry exactly. A validation that must hold regardless of
   the reply - a raw field separator from a hand-built context - has to run
   before any branch on the reply's delimiters, or the caller can make an invalid
-  value acceptable by choosing them. When checking
+  value acceptable by choosing them. A body can never hold the component
+  separator, because splitting happens first: `LAB%ZID^1%` is two components with
+  stranded markers, not one escape, so rewriting those markers changes the
+  identity a peer decodes. Read the structure before rewriting it, and make the
+  gate's fixtures agree - a corpus with no opaque body holding a delimiter that
+  keeps its role cannot tell a role rule from a presence rule, and both mutations
+  pass. When checking
   this against `hl7apy`, compute the expectation from the reply's own MSH-1 and
   MSH-2: a message using `#` and `*` leaves `|` and `^` alone, so a hardcoded
   default-delimiter expectation fails on a case that is correct.
@@ -552,6 +558,12 @@ regression coverage in CI at all.
   reported the value differently and the crate looked wrong. Escape delimiters
   in the fixture when the point is that a value *holds* one, or the case tests
   the parser's repetition split instead.
+- **A value the builder generates is not a value the source sent.** MSH-9 (`ACK`)
+  and the `2.5.1` fallback version are written locally, so they are plain text
+  under the reply's delimiters and must be escaped, never transcoded. Sending them
+  through the source-ER7 path judged `ACK` against the *incoming* field separator:
+  a source using `K` made it look like a value holding a raw field separator, and
+  the builder refused a reply the outgoing delimiters carry unchanged.
 - **`xmlkit` name matching.** `Element::child` and `children_named` match the
   full name including the prefix, so `child(el, "IssueDateTime")` does **not**
   find `ram:IssueDateTime`. Match on the local name. `Element::text()`

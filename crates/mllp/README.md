@@ -196,25 +196,26 @@ Because the reply is built with `received.separators()`, it never has to convert
 anything, so it cannot fail - a receiver can always acknowledge a message it was
 able to parse, which is the whole point of the fallback.
 
-Answering with a *different* delimiter set is where the errors live. A reader
-splits on a delimiter before it resolves escapes, so a site-defined escape such
-as `\ZLAB#1\` holding a delimiter has source structure that cannot be carried
-into another delimiter set: rewriting the body would silently change how many
-components the field has. The builders return [`AckError`](crate::AckError)
-rather than write that reply.
+Answering with a *different* delimiter set is where the errors live. The rule is
+about *roles*, not about which characters appear. A reader splits on a delimiter
+before it resolves escapes, so a delimiter inside a site-defined escape body such
+as `\ZLAB#1\` is structure: the body survives a conversion only when every
+character keeps the role it had. A separator that becomes data stops splitting
+the field, and data that becomes a separator starts splitting it, so both are
+refused - rewriting the body would silently change how many components the field
+has. Changing only the field separator keeps every boundary, so a body holding the
+unchanged component separator is carried byte for byte.
 
-A raw field separator is refused too, and that verdict does not depend on the
+A raw field separator is refused as well, and that verdict does not depend on the
 reply: the value is invalid before a reply exists, so no choice of delimiters can
 make it acceptable. It cannot occur in a parsed field - the parser splits on it -
 so it only comes from a hand-built [`AckContext`], where it was meant as data but
 would be read as structure.
 
-The collision rule is about *roles*, not about which characters appear. A
-delimiter inside an opaque body is structure, so the body survives a conversion
-only when every character keeps the role it had: a separator that becomes data
-stops splitting the field, and data that becomes a separator starts splitting it.
-Changing only the field separator, then, carries a body holding the unchanged
-component separator byte for byte - the reply can express it exactly.
+Two values are written by the builders rather than copied, and neither is judged
+against the incoming message: MSH-9 (`ACK`) and the `2.5.1` fallback version. They
+are plain text under the reply's own delimiters, so they are escaped, never
+transcoded.
 
 ```rust
 use mllp::{AckCode, AckContext, Message, Separators, build_ack};
