@@ -934,8 +934,30 @@ regression coverage in CI at all.
   an arbitrary earlier row for its transposition term, so rolling rows alone
   cannot do it: save one copy of the row per distinct character, taken when that
   character's last occurrence is processed. That is `O(s * min(m, n))` rather
-  than `O(m * n)`. The corpus must contain long inputs or the bug is invisible -
-  the original fixture capped at 12 characters, where the matrix is 144 cells.
+  than `O(m * n)`. The saving is not unconditional: a character that occurs only
+  once in the longer string still needs its row (`ab` against `ba` reads row 0
+  through the single `a`), so a string of thousands of *distinct* characters
+  still allocates tens of megabytes. Measured at 8 KiB: 26 distinct characters
+  cost 1 MiB, 2,048 cost 94 MiB, 8,192 cost 416 MiB. Say `O(s * min(m, n))` and
+  show the measurements; do not write "linear" and stop. The corpus must contain
+  long inputs or the bug is invisible - the original fixture capped at 12
+  characters, where the matrix is 144 cells.
+- **`gen.py > fixture.tsv` destroys the fixture on failure.** The shell truncates
+  before the script starts, so a version mismatch or a new oracle disagreement
+  leaves an empty file and the replay test fails until git restores it. Fixture
+  generators must write to a temporary sibling and rename, and take the path as
+  an argument.
+- **A seeded corpus regenerated with more draws silently loses pairs.** Adding
+  one draw shifts every later one, so widening a corpus that shares a
+  `random.seed` drops cases it used to have - 1,283 of them in this repository.
+  Read the existing fixture, re-ask those pairs and merge, so a corpus only
+  grows; report the carried count so a shrink is visible in the log.
+- **"Attributable to X" is not a check; "equal to what X predicts" is.** A
+  classifier that says "this pair contains a grapheme, so the references may
+  disagree" accepts every future mismatch on any such pair, including one caused
+  by a bug. The check that means something re-derives the expected value - here,
+  re-asking `rapidfuzz` with both strings reduced to one scalar per cluster - and
+  fails when the two differ.
 - **A reference that segments grapheme clusters is not comparable on the same
   unit.** `jellyfish` 1.3 compares extended grapheme clusters; `rapidfuzz` and
   `strsim` compare Unicode scalar values. They disagree on any text with a

@@ -175,12 +175,31 @@ Every function counts Unicode scalar values rather than bytes, so
 two transposition variants at run time through `damerau`, and
 `levenshtein_similarity` turns a distance into a value between zero and one.
 
-Memory is linear in the shorter input, not quadratic. The two algorithms that
-need more than one row use `O(min(m, n))` buffers - three rolling rows for OSA,
-and for unrestricted Damerau-Levenshtein one saved row per distinct character
-that the two strings share, because its transposition term reaches into an
-arbitrary earlier row. Comparing two 8 KiB strings therefore costs kilobytes
-rather than the 512 MiB a full matrix would take.
+Memory depends on which function is called, and the difference matters:
+
+| Function | Memory |
+|---|---|
+| `levenshtein`, `hamming`, `jaro`, `jaro_winkler` | `O(min(m, n))` |
+| `osa` | `O(min(m, n))` - three rolling rows |
+| `damerau_levenshtein` | `O(s * min(m, n))`, where `s` is the number of distinct characters the two strings share |
+
+Unrestricted Damerau-Levenshtein cannot be done in `O(min(m, n))` with rolling
+rows: its transposition term reads an arbitrary earlier row of the matrix, so one
+row must be kept per distinct character, and a character that occurs only once
+still needs its row. The saving over a full matrix is therefore real but not
+unconditional. Measured on 64-bit, comparing two 8 KiB strings:
+
+| Input | `damerau_levenshtein` peak |
+|---|---|
+| English text, 26 distinct characters | 1 MiB |
+| 2,048 distinct characters | 94 MiB |
+| 8,192 distinct characters | 416 MiB |
+
+So text costs kilobytes where a full matrix cost 512 MiB, and a string of
+thousands of *distinct* characters still costs a large allocation - roughly
+`s * min(m, n) * 8` bytes. True linear space needs Zhao-Sahni, which is not
+implemented here. `osa` and `levenshtein` are linear for any input, and are the
+right choice when the strings are large and their alphabet is wide.
 
 ### Two contracts worth checking before switching
 

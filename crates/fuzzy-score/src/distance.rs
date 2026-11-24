@@ -156,10 +156,15 @@ fn damerau_levenshtein_chars(a: &[char], b: &[char]) -> usize {
     // `snapshot[c]` holds row `k - 1` of the matrix for the character `c` whose
     // last occurrence in `a` is at position `k`, so the fourth term becomes
     // `snapshot[b[j]][l - 1]`. The snapshot is taken when that occurrence is
-    // processed, at which point the row it needs *is* `prev`. Memory is
-    // therefore `O(s * min(m, n))` for `s` distinct characters shared by the two
-    // strings, not `O(m * n)`; `AGENTS.md` records why rolling rows alone cannot
-    // do it.
+    // processed, at which point the row it needs *is* `prev`.
+    //
+    // Memory is `O(s * min(m, n))` for `s` distinct characters shared by the two
+    // strings, not `O(m * n)`. The saving is real but not unconditional: a
+    // character that occurs only once still needs its row (`ab` against `ba`
+    // reads row 0 through it), so a string of thousands of distinct characters
+    // still allocates tens of megabytes. True linear space needs Zhao-Sahni,
+    // which is not implemented. `AGENTS.md` records why rolling rows alone
+    // cannot do it.
     let mut prev: Vec<usize> = (0..=n).collect();
     let mut curr = vec![0usize; n + 1];
     let mut last_seen: HashMap<char, usize> = HashMap::new();
@@ -492,6 +497,27 @@ mod tests {
         assert_eq!(levenshtein(&a, &b), 1);
         assert_eq!(osa(&a, &b), 1);
         assert_eq!(damerau_levenshtein(&a, &b), 1);
+    }
+
+    #[test]
+    fn damerau_memory_is_bounded_by_distinct_characters_not_by_area() {
+        // The documented bound is `O(s * min(m, n))`, so a wide alphabet costs
+        // more than text does but still far less than the `m * n` matrix that
+        // this replaced. 2,048 distinct characters at 6 KiB was 94 MiB when
+        // measured and would be 288 MiB as a full matrix; the assertion here is
+        // the answer, and the length keeps the test quick.
+        let n = 2048;
+        let a: String = (0..n)
+            .map(|i| char::from_u32(0x4e00 + i as u32).unwrap())
+            .collect();
+        let mut chars: Vec<char> = a.chars().collect();
+        chars[n / 2] = '\u{9fff}';
+        let b: String = chars.into_iter().collect();
+
+        assert_eq!(damerau_levenshtein(&a, &b), 1);
+        // Symmetry: the shorter string is always the column dimension, so the
+        // answer must not depend on argument order.
+        assert_eq!(damerau_levenshtein(&b, &a), 1);
     }
 
     #[test]

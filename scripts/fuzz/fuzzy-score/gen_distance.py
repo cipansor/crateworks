@@ -11,16 +11,33 @@ papered over:
 
 Neither is wrong; the references disagree about whether "two empty strings are
 identical" or "there is nothing to compare" wins. This crate returns 1.0, which
-is what rapidfuzz, the `strsim` crate and the original Winkler paper all say, and
-the generator asserts that the pair is the only disagreement so a future
-reference update cannot quietly widen it.
+is what rapidfuzz, the `strsim` crate and the original Winkler paper all say.
+
+The other divergence is the unit of comparison. `jellyfish` 1.3 segments into
+extended grapheme clusters and `rapidfuzz` into Unicode scalar values, so every
+pair containing a multi-scalar grapheme can disagree. That is not tolerated on
+trust: for each such pair the generator re-asks `rapidfuzz` with both strings
+reduced to one scalar per grapheme cluster, and requires the answer to equal what
+`jellyfish` returned. A disagreement that segmentation does not explain fails the
+run.
 
 Floats are written with `repr()`, which round-trips exactly in Rust's `f64`
 parser, so a comparison is exact rather than approximate.
 
 Usage:
     pip install "rapidfuzz==3.14.6" "jellyfish==1.3.0"
-    python3 scripts/fuzz/fuzzy-score/gen_distance.py > crates/fuzzy-score/tests/fixtures/distance.tsv
+    python3 scripts/fuzz/fuzzy-score/gen_distance.py
+
+The output path defaults to the tracked fixture and is written **atomically**:
+the file is replaced only after every check has passed. Redirecting stdout with
+`>` truncates the fixture before this script runs, so a version mismatch would
+leave an empty file behind and the oracle test would fail until it was restored
+from git. Use `--out PATH` for an unseen-seed run, and never `>`.
+
+Existing pairs are preserved. The generated draws below are seeded, so changing
+any draw changes every later one - the first attempt at widening the corpus
+silently dropped 1,283 pairs that had been in it. Any pair already in the output
+file is re-asked and kept, so a corpus only ever grows.
 
 The versions are pinned and checked, because both libraries have changed results
 between releases - `jellyfish` moved to grapheme clusters in 1.2 and reports a
@@ -29,9 +46,12 @@ a different version is a different fixture, so the script refuses to run rather
 than silently rebase the corpus on whatever happens to be installed.
 """
 
+import argparse
 import itertools
+import os
 import random
 import sys
+import tempfile
 import unicodedata
 
 from rapidfuzz.distance import (
@@ -107,28 +127,75 @@ GRAPHEMES = [
 ]
 
 
-def multiscalar_grapheme(s):
-    """Whether `s` contains a grapheme cluster made of more than one scalar.
+def grapheme_clusters(s):
+    """Split `s` into extended grapheme clusters, approximately.
 
-    Approximated from the Unicode database rather than by full segmentation: a
-    combining mark, a zero-width joiner, a variation selector or a regional
-    indicator pair is what makes `jellyfish`'s unit differ from ours. This is the
-    property that separates the two references, so it is what the cross-check
-    keys on.
+    The rules that matter for this comparison are the ones that make
+    `jellyfish`'s unit differ from a scalar: a combining mark, a variation
+    selector, a skin-tone modifier, a zero-width-joiner sequence, and a regional
+    indicator pair. Full UAX #29 also handles Hangul syllable composition and
+    prepend characters, which no case in this corpus uses.
+
+    This is an approximation of the *segmentation*, but it is used as an oracle
+    test rather than as a definition: the check below only passes if reducing
+    both strings to one scalar per cluster reproduces `jellyfish`'s answer
+    exactly. A wrong segmentation fails that, it does not silently pass.
     """
-    prev = None
+    clusters = []
+    current = ""
+    join_next = False
+    regional_pending = False
     for ch in s:
         cp = ord(ch)
-        if unicodedata.combining(ch) or cp in (0x200D, 0xFE0F) or 0x1F1E6 <= cp <= 0x1F1FF:
-            return True
-        if prev is not None and 0x1F3FB <= cp <= 0x1F3FF:
-            return True
-        prev = ch
-    return False
+        combining = bool(unicodedata.combining(ch)) or cp in (0xFE0E, 0xFE0F)
+        modifier = 0x1F3FB <= cp <= 0x1F3FF
+        zwj = cp == 0x200D
+        regional = 0x1F1E6 <= cp <= 0x1F1FF
+        if not current:
+            current = ch
+            join_next = zwj
+            regional_pending = regional
+            continue
+        if join_next or combining or modifier or zwj:
+            current += ch
+            join_next = zwj
+            continue
+        if regional_pending and regional:
+            current += ch
+            regional_pending = False
+            continue
+        clusters.append(current)
+        current = ch
+        join_next = zwj
+        regional_pending = regional
+    if current:
+        clusters.append(current)
+    return clusters
+
+
+def scalar_per_cluster(a, b):
+    """Reduce both strings to one scalar per grapheme cluster.
+
+    The mapping is shared between the two strings, so a cluster that appears in
+    both gets the same scalar. That is what makes this an isomorphism onto a
+    scalar string: it preserves equality and adjacency, so any metric computed on
+    the reduced strings is the metric computed on clusters.
+    """
+    mapping = {}
+
+    def convert(s):
+        out = []
+        for cluster in grapheme_clusters(s):
+            if cluster not in mapping:
+                mapping[cluster] = chr(0xE000 + len(mapping))
+            out.append(mapping[cluster])
+        return "".join(out)
+
+    return convert(a), convert(b)
 
 
 def grapheme_sensitive(a, b):
-    return multiscalar_grapheme(a) or multiscalar_grapheme(b)
+    return len(grapheme_clusters(a)) != len(a) or len(grapheme_clusters(b)) != len(b)
 
 
 # Pairs whose references are *known* to differ because they disagree about the
@@ -207,6 +274,80 @@ def escape(s):
     return "".join(out)
 
 
+def read_existing_pairs(path):
+    """The `a`/`b` columns of an existing fixture, unescaped.
+
+    Pairs are read back rather than regenerated, so widening the corpus cannot
+    drop a pair that a previous corpus contained. That is what the first attempt
+    at this did: it changed the seeded draws and lost 1,283 pairs.
+    """
+    if not os.path.exists(path):
+        return set()
+    pairs = set()
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            if line.startswith("#"):
+                continue
+            fields = line.rstrip("\n").split("\t")
+            if len(fields) >= 2:
+                pairs.add((unescape(fields[0]), unescape(fields[1])))
+    return pairs
+
+
+def unescape(s):
+    """Inverse of `escape`."""
+    out = []
+    i = 0
+    while i < len(s):
+        c = s[i]
+        if c != "\\":
+            out.append(c)
+            i += 1
+            continue
+        nxt = s[i + 1]
+        if nxt == "\\":
+            out.append("\\")
+            i += 2
+        elif nxt == "t":
+            out.append("\t")
+            i += 2
+        elif nxt == "n":
+            out.append("\n")
+            i += 2
+        elif nxt == "r":
+            out.append("\r")
+            i += 2
+        elif nxt in ("u", "U"):
+            width = 4 if nxt == "u" else 8
+            out.append(chr(int(s[i + 2 : i + 2 + width], 16)))
+            i += 2 + width
+        else:
+            out.append(c)
+            i += 1
+    return "".join(out)
+
+
+def write_atomically(path, text):
+    """Replace `path` only once the whole file has been produced.
+
+    A `>` redirect truncates before the script runs, so a failure - a version
+    mismatch, a new oracle disagreement - leaves an empty fixture behind and the
+    oracle test fails until the file is restored from git. Writing to a sibling
+    temporary file and renaming means a failed run leaves the old corpus intact.
+    """
+    directory = os.path.dirname(os.path.abspath(path))
+    os.makedirs(directory, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=directory, prefix=".distance.", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(text)
+        os.replace(tmp, path)
+    except BaseException:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+        raise
+
+
 def check_versions():
     import importlib.metadata as md
 
@@ -222,12 +363,28 @@ def check_versions():
     return True
 
 
-def main():
+DEFAULT_OUT = "crates/fuzzy-score/tests/fixtures/distance.tsv"
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument(
+        "--out",
+        default=DEFAULT_OUT,
+        help=f"fixture path to replace atomically (default: {DEFAULT_OUT})",
+    )
+    args = parser.parse_args(argv)
+
     if not check_versions():
         return 1
-    random.seed(20260116)
 
-    pairs = set()
+    # Pairs already in the output are re-asked and kept, so widening the corpus
+    # can only add. Without this, a new seeded draw shifts every later draw and
+    # silently drops pairs the previous corpus had.
+    pairs = read_existing_pairs(args.out)
+    carried = len(pairs)
+
+    random.seed(20260116)
     for a, b in itertools.product(FIXED, repeat=2):
         pairs.add((a, b))
 
@@ -348,11 +505,55 @@ def main():
             print(f"  {d[0]} {d[1]!r} {d[2]!r}: rapidfuzz={d[3]} jellyfish={d[4]}", file=sys.stderr)
         return 1
 
-    # The pinned table is the evidence that the grapheme divergence was looked
-    # at rather than merely tolerated: a handful of specific pairs whose two
-    # reference values are recorded. Every pinned case must still diverge with
-    # the recorded values, so a reference release that changes its mind fails
-    # here instead of silently rewriting the corpus.
+    # Every grapheme-sensitive disagreement must be *explained*, not merely
+    # counted. Reducing both strings to one scalar per grapheme cluster and
+    # asking `rapidfuzz` again must reproduce what `jellyfish` returned; if it
+    # does not, the disagreement is not about segmentation and this generator
+    # has no business recording it. This is what makes the divergence a measured
+    # property rather than an assumption that happens to hold.
+    #
+    # The comparison is per metric, so the mapping from a fixture column to the
+    # two reference functions lives here.
+    cluster_pair = {}
+    unexplained = []
+    for name, a, b, mine, other in grapheme:
+        key = (a, b)
+        if key not in cluster_pair:
+            cluster_pair[key] = scalar_per_cluster(a, b)
+        ca, cb = cluster_pair[key]
+        if name == "levenshtein":
+            predicted = Levenshtein.distance(ca, cb)
+        elif name == "damerau":
+            predicted = DamerauLevenshtein.distance(ca, cb)
+        elif name == "hamming":
+            predicted = Hamming.distance(ca, cb)
+        elif name == "jaro":
+            predicted = Jaro.similarity(ca, cb)
+        elif name == "jaro_winkler":
+            predicted = JaroWinkler.similarity(ca, cb)
+        else:
+            raise AssertionError(f"no cluster prediction for metric {name}")
+        if abs(predicted - other) > 1e-12:
+            unexplained.append((name, a, b, other, predicted))
+
+    if unexplained:
+        print(
+            f"{len(unexplained)} grapheme disagreement(s) that cluster segmentation "
+            f"does not explain:",
+            file=sys.stderr,
+        )
+        for name, a, b, other, predicted in unexplained[:10]:
+            print(
+                f"  {name} {a!r} {b!r}: jellyfish={other}, "
+                f"rapidfuzz-on-clusters={predicted}",
+                file=sys.stderr,
+            )
+        return 1
+
+    # The pinned table is a spot-check on top of that: a handful of specific
+    # pairs whose two reference values are recorded by hand, so a release that
+    # changes its mind about the *values* fails here even if the cluster
+    # explanation still holds.
     for (name, a, b), (want_mine, want_other) in KNOWN_GRAPHEME_DIVERGENCES.items():
         got = [d for d in grapheme if d[0] == name and d[1] == a and d[2] == b]
         if not got:
@@ -367,29 +568,32 @@ def main():
             )
             return 1
 
-    # The full set is larger than the pinned table, and that is expected: every
-    # grapheme-sensitive pair where the two references use a different unit
-    # diverges, so the count scales with the corpus. It is reported rather than
-    # pinned. What is pinned is the *cause*: all of them contain a multi-scalar
-    # grapheme, which the classifier above established.
     empty_disagreements = len(empty_string)
 
-    print(f"# {len(rows)} pairs", file=sys.stderr)
+    print(
+        f"# {len(rows)} pairs ({carried} carried over from the existing fixture)",
+        file=sys.stderr,
+    )
     print(
         f"# oracles agree on {len(rows) * 5 - len(disagreements)} of {len(rows) * 5} "
         f"comparisons. Of the {len(disagreements)} exceptions, {empty_disagreements} are "
         f"the empty-string Jaro pairs (rapidfuzz 1.0, jellyfish 0.0) and {len(grapheme)} "
-        f"are pairs containing a multi-scalar grapheme (jellyfish segments into clusters, "
-        f"rapidfuzz into scalars). This crate follows rapidfuzz in both cases, so the "
-        f"fixture records scalar semantics and the crate is NOT jellyfish-compatible for "
-        f"multi-scalar text.",
+        f"are pairs containing a multi-scalar grapheme. Every one of the latter is "
+        f"reproduced by rapidfuzz when both strings are reduced to one scalar per "
+        f"grapheme cluster, which is what establishes that segmentation - and not a "
+        f"reference bug - is the cause. This crate follows rapidfuzz in both cases, so "
+        f"the fixture records scalar semantics and the crate is NOT jellyfish-compatible "
+        f"for multi-scalar text.",
         file=sys.stderr,
     )
 
-    print("# a\tb\tlev\tdamerau\tosa\thamming\tjaro\tjaro_winkler\tlev_norm")
+    lines = ["# a\tb\tlev\tdamerau\tosa\thamming\tjaro\tjaro_winkler\tlev_norm"]
     for a, b, values in rows:
         fields = [escape(a), escape(b)] + [repr(v) for v in values]
-        print("\t".join(fields))
+        lines.append("\t".join(fields))
+
+    write_atomically(args.out, "\n".join(lines) + "\n")
+    print(f"# wrote {len(rows)} pairs to {args.out}", file=sys.stderr)
     return 0
 
 

@@ -182,8 +182,79 @@ Two gaps, both fixed:
 
 ### Corpus growth
 
-6,094 -> 6,435 pairs: 300 long pairs (20 to 60 characters) and a grapheme
-matrix, both of which the review's findings required to be testable at all.
+6,094 -> 6,435 -> **7,718** pairs: 300 long pairs (20 to 60 characters), a
+grapheme matrix, and the 1,283 pairs an earlier widening had silently dropped,
+restored.
+
+## Round three: five more findings, all real
+
+A second review found five issues. All five were real; three are in the
+generator rather than the crate, which is the pattern worth noticing - the
+implementation was reviewed twice and the *tooling that proves the
+implementation* was reviewed once.
+
+### The `>` command emptied the fixture on failure (real)
+
+The documented command was `gen_distance.py > tests/fixtures/distance.tsv`. The
+shell truncates the target before the script runs, so the version check - which
+exists precisely to refuse a wrong environment - left an empty fixture behind and
+the oracle test failed until git restored it. A safety check that destroys the
+thing it protects is worse than no check.
+
+The script now writes to a temporary sibling and renames, and takes the path as
+`--out`. Verified by simulating a mismatch: the run exits 1 and the fixture is
+byte-identical afterwards.
+
+### The corpus lost 1,283 pairs (real)
+
+Widening the corpus added draws to a shared `random.seed`, which shifts every
+later draw, so pairs the previous corpus had were no longer generated. Measured:
+6,094 old pairs, 1,283 of them absent from the new set. That is the opposite of
+what a corpus is for - it silently traded coverage for coverage.
+
+The generator now reads the existing fixture, re-asks those pairs and merges. The
+restored corpus is **7,718** pairs, a superset of both earlier versions, and the
+log reports how many were carried so a shrink is visible rather than silent.
+
+### Grapheme disagreements were accepted, not explained (real)
+
+The classifier said "this pair contains a multi-scalar grapheme, so the
+references may disagree" and accepted anything on such a pair. That passes a
+genuine segmentation difference and a genuine bug identically.
+
+It is now a proof. Both strings are reduced to one scalar per grapheme cluster -
+sharing the mapping, so the reduction is an isomorphism that preserves equality
+and adjacency - and `rapidfuzz` is asked again. Its answer must equal what
+`jellyfish` returned. All 86 grapheme disagreements satisfy it exactly; one that
+did not would fail the run. The pinned value table stays as a spot-check on the
+values themselves.
+
+### The memory guarantee was overstated (real)
+
+The README said memory is "linear in the shorter input". It is `O(s * min(m, n))`
+for the unrestricted Damerau-Levenshtein, and `s` is not bounded. Measured at
+8 KiB on 64-bit:
+
+| Distinct characters | Peak |
+|---|---|
+| 26 (English text) | 1 MiB |
+| 2,048 | 94 MiB |
+| 8,192 | 416 MiB |
+
+I tried to tighten the bound before documenting it: snapshot only characters
+occurring at least twice, since the transposition term reads the *previous*
+occurrence's row. That is wrong, and the unit tests caught it immediately - `ab`
+against `ba` needs row 0 through a character that occurs once. So the honest
+statement is the one now in the README: the table of per-function bounds, the
+measurements, and a pointer to Zhao-Sahni as the true-linear alternative that is
+not implemented.
+
+### The tooling index omitted both pins (real)
+
+`research/tools/README.md` listed the `fuzzywuzzy` gate but not this generator,
+so the two pinned oracle versions appeared nowhere a reader would look. The
+generator now has an entry naming `rapidfuzz` 3.14.6 and `jellyfish` 1.3.0, and
+an operational warning about `>` redirects.
 
 ## Mutation proof
 
@@ -203,6 +274,14 @@ Round two, against the 6,435-pair corpus:
 | Jaro integer division | 498 / 6,435 |
 | Damerau snapshot taken after the row swap | 384 / 6,435 |
 
+Round three, against the 7,718-pair corpus: the same mutations fail, and the
+memory test at 2,048 distinct characters fails if the snapshot is dropped or
+taken after the row swap.
+
+| Rejected change | Cases failing |
+|---|---|
+| Snapshot only repeated characters | 2 unit tests (the corpus is unaffected) |
+
 The Damerau mutation also fails one of the ten curated unit tests, which is the
 one case where a hand-written test caught it - the divergence pair `CA`/`ABC`,
 where the two Damerau variants differ. Without that case the curated suite would
@@ -213,7 +292,7 @@ have been fully green on a 3,366-case bug.
 - `cargo fmt --all -- --check`: clean
 - `cargo clippy --workspace --all-targets -- -D warnings`: clean
 - `cargo test --workspace --all-targets`: green, including the new
-  `distance_oracle` (6,435 pairs) and 14 unit tests
+  `distance_oracle` (7,718 pairs) and 15 unit tests
 - `cargo test --workspace --doc`: green, including the new README example
 - MSRV 1.88 `clippy` and doctests: clean, with `RUSTUP_TOOLCHAIN=1.88.0` set so
   `rust-toolchain.toml` cannot override it
@@ -238,10 +317,10 @@ in CI enforces the credit rather than a reviewer's memory.
   millions of pairs should still reach for `rapidfuzz`; a caller that needs the
   same numbers without a second dependency now has them.
 - **Adversarial memory for Damerau-Levenshtein.** The snapshot approach is
-  `O(s * min(m, n))`, so a string of thousands of distinct characters still costs
-  a large allocation. Zhao-Sahni gives true linear space at the cost of a more
-  intricate recurrence; it is the next step if that input class matters. OSA, the
-  Levenshtein and the Jaro functions are already linear.
+  `O(s * min(m, n))`, and `s` is unbounded: 8,192 distinct characters at 8 KiB
+  cost 416 MiB. Zhao-Sahni gives true linear space at the cost of a more
+  intricate recurrence; it is the next step if that input class matters. OSA,
+  Levenshtein, Hamming and the Jaro functions are already `O(min(m, n))`.
 - **`normalized_distance` and the other derived forms.** Only the primitive and
   the one similarity are exposed. The rest are arithmetic on top and would be
   guesses about which convention to follow.
