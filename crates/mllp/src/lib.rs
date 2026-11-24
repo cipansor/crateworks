@@ -12,7 +12,7 @@ pub use ack::{
 };
 pub use decoder::Decoder;
 pub use frame::{CARRIAGE_RETURN, END_BLOCK, START_BLOCK, frame, unframe};
-pub use message::{Field, Message, ParseError, Segment, Separators};
+pub use message::{Field, Message, ParseError, Segment, Separators, escape};
 
 /// Why a byte sequence is not a valid MLLP frame.
 ///

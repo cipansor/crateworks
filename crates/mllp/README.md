@@ -141,8 +141,8 @@ Every value the builders write is escaped first. A control id or a failure text
 is caller-supplied and can hold any character, including a delimiter; written
 raw, the first `|` would end its field and every later field would shift. The
 reply would still parse, which is what makes it dangerous - it would mean
-something the sender never intended. `Field::escape` is the inverse of
-`Field::unescape`:
+something the sender never intended. `mllp::escape` is the inverse of the
+resolution `Field::unescape` does, and takes plain text:
 
 ```rust
 use mllp::{AckCode, AckContext, Message, build_ack};
@@ -167,6 +167,30 @@ assert_eq!(reply.field("MSA-3").unwrap().text(), "rejected \\F\\ bad value");
 // And reading it back returns the text the caller supplied.
 assert_eq!(reply.value("MSA-3").unwrap(), "rejected | bad value");
 ```
+
+The header is different. MSH-3, MSH-4, MSH-5 and MSH-6 are HD values and MSH-12
+is a VID, so their components are structure: `LAB^1.2.3^ISO` is a namespace, a
+universal id and an id type. `AckContext` therefore keeps those fields as ER7,
+and the builder re-emits them rather than escaping them, so the reply carries the
+same three components. A delimiter that was escaped in the source stays data
+while the separators around it stay structure.
+
+```rust
+use mllp::{AckCode, AckContext, Message, build_ack};
+
+let received = Message::parse(
+    "MSH|^~\\&|LAB^1.2.3^ISO|FAC|RECV|FAC|20260101||ADT^A01|MSG0002|P|2.5.1\rPID|1||12345\r",
+).unwrap();
+let context = AckContext::from_message(&received);
+let ack = build_ack(&context, AckCode::Accept, "ACK0004", "", received.separators());
+
+let reply = Message::parse(&ack).unwrap();
+let application = reply.field("MSH-5").unwrap();
+assert_eq!(application.component(1), Some("LAB"));
+assert_eq!(application.component(2), Some("1.2.3"));
+assert_eq!(application.component(3), Some("ISO"));
+```
+
 
 ## Explaining an error
 

@@ -412,10 +412,12 @@ the error condition code and an `ERR` segment repeats it as a CWE value with its
 text and an ERR-4 severity. When the caller knows where the error is, `ERR-2`
 carries the location as an ERL value (`ErrorLocation`: the segment, its sequence,
 the field, and optionally the repetition, component and subcomponent). Every
-value the builders write is escaped first - `Field::escape` is the inverse of
-`Field::unescape` - because a control id or failure text holding a delimiter
+value the builders write is escaped first - `mllp::escape` inverts the resolution
+`Field::unescape` does - because a control id or failure text holding a delimiter
 would otherwise end its field and shift every field after it, which a reader
-cannot detect. `verify_mllp.py` checks the parse, the minimal reply and the
+cannot detect. The four HD header fields and the VID version are the exception:
+they are kept as ER7 and re-emitted, so `LAB^1.2.3^ISO` stays three components
+instead of collapsing into one. `verify_mllp.py` checks the parse, the minimal reply and the
 enhanced reply against `hl7apy`, with an MSA-3 that holds every delimiter.
 
 **Not covered.** ERR-1, the deprecated "error code and location" field, is left

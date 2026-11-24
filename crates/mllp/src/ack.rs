@@ -15,7 +15,7 @@
 
 use std::fmt::Write as _;
 
-use crate::message::{Separators, escape};
+use crate::message::{Separators, escape, transcode};
 
 /// The MSA-1 code: what happened to the message being acknowledged.
 ///
@@ -56,20 +56,35 @@ impl std::fmt::Display for AckCode {
 /// back; MSH-3, MSH-4, MSH-5 and MSH-6 are the sending and receiving
 /// applications and facilities, which swap in the reply. MSH-12 is the version,
 /// which the reply keeps so both ends agree on the grammar.
+///
+/// The application, facility and version fields are **ER7, not plain text**.
+/// They are HD and VID values, so they are composite: `LAB^1.2.3^ISO` is three
+/// components, and the reply must keep them apart. [`AckContext::from_message`]
+/// therefore stores them exactly as they appeared. A caller filling them by hand
+/// writes ER7 too, escaping any delimiter that is meant as data - [`crate::escape`]
+/// does that for one primitive value.
+///
+/// `control_id` is plain text, because MSH-10 is an ST, a primitive.
+///
+/// `separators` records the delimiter set the ER7 fields were read with, so the
+/// reply can re-emit them in its own set when the two differ.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AckContext {
-    /// MSH-10 of the message being acknowledged.
+    /// MSH-10 of the message being acknowledged, as plain text.
     pub control_id: String,
-    /// MSH-3 of the message being acknowledged, the sending application.
+    /// MSH-3 of the message being acknowledged, the sending application, in ER7.
     pub sending_application: String,
-    /// MSH-4 of the message being acknowledged, the sending facility.
+    /// MSH-4 of the message being acknowledged, the sending facility, in ER7.
     pub sending_facility: String,
-    /// MSH-5 of the message being acknowledged, the receiving application.
+    /// MSH-5 of the message being acknowledged, the receiving application, in ER7.
     pub receiving_application: String,
-    /// MSH-6 of the message being acknowledged, the receiving facility.
+    /// MSH-6 of the message being acknowledged, the receiving facility, in ER7.
     pub receiving_facility: String,
-    /// MSH-12 of the message being acknowledged, the version. Empty means 2.5.1.
+    /// MSH-12 of the message being acknowledged, the version, in ER7. Empty
+    /// means 2.5.1.
     pub version: String,
+    /// The delimiters the ER7 fields above were read with.
+    pub separators: Separators,
 }
 
 impl AckContext {
@@ -77,16 +92,27 @@ impl AckContext {
     ///
     /// Every field is optional in the standard, so a message that omits one
     /// yields an empty string rather than an error; the reply is still valid.
+    ///
+    /// The composite fields keep their ER7 form, separators and escapes
+    /// untouched. Decoding them here would erase the difference between a
+    /// component boundary and an escaped delimiter, and the reply could not put
+    /// it back.
     #[must_use]
     pub fn from_message(message: &crate::Message<'_>) -> Self {
-        let field = |reference: &str| message.value(reference).unwrap_or_default();
+        let er7 = |reference: &str| {
+            message
+                .field(reference)
+                .map(|field| field.text().to_owned())
+                .unwrap_or_default()
+        };
         Self {
-            control_id: field("MSH-10"),
-            sending_application: field("MSH-3"),
-            sending_facility: field("MSH-4"),
-            receiving_application: field("MSH-5"),
-            receiving_facility: field("MSH-6"),
-            version: field("MSH-12"),
+            control_id: message.value("MSH-10").unwrap_or_default(),
+            sending_application: er7("MSH-3"),
+            sending_facility: er7("MSH-4"),
+            receiving_application: er7("MSH-5"),
+            receiving_facility: er7("MSH-6"),
+            version: er7("MSH-12"),
+            separators: message.separators(),
         }
     }
 }
@@ -359,7 +385,11 @@ fn write_header(out: &mut String, context: &AckContext, control_id: &str, separa
     out.push_str(&encoding);
     // MSH-3..MSH-12. MSH-7 (build time) and MSH-8 (security) stay empty, which
     // is legal and means unknown; a caller that knows the time sets it after.
-    let fields = [
+    //
+    // The four HD fields and the VID version are ER7 already, so they are
+    // transcoded rather than escaped: their component separators are structure,
+    // and escaping them would collapse `LAB^1.2.3^ISO` into one component.
+    let composites = [
         context.receiving_application.as_str(),
         context.receiving_facility.as_str(),
         context.sending_application.as_str(),
@@ -367,14 +397,20 @@ fn write_header(out: &mut String, context: &AckContext, control_id: &str, separa
         "",
         "",
         "ACK",
-        control_id,
-        "P",
-        version,
     ];
-    for value in fields {
+    for value in composites {
         out.push(separators.field);
-        out.push_str(&escape(value, separators));
+        out.push_str(&transcode(value, context.separators, separators));
     }
+    // MSH-10 is the reply's own control id, an ST: plain text the caller
+    // supplied, so it is escaped rather than transcoded.
+    out.push(separators.field);
+    out.push_str(&escape(control_id, separators));
+    out.push(separators.field);
+    out.push('P');
+    // MSH-12 is a VID, so it is composite like the fields above.
+    out.push(separators.field);
+    out.push_str(&transcode(version, context.separators, separators));
     out.push('\r');
 }
 
@@ -639,6 +675,118 @@ mod tests {
             reply.value("ERR-3").unwrap(),
             "207^Application internal error^HL70357"
         );
+    }
+
+    #[test]
+    fn a_composite_application_keeps_its_components() {
+        // MSH-3 is an HD, so `LAB^1.2.3^ISO` is three components: namespace,
+        // universal id, id type. Escaping the whole string would collapse them
+        // into one, which loses the identity a peer routes on.
+        let message = Message::parse(
+            "MSH|^~\\&|LAB^1.2.3^ISO|FAC^9.9^DNS|RECV|FAC|20260101||ADT^A01|M1|P|2.5.1\rPID|1\r",
+        )
+        .unwrap();
+        let context = AckContext::from_message(&message);
+        let ack = build(
+            &context,
+            AckCode::Accept,
+            "ACK0009",
+            "",
+            message.separators(),
+        );
+
+        let reply = Message::parse(&ack).unwrap();
+        // The original sender is now the receiver, so it lands in MSH-5.
+        assert_eq!(reply.field("MSH-5").unwrap().text(), "LAB^1.2.3^ISO");
+        let application = reply.field("MSH-5").unwrap();
+        assert_eq!(application.component(1), Some("LAB"));
+        assert_eq!(application.component(2), Some("1.2.3"));
+        assert_eq!(application.component(3), Some("ISO"));
+        assert_eq!(reply.field("MSH-6").unwrap().text(), "FAC^9.9^DNS");
+    }
+
+    #[test]
+    fn a_composite_holding_an_escaped_delimiter_keeps_both_meanings() {
+        // The facility's universal id holds a literal `^`, written `\S\`. The
+        // reply must keep the two component separators structural and the
+        // escaped one as data, so the field still has three components.
+        let message = Message::parse(
+            "MSH|^~\\&|S|FAC^9.9\\S\\1^DNS|R|F|20260101||ADT^A01|M2|P|2.5.1\rPID|1\r",
+        )
+        .unwrap();
+        let context = AckContext::from_message(&message);
+        let ack = build(
+            &context,
+            AckCode::Accept,
+            "ACK0010",
+            "",
+            message.separators(),
+        );
+
+        let reply = Message::parse(&ack).unwrap();
+        let facility = reply.field("MSH-6").unwrap();
+        // Three components: the two `^` are structure, the `\S\` is data.
+        assert_eq!(facility.text(), "FAC^9.9\\S\\1^DNS");
+        assert_eq!(facility.component(1), Some("FAC"));
+        assert_eq!(facility.component(2), Some("9.9\\S\\1"));
+        assert_eq!(facility.component(3), Some("DNS"));
+        // Reading the field resolves the escape, so the literal `^` returns.
+        assert_eq!(reply.value("MSH-6").unwrap(), "FAC^9.9^1^DNS");
+    }
+
+    #[test]
+    fn a_composite_version_keeps_its_components() {
+        // MSH-12 is a VID, also composite.
+        let message =
+            Message::parse("MSH|^~\\&|S|F|R|F|20260101||ADT^A01|M3|P|2.5.1^ABC\rPID|1\r").unwrap();
+        let context = AckContext::from_message(&message);
+        let ack = build(
+            &context,
+            AckCode::Accept,
+            "ACK0011",
+            "",
+            message.separators(),
+        );
+
+        assert_eq!(
+            Message::parse(&ack)
+                .unwrap()
+                .field("MSH-12")
+                .unwrap()
+                .text(),
+            "2.5.1^ABC"
+        );
+    }
+
+    #[test]
+    fn a_composite_is_transcoded_when_the_reply_uses_other_separators() {
+        // A caller may answer with a different delimiter set. The component
+        // boundary must move with it, and an escaped delimiter must stay data.
+        let mut context = AckContext {
+            sending_application: "LAB^1.2.3^ISO".into(),
+            sending_facility: "FAC^9.9\\S\\1^DNS".into(),
+            control_id: "M4".into(),
+            version: "2.5.1".into(),
+            ..AckContext::default()
+        };
+        context.separators = Separators::default();
+        let reply_separators = Separators {
+            field: '#',
+            component: '*',
+            ..Separators::default()
+        };
+        let ack = build(&context, AckCode::Accept, "ACK0012", "", reply_separators);
+
+        let reply = Message::parse(&ack).unwrap();
+        assert_eq!(reply.separators().component, '*');
+        // Structure follows the reply's separator; the literal `^` does not.
+        assert_eq!(reply.field("MSH-5").unwrap().text(), "LAB*1.2.3*ISO");
+        assert_eq!(reply.field("MSH-5").unwrap().component(2), Some("1.2.3"));
+        // `\S\` meant a literal `^` under the source set. Under the reply's
+        // set `^` is ordinary data, so it is written bare - escaping it would
+        // be wrong, and a reader there would see `\S\` as text.
+        assert_eq!(reply.field("MSH-6").unwrap().text(), "FAC*9.9^1*DNS");
+        assert_eq!(reply.field("MSH-6").unwrap().component(2), Some("9.9^1"));
     }
 
     #[test]

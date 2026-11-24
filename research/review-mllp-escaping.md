@@ -87,3 +87,42 @@ failure mode `AGENTS.md` warns about.
   `verify_mllp.py` now covers it.
 * `AGENTS.md` records the escaping trap, the malformed-fixture trap and the
   clippy 1.100 sites.
+
+## Follow-up: composite header fields
+
+A review of the first version found that escaping every written value was right
+for the primitives and wrong for the composites. MSH-3..MSH-6 are HD values and
+MSH-12 is a VID, so `LAB^1.2.3^ISO` is three components. `AckContext` decoded
+those fields to plain text, and `write_header` then escaped the whole string,
+turning the two structural `^` into `\S\`: the reply carried one component where
+the source had three. A peer matching on the universal id would no longer find
+it. Every `ACK` was affected, since all five fields are written by both builders.
+
+The cause was one string carrying two meanings. `Message::value` resolves
+escapes but leaves separators, so a decoded field cannot say which character was
+structure and which was data. The fix keeps them apart by never decoding:
+
+- `AckContext` stores the five header fields as ER7, plus the `separators` they
+  were read with. Only `control_id` stays plain text, because MSH-10 is an ST.
+- `write_header` transcodes rather than escapes: a component separator stays a
+  component separator, moved to the reply's delimiter set when it differs, and a
+  delimiter that was escaped stays escaped. `message::transcode` holds that rule.
+
+`Field::escape` was also wrong and is gone. A `Field` comes from parsing, so its
+`value()` is already ER7; escaping it turned `A\F\B` into `A\E\F\E\B`, which
+reads back as `A\F\B` instead of `A|B`. The encoder is now the free function
+`mllp::escape`, which takes plain text, and `Field::text()` is the way to
+re-emit a parsed field unchanged.
+
+The gate had two holes of its own. `ACK_TEXT` held neither `#` nor `*`, so the
+custom-delimiter case proved `|` and `^` stay literal but never that the
+replacements are escaped; it now holds both sets. And the custom-delimiter row
+used `|` between its header values, which put the control id in MSH-7 and left
+MSH-10 empty, so the echo check was testing an absent field.
+
+Verified by mutation: escaping the composites again makes the reference reject
+the reply (`2.5.1\S\ABC` is not a version) and the gate reports 6/10 ACK and
+9/10 enhanced ACK instead of crashing.
+
+`mllp` 0.4.0 -> 0.5.0: `AckContext` gained a field, so old literals no longer
+compile, and `Field::escape` was removed.

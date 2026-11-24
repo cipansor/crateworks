@@ -509,11 +509,26 @@ regression coverage in CI at all.
   it - the gate's MSA-3 was `"ok"`, and no case carried a delimiter. Any value
   an `ACK` echoes from the peer (MSH-3..MSH-6, MSH-10, the failure text, the
   ERR location) is attacker-influenced, so writing it unescaped is a
-  correctness and injection bug. `Field::escape` is the inverse of
-  `Field::unescape`; use it for every value a builder writes. When checking
+  correctness and injection bug. `escape` inverts the resolution
+  `Field::unescape` does; use it for every primitive value a builder writes.
+  A **composite** field is the trap: MSH-3..MSH-6 are HD and MSH-12 is a VID, so
+  escaping the whole field turns its component separators into data and
+  `LAB^1.2.3^ISO` becomes one component. Keep parsed composites as ER7 and
+  re-emit them; only decode-then-escape if you have a structure to rejoin. Do
+  not put `escape` on `Field`: a parsed field is already ER7, so escaping it
+  doubles every escape it holds. When checking
   this against `hl7apy`, compute the expectation from the reply's own MSH-1 and
   MSH-2: a message using `#` and `*` leaves `|` and `^` alone, so a hardcoded
   default-delimiter expectation fails on a case that is correct.
+- **A gate that shells out must force its build directory, not default it.**
+  `verify_mllp.py` compiled a driver into a tempdir and then ran it from that
+  path, but set `CARGO_TARGET_DIR` with `setdefault`. An ambient value - left
+  over from an earlier release build - sent the binary elsewhere and the run
+  died with `FileNotFoundError` on the binary, which reads like a compile
+  failure and is not one. Assign the variable. And when an oracle rejects its
+  input outright, report it as a finding: hl7apy raises `UnsupportedVersion` on
+  a reply whose MSH-12 was corrupted, and an uncaught exception printed a
+  traceback instead of the one line naming the bad field.
 - **A corpus case can be malformed and look like a crate bug.** A raw `~` in
   MSH-5 made it a repeating field, which MSH-5 is not; the reference then
   reported the value differently and the crate looked wrong. Escape delimiters

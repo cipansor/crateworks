@@ -429,61 +429,129 @@ impl<'a> Field<'a> {
     pub fn unescape(&self) -> String {
         self.value().unescape(self.separators)
     }
-
-    /// The field as ER7 text with every delimiter escaped.
-    ///
-    /// This is the inverse of [`Field::unescape`] and the form a value must be
-    /// written in: a value that holds the field separator would otherwise end
-    /// the field and shift every field after it, which silently corrupts the
-    /// message rather than failing.
-    ///
-    /// The five standard escapes are produced: `\F\` `\S\` `\R\` `\T\` `\E\`.
-    #[must_use]
-    pub fn escape(&self) -> String {
-        escape(self.value(), self.separators)
-    }
 }
 
-/// Escapes the delimiters in a value so it can be written as one field.
+/// Escapes the delimiters in `text` so it can be written as one primitive value.
 ///
-/// Shared with [`crate::ack`], which writes caller-supplied values into a reply
-/// and needs the same rule the reader applies.
-pub(crate) fn escape(text: &str, separators: Separators) -> String {
+/// This is the inverse of the delimiter resolution [`Field::unescape`] does, and
+/// the form a caller-supplied value must be written in: a value that holds the
+/// field separator would otherwise end the field and shift every field after it,
+/// which a reader cannot detect. The five standard escapes are produced: `\F\`
+/// `\S\` `\R\` `\T\` `\E\`.
+///
+/// `text` is plain text, not ER7. Escaping a string that still holds its own
+/// escapes doubles them, so a caller re-emitting a parsed field unchanged wants
+/// [`Field::text`], not this function.
+#[must_use]
+pub fn escape(text: &str, separators: Separators) -> String {
     // Every value goes through this, and most hold no delimiter, so the scan is
     // skipped rather than allocating a copy that would be identical.
-    if !text.chars().any(|c| {
-        c == separators.field
-            || c == separators.component
-            || c == separators.repetition
-            || c == separators.escape
-            || c == separators.subcomponent
-    }) {
+    if !text.chars().any(|c| is_delimiter(c, separators)) {
         return text.to_owned();
     }
     let mut out = String::with_capacity(text.len() + 8);
     for c in text.chars() {
-        if c == separators.field {
-            out.push(separators.escape);
-            out.push('F');
-            out.push(separators.escape);
-        } else if c == separators.component {
-            out.push(separators.escape);
-            out.push('S');
-            out.push(separators.escape);
-        } else if c == separators.repetition {
-            out.push(separators.escape);
-            out.push('R');
-            out.push(separators.escape);
-        } else if c == separators.escape {
-            out.push(separators.escape);
-            out.push('E');
-            out.push(separators.escape);
-        } else if c == separators.subcomponent {
-            out.push(separators.escape);
-            out.push('T');
-            out.push(separators.escape);
-        } else {
-            out.push(c);
+        push_escaped(&mut out, c, separators);
+    }
+    out
+}
+
+/// Whether `c` is one of the five delimiters of `separators`.
+fn is_delimiter(c: char, separators: Separators) -> bool {
+    c == separators.field
+        || c == separators.component
+        || c == separators.repetition
+        || c == separators.escape
+        || c == separators.subcomponent
+}
+
+/// Appends one character of plain text, escaped if `separators` treats it as a
+/// delimiter.
+pub(crate) fn push_escaped(out: &mut String, c: char, separators: Separators) {
+    let code = if c == separators.field {
+        'F'
+    } else if c == separators.component {
+        'S'
+    } else if c == separators.repetition {
+        'R'
+    } else if c == separators.escape {
+        'E'
+    } else if c == separators.subcomponent {
+        'T'
+    } else {
+        out.push(c);
+        return;
+    };
+    out.push(separators.escape);
+    out.push(code);
+    out.push(separators.escape);
+}
+
+/// Re-emits ER7 text read with `from` using `to`.
+///
+/// Structure is kept. A component separator stays a component separator, so an
+/// HD value such as `LAB^1.2.3^ISO` keeps its three components; a delimiter that
+/// was *escaped* in the source was data and stays data. Decoding first and
+/// escaping the result would lose that distinction - every structural separator
+/// would become a literal one, which is exactly the corruption this avoids.
+pub(crate) fn transcode(er7: &str, from: Separators, to: Separators) -> String {
+    if from == to {
+        return er7.to_owned();
+    }
+    let mut out = String::with_capacity(er7.len());
+    let mut chars = er7.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c != from.escape {
+            if c == from.component {
+                out.push(to.component);
+            } else if c == from.repetition {
+                out.push(to.repetition);
+            } else if c == from.subcomponent {
+                out.push(to.subcomponent);
+            } else {
+                // Includes `from.field`, which cannot occur inside a field; if
+                // one does it is data, and escaping it is the safe direction.
+                push_escaped(&mut out, c, to);
+            }
+            continue;
+        }
+        let mut body = String::new();
+        let mut closed = false;
+        for inner in chars.by_ref() {
+            if inner == from.escape {
+                closed = true;
+                break;
+            }
+            body.push(inner);
+        }
+        if !closed {
+            // The source was malformed. Treat what was read as data, so the
+            // reply cannot gain structure the source never had.
+            push_escaped(&mut out, from.escape, to);
+            for ch in body.chars() {
+                push_escaped(&mut out, ch, to);
+            }
+            continue;
+        }
+        let delimiter = match body.as_str() {
+            "F" => Some(from.field),
+            "S" => Some(from.component),
+            "R" => Some(from.repetition),
+            "E" => Some(from.escape),
+            "T" => Some(from.subcomponent),
+            _ => None,
+        };
+        match delimiter {
+            // The escape stood for a delimiter, so it was data under `from` and
+            // is data under `to`.
+            Some(delimiter) => push_escaped(&mut out, delimiter, to),
+            // A formatting instruction or an escape this crate does not model:
+            // keep it verbatim so nothing is lost.
+            None => {
+                out.push(to.escape);
+                out.push_str(&body);
+                out.push(to.escape);
+            }
         }
     }
     out

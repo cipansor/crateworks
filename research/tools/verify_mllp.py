@@ -36,7 +36,11 @@ CRATE = ROOT / "crates" / "mllp"
 # The MSA-3 text the driver builds every ACK with. It holds every delimiter on
 # purpose: an interface quotes the offending value, so the reply has to escape
 # what it writes. Kept in one place so the driver and the check cannot drift.
-ACK_TEXT = "rejected | value ^ ~ & \\ here"
+#
+# Both delimiter sets appear, because a reply escapes only its own. A case using
+# `#` and `*` must leave `|` and `^` alone and must escape those two instead;
+# with only the default set in the text, that half of the rule was never tested.
+ACK_TEXT = "rejected | value ^ ~ & \\ here # and * too"
 
 # Messages that between them exercise every delimiter the parser handles.
 CORPUS = [
@@ -73,7 +77,9 @@ CORPUS = [
     "PV1|1|I|WARD^ROOM^BED^FACILITY&1.2.3.4&ISO\r",
 
     # A non-default delimiter set, which is legal and appears in the wild.
-    "MSH#*~\\&#S|F|R|F|20260101###ADT*A01#MSG0006#P#2.5.1\r"
+    # Every separator here is `#`, including between the header values; a `|`
+    # would land the control id in MSH-7 and leave MSH-10 empty.
+    "MSH#*~\\&#S#F#R#F#20260101##ADT*A01#MSG0006#P#2.5.1\r"
     "PID#1##12345***MRN**DOE*JOHN\r",
 
     # A segment with no fields at all.
@@ -96,11 +102,23 @@ CORPUS = [
     # be malformed rather than testing anything.
     "MSH|^~\\&|SEND\\F\\APP|FAC\\S\\1|RECV\\R\\APP|FAC\\T\\TWO|20260101||ADT^A01|MSG\\F\\0009|P|2.5.1\r"
     "PID|1||12345^^^MRN\r",
+
+    # Composite header identities. MSH-3..MSH-6 are HD values and MSH-12 is a
+    # VID, so their components are structure: the reply must keep
+    # `LAB^1.2.3^ISO` as three components rather than escaping the separators
+    # into one. MSH-4's universal id also holds a literal `^`, written `\S\`,
+    # which is data and must stay data while the separators around it do not.
+    "MSH|^~\\&|LAB^1.2.3^ISO|FAC^9.9\\S\\1^DNS|RECV^4.5^ISO|FAC|20260101||ADT^A01|MSG0010|P|2.5.1^ABC\r"
+    "PID|1||12345^^^MRN\r",
 ]
 
 
-def reference_parse(raw: str) -> dict:
+def reference_parse(raw: str, required: bool = True) -> dict:
     """Parse with hl7apy and flatten to {SEG-n: text}.
+
+    `required` says whether a parse failure is the caller's problem. A reply the
+    reference rejects is a finding, not a crash, so the ACK checks pass False and
+    get `None` back to report against their own field list.
 
     hl7apy nests segments inside message-type groups, so the walk is recursive.
     It also splits a repeating field into one child per repetition, so those are
@@ -122,7 +140,12 @@ def reference_parse(raw: str) -> dict:
             else:
                 walk(child)
 
-    walk(parse_message(raw))
+    try:
+        walk(parse_message(raw))
+    except Exception:
+        if required:
+            raise
+        return None
     return out
 
 
@@ -200,7 +223,11 @@ fn main() {
             'path = "main.rs"\n'
         )
         env = dict(os.environ)
-        env.setdefault("CARGO_TARGET_DIR", str(tmp / "target"))
+        # Forced, not `setdefault`: an ambient CARGO_TARGET_DIR - left over from
+        # a release build, say - would send the driver somewhere other than the
+        # directory this script looks in, and the run would fail with a bare
+        # "No such file or directory" for the binary.
+        env["CARGO_TARGET_DIR"] = str(tmp / "target")
         # cwd stays at the repository root so rustup picks up rust-toolchain.toml;
         # the throwaway manifest is addressed with --manifest-path instead.
         build = subprocess.run(
@@ -265,7 +292,10 @@ def check_ack(raw: str, ack: str, index: int) -> int:
     from hl7apy.parser import parse_message
 
     original = reference_parse(raw)
-    reply = reference_parse(ack)
+    reply = reference_parse(ack, required=False)
+    if reply is None:
+        print(f"  ack {index}: the reference parser rejects the reply: {ack!r}")
+        return 1
     problems = 0
 
     def expect(reference: str, value: str, why: str) -> None:
@@ -315,7 +345,10 @@ def check_enhanced(raw: str, enhanced: str, index: int) -> int:
     from hl7apy.parser import parse_message
 
     original = reference_parse(raw)
-    reply = reference_parse(enhanced)
+    reply = reference_parse(enhanced, required=False)
+    if reply is None:
+        print(f"  enh {index}: the reference parser rejects the reply: {enhanced!r}")
+        return 1
     problems = 0
 
     def expect(reference: str, value: str, why: str) -> None:
