@@ -133,12 +133,87 @@ let unique = dedupe(names, 70);
 assert!(unique.contains(&"Frodo Baggins".to_string()));
 ```
 
+## Edit distances and the Jaro family
+
+The `fuzz` scores are a policy inherited from `difflib`. They are not a metric:
+they do not satisfy the triangle inequality, they cannot be compared across
+string lengths, and they say nothing about how many edits separate two strings.
+`fuzzy_score::distance` provides the numbers the maintained libraries provide -
+`rapidfuzz`, `jellyfish`, and the `strsim` crate - and each one returns the same
+value those libraries return.
+
+```rust
+use fuzzy_score::distance::{
+    damerau_levenshtein, hamming, jaro, jaro_winkler, levenshtein, osa,
+};
+
+// Insertions, deletions and substitutions.
+assert_eq!(levenshtein("kitten", "sitting"), 3);
+
+// A transposition of two adjacent characters is one edit.
+assert_eq!(damerau_levenshtein("ab", "ba"), 1);
+assert_eq!(levenshtein("ab", "ba"), 2);
+
+// Two variants of Damerau-Levenshtein, and they disagree on short inputs. The
+// unrestricted one may transpose a substring that was edited first; the
+// restricted one (OSA) may not.
+assert_eq!(damerau_levenshtein("CA", "ABC"), 2);
+assert_eq!(osa("CA", "ABC"), 3);
+
+// Positions that differ. Unequal lengths count each extra position, as both
+// references do, rather than being an error.
+assert_eq!(hamming("karolin", "kathrin"), 3);
+assert_eq!(hamming("ab", "abc"), 1);
+
+// Similarity in 0.0..=1.0, with a bonus for a shared prefix.
+assert!((jaro("MARTHA", "MARHTA") - 0.944_444_444_444_444_5).abs() < 1e-12);
+assert!((jaro_winkler("MARTHA", "MARHTA") - 0.961_111_111_111_111_1).abs() < 1e-12);
+```
+
+Every function counts characters rather than bytes, so `levenshtein("café",
+"cafe")` is one edit. The `Damerau` enum selects between the two transposition
+variants at run time through `damerau`, and `levenshtein_similarity` turns a
+distance into a value between zero and one.
+
+### The two references disagree once
+
+`rapidfuzz` and `jellyfish` agree on every metric in this module except Jaro of
+two empty strings: `rapidfuzz` returns `1.0` and `jellyfish` returns `0.0`. This
+crate returns `1.0`, along with `strsim` and the reading that two identical
+strings are identical. The generator asserts that this is the *only* disagreement
+between the two references, so a future release of either cannot widen the gap
+without the fixture regeneration failing.
+
+### What the corpus found
+
+`scripts/fuzz/fuzzy-score/gen_distance.py` asks both references for 6,094 pairs
+and writes `tests/fixtures/distance.tsv`. Writing the implementation first and
+the fixture second was a mistake worth recording: the corpus immediately failed
+on three things that curated cases had passed.
+
+- `hamming` counted **bytes** of the length difference, so any non-ASCII string
+  reported a difference at every byte rather than every character.
+- The transposition count in `jaro` was divided as `f64`, where both references
+  use **integer** division (`jellyfish` writes `trans_count //= 2`). An odd
+  transposition count therefore lost its remainder and produced a score that was
+  too high.
+- The Damerau-Levenshtein matrix has a sentinel row and column at index zero, so
+  the cell for a position pair is `d[i + 1][j + 1]`, not `d[i][j]`. Reading the
+  unshifted cell reads the sentinel and under-reports the distance.
+
+The third is the one a curated test would never have caught: it only shows up on
+pairs with no characters in common, where the sentinel is the value that gets
+read.
+
 ## What it does not do
 
-It does not give the same numbers as `rapidfuzz`, and it is not meant to.
-`rapidfuzz` computes several of the same metrics with its own formulations and
-is much faster; `fuzzywuzzy` computes them with `difflib.SequenceMatcher`. The
-two disagree on ordinary inputs, so pick one and stay with it.
+The `fuzz` scores do not give the same numbers as `rapidfuzz`, and they are not
+meant to. `rapidfuzz` computes several of the same metrics with its own
+formulations and is much faster; `fuzzywuzzy` computes them with
+`difflib.SequenceMatcher`. The two disagree on ordinary inputs, so pick one and
+stay with it. The `distance` module is the opposite: it is bit-compatible with
+`rapidfuzz` and `jellyfish`, because there the algorithms are unambiguous and a
+different number would be a bug rather than a policy.
 
 It does not stem, transliterate or spell-correct. `ratio("Cães", "Caes")` is 75,
 because `ã` is dropped rather than folded to `a`. See below.

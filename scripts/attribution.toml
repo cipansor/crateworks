@@ -58,6 +58,14 @@ project = "fuzzywuzzy by SeatGeek"
 marker = "seatgeek/fuzzywuzzy"
 
 [[upstream]]
+project = "rapidfuzz"
+marker = "rapidfuzz/RapidFuzz"
+
+[[upstream]]
+project = "jellyfish"
+marker = "jamesturk/jellyfish"
+
+[[upstream]]
 project = "parse-address (npm) by Hassansin"
 marker = "hassansin/parse-address"
 

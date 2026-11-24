@@ -926,6 +926,31 @@ regression coverage in CI at all.
   not.** `^0.1.9` accepts `0.1.10`, so dependents need no release for it, but
   `0.2.0` falls outside the requirement and every dependent has to be re-released
   against it. `bump.py` updates `[workspace.dependencies]` and names them.
+- **An edit-distance matrix with a sentinel row shifts every index by one.** The
+  published Damerau-Levenshtein transcription (Lowrance and Wagner) reserves
+  `d[0][*]` and `d[*][0]` for a sentinel, so the cell for characters `i` and `j`
+  is `d[i + 1][j + 1]`, and the transposition term reads `d[k][l]` with `k` from
+  the last row a character was seen in and `l` from the current match column.
+  Writing the loop 1-based but reading `d[i - 1][j - 1]` reads the sentinel and
+  under-reports the distance. It only shows on pairs with no characters in
+  common, which is why a curated test passes and a corpus fails: the fixture in
+  `crates/fuzzy-score/tests/fixtures/distance.tsv` caught it on the first run.
+- **A "half a transposition" is integer division in every reference.** Jaro
+  counts transpositions in pairs and halves the count with `//` (jellyfish
+  literally writes `trans_count //= 2`), so an odd count loses its remainder.
+  Dividing by `2.0` gives a score that is too high on roughly half of all pairs
+  and looks plausible on the examples.
+- **A reference that returns a similarity in `0..=1` has no normalized form.**
+  `rapidfuzz`'s `JaroWinkler.normalized_similarity` is `1 - (1 - s)`, which
+  re-rounds the last bit and can differ from `s` by one ULP. Pinning a fixture to
+  it asserts a floating-point artifact rather than the algorithm, so the fixture
+  records the similarity and not its normalization.
+- **Two references can disagree, and the disagreement is the finding.** Jaro of
+  two empty strings is `1.0` in `rapidfuzz` and `0.0` in `jellyfish`. A generator
+  that quietly accepted either would hide a future change in both, so
+  `scripts/fuzz/fuzzy-score/gen_distance.py` asserts that this pair is the *only*
+  disagreement and fails on any other. Pick a side, document it, and make the
+  choice a checked assertion rather than a comment.
 - **A crate name cannot be changed after publication.** Check with
   `research/tools/namecheck.py` before writing code, not after.
 - **A gate that fetches live data fails on the data, not the code.**
