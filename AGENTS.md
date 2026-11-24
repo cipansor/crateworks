@@ -606,8 +606,11 @@ regression coverage in CI at all.
 - **Test a credential helper's output before blaming the token.** A helper that
   takes its secret from `"$1"` sends `password=get`, because git invokes a helper
   as `helper get` - `$1` is the operation name, never the token. The helper was
-  never handed a token at all; the single quotes are irrelevant, and a
-  single-quoted format with `%s` expands its argument correctly. GitHub answers
+  never handed a token at all. Quoting is a red herring here: single quotes only
+  stop expansion when `$1` sits *inside* the format text (`printf 'password=$1'`
+  does print a literal `$1`), and this helper used `%s`, which expands its
+  argument correctly - it printed `get` because that is what it was given.
+  GitHub answers
   "Invalid username or token", which reads exactly like a dead token, and a valid
   PAT was reported dead twice because of it. The `$1` substitution is in the
   shell, which has no idea git is the caller, so nothing about the code looks
