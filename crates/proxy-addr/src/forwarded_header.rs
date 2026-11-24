@@ -515,9 +515,15 @@ pub fn parse_forwarded(header: &str) -> Result<Vec<ForwardedElement>, ForwardedE
     if parameter.is_none() && start.is_none() && end.is_none() && !in_quotes {
         return match (output.is_empty(), last_separator) {
             (false, Some(',')) => Ok(output),
-            (true, _) => Err(ForwardedError {
+            // No element was ever closed, but a completed parameter is content
+            // all the same: `,a=a;` is truncated mid-element, exactly like
+            // `a=a;`. Blaming `skipped_empty` there would point at the comma
+            // this crate chose to tolerate, which is not a fault. Only a header
+            // that holds nothing else may use that index.
+            (true, _) if params.is_empty() => Err(ForwardedError {
                 position: skipped_empty,
             }),
+            (true, _) => Err(ForwardedError { position: None }),
             (false, _) => Err(ForwardedError { position: None }),
         };
     }

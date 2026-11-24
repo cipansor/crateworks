@@ -306,6 +306,29 @@ fn reports_where_an_unreadable_header_stopped() {
 }
 
 #[test]
+fn a_skipped_comma_is_not_blamed_for_a_later_truncation() {
+    // The tolerated comma is not a fault, so it must not become the reported
+    // position when something else is wrong. `,a=a;` is truncated mid-element
+    // exactly like `a=a;`, and both say so by carrying no position.
+    let error = parse_forwarded(",a=a;").unwrap_err();
+    assert_eq!(error.position(), None, "the trailing `;` is the fault");
+
+    let error = parse_forwarded("a=a;").unwrap_err();
+    assert_eq!(error.position(), None, "the same fault without a comma");
+
+    // A header that really holds nothing but separators has no other fault to
+    // report, so the skipped comma is the only position available.
+    for header in [",", ",,", ", ,"] {
+        let error = parse_forwarded(header).unwrap_err();
+        assert_eq!(
+            error.position(),
+            Some(0),
+            "{header:?} holds no element, so the comma is where it went wrong"
+        );
+    }
+}
+
+#[test]
 fn a_value_needing_a_delimiter_must_be_quoted() {
     // A colon, a slash or a bracket is a `separator` in RFC 7230, not a token
     // character, so an unquoted value holding one is a syntax error. The

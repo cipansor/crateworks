@@ -175,14 +175,27 @@ too, and the remaining 27 compare rejection alone:
 
 An early end carries no index, so nothing has to be translated for it - `",#="`
 strips to `"#="`, both are truncated, and the row now demands `!eof` exactly.
-That is sound only when the crate skips exactly the commas the stripper removed.
-It skips a comma only at an element boundary, with nothing collected yet, so the
-guarantee holds for a *leading* run of empty elements and nothing else. `for=,`
-is the counterexample that keeps the rest weak: it strips to `for=`, which is
-truncated, but the crate faults at the comma itself and reports `for=,` index 4.
-Reading the removed element as an element the crate would skip would be wrong
-there, and an unseen seed produces it readily - a first attempt that compared
-every `!eof` failed on three of five seeds for exactly this shape.
+That is sound only when the crate reads both strings the same way, which is when
+it skips exactly the commas the stripper removed. It skips a comma only at an
+element boundary, with nothing collected yet, so the guarantee holds for a
+*leading* run of empty elements. `for=,` is the counterexample that keeps the
+rest weak: it strips to `for=`, which is truncated, but the crate faults at the
+comma itself and reports index 4. An unseen seed produces it readily - a first
+attempt that compared every `!eof` failed on three of five seeds on exactly this
+shape.
+
+The leading-only rule then met a second counterexample, `",a.=a#9;"` from seed
+9471: a header can begin with a lead the crate tolerates and still end in a
+truncation that is *not* the comma. That one turned out to be a defect in the
+crate, not in the corpus. `a=a;` reports "the header ended mid-element" with no
+position, while `,a=a;` - the same header behind a comma the crate explicitly
+ignores - reported the comma. The tolerance was being blamed for a fault it did
+not cause, which also made the reported index point at a character the crate
+accepts. `(true, _)` in the end-of-input arm now requires that no parameter was
+collected either: a header with completed parameters and no closed element is
+truncated mid-element, exactly like its comma-free form. A header that really
+holds nothing but separators (`","`, `",,"`) still reports the skipped comma,
+because there it is the only fault there is.
 
 The `","` row is the sharpest case: it is the one header in the corpus whose
 entire content is empty elements, so it is also the only one that tests "an
